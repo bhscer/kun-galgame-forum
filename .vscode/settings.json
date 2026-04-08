@@ -147,6 +147,7 @@
     "goenv",
     "gofiber",
     "gofile",
+    "gofmt",
     "goldmark",
     "googlebot",
     "googollee",
