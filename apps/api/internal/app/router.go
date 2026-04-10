@@ -23,12 +23,7 @@ func (a *App) setupRoutes() {
 	authed := api.Group("", middleware.Auth(a.Redis, a.Config.OAuth))
 	authed.Get("/auth/me", a.OAuthHandler.Me)
 
-	// ── User routes (public) ───────────────────
-	api.Get("/user/:uid", a.UserHandler.GetProfile)
-	api.Get("/user/:uid/galgames", a.UserHandler.GetUserGalgames)
-	api.Get("/user/:uid/topics", a.UserHandler.GetUserTopics)
-
-	// ── User routes (authenticated) ────────────
+	// ── User routes (authenticated, fixed paths — must be before :uid) ──
 	authed.Post("/user/check-in", a.UserHandler.CheckIn)
 	authed.Put("/user/bio", a.UserHandler.UpdateBio)
 	authed.Put("/user/username", a.UserHandler.UpdateUsername)
@@ -36,6 +31,11 @@ func (a *App) setupRoutes() {
 	authed.Get("/user/email", a.UserHandler.GetEmail)
 	authed.Get("/user/status", a.UserHandler.GetStatus)
 	authed.Post("/user/avatar", a.UserHandler.UploadAvatar)
+
+	// ── User routes (public, parameterized — after fixed paths) ─────
+	api.Get("/user/:uid", a.UserHandler.GetProfile)
+	api.Get("/user/:uid/galgames", a.UserHandler.GetUserGalgames)
+	api.Get("/user/:uid/topics", a.UserHandler.GetUserTopics)
 
 	// ── User admin routes ──────────────────────
 	admin := authed.Group("", middleware.RequireRole(3))

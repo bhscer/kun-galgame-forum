@@ -50,7 +50,7 @@ func New(cfg *config.Config) *App {
 	userService := service.NewUserService(userRepo, rdb)
 
 	// Handlers
-	oauthHandler := handler.NewOAuthHandler(authService)
+	oauthHandler := handler.NewOAuthHandler(authService, cfg.Server.Mode == "prod")
 	userHandler := handler.NewUserHandler(userService)
 	homeHandler := common.NewHomeHandler(db)
 

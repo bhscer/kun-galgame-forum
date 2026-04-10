@@ -14,10 +14,11 @@ import (
 
 type OAuthHandler struct {
 	authService *service.AuthService
+	secure      bool // true in production (HTTPS), false in dev (HTTP)
 }
 
-func NewOAuthHandler(authService *service.AuthService) *OAuthHandler {
-	return &OAuthHandler{authService: authService}
+func NewOAuthHandler(authService *service.AuthService, isProd bool) *OAuthHandler {
+	return &OAuthHandler{authService: authService, secure: isProd}
 }
 
 // Callback handles the OAuth code exchange: code → token → userinfo → session.
@@ -44,7 +45,7 @@ func (h *OAuthHandler) Callback(c *fiber.Ctx) error {
 		Value:    session.Token,
 		MaxAge:   7 * 24 * 3600, // 7 days
 		HTTPOnly: true,
-		Secure:   true,
+		Secure:   h.secure,
 		SameSite: "Lax",
 		Path:     "/",
 	})
@@ -65,7 +66,7 @@ func (h *OAuthHandler) Logout(c *fiber.Ctx) error {
 		Value:    "",
 		MaxAge:   -1,
 		HTTPOnly: true,
-		Secure:   true,
+		Secure:   h.secure,
 		SameSite: "Lax",
 		Path:     "/",
 	})
