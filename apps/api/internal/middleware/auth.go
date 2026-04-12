@@ -152,6 +152,7 @@ func refreshOAuthToken(cfg config.OAuthConfig, refreshToken string) (*tokenRespo
 		"grant_type":    "refresh_token",
 		"refresh_token": refreshToken,
 		"client_id":     cfg.ClientID,
+		"client_secret": cfg.ClientSecret,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {

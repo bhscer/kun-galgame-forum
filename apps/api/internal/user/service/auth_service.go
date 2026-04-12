@@ -135,8 +135,8 @@ func (s *AuthService) GetProfile(ctx context.Context, userID int) (*dto.UserProf
 // OAuth HTTP helpers
 // ──────────────────────────────────────────
 
-// oauthTokenResponse is the raw OAuth 2.0 token response.
-// /oauth/token returns this directly (NOT wrapped in {code, data}).
+// oauthTokenResponse represents the token data inside the OAuth response wrapper.
+// /oauth/token returns { code: 0, message: "成功", data: { access_token, ... } }
 type oauthTokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	TokenType    string `json:"token_type"`
@@ -262,6 +262,7 @@ func (s *AuthService) RefreshOAuthToken(refreshToken string) (*oauthTokenRespons
 		"grant_type":    "refresh_token",
 		"refresh_token": refreshToken,
 		"client_id":     s.oauthCfg.ClientID,
+		"client_secret": s.oauthCfg.ClientSecret,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
