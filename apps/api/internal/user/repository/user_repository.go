@@ -31,6 +31,12 @@ func (r *UserRepository) FindByEmail(email string) (*model.User, error) {
 	return &user, err
 }
 
+func (r *UserRepository) FindByName(name string) (*model.User, error) {
+	var user model.User
+	err := r.db.Where("name = ?", name).First(&user).Error
+	return &user, err
+}
+
 func (r *UserRepository) FindByOAuthSub(sub string) (*model.User, error) {
 	var account model.OAuthAccount
 	err := r.db.Where("sub = ?", sub).Preload("User").First(&account).Error

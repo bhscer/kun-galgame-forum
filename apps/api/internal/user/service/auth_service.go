@@ -19,7 +19,6 @@ import (
 	"kun-galgame-api/pkg/errors"
 
 	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 )
 
 type AuthService struct {
@@ -306,28 +305,44 @@ func (s *AuthService) RefreshOAuthToken(refreshToken string) (*oauthTokenRespons
 // ──────────────────────────────────────────
 
 func (s *AuthService) findOrCreateUser(oauthUser *oauthUserInfo) (*model.User, *errors.AppError) {
-	// 1. Try to find by OAuth sub
+	// 1. Try to find by OAuth sub (already linked)
 	user, err := s.userRepo.FindByOAuthSub(oauthUser.Sub)
 	if err == nil {
 		return user, nil
 	}
 
-	// 2. Try to find by email (legacy user migration)
-	user, err = s.userRepo.FindByEmail(oauthUser.Email)
+	// 2. Try to find by email (legacy migrated user)
+	if oauthUser.Email != "" {
+		user, err = s.userRepo.FindByEmail(oauthUser.Email)
+		if err == nil {
+			if linkErr := s.userRepo.LinkOAuthAccount(user.ID, oauthUser.Sub); linkErr != nil {
+				return nil, errors.ErrInternal("关联 OAuth 账号失败")
+			}
+			return user, nil
+		}
+	}
+
+	// 3. Try to find by name (migrated user with same username)
+	user, err = s.userRepo.FindByName(oauthUser.Name)
 	if err == nil {
-		// Link the existing user to OAuth
 		if linkErr := s.userRepo.LinkOAuthAccount(user.ID, oauthUser.Sub); linkErr != nil {
 			return nil, errors.ErrInternal("关联 OAuth 账号失败")
 		}
 		return user, nil
 	}
-	if err != gorm.ErrRecordNotFound {
-		return nil, errors.ErrInternal("查询用户失败")
+
+	// 4. Create new user (deduplicate name if needed)
+	name := oauthUser.Name
+	for i := 1; ; i++ {
+		exists, _ := s.userRepo.UsernameExists(name)
+		if !exists {
+			break
+		}
+		name = fmt.Sprintf("%s_%d", oauthUser.Name, i)
 	}
 
-	// 3. Create new user
 	newUser := &model.User{
-		Name:        oauthUser.Name,
+		Name:        name,
 		Email:       oauthUser.Email,
 		Password:    "",
 		Avatar:      oauthUser.Picture,
