@@ -869,48 +869,113 @@ func truncate(s string, maxLen int) string {
 	return string(runes[:maxLen])
 }
 
-// GetList wraps the wiki /galgame list, renaming "items" → "galgames"
-// to match the frontend contract.
+// GetList returns galgame list filtered by resource type/language/platform.
+// Filtering is done locally (galgame_resource table), metadata from wiki batch.
 // GET /api/galgame
 func (h *GalgameHandler) GetList(c *fiber.Ctx) error {
-	query := make(url.Values)
-	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
-		query.Set(string(key), string(value))
-	})
-
-	data, appErr := h.galgameClient.Get(c.Context(), "/galgame", query)
-	if appErr != nil {
+	var req struct {
+		Page      int    `query:"page" validate:"min=1"`
+		Limit     int    `query:"limit" validate:"min=1,max=50"`
+		Type      string `query:"type"`
+		Language  string `query:"language"`
+		Platform  string `query:"platform"`
+		SortField string `query:"sortField"`
+		SortOrder string `query:"sortOrder" validate:"omitempty,oneof=asc desc"`
+	}
+	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-
-	type wikiGalgame struct {
-		ID                 int    `json:"id"`
-		NameEnUs           string `json:"name_en_us"`
-		NameJaJp           string `json:"name_ja_jp"`
-		NameZhCn           string `json:"name_zh_cn"`
-		NameZhTw           string `json:"name_zh_tw"`
-		Banner             string `json:"banner"`
-		ContentLimit       string `json:"content_limit"`
-		View               int    `json:"view"`
-		ResourceUpdateTime string `json:"resource_update_time"`
-		UserID             int    `json:"user_id"`
-	}
-	var parsed struct {
-		Items []wikiGalgame `json:"items"`
-		Total int64         `json:"total"`
-	}
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		return response.Error(c, errors.ErrInternal("解析 Wiki 响应失败"))
+	if req.SortOrder == "" {
+		req.SortOrder = "desc"
 	}
 
-	// Batch load users and like counts from local DB
-	galgameIDs := make([]int, len(parsed.Items))
-	userIDs := make([]int, len(parsed.Items))
-	for i, g := range parsed.Items {
-		galgameIDs[i] = g.ID
-		userIDs[i] = g.UserID
+	// Build resource filter to find matching galgame IDs
+	hasResourceFilter := (req.Type != "" && req.Type != "all") ||
+		(req.Language != "" && req.Language != "all") ||
+		(req.Platform != "" && req.Platform != "all")
+
+	// Determine sort column (local galgame table)
+	sortCol := "g.updated"
+	switch req.SortField {
+	case "time":
+		sortCol = "g.updated"
+	case "created":
+		sortCol = "g.created"
+	case "view":
+		sortCol = "g.view"
 	}
 
+	// Query: find galgame IDs with pagination
+	type idRow struct {
+		ID int `gorm:"column:id"`
+	}
+	var rows []idRow
+	var total int64
+
+	if hasResourceFilter {
+		// Join with galgame_resource to filter
+		query := h.db.Table("galgame g").
+			Select("DISTINCT g.id").
+			Joins("JOIN galgame_resource gr ON gr.galgame_id = g.id")
+
+		if req.Type != "" && req.Type != "all" {
+			query = query.Where("gr.type = ?", req.Type)
+		}
+		if req.Language != "" && req.Language != "all" {
+			query = query.Where("gr.language = ?", req.Language)
+		}
+		if req.Platform != "" && req.Platform != "all" {
+			query = query.Where("gr.platform = ?", req.Platform)
+		}
+
+		// Count total
+		countQuery := h.db.Table("(?) AS sub", query).Select("COUNT(*)")
+		countQuery.Scan(&total)
+
+		// Get paginated IDs with sort
+		h.db.Table("galgame g").
+			Select("g.id").
+			Joins("JOIN galgame_resource gr ON gr.galgame_id = g.id").
+			Where("gr.galgame_id IN (?)", query).
+			Group("g.id, " + sortCol).
+			Order(sortCol + " " + req.SortOrder).
+			Offset((req.Page - 1) * req.Limit).
+			Limit(req.Limit).
+			Scan(&rows)
+	} else {
+		// No resource filter — just paginate all galgames
+		h.db.Table("galgame g").Select("COUNT(*)").Scan(&total)
+		h.db.Table("galgame g").
+			Select("g.id").
+			Order(sortCol + " " + req.SortOrder).
+			Offset((req.Page - 1) * req.Limit).
+			Limit(req.Limit).
+			Scan(&rows)
+	}
+
+	if len(rows) == 0 {
+		return c.JSON(fiber.Map{
+			"code": 0, "message": "成功",
+			"data": fiber.Map{"galgames": []fiber.Map{}, "total": total},
+		})
+	}
+
+	// Batch fetch metadata from wiki
+	galgameIDs := make([]int, len(rows))
+	for i, r := range rows {
+		galgameIDs[i] = r.ID
+	}
+
+	briefMap, _ := h.galgameClient.GetBatch(c.Context(), galgameIDs)
+	if briefMap == nil {
+		briefMap = map[int]client.GalgameBrief{}
+	}
+
+	// Batch load users
+	userIDs := make([]int, 0, len(briefMap))
+	for _, b := range briefMap {
+		userIDs = append(userIDs, b.UserID)
+	}
 	var users []userModel.UserBrief
 	if len(userIDs) > 0 {
 		h.db.Where("id IN ?", userIDs).Find(&users)
@@ -920,78 +985,69 @@ func (h *GalgameHandler) GetList(c *fiber.Ctx) error {
 		userMap[u.ID] = u
 	}
 
-	// Like counts
-	type likeRow struct {
-		GalgameID int `gorm:"column:galgame_id"`
-		Count     int `gorm:"column:count"`
+	// Batch load local counts + resource platforms/languages
+	type localRow struct {
+		ID        int `gorm:"column:id"`
+		View      int `gorm:"column:view"`
+		LikeCount int `gorm:"column:like_count"`
 	}
-	var likes []likeRow
-	if len(galgameIDs) > 0 {
-		h.db.Table("galgame_like").
-			Select("galgame_id, COUNT(*) AS count").
-			Where("galgame_id IN ?", galgameIDs).
-			Group("galgame_id").Scan(&likes)
-	}
-	likeMap := make(map[int]int, len(likes))
-	for _, l := range likes {
-		likeMap[l.GalgameID] = l.Count
+	var locals []localRow
+	h.db.Table("galgame").Select("id, view, like_count").
+		Where("id IN ?", galgameIDs).Scan(&locals)
+	localMap := make(map[int]localRow, len(locals))
+	for _, l := range locals {
+		localMap[l.ID] = l
 	}
 
-	// Resource platforms and languages
 	type resRow struct {
 		GalgameID int    `gorm:"column:galgame_id"`
 		Platform  string `gorm:"column:platform"`
 		Language  string `gorm:"column:language"`
 	}
 	var resources []resRow
-	if len(galgameIDs) > 0 {
-		h.db.Table("galgame_resource").
-			Select("DISTINCT galgame_id, platform, language").
-			Where("galgame_id IN ?", galgameIDs).Scan(&resources)
-	}
+	h.db.Table("galgame_resource").
+		Select("DISTINCT galgame_id, platform, language").
+		Where("galgame_id IN ?", galgameIDs).Scan(&resources)
+
 	platformMap := make(map[int][]string)
 	languageMap := make(map[int][]string)
 	for _, r := range resources {
 		if r.Platform != "" {
-			platformMap[r.GalgameID] = appendUnique(
-				platformMap[r.GalgameID], r.Platform,
-			)
+			platformMap[r.GalgameID] = appendUnique(platformMap[r.GalgameID], r.Platform)
 		}
 		if r.Language != "" {
-			languageMap[r.GalgameID] = appendUnique(
-				languageMap[r.GalgameID], r.Language,
-			)
+			languageMap[r.GalgameID] = appendUnique(languageMap[r.GalgameID], r.Language)
 		}
 	}
 
-	galgames := make([]fiber.Map, len(parsed.Items))
-	for i, g := range parsed.Items {
-		galgames[i] = fiber.Map{
-			"id": g.ID,
-			"name": fiber.Map{
-				"en-us": g.NameEnUs,
-				"ja-jp": g.NameJaJp,
-				"zh-cn": g.NameZhCn,
-				"zh-tw": g.NameZhTw,
-			},
-			"banner":             g.Banner,
-			"user":               userMap[g.UserID],
-			"contentLimit":       g.ContentLimit,
-			"view":               g.View,
-			"likeCount":          likeMap[g.ID],
-			"resourceUpdateTime": g.ResourceUpdateTime,
-			"platform":           emptyIfNil(platformMap[g.ID]),
-			"language":           emptyIfNil(languageMap[g.ID]),
+	// Assemble in original order
+	galgames := make([]fiber.Map, 0, len(rows))
+	for _, r := range rows {
+		b, ok := briefMap[r.ID]
+		if !ok {
+			continue
 		}
+		l := localMap[r.ID]
+		galgames = append(galgames, fiber.Map{
+			"id": r.ID,
+			"name": fiber.Map{
+				"en-us": b.NameEnUs, "ja-jp": b.NameJaJp,
+				"zh-cn": b.NameZhCn, "zh-tw": b.NameZhTw,
+			},
+			"banner":             b.Banner,
+			"user":               userMap[b.UserID],
+			"contentLimit":       b.ContentLimit,
+			"view":               l.View,
+			"likeCount":          l.LikeCount,
+			"resourceUpdateTime": b.ResourceUpdateTime,
+			"platform":           emptyIfNil(platformMap[r.ID]),
+			"language":           emptyIfNil(languageMap[r.ID]),
+		})
 	}
 
 	return c.JSON(fiber.Map{
-		"code":    0,
-		"message": "成功",
-		"data": fiber.Map{
-			"galgames": galgames,
-			"total":    parsed.Total,
-		},
+		"code": 0, "message": "成功",
+		"data": fiber.Map{"galgames": galgames, "total": total},
 	})
 }
 
