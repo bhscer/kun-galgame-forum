@@ -81,6 +81,7 @@ func (a *App) setupRoutes() {
 
 	// Galgame rating (public)
 	api.Get("/galgame-rating/all", a.GalgameHandler.GetAllRatings)
+	api.Get("/galgame-rating/:id", a.GalgameHandler.GetRatingDetail)
 
 	// Resource topics (public, same as topic but filtered to resource sections)
 	api.Get("/resource", a.TopicHandler.GetResourceList)

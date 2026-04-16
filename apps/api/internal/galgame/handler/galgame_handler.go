@@ -1536,6 +1536,219 @@ func (h *GalgameHandler) GetGalgameResources(c *fiber.Ctx) error {
 	return response.OK(c, resources)
 }
 
+// GetRatingDetail returns a single galgame rating with comments and galgame info.
+// GET /api/galgame-rating/:id
+func (h *GalgameHandler) GetRatingDetail(c *fiber.Ctx) error {
+	rid, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return response.Error(c, errors.ErrBadRequest("无效的评分 ID"))
+	}
+
+	userInfo := middleware.GetUser(c)
+
+	// Fetch rating
+	type ratingRow struct {
+		ID           int     `gorm:"column:id"`
+		Recommend    string  `gorm:"column:recommend"`
+		Overall      int     `gorm:"column:overall"`
+		View         int     `gorm:"column:view"`
+		GalgameType  string  `gorm:"column:galgame_type"`
+		PlayStatus   string  `gorm:"column:play_status"`
+		ShortSummary string  `gorm:"column:short_summary"`
+		SpoilerLevel string  `gorm:"column:spoiler_level"`
+		Art, Story, Music, Character       int
+		Route, System, Voice, ReplayValue  int
+		LikeCount    int     `gorm:"column:like_count"`
+		Created      string  `gorm:"column:created"`
+		Updated      string  `gorm:"column:updated"`
+		UserID       int     `gorm:"column:user_id"`
+		GalgameID    int     `gorm:"column:galgame_id"`
+	}
+	var rating ratingRow
+	if err := h.db.Table("galgame_rating").
+		Where("id = ?", rid).Scan(&rating).Error; err != nil || rating.ID == 0 {
+		return response.Error(c, errors.ErrNotFound("评分不存在"))
+	}
+
+	// Increment view
+	go h.db.Table("galgame_rating").Where("id = ?", rid).
+		Update("view", gorm.Expr("view + 1"))
+
+	// Fetch user
+	var user userModel.UserBrief
+	h.db.Where("id = ?", rating.UserID).First(&user)
+
+	// Liked users
+	type likeUserRow struct {
+		UserID int `gorm:"column:user_id"`
+	}
+	var likeRows []likeUserRow
+	h.db.Table("galgame_rating_like").Select("user_id").
+		Where("galgame_rating_id = ?", rid).Scan(&likeRows)
+	likeUserIDs := make([]int, len(likeRows))
+	for i, l := range likeRows {
+		likeUserIDs[i] = l.UserID
+	}
+	var likedUsers []userModel.UserBrief
+	if len(likeUserIDs) > 0 {
+		h.db.Where("id IN ?", likeUserIDs).Find(&likedUsers)
+	}
+
+	isLiked := false
+	if userInfo != nil {
+		for _, uid := range likeUserIDs {
+			if uid == userInfo.UID {
+				isLiked = true
+				break
+			}
+		}
+	}
+
+	// Comments
+	type commentRow struct {
+		ID             int     `gorm:"column:id"`
+		Content        string  `gorm:"column:content"`
+		UserID         int     `gorm:"column:user_id"`
+		TargetUserID   *int    `gorm:"column:target_user_id"`
+		UserName       string  `gorm:"column:user_name"`
+		UserAvatar     string  `gorm:"column:user_avatar"`
+		TargetName     string  `gorm:"column:target_name"`
+		TargetAvatar   string  `gorm:"column:target_avatar"`
+		Created        string  `gorm:"column:created"`
+		Updated        string  `gorm:"column:updated"`
+	}
+	var comments []commentRow
+	h.db.Table("galgame_rating_comment c").
+		Select(`c.id, c.content, c.user_id, c.target_user_id,
+			u1.name AS user_name, u1.avatar AS user_avatar,
+			u2.name AS target_name, u2.avatar AS target_avatar,
+			c.created, c.updated`).
+		Joins(`LEFT JOIN "user" u1 ON u1.id = c.user_id`).
+		Joins(`LEFT JOIN "user" u2 ON u2.id = c.target_user_id`).
+		Where("c.galgame_rating_id = ?", rid).
+		Order("c.created ASC").
+		Scan(&comments)
+
+	commentList := make([]fiber.Map, len(comments))
+	for i, cm := range comments {
+		item := fiber.Map{
+			"id":      cm.ID,
+			"content": cm.Content,
+			"user":    fiber.Map{"id": cm.UserID, "name": cm.UserName, "avatar": cm.UserAvatar},
+			"created": cm.Created,
+			"updated": cm.Updated,
+		}
+		if cm.TargetUserID != nil {
+			item["targetUser"] = fiber.Map{"id": *cm.TargetUserID, "name": cm.TargetName, "avatar": cm.TargetAvatar}
+		} else {
+			item["targetUser"] = nil
+		}
+		commentList[i] = item
+	}
+
+	// Galgame info from wiki (full detail for official data)
+	type wikiOfficialAlias struct {
+		Name string `json:"name"`
+	}
+	type wikiOfficial struct {
+		ID       int                 `json:"id"`
+		Name     string              `json:"name"`
+		Link     string              `json:"link"`
+		Category string              `json:"category"`
+		Lang     string              `json:"lang"`
+		Alias    []wikiOfficialAlias `json:"alias"`
+	}
+	type wikiOfficialRel struct {
+		Official wikiOfficial `json:"official"`
+	}
+	type wikiGalgameDetail struct {
+		ID           int               `json:"id"`
+		NameEnUs     string            `json:"name_en_us"`
+		NameJaJp     string            `json:"name_ja_jp"`
+		NameZhCn     string            `json:"name_zh_cn"`
+		NameZhTw     string            `json:"name_zh_tw"`
+		Banner       string            `json:"banner"`
+		ContentLimit string            `json:"content_limit"`
+		AgeLimit     string            `json:"age_limit"`
+		OrigLanguage string           `json:"original_language"`
+		Official     []wikiOfficialRel `json:"official"`
+	}
+	var wikiParsed struct {
+		Galgame wikiGalgameDetail `json:"galgame"`
+	}
+	wikiData, wikiErr := h.galgameClient.Get(
+		c.Context(),
+		fmt.Sprintf("/galgame/%d", rating.GalgameID),
+		nil,
+	)
+	gb := wikiParsed.Galgame
+	if wikiErr == nil {
+		json.Unmarshal(wikiData, &wikiParsed)
+		gb = wikiParsed.Galgame
+	}
+
+	// Build officials
+	officials := make([]fiber.Map, len(gb.Official))
+	for i, o := range gb.Official {
+		aliasNames := make([]string, len(o.Official.Alias))
+		for j, a := range o.Official.Alias {
+			aliasNames[j] = a.Name
+		}
+		officials[i] = fiber.Map{
+			"id": o.Official.ID, "name": o.Official.Name,
+			"link": o.Official.Link, "category": o.Official.Category,
+			"lang": o.Official.Lang, "alias": aliasNames,
+			"galgameCount": 0,
+		}
+	}
+
+	// Rating average for this galgame
+	var ratingSum, ratingCount int64
+	h.db.Table("galgame_rating").
+		Select("COALESCE(SUM(overall), 0)").
+		Where("galgame_id = ?", rating.GalgameID).Scan(&ratingSum)
+	h.db.Table("galgame_rating").
+		Where("galgame_id = ?", rating.GalgameID).Count(&ratingCount)
+
+	result := fiber.Map{
+		"id":            rating.ID,
+		"user":          user,
+		"recommend":     rating.Recommend,
+		"overall":       rating.Overall,
+		"view":          rating.View + 1,
+		"galgameType":   json.RawMessage(rating.GalgameType),
+		"play_status":   rating.PlayStatus,
+		"short_summary": rating.ShortSummary,
+		"spoiler_level": rating.SpoilerLevel,
+		"art": rating.Art, "story": rating.Story,
+		"music": rating.Music, "character": rating.Character,
+		"route": rating.Route, "system": rating.System,
+		"voice": rating.Voice, "replay_value": rating.ReplayValue,
+		"likeCount":  len(likeRows),
+		"isLiked":    isLiked,
+		"likedUsers": likedUsers,
+		"comments":   commentList,
+		"created":    rating.Created,
+		"updated":    rating.Updated,
+		"galgame": fiber.Map{
+			"id":               gb.ID,
+			"contentLimit":     gb.ContentLimit,
+			"banner":           gb.Banner,
+			"ageLimit":         gb.AgeLimit,
+			"originalLanguage": gb.OrigLanguage,
+			"rating":           ratingSum,
+			"ratingCount":      ratingCount,
+			"official":         officials,
+			"name": fiber.Map{
+				"en-us": gb.NameEnUs, "ja-jp": gb.NameJaJp,
+				"zh-cn": gb.NameZhCn, "zh-tw": gb.NameZhTw,
+			},
+		},
+	}
+
+	return response.OK(c, result)
+}
+
 // GetAllRatings returns paginated galgame ratings.
 // GET /api/galgame-rating/all
 func (h *GalgameHandler) GetAllRatings(c *fiber.Ctx) error {
