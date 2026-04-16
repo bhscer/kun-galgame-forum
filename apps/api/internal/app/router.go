@@ -116,7 +116,7 @@ func (a *App) setupRoutes() {
 	api.Get("/galgame-tag/:name", a.GalgameHandler.ProxyGet)
 	api.Get("/galgame-official", a.GalgameHandler.GetOfficialList)
 	api.Get("/galgame-official/search", a.GalgameHandler.ProxyGet)
-	api.Get("/galgame-official/:name", a.GalgameHandler.ProxyGet)
+	api.Get("/galgame-official/:name", a.GalgameHandler.GetOfficialDetail)
 	api.Get("/galgame-engine", a.GalgameHandler.ProxyGet)
 	api.Get("/galgame-engine/:name", a.GalgameHandler.ProxyGet)
 	api.Get("/galgame-series", a.GalgameHandler.GetSeriesList)

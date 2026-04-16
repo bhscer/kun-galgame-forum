@@ -2214,6 +2214,129 @@ func (h *GalgameHandler) GetOfficialList(c *fiber.Ctx) error {
 	})
 }
 
+// GetOfficialDetail wraps wiki /official/:name with galgame list.
+// GET /api/galgame-official/:name
+func (h *GalgameHandler) GetOfficialDetail(c *fiber.Ctx) error {
+	// Forward all query params to wiki, mapping officialId → official_id
+	query := make(url.Values)
+	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
+		k := string(key)
+		if k == "officialId" {
+			query.Set("official_id", string(value))
+		} else {
+			query.Set(k, string(value))
+		}
+	})
+
+	name := c.Params("name")
+	data, appErr := h.galgameClient.Get(c.Context(), "/official/"+name, query)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	type wikiAlias struct {
+		Name string `json:"name"`
+	}
+	type wikiOfficial struct {
+		ID          int         `json:"id"`
+		Name        string      `json:"name"`
+		Link        string      `json:"link"`
+		Category    string      `json:"category"`
+		Lang        string      `json:"lang"`
+		Description string      `json:"description"`
+		Alias       []wikiAlias `json:"alias"`
+	}
+	type wikiGalgame struct {
+		ID                 int    `json:"id"`
+		NameEnUs           string `json:"name_en_us"`
+		NameJaJp           string `json:"name_ja_jp"`
+		NameZhCn           string `json:"name_zh_cn"`
+		NameZhTw           string `json:"name_zh_tw"`
+		Banner             string `json:"banner"`
+		ContentLimit       string `json:"content_limit"`
+		View               int    `json:"view"`
+		ResourceUpdateTime string `json:"resource_update_time"`
+		UserID             int    `json:"user_id"`
+	}
+	var parsed struct {
+		Official wikiOfficial  `json:"official"`
+		Galgames []wikiGalgame `json:"galgames"`
+		Total    int64         `json:"total"`
+	}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return response.Error(c, errors.ErrInternal("解析 Wiki 响应失败"))
+	}
+
+	o := parsed.Official
+	aliasNames := make([]string, len(o.Alias))
+	for i, a := range o.Alias {
+		aliasNames[i] = a.Name
+	}
+
+	// Transform galgames to GalgameCard format
+	galgameIDs := make([]int, len(parsed.Galgames))
+	userIDs := make([]int, len(parsed.Galgames))
+	for i, g := range parsed.Galgames {
+		galgameIDs[i] = g.ID
+		userIDs[i] = g.UserID
+	}
+
+	var users []userModel.UserBrief
+	if len(userIDs) > 0 {
+		h.db.Where("id IN ?", userIDs).Find(&users)
+	}
+	userMap := make(map[int]userModel.UserBrief, len(users))
+	for _, u := range users {
+		userMap[u.ID] = u
+	}
+
+	type localRow struct {
+		ID        int `gorm:"column:id"`
+		LikeCount int `gorm:"column:like_count"`
+	}
+	var locals []localRow
+	if len(galgameIDs) > 0 {
+		h.db.Table("galgame").Select("id, like_count").
+			Where("id IN ?", galgameIDs).Scan(&locals)
+	}
+	localMap := make(map[int]localRow, len(locals))
+	for _, l := range locals {
+		localMap[l.ID] = l
+	}
+
+	galgameCards := make([]fiber.Map, len(parsed.Galgames))
+	for i, g := range parsed.Galgames {
+		l := localMap[g.ID]
+		galgameCards[i] = fiber.Map{
+			"id": g.ID,
+			"name": fiber.Map{
+				"en-us": g.NameEnUs, "ja-jp": g.NameJaJp,
+				"zh-cn": g.NameZhCn, "zh-tw": g.NameZhTw,
+			},
+			"banner":             g.Banner,
+			"user":               userMap[g.UserID],
+			"contentLimit":       g.ContentLimit,
+			"view":               g.View,
+			"likeCount":          l.LikeCount,
+			"resourceUpdateTime": g.ResourceUpdateTime,
+			"platform":           []string{},
+			"language":           []string{},
+		}
+	}
+
+	return response.OK(c, fiber.Map{
+		"id":           o.ID,
+		"name":         o.Name,
+		"link":         o.Link,
+		"category":     o.Category,
+		"lang":         o.Lang,
+		"description":  o.Description,
+		"alias":        aliasNames,
+		"galgame":      galgameCards,
+		"galgameCount": parsed.Total,
+	})
+}
+
 // GetTagList wraps wiki /tag, transforming for frontend.
 // GET /api/galgame-tag
 func (h *GalgameHandler) GetTagList(c *fiber.Ctx) error {
