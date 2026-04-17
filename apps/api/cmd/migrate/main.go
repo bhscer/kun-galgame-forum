@@ -22,7 +22,28 @@ func main() {
 	direction := flag.String("dir", "up", "Migration direction: up or down")
 	step := flag.Int("step", 0, "Number of migrations to run (0 = all)")
 	migrationsDir := flag.String("path", "migrations", "Path to migration files")
+	exclude := flag.String("exclude", "005", "Comma-separated migration prefixes to exclude (e.g. '005,006'). Use empty string to include all")
+	only := flag.String("only", "", "Comma-separated migration prefixes to run exclusively (e.g. '005')")
 	flag.Parse()
+
+	excludeSet := map[string]bool{}
+	if *only == "" && *exclude != "" {
+		for _, prefix := range strings.Split(*exclude, ",") {
+			prefix = strings.TrimSpace(prefix)
+			if prefix != "" {
+				excludeSet[prefix] = true
+			}
+		}
+	}
+	onlySet := map[string]bool{}
+	if *only != "" {
+		for _, prefix := range strings.Split(*only, ",") {
+			prefix = strings.TrimSpace(prefix)
+			if prefix != "" {
+				onlySet[prefix] = true
+			}
+		}
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -89,6 +110,19 @@ func main() {
 	for _, file := range files {
 		base := filepath.Base(file)
 		name := strings.TrimSuffix(base, suffix)
+
+		// Extract numeric prefix (e.g. "005" from "005_cleanup_wiki_managed_data")
+		prefix := strings.SplitN(name, "_", 2)[0]
+
+		// Filter by --only or --exclude
+		if len(onlySet) > 0 {
+			if !onlySet[prefix] {
+				continue
+			}
+		} else if excludeSet[prefix] {
+			slog.Info("跳过迁移 (excluded)", "file", base)
+			continue
+		}
 
 		if *direction == "up" {
 			if applied[name] {

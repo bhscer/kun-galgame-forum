@@ -137,11 +137,11 @@ onBeforeUnmount(() => {
       </KunButton>
     </div>
 
-    <MessagePmMessage
+    <MessagePmItem
       v-for="message in messages"
       :key="message.id"
       :message="message"
-      :current-user-uid="currentUserUid"
+      :is-sent="message.sender.id === currentUserUid"
     />
 
     <div v-if="!messages.length" class="text-default-500 py-10 text-center">
