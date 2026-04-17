@@ -13,12 +13,11 @@ const statsBlocks = [
   { key: 'topicPoll', label: '话题投票' },
   { key: 'replyCreated', label: '回复' },
   { key: 'commentCreated', label: '评论' },
-  { key: 'galgame', label: 'Galgame' },
+  { key: 'galgameComment', label: 'Galgame 评论' },
+  { key: 'galgameRating', label: 'Galgame 评分' },
   { key: 'galgameResource', label: 'Galgame 资源' },
   { key: 'galgameToolset', label: 'Galgame 工具' },
-  { key: 'galgameToolsetResource', label: 'Galgame 工具资源' },
-  { key: 'galgameRating', label: 'Galgame 评分' },
-  { key: 'contributeGalgame', label: 'Galgame 贡献' }
+  { key: 'galgameToolsetResource', label: 'Galgame 工具资源' }
 ]
 
 const interactionBlocks = [
@@ -34,14 +33,6 @@ const interactionBlocks = [
     icon: 'lucide:thumbs-up',
     color: 'text-primary'
   },
-  // TODO:
-  {
-    key: 'mention',
-    label: '被 @',
-    icon: 'lucide:at-sign',
-    color: 'text-warning',
-    value: 0
-  },
   {
     key: 'dislike',
     label: '被踩',
@@ -53,8 +44,6 @@ const interactionBlocks = [
 const infoList = [
   { label: '注册序号', value: (u: UserInfo) => u.id },
   { label: '今日发布话题', value: (u: UserInfo) => u.dailyTopicCount },
-  { label: '发布 Galgame', value: (u: UserInfo) => u.galgame },
-  { label: '今日发布 Galgame', value: (u: UserInfo) => u.dailyGalgameCount },
   {
     label: '注册时间',
     value: (u: UserInfo) =>
@@ -127,7 +116,7 @@ const infoList = [
         <KunIcon :name="block.icon" class="text-2xl" :class="block.color" />
         <div>
           <div class="text-lg font-medium">
-            {{ block.value ?? user[block.key as 'topic'] }}
+            {{ user[block.key as 'topic'] }}
           </div>
           <div class="text-default-500 text-sm">{{ block.label }}</div>
         </div>

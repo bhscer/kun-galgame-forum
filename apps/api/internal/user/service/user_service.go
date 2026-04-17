@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"kun-galgame-api/internal/user/dto"
-	"kun-galgame-api/internal/user/model"
 	"kun-galgame-api/internal/user/repository"
 	"kun-galgame-api/pkg/errors"
 
@@ -49,10 +48,22 @@ func (s *UserService) GetUserProfile(ctx context.Context, uid int) (*dto.UserPro
 		Moemoepoint: user.Moemoepoint,
 		Bio:         user.Bio,
 		CreatedAt:   user.CreatedAt,
-		TopicCount:  stats.TopicCount,
-		ReplyCount:  stats.ReplyCount,
-		GalgameCount: stats.GalgameCount,
-		LikeCount:   stats.LikeCount,
+
+		Topic:                  stats.Topic,
+		TopicPoll:              stats.TopicPoll,
+		ReplyCreated:           stats.ReplyCreated,
+		CommentCreated:         stats.CommentCreated,
+		GalgameComment:         stats.GalgameComment,
+		GalgameRating:          stats.GalgameRating,
+		GalgameResource:        stats.GalgameResource,
+		GalgameToolset:         stats.GalgameToolset,
+		GalgameToolsetResource: stats.GalgameToolsetResource,
+
+		Upvote:  stats.Upvote,
+		Like:    stats.Like,
+		Dislike: stats.Dislike,
+
+		DailyTopicCount: stats.DailyTopicCount,
 	}, nil
 }
 
@@ -177,6 +188,42 @@ func (s *UserService) GetUserTopics(ctx context.Context, uid int, req *dto.UserT
 	return items, total, nil
 }
 
+func (s *UserService) GetUserReplies(ctx context.Context, uid int, req *dto.UserRepliesRequest) ([]repository.UserReply, int64, *errors.AppError) {
+	items, total, err := s.userRepo.FindUserReplies(uid, req.Type, req.Page, req.Limit)
+	if err != nil {
+		return nil, 0, errors.ErrInternal("获取用户回复列表失败")
+	}
+	return items, total, nil
+}
+
+func (s *UserService) GetUserComments(ctx context.Context, uid int, req *dto.UserCommentsRequest) ([]repository.UserComment, int64, *errors.AppError) {
+	items, total, err := s.userRepo.FindUserComments(uid, req.Type, req.Page, req.Limit)
+	if err != nil {
+		return nil, 0, errors.ErrInternal("获取用户评论列表失败")
+	}
+	return items, total, nil
+}
+
+func (s *UserService) GetUserResources(ctx context.Context, uid int, req *dto.UserResourcesRequest) ([]repository.UserResource, int64, *errors.AppError) {
+	items, total, err := s.userRepo.FindUserResources(uid, req.Type, req.Page, req.Limit)
+	if err != nil {
+		return nil, 0, errors.ErrInternal("获取用户资源列表失败")
+	}
+	return items, total, nil
+}
+
+func (s *UserService) GetResourceLinks(resourceIDs []int) (map[int][]string, error) {
+	return s.userRepo.FindResourceLinks(resourceIDs)
+}
+
+func (s *UserService) GetUserRatings(ctx context.Context, uid int, req *dto.UserRatingsRequest) ([]repository.UserRating, int64, *errors.AppError) {
+	items, total, err := s.userRepo.FindUserRatings(uid, req.Page, req.Limit)
+	if err != nil {
+		return nil, 0, errors.ErrInternal("获取用户评分列表失败")
+	}
+	return items, total, nil
+}
+
 func (s *UserService) verifyCode(ctx context.Context, key, code string) (bool, error) {
 	stored, err := s.rdb.Get(ctx, key).Result()
 	if err != nil {
@@ -201,5 +248,3 @@ func (s *UserService) DeleteUser(ctx context.Context, uid int) *errors.AppError 
 	return nil
 }
 
-// Dummy type to satisfy the interface. Real implementation in model.
-type UserStats = model.UserStats

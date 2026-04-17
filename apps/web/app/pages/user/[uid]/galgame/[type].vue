@@ -11,12 +11,12 @@ const props = defineProps<{
 const route = useRoute()
 const galgameType = computed(() => {
   const routeType =
-    (route.params as { type: string }).type.replace(/-/g, '_') || 'galgame'
+    (route.params as { type: string }).type.replace(/-/g, '_') || 'galgame_like'
   return routeType as (typeof KUN_USER_PAGE_GALGAME_TYPE)[number]
 })
 
 useKunDisableSeo(
-  `${props.user.name}${GALGAME_NAV_CONFIG[galgameType.value].text}的 Galgame`
+  `${props.user.name}${GALGAME_NAV_CONFIG[galgameType.value]?.text ?? 'Galgame'}的 Galgame`
 )
 </script>
 

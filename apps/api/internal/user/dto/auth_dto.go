@@ -31,18 +31,35 @@ type UserProfile struct {
 // ──────────────────────────────────────────
 
 type UserProfileDetail struct {
-	ID           int       `json:"id"`
-	Name         string    `json:"name"`
-	Avatar       string    `json:"avatar"`
-	Role         int       `json:"role"`
-	Status       int       `json:"status"`
-	Moemoepoint  int       `json:"moemoepoint"`
-	Bio          string    `json:"bio"`
-	CreatedAt    time.Time `json:"created"`
-	TopicCount   int64     `json:"topic_count"`
-	ReplyCount   int64     `json:"reply_count"`
-	GalgameCount int64     `json:"galgame_count"`
-	LikeCount    int64     `json:"like_count"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Avatar      string    `json:"avatar"`
+	Role        int       `json:"role"`
+	Status      int       `json:"status"`
+	Moemoepoint int       `json:"moemoepoint"`
+	Bio         string    `json:"bio"`
+	CreatedAt   time.Time `json:"created"`
+
+	// Created counts
+	Topic                 int64 `json:"topic"`
+	TopicPoll             int64 `json:"topicPoll"`
+	ReplyCreated          int64 `json:"replyCreated"`
+	CommentCreated        int64 `json:"commentCreated"`
+	Galgame               int64 `json:"galgame"`
+	GalgameComment        int64 `json:"galgameComment"`
+	GalgameRating         int64 `json:"galgameRating"`
+	GalgameResource       int64 `json:"galgameResource"`
+	GalgameToolset        int64 `json:"galgameToolset"`
+	GalgameToolsetResource int64 `json:"galgameToolsetResource"`
+
+	// Received interaction counts
+	Upvote  int64 `json:"upvote"`
+	Like    int64 `json:"like"`
+	Dislike int64 `json:"dislike"`
+
+	// Daily counts
+	DailyTopicCount   int64 `json:"dailyTopicCount"`
+	DailyGalgameCount int64 `json:"dailyGalgameCount"`
 }
 
 // ──────────────────────────────────────────
@@ -83,6 +100,29 @@ type UserTopicsRequest struct {
 	Type  string `query:"type" validate:"required"`
 	Page  int    `query:"page" validate:"min=1"`
 	Limit int    `query:"limit" validate:"min=1,max=50"`
+}
+
+type UserRepliesRequest struct {
+	Type  string `query:"type" validate:"required"`
+	Page  int    `query:"page" validate:"min=1"`
+	Limit int    `query:"limit" validate:"min=1,max=50"`
+}
+
+type UserCommentsRequest struct {
+	Type  string `query:"type" validate:"required"`
+	Page  int    `query:"page" validate:"min=1"`
+	Limit int    `query:"limit" validate:"min=1,max=50"`
+}
+
+type UserResourcesRequest struct {
+	Type  string `query:"type" validate:"required"`
+	Page  int    `query:"page" validate:"min=1"`
+	Limit int    `query:"limit" validate:"min=1,max=50"`
+}
+
+type UserRatingsRequest struct {
+	Page  int `query:"page" validate:"min=1"`
+	Limit int `query:"limit" validate:"min=1,max=50"`
 }
 
 type GalgameCard struct {

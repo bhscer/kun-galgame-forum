@@ -45,6 +45,10 @@ func (a *App) setupRoutes() {
 	api.Get("/user/:uid", a.UserHandler.GetProfile)
 	api.Get("/user/:uid/galgames", a.UserHandler.GetUserGalgames)
 	api.Get("/user/:uid/topics", a.UserHandler.GetUserTopics)
+	api.Get("/user/:uid/replies", a.UserHandler.GetUserReplies)
+	api.Get("/user/:uid/comments", a.UserHandler.GetUserComments)
+	api.Get("/user/:uid/resources", a.UserHandler.GetUserResources)
+	api.Get("/user/:uid/ratings", a.UserHandler.GetUserRatings)
 
 	// Ranking (public)
 	api.Get("/ranking/galgame", a.RankingHandler.GetGalgameRanking)

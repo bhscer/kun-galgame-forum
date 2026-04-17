@@ -75,8 +75,17 @@ func (UserFriend) TableName() string { return "user_friend" }
 
 // UserStats is a projection for aggregated user statistics.
 type UserStats struct {
-	TopicCount   int64 `gorm:"column:topic_count" json:"topic_count"`
-	ReplyCount   int64 `gorm:"column:reply_count" json:"reply_count"`
-	GalgameCount int64 `gorm:"column:galgame_count" json:"galgame_count"`
-	LikeCount    int64 `gorm:"column:like_count" json:"like_count"`
+	Topic                  int64 `gorm:"column:topic"`
+	TopicPoll              int64 `gorm:"column:topic_poll"`
+	ReplyCreated           int64 `gorm:"column:reply_created"`
+	CommentCreated         int64 `gorm:"column:comment_created"`
+	GalgameComment         int64 `gorm:"column:galgame_comment"`
+	GalgameRating          int64 `gorm:"column:galgame_rating"`
+	GalgameResource        int64 `gorm:"column:galgame_resource"`
+	GalgameToolset         int64 `gorm:"column:galgame_toolset"`
+	GalgameToolsetResource int64 `gorm:"column:galgame_toolset_resource"`
+	Upvote                 int64 `gorm:"column:upvote"`
+	Like                   int64 `gorm:"column:like"`
+	Dislike                int64 `gorm:"column:dislike"`
+	DailyTopicCount        int64 `gorm:"column:daily_topic_count"`
 }

@@ -37,7 +37,7 @@ export const navBarRoute: Ref<Nav[]> = ref([
   {
     name: 'galgame',
     permission: [1, 2, 3, 4],
-    redirect: 'galgame/galgame',
+    redirect: 'galgame/galgame-like',
     router: 'galgame'
   },
   {

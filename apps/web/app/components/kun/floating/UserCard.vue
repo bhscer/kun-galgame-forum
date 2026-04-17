@@ -86,9 +86,7 @@ const stats = computed(() => {
     { label: '话题', value: userData.value.topicCount },
     { label: '回复', value: userData.value.topicReplyCount },
     { label: '评论', value: userData.value.topicCommentCount },
-    { label: 'Galgame', value: userData.value.galgameCount },
-    { label: 'Galgame 资源', value: userData.value.galgameResourceCount },
-    { label: 'Galgame 贡献', value: userData.value.galgameContributeCount }
+    { label: 'Galgame 资源', value: userData.value.galgameResourceCount }
   ]
 })
 

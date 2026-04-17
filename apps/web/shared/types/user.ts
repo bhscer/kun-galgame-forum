@@ -13,26 +13,20 @@ export interface UserInfo {
   upvote: number
   like: number
   dislike: number
-  favorite: number
 
   replyCreated: number
   commentCreated: number
   topic: number
   topicPoll: number
 
-  galgame: number
   galgameComment: number
-  galgamePr: number
-  galgameLink: number
   galgameRating: number
-  contributeGalgame: number
 
   galgameResource: number
   galgameToolset: number
   galgameToolsetResource: number
 
   dailyTopicCount: number
-  dailyGalgameCount: number
 }
 
 export interface UserTopic {
@@ -86,9 +80,7 @@ export interface UserFloatingCard extends KunUser {
   topicCount: number
   topicReplyCount: number
   topicCommentCount: number
-  galgameCount: number
   galgameResourceCount: number
-  galgameContributeCount: number
 }
 
 export type UserUpdateAvatarResponseData = {
