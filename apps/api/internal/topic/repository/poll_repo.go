@@ -99,7 +99,7 @@ type VoteLogRow struct {
 	UserName   string
 	UserAvatar string
 	OptionText string
-	CreatedAt  string
+	CreatedAt  time.Time
 }
 
 func (r *PollRepository) FindVoteLogs(pollID, page, limit int) ([]VoteLogRow, int64, error) {

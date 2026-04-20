@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	galgameClient "kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/home/dto"
@@ -9,8 +10,13 @@ import (
 )
 
 const (
+	// Public count — the number of galgame cards the homepage actually renders.
 	homeGalgameLimit = 12
-	homeTopicLimit   = 10
+	// Over-fetch factor: wiki may be missing a subset of local IDs (migration
+	// lag) and the SFW filter drops some too, so we need slack above
+	// homeGalgameLimit to reliably return `homeGalgameLimit` usable cards.
+	homeGalgameFetchLimit = 24
+	homeTopicLimit        = 10
 )
 
 type HomeService struct {
@@ -26,10 +32,16 @@ func NewHomeService(
 }
 
 // GetHome returns homepage data: galgames + topics.
+//
+// Galgame data is best-effort: if the wiki service is unreachable we log and
+// return an empty galgame list rather than failing the whole endpoint, so the
+// topic feed still renders. Topic lookup failures are still propagated — they
+// come from the local DB and indicate something more serious.
 func (s *HomeService) GetHome(ctx context.Context, isSFW bool) (*dto.HomeResponse, error) {
 	galgames, err := s.getHomeGalgames(ctx, isSFW)
 	if err != nil {
-		return nil, err
+		slog.Warn("首页 galgame 获取失败, 降级为空列表", "error", err)
+		galgames = []dto.HomeGalgame{}
 	}
 	topics, err := s.getHomeTopics(isSFW)
 	if err != nil {
@@ -39,8 +51,10 @@ func (s *HomeService) GetHome(ctx context.Context, isSFW bool) (*dto.HomeRespons
 }
 
 func (s *HomeService) getHomeGalgames(ctx context.Context, isSFW bool) ([]dto.HomeGalgame, error) {
-	// Step 1: Get galgame IDs sorted by local interaction data
-	localRows, err := s.repo.FindRecentGalgames(homeGalgameLimit)
+	// Step 1: Over-fetch local rows. Wiki may not know some IDs (migration
+	// lag) and the SFW filter below also drops rows, so we pull 2x the
+	// displayed count to reliably land at `homeGalgameLimit` after filtering.
+	localRows, err := s.repo.FindRecentGalgames(homeGalgameFetchLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -84,9 +98,12 @@ func (s *HomeService) getHomeGalgames(ctx context.Context, isSFW bool) ([]dto.Ho
 		languageMap[r.GalgameID][r.Language] = true
 	}
 
-	// Step 5: Assemble results in original order
-	result := make([]dto.HomeGalgame, 0, len(localRows))
+	// Step 5: Assemble results in original order, stopping at homeGalgameLimit.
+	result := make([]dto.HomeGalgame, 0, homeGalgameLimit)
 	for _, lr := range localRows {
+		if len(result) >= homeGalgameLimit {
+			break
+		}
 		b, ok := briefMap[lr.ID]
 		if !ok {
 			continue // wiki doesn't have this galgame

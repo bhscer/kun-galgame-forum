@@ -371,9 +371,10 @@ func (s *PollService) GetVoteLog(
 	entries := make([]dto.PollVoteLogEntry, len(rows))
 	for i, r := range rows {
 		entries[i] = dto.PollVoteLogEntry{
-			ID:     r.ID,
-			User:   dto.KunUser{ID: r.UserID, Name: r.UserName, Avatar: r.UserAvatar},
-			Option: r.OptionText,
+			ID:      r.ID,
+			Created: r.CreatedAt,
+			User:    dto.KunUser{ID: r.UserID, Name: r.UserName, Avatar: r.UserAvatar},
+			Option:  r.OptionText,
 		}
 	}
 	return entries, total, nil

@@ -129,3 +129,29 @@ func (r *CommentRepository) DeleteCommentLikesForComment(tx *gorm.DB, commentID 
 func (r *CommentRepository) DeleteCommentByID(tx *gorm.DB, commentID int) error {
 	return tx.Delete(&model.TopicComment{}, commentID).Error
 }
+
+// UserBrief is the (id, name, avatar) tuple used when building comment
+// response DTOs without pulling in the user module's struct.
+type UserBrief struct {
+	ID     int    `gorm:"column:id"`
+	Name   string `gorm:"column:name"`
+	Avatar string `gorm:"column:avatar"`
+}
+
+// FindUsersByIDs batch-loads UserBriefs keyed by id. Used by CreateComment
+// to hydrate the author + target user on the response payload.
+func (r *CommentRepository) FindUsersByIDs(ids []int) map[int]UserBrief {
+	if len(ids) == 0 {
+		return map[int]UserBrief{}
+	}
+	var users []UserBrief
+	r.db.Table(`"user"`).
+		Select("id, name, avatar").
+		Where("id IN ?", ids).
+		Scan(&users)
+	out := make(map[int]UserBrief, len(users))
+	for _, u := range users {
+		out[u.ID] = u
+	}
+	return out
+}

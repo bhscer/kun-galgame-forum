@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"kun-galgame-api/internal/constants"
+	"kun-galgame-api/internal/topic/dto"
 	topicModel "kun-galgame-api/internal/topic/model"
 	"kun-galgame-api/internal/topic/repository"
 	"kun-galgame-api/pkg/errors"
@@ -32,20 +33,25 @@ func NewCommentService(
 // Create comment
 // ──────────────────────────────────────────
 
+// CreateComment inserts a new comment and returns it in the frontend-expected
+// shape (full user + targetUser objects). Returning just a message body made
+// the frontend push `undefined` into its comment list, crashing on
+// `comment.user.name`.
 func (s *CommentService) CreateComment(
 	ctx context.Context,
 	uid int,
 	topicID, replyID, targetUserID int,
 	content string,
-) *errors.AppError {
+) (*dto.TopicCommentResponse, *errors.AppError) {
+	comment := &topicModel.TopicComment{
+		TopicID:      topicID,
+		TopicReplyID: replyID,
+		UserID:       uid,
+		TargetUserID: targetUserID,
+		Content:      content,
+	}
+
 	txErr := s.replyRepo.DB().Transaction(func(tx *gorm.DB) error {
-		comment := &topicModel.TopicComment{
-			TopicID:      topicID,
-			TopicReplyID: replyID,
-			UserID:       uid,
-			TargetUserID: targetUserID,
-			Content:      content,
-		}
 		if err := s.commentRepo.CreateComment(tx, comment); err != nil {
 			return err
 		}
@@ -60,9 +66,26 @@ func (s *CommentService) CreateComment(
 	})
 
 	if txErr != nil {
-		return errors.ErrInternal("发表评论失败")
+		return nil, errors.ErrInternal("发表评论失败")
 	}
-	return nil
+
+	// Resolve author + target in one batch so the response carries the
+	// fields the frontend TopicComment type declares.
+	userMap := s.commentRepo.FindUsersByIDs([]int{uid, targetUserID})
+	author := userMap[uid]
+	target := userMap[targetUserID]
+
+	return &dto.TopicCommentResponse{
+		ID:         comment.ID,
+		ReplyID:    comment.TopicReplyID,
+		TopicID:    comment.TopicID,
+		User:       dto.KunUser{ID: author.ID, Name: author.Name, Avatar: author.Avatar},
+		TargetUser: dto.KunUser{ID: target.ID, Name: target.Name, Avatar: target.Avatar},
+		Content:    comment.Content,
+		IsLiked:    false,
+		LikeCount:  0,
+		Created:    comment.CreatedAt,
+	}, nil
 }
 
 // ──────────────────────────────────────────

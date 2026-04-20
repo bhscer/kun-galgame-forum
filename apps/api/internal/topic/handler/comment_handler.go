@@ -34,14 +34,18 @@ func (h *CommentHandler) CreateComment(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.commentService.CreateComment(
+	created, appErr := h.commentService.CreateComment(
 		c.Context(), user.UID,
 		req.TopicID, req.ReplyID, req.TargetUserID, req.Content,
-	); appErr != nil {
+	)
+	if appErr != nil {
 		return response.Error(c, appErr)
 	}
 
-	return response.OKMessage(c, "评论发表成功")
+	// Return the full comment DTO so the frontend can append it to its
+	// in-memory list without refetching. Previous OKMessage-only response
+	// caused `comment.user.name` to throw on the client.
+	return response.OK(c, created)
 }
 
 // ToggleCommentLike toggles like on a comment.

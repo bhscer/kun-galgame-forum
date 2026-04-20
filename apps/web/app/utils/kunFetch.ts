@@ -87,15 +87,16 @@ export const useKunFetch = createUseFetch({
       await handleApiError(resp.code, resp.message)
     }
   },
-  transform(resp: any) {
-    if (!resp || resp.code !== 0) {
+  transform(resp: unknown) {
+    const envelope = resp as KunApiResponse<unknown> | null | undefined
+    if (!envelope || envelope.code !== 0) {
       return null
     }
     // Go's response.OKMessage omits `data`. Callers typically gate optimistic
     // updates on `if (result)`, so returning the message keeps the truthy
     // success signal intact while still distinguishing from the `null`
     // returned for real failures.
-    return resp.data !== undefined ? resp.data : resp.message
+    return envelope.data !== undefined ? envelope.data : envelope.message
   }
 })
 

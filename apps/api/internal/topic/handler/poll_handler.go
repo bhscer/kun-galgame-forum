@@ -134,5 +134,8 @@ func (h *PollHandler) GetVoteLog(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	return response.Paginated(c, entries, total)
+	// Frontend Log.vue reads `res.logs` and `res.total`, not the default
+	// `items` + `total` shape from response.Paginated. Use the explicit key
+	// names so log.length and v-for log in logs work.
+	return response.OK(c, fiber.Map{"logs": entries, "total": total})
 }
