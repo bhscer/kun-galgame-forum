@@ -104,11 +104,12 @@ type ArticleDetailResponse struct {
 	View            int        `json:"view"`
 	PublishedTime   time.Time  `json:"published_time"`
 	EditedTime      *time.Time `json:"edited_time"`
-	ContentMarkdown string             `json:"content_markdown"`
-	ContentHTML     string             `json:"contentHtml"`
-	Toc             []markdown.TocLink `json:"toc"`
-	CategoryID      int                `json:"category_id"`
-	AuthorID        int                `json:"author_id"`
-	Created         time.Time          `json:"created"`
-	Updated         time.Time          `json:"updated"`
+	ContentMarkdown string               `json:"content_markdown"`
+	ContentHTML     string               `json:"contentHtml"`
+	Toc             []markdown.TocLink   `json:"toc"`
+	CategoryID      int                  `json:"category_id"`
+	AuthorID        int                  `json:"author_id"`
+	Category        ArticleCategoryBrief `json:"category"`
+	Created         time.Time            `json:"created"`
+	Updated         time.Time            `json:"updated"`
 }

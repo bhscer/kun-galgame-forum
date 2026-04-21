@@ -113,6 +113,15 @@ func (s *ArticleService) GetBySlug(slug string) (*dto.ArticleDetailResponse, *er
 
 	html, toc := markdown.RenderWithTOC(article.ContentMarkdown)
 
+	var cat dto.ArticleCategoryBrief
+	var category model.DocCategory
+	if err := s.categoryRepo.DB().
+		Where("id = ?", article.CategoryID).First(&category).Error; err == nil {
+		cat = dto.ArticleCategoryBrief{ID: category.ID, Slug: category.Slug, Title: category.Title}
+	} else {
+		cat = dto.ArticleCategoryBrief{ID: article.CategoryID}
+	}
+
 	return &dto.ArticleDetailResponse{
 		ID:              article.ID,
 		Title:           article.Title,
@@ -130,6 +139,7 @@ func (s *ArticleService) GetBySlug(slug string) (*dto.ArticleDetailResponse, *er
 		Toc:             toc,
 		CategoryID:      article.CategoryID,
 		AuthorID:        article.AuthorID,
+		Category:        cat,
 		Created:         article.CreatedAt,
 		Updated:         article.UpdatedAt,
 	}, nil

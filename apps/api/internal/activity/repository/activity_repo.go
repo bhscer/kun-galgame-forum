@@ -23,10 +23,11 @@ func NewActivityRepository(db *gorm.DB) *ActivityRepository {
 // ActivitySource defines a single SQL sub-query that produces activity rows.
 // The query MUST SELECT these exact columns:
 //
-//	type_str, id, content, link, created, user_id
+//	type_str, id, content, link, created, user_id, galgame_id
 //
-// All column references must be fully qualified (t.xxx) to avoid ambiguity
-// when later JOINed with the "user" table.
+// `galgame_id` is 0 for activities that are not galgame-scoped. All column
+// references must be fully qualified (t.xxx) to avoid ambiguity when later
+// JOINed with the "user" table.
 type ActivitySource struct {
 	TypeStr string
 	Query   string
@@ -38,57 +39,72 @@ var Sources = map[string]ActivitySource{
 		TypeStr: "TOPIC_CREATION",
 		Query: `SELECT 'TOPIC_CREATION' AS type_str, t.id,
 			t.title AS content,
-			'/topic/' || t.id AS link, t.created, t.user_id
+			'/topic/' || t.id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM topic t WHERE t.status != 1`,
 	},
 	"TOPIC_REPLY_CREATION": {
 		TypeStr: "TOPIC_REPLY_CREATION",
+		// A reply can target multiple other replies. When it does, the
+		// user's text is stored per-target in topic_reply_target.content
+		// and topic_reply.content itself is empty. Concatenate both so
+		// multi-target replies still show meaningful text.
 		Query: `SELECT 'TOPIC_REPLY_CREATION' AS type_str, t.id,
-			SUBSTRING(t.content, 1, 100) AS content,
-			'/topic/' || t.topic_id AS link, t.created, t.user_id
+			SUBSTRING(
+				COALESCE(t.content, '') ||
+				COALESCE(
+					(SELECT STRING_AGG(trt.content, ' ' ORDER BY trt.id)
+					 FROM topic_reply_target trt
+					 WHERE trt.reply_id = t.id),
+					''
+				),
+				1, 100
+			) AS content,
+			'/topic/' || t.topic_id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM topic_reply t`,
 	},
 	"TOPIC_COMMENT_CREATION": {
 		TypeStr: "TOPIC_COMMENT_CREATION",
 		Query: `SELECT 'TOPIC_COMMENT_CREATION' AS type_str, t.id,
 			SUBSTRING(t.content, 1, 100) AS content,
-			'/topic/' || t.topic_id AS link, t.created, t.user_id
+			'/topic/' || t.topic_id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM topic_comment t`,
 	},
 	"GALGAME_CREATION": {
 		TypeStr: "GALGAME_CREATION",
+		// Local galgame table has no user_id (moved to wiki); actor is
+		// filled in from the wiki brief during enrichment.
 		Query: `SELECT 'GALGAME_CREATION' AS type_str, t.id,
-			'galgame#' || t.id AS content,
+			'' AS content,
 			'/galgame/' || t.id AS link, t.created,
-			0 AS user_id
+			0 AS user_id, t.id AS galgame_id
 			FROM galgame t`,
 	},
 	"GALGAME_COMMENT_CREATION": {
 		TypeStr: "GALGAME_COMMENT_CREATION",
 		Query: `SELECT 'GALGAME_COMMENT_CREATION' AS type_str, t.id,
 			SUBSTRING(t.content, 1, 100) AS content,
-			'/galgame/' || t.galgame_id AS link, t.created, t.user_id
+			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
 			FROM galgame_comment t`,
 	},
 	"GALGAME_RESOURCE_CREATION": {
 		TypeStr: "GALGAME_RESOURCE_CREATION",
 		Query: `SELECT 'GALGAME_RESOURCE_CREATION' AS type_str, t.id,
-			COALESCE(NULLIF(t.note,''), t.type) AS content,
-			'/galgame/' || t.galgame_id AS link, t.created, t.user_id
+			'' AS content,
+			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
 			FROM galgame_resource t`,
 	},
 	"GALGAME_RATING_CREATION": {
 		TypeStr: "GALGAME_RATING_CREATION",
 		Query: `SELECT 'GALGAME_RATING_CREATION' AS type_str, t.id,
 			SUBSTRING(COALESCE(t.short_summary,''), 1, 100) AS content,
-			'/galgame/' || t.galgame_id AS link, t.created, t.user_id
+			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
 			FROM galgame_rating t`,
 	},
 	"GALGAME_RATING_COMMENT_CREATION": {
 		TypeStr: "GALGAME_RATING_COMMENT_CREATION",
 		Query: `SELECT 'GALGAME_RATING_COMMENT_CREATION' AS type_str, t.id,
 			SUBSTRING(t.content, 1, 100) AS content,
-			'/galgame/' || t.galgame_rating_id AS link, t.created, t.user_id
+			'/galgame/' || t.galgame_rating_id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM galgame_rating_comment t`,
 	},
 	// GALGAME_PR_CREATION removed: galgame_pr table moved to wiki service
@@ -96,61 +112,61 @@ var Sources = map[string]ActivitySource{
 		TypeStr: "GALGAME_WEBSITE_CREATION",
 		Query: `SELECT 'GALGAME_WEBSITE_CREATION' AS type_str, t.id,
 			t.name AS content,
-			'/website/' || t.id AS link, t.created, t.user_id
+			'/website/' || t.id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM galgame_website t`,
 	},
 	"GALGAME_WEBSITE_COMMENT_CREATION": {
 		TypeStr: "GALGAME_WEBSITE_COMMENT_CREATION",
 		Query: `SELECT 'GALGAME_WEBSITE_COMMENT_CREATION' AS type_str, t.id,
 			SUBSTRING(t.content, 1, 100) AS content,
-			'/website/' || t.website_id AS link, t.created, t.user_id
+			'/website/' || t.website_id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM galgame_website_comment t`,
 	},
 	"TOOLSET_CREATION": {
 		TypeStr: "TOOLSET_CREATION",
 		Query: `SELECT 'TOOLSET_CREATION' AS type_str, t.id,
 			t.name AS content,
-			'/toolset/' || t.id AS link, t.created, t.user_id
+			'/toolset/' || t.id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM galgame_toolset t WHERE t.status != 1`,
 	},
 	"TOOLSET_RESOURCE_CREATION": {
 		TypeStr: "TOOLSET_RESOURCE_CREATION",
 		Query: `SELECT 'TOOLSET_RESOURCE_CREATION' AS type_str, t.id,
 			COALESCE(NULLIF(t.note,''), t.content) AS content,
-			'/toolset/' || t.toolset_id AS link, t.created, t.user_id
+			'/toolset/' || t.toolset_id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM galgame_toolset_resource t`,
 	},
 	"TOOLSET_COMMENT_CREATION": {
 		TypeStr: "TOOLSET_COMMENT_CREATION",
 		Query: `SELECT 'TOOLSET_COMMENT_CREATION' AS type_str, t.id,
 			SUBSTRING(t.content, 1, 100) AS content,
-			'/toolset/' || t.toolset_id AS link, t.created, t.user_id
+			'/toolset/' || t.toolset_id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM galgame_toolset_comment t`,
 	},
 	"TODO_CREATION": {
 		TypeStr: "TODO_CREATION",
 		Query: `SELECT 'TODO_CREATION' AS type_str, t.id,
 			t.content_zh_cn AS content,
-			'/update' AS link, t.created, t.user_id
+			'/update' AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM todo t`,
 	},
 	"UPDATE_LOG_CREATION": {
 		TypeStr: "UPDATE_LOG_CREATION",
 		Query: `SELECT 'UPDATE_LOG_CREATION' AS type_str, t.id,
 			t.content_zh_cn AS content,
-			'/update' AS link, t.created, t.user_id
+			'/update' AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM update_log t`,
 	},
 	"MESSAGE_UPVOTE": {
 		TypeStr: "MESSAGE_UPVOTE",
 		Query: `SELECT 'MESSAGE_UPVOTE' AS type_str, t.id, t.content,
-			t.link, t.created, t.sender_id AS user_id
+			t.link, t.created, t.sender_id AS user_id, 0 AS galgame_id
 			FROM message t WHERE t.type = 'upvoted'`,
 	},
 	"MESSAGE_SOLUTION": {
 		TypeStr: "MESSAGE_SOLUTION",
 		Query: `SELECT 'MESSAGE_SOLUTION' AS type_str, t.id, t.content,
-			t.link, t.created, t.sender_id AS user_id
+			t.link, t.created, t.sender_id AS user_id, 0 AS galgame_id
 			FROM message t WHERE t.type = 'solution'`,
 	},
 }
@@ -160,14 +176,15 @@ var Sources = map[string]ActivitySource{
 // ──────────────────────────────────────────
 
 type ActivityRow struct {
-	TypeStr  string    `gorm:"column:type_str"`
-	ID       int       `gorm:"column:id"`
-	Content  string    `gorm:"column:content"`
-	Link     string    `gorm:"column:link"`
-	Created  time.Time `gorm:"column:created"`
-	UserID   int       `gorm:"column:user_id"`
-	UserName string    `gorm:"column:user_name"`
-	Avatar   string    `gorm:"column:avatar"`
+	TypeStr   string    `gorm:"column:type_str"`
+	ID        int       `gorm:"column:id"`
+	Content   string    `gorm:"column:content"`
+	Link      string    `gorm:"column:link"`
+	Created   time.Time `gorm:"column:created"`
+	UserID    int       `gorm:"column:user_id"`
+	GalgameID int       `gorm:"column:galgame_id"`
+	UserName  string    `gorm:"column:user_name"`
+	Avatar    string    `gorm:"column:avatar"`
 }
 
 type UserInfoRow struct {

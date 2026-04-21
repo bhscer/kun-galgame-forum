@@ -120,7 +120,7 @@ func (h *EntityHandler) GetEngineDetail(c *fiber.Ctx) error {
 
 // GetTagList — GET /galgame-tag
 func (h *EntityHandler) GetTagList(c *fiber.Ctx) error {
-	page, appErr := h.tagService.GetList(c.Context(), collectQuery(c))
+	page, appErr := h.tagService.GetList(c.Context(), collectQuery(c), utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

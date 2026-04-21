@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/url"
 
 	"kun-galgame-api/internal/galgame/client"
@@ -46,11 +47,25 @@ type wikiTagDetailResp struct {
 }
 
 // GetList — GET /galgame-tag
+//
+// In SFW mode we drop tags whose category is "sexual". Because the wiki
+// service paginates before we can filter, we over-fetch the full tag set
+// (typically a few thousand rows) and paginate on the API side so the
+// frontend sees an accurate total.
 func (s *TagService) GetList(
 	ctx context.Context,
 	rawQuery url.Values,
+	isSFW bool,
 ) (*dto.TagListPage, *errors.AppError) {
-	data, appErr := s.wikiClient.Get(ctx, "/tag", rawQuery)
+	page := atoiOr(rawQuery.Get("page"), 1)
+	limit := atoiOr(rawQuery.Get("limit"), 100)
+
+	q := url.Values{}
+	maps.Copy(q, rawQuery)
+	q.Set("page", "1")
+	q.Set("limit", "5000")
+
+	data, appErr := s.wikiClient.Get(ctx, "/tag", q)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -59,24 +74,35 @@ func (s *TagService) GetList(
 		return nil, errors.ErrInternal("解析 Wiki 响应失败")
 	}
 
-	tags := make([]dto.TagListItem, len(parsed.Items))
-	for i, t := range parsed.Items {
-		tags[i] = dto.TagListItem{
+	filtered := make([]dto.TagListItem, 0, len(parsed.Items))
+	for _, t := range parsed.Items {
+		if isSFW && t.Category == "sexual" {
+			continue
+		}
+		filtered = append(filtered, dto.TagListItem{
 			ID: t.ID, Name: t.Name, Category: t.Category,
 			GalgameCount: t.GalgameCount,
-		}
+		})
 	}
-	return &dto.TagListPage{Tags: tags, Total: parsed.Total}, nil
+
+	total := int64(len(filtered))
+	tags := paginate(filtered, page, limit)
+	return &dto.TagListPage{Tags: tags, Total: total}, nil
 }
 
 // GetDetail — GET /galgame-tag/:name
+//
+// In SFW mode we forward content_limit=sfw to the wiki so it filters the
+// galgame list server-side and returns a matching total; the local
+// FilterSFW call is kept as a defensive net.
 func (s *TagService) GetDetail(
 	ctx context.Context,
 	name string,
 	rawQuery url.Values,
 	isSFW bool,
 ) (*dto.TagDetail, *errors.AppError) {
-	data, appErr := s.wikiClient.Get(ctx, "/tag/"+name, rawQuery)
+	q := withSFWFilter(rawQuery, isSFW)
+	data, appErr := s.wikiClient.Get(ctx, "/tag/"+name, q)
 	if appErr != nil {
 		return nil, appErr
 	}

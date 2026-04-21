@@ -9,6 +9,7 @@ import (
 
 	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/yuin/goldmark"
+	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -16,7 +17,6 @@ import (
 	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
-	highlighting "github.com/yuin/goldmark-highlighting/v2"
 )
 
 var (
@@ -63,27 +63,20 @@ func init() {
 
 // Render converts markdown to HTML with all custom transformations.
 func Render(source string) string {
-	result, _ := renderWithOptionalTOC(source, false)
-	return result
+	html, _ := RenderWithTOC(source)
+	return html
 }
 
 // RenderWithTOC converts markdown to HTML and also returns a nested TOC tree
 // built from the document's h2/h3 headings (h1 is promoted to h2 to match the
 // h1→h2 render transform).
 func RenderWithTOC(source string) (string, []TocLink) {
-	return renderWithOptionalTOC(source, true)
-}
-
-func renderWithOptionalTOC(source string, wantTOC bool) (string, []TocLink) {
 	src := []byte(source)
 	reader := text.NewReader(src)
 	ctx := parser.NewContext(parser.WithIDs(newUnicodeIDs()))
 	root := md.Parser().Parse(reader, parser.WithContext(ctx))
 
-	var toc []TocLink
-	if wantTOC && root != nil {
-		toc = buildTOCTree(collectHeadings(root, src), 3)
-	}
+	toc := buildTOCTree(collectHeadings(root, src), 3)
 
 	var buf bytes.Buffer
 	if err := md.Renderer().Render(&buf, src, root); err != nil {
@@ -127,18 +120,10 @@ func renderWithOptionalTOC(source string, wantTOC bool) (string, []TocLink) {
 // Heading IDs + TOC extraction
 // ──────────────────────────────────────────
 
-// flatHeading is one heading collected during the AST walk before the TOC
-// tree is built.
-type flatHeading struct {
-	ID    string
-	Text  string
-	Depth int // effective depth after h1→h2 promotion
-}
-
-// unicodeIDs is a goldmark parser.IDs implementation that keeps Unicode
-// letters/digits (CJK friendly) instead of stripping them to empty strings
-// the way goldmark's default ASCII-only generator does. A fresh instance is
-// created per Parse so dedupe state does not leak across documents.
+// unicodeIDs is a goldmark parser.IDs that keeps Unicode letters/digits
+// (CJK friendly) instead of stripping them like goldmark's default ASCII-only
+// generator. A fresh instance is used per Parse so dedupe state does not
+// leak across documents.
 type unicodeIDs struct {
 	used map[string]int
 	anon int
@@ -161,22 +146,22 @@ func (u *unicodeIDs) Generate(value []byte, _ ast.NodeKind) []byte {
 	} else {
 		u.used[base] = 1
 	}
-	u.Put([]byte(id))
+	u.used[id] = 1
 	return []byte(id)
 }
 
 func (u *unicodeIDs) Put(value []byte) {
-	s := string(value)
-	if _, ok := u.used[s]; !ok {
-		u.used[s] = 1
-	}
+	u.used[string(value)] = 1
 }
 
 // collectHeadings walks the AST and returns flat heading entries using the
 // `id` attribute goldmark already stamped via unicodeIDs. h1 is promoted to
 // depth 2 so TOC nesting aligns with the h1→h2 render transform.
-func collectHeadings(root ast.Node, source []byte) []flatHeading {
-	var out []flatHeading
+func collectHeadings(root ast.Node, source []byte) []TocLink {
+	if root == nil {
+		return nil
+	}
+	var out []TocLink
 	ast.Walk(root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
@@ -185,18 +170,12 @@ func collectHeadings(root ast.Node, source []byte) []flatHeading {
 		if !ok {
 			return ast.WalkContinue, nil
 		}
-		var id string
-		if attr, found := h.Attribute([]byte("id")); found {
-			if b, ok := attr.([]byte); ok {
-				id = string(b)
-			}
-		}
 		depth := h.Level
 		if depth == 1 {
 			depth = 2
 		}
-		out = append(out, flatHeading{
-			ID:    id,
+		out = append(out, TocLink{
+			ID:    headingID(h),
 			Text:  headingText(h, source),
 			Depth: depth,
 		})
@@ -205,31 +184,33 @@ func collectHeadings(root ast.Node, source []byte) []flatHeading {
 	return out
 }
 
-// headingText concatenates the text content of a heading node, matching the
-// visible rendered text (minus inline formatting).
-func headingText(h *ast.Heading, source []byte) string {
-	var b strings.Builder
-	for c := h.FirstChild(); c != nil; c = c.NextSibling() {
-		collectInlineText(c, source, &b)
+func headingID(h *ast.Heading) string {
+	attr, found := h.Attribute([]byte("id"))
+	if !found {
+		return ""
 	}
-	return strings.TrimSpace(b.String())
+	if b, ok := attr.([]byte); ok {
+		return string(b)
+	}
+	return ""
 }
 
-func collectInlineText(n ast.Node, source []byte, b *strings.Builder) {
-	switch v := n.(type) {
-	case *ast.Text:
-		b.Write(v.Segment.Value(source))
-	case *ast.String:
-		b.Write(v.Value)
-	case *ast.CodeSpan:
-		for c := v.FirstChild(); c != nil; c = c.NextSibling() {
-			collectInlineText(c, source, b)
+// headingText concatenates the inline text of a heading, dropping markdown
+// formatting (e.g., **bold** → bold) so TOC labels match the rendered page.
+func headingText(h *ast.Heading, source []byte) string {
+	var b strings.Builder
+	var walk func(ast.Node)
+	walk = func(n ast.Node) {
+		if t, ok := n.(*ast.Text); ok {
+			b.Write(t.Segment.Value(source))
+			return
 		}
-	default:
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-			collectInlineText(c, source, b)
+			walk(c)
 		}
 	}
+	walk(h)
+	return strings.TrimSpace(b.String())
 }
 
 // slugify builds a URL-friendly id that preserves Unicode letters/digits so
@@ -266,23 +247,9 @@ func slugify(s string) string {
 	return out
 }
 
-// buildTOCTree converts a flat heading list into a nested tree. Matches the
-// legacy Nitro behavior: h1 is treated as depth 2, and headings deeper than
-// maxDepth are excluded.
-func buildTOCTree(flat []flatHeading, maxDepth int) []TocLink {
-	if len(flat) == 0 {
-		return nil
-	}
-	filtered := make([]flatHeading, 0, len(flat))
-	for _, h := range flat {
-		if h.Depth >= 2 && h.Depth <= maxDepth {
-			filtered = append(filtered, h)
-		}
-	}
-	if len(filtered) == 0 {
-		return nil
-	}
-
+// buildTOCTree converts a flat heading list into a nested tree. Headings
+// outside [2, maxDepth] are skipped (h1 was promoted to depth 2 upstream).
+func buildTOCTree(flat []TocLink, maxDepth int) []TocLink {
 	var roots []TocLink
 	// Stack holds pointers into parent `Children` slices (or into roots for
 	// the top level) so we can append nested entries in place.
@@ -292,16 +259,15 @@ func buildTOCTree(flat []flatHeading, maxDepth int) []TocLink {
 	}
 	stack := []frame{{depth: 1, list: &roots}}
 
-	for _, h := range filtered {
+	for _, h := range flat {
+		if h.Depth < 2 || h.Depth > maxDepth {
+			continue
+		}
 		for len(stack) > 1 && h.Depth <= stack[len(stack)-1].depth {
 			stack = stack[:len(stack)-1]
 		}
 		top := stack[len(stack)-1]
-		*top.list = append(*top.list, TocLink{
-			ID:    h.ID,
-			Text:  h.Text,
-			Depth: h.Depth,
-		})
+		*top.list = append(*top.list, h)
 		// Push a frame pointing at the new entry's children slice so the
 		// next deeper heading lands inside it.
 		newEntry := &(*top.list)[len(*top.list)-1]
@@ -357,14 +323,12 @@ func (r *h1ToH2Renderer) renderHeading(
 	if entering {
 		w.WriteString("<h")
 		w.WriteByte(tag)
-		if n.Attributes() != nil {
-			for _, attr := range n.Attributes() {
-				w.WriteByte(' ')
-				w.Write(attr.Name)
-				w.WriteString(`="`)
-				w.Write(util.EscapeHTML(attr.Value.([]byte)))
-				w.WriteByte('"')
-			}
+		for _, attr := range n.Attributes() {
+			w.WriteByte(' ')
+			w.Write(attr.Name)
+			w.WriteString(`="`)
+			w.Write(util.EscapeHTML(attr.Value.([]byte)))
+			w.WriteByte('"')
 		}
 		w.WriteByte('>')
 	} else {

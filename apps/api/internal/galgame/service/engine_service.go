@@ -73,7 +73,7 @@ func (s *EngineService) GetDetail(
 	rawQuery url.Values,
 	isSFW bool,
 ) (*dto.EngineDetail, *errors.AppError) {
-	data, appErr := s.wikiClient.Get(ctx, "/engine/"+name, rawQuery)
+	data, appErr := s.wikiClient.Get(ctx, "/engine/"+name, withSFWFilter(rawQuery, isSFW))
 	if appErr != nil {
 		return nil, appErr
 	}

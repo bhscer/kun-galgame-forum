@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/url"
+	"strconv"
 
 	"kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/galgame/dto"
@@ -97,7 +99,7 @@ func (s *OfficialService) GetDetail(
 	rawQuery url.Values,
 	isSFW bool,
 ) (*dto.OfficialDetail, *errors.AppError) {
-	data, appErr := s.wikiClient.Get(ctx, "/official/"+name, rawQuery)
+	data, appErr := s.wikiClient.Get(ctx, "/official/"+name, withSFWFilter(rawQuery, isSFW))
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -130,4 +132,28 @@ func aliasesToNames(aliases []dto.WikiAlias) []string {
 		out[i] = a.Name
 	}
 	return out
+}
+
+// withSFWFilter clones q and, when isSFW is true, injects content_limit=sfw
+// so the wiki service filters NSFW galgames server-side and returns a
+// matching total. A nil/empty q is handled.
+func withSFWFilter(q url.Values, isSFW bool) url.Values {
+	out := url.Values{}
+	maps.Copy(out, q)
+	if isSFW {
+		out.Set("content_limit", "sfw")
+	}
+	return out
+}
+
+// atoiOr parses s as an int, returning fallback on any failure (empty / bad).
+func atoiOr(s string, fallback int) int {
+	if s == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return fallback
+	}
+	return n
 }

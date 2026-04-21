@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"kun-galgame-api/internal/activity/dto"
 	"kun-galgame-api/internal/activity/repository"
@@ -47,7 +45,7 @@ func (s *ActivityService) GetActivity(ctx context.Context, typeStr string, page,
 		return nil, errors.ErrInternal("查询活动数据失败")
 	}
 	items := rowsToItems(rows)
-	s.enrichGalgameItems(ctx, items)
+	s.enrichGalgameItems(ctx, rows, items)
 	return &Result{Items: items, Total: total}, nil
 }
 
@@ -58,11 +56,13 @@ func (s *ActivityService) GetTimeline(ctx context.Context, page, limit int) (*Re
 		return nil, errors.ErrInternal("查询活动列表失败")
 	}
 	items := rowsToItems(rows)
-	s.enrichGalgameItems(ctx, items)
+	s.enrichGalgameItems(ctx, rows, items)
 	return &Result{Items: items, Total: total}, nil
 }
 
 // rowsToItems converts DB rows into response items (no enrichment yet).
+// The raw DB content is stashed in `Content` and may be replaced during
+// enrichment with a galgame-name-aware string for galgame-scoped types.
 func rowsToItems(rows []repository.ActivityRow) []dto.ActivityItem {
 	items := make([]dto.ActivityItem, len(rows))
 	for i, r := range rows {
@@ -80,65 +80,98 @@ func rowsToItems(rows []repository.ActivityRow) []dto.ActivityItem {
 	return items
 }
 
-// enrichGalgameItems fills in galgame names for GALGAME_CREATION items
-// by batch-fetching from the wiki service, then fills any missing actor
-// names by resolving the wiki-returned user_ids against the local user table.
-func (s *ActivityService) enrichGalgameItems(ctx context.Context, items []dto.ActivityItem) {
-	ids := make([]int, 0)
-	for _, it := range items {
-		if it.Type == "GALGAME_CREATION" && strings.HasPrefix(it.Content, "galgame#") {
-			if id, err := strconv.Atoi(it.Content[len("galgame#"):]); err == nil {
-				ids = append(ids, id)
-			}
+// enrichGalgameItems batch-fetches names for every galgame-scoped activity
+// row from the wiki service and rewrites the content string per type:
+//
+//	GALGAME_CREATION          → "<game name>"
+//	GALGAME_RESOURCE_CREATION → "在《<game name>》发布了下载资源"
+//	GALGAME_RATING_CREATION   → "<game name> · <short summary>" (if summary)
+//	GALGAME_COMMENT_CREATION  → "在《<game name>》<comment>"
+//
+// rows/items must be index-aligned; the caller guarantees this.
+func (s *ActivityService) enrichGalgameItems(
+	ctx context.Context,
+	rows []repository.ActivityRow,
+	items []dto.ActivityItem,
+) {
+	idSet := map[int]struct{}{}
+	for _, r := range rows {
+		if r.GalgameID > 0 {
+			idSet[r.GalgameID] = struct{}{}
 		}
 	}
-	if len(ids) == 0 {
+	if len(idSet) == 0 {
 		return
+	}
+	ids := make([]int, 0, len(idSet))
+	for id := range idSet {
+		ids = append(ids, id)
 	}
 
 	briefMap, appErr := s.wikiGC.GetBatch(ctx, ids)
 	if appErr != nil {
-		return // graceful: leave placeholder content
+		return // graceful: leave raw content
 	}
 
-	for i := range items {
-		if items[i].Type == "GALGAME_CREATION" && strings.HasPrefix(items[i].Content, "galgame#") {
-			if id, err := strconv.Atoi(items[i].Content[len("galgame#"):]); err == nil {
-				if b, ok := briefMap[id]; ok {
-					// Pick best available name
-					name := b.NameZhCn
-					if name == "" {
-						name = b.NameJaJp
-					}
-					if name == "" {
-						name = b.NameEnUs
-					}
-					if name == "" {
-						name = b.NameZhTw
-					}
-					items[i].Content = name
-					// Fill actor from wiki user_id
-					if items[i].Actor.ID == 0 {
-						items[i].Actor.ID = b.UserID
-					}
+	pickName := func(id int) string {
+		b, ok := briefMap[id]
+		if !ok {
+			return fmt.Sprintf("galgame#%d", id)
+		}
+		for _, n := range []string{b.NameZhCn, b.NameJaJp, b.NameEnUs, b.NameZhTw} {
+			if n != "" {
+				return n
+			}
+		}
+		return fmt.Sprintf("galgame#%d", id)
+	}
+
+	for i, r := range rows {
+		if r.GalgameID == 0 {
+			continue
+		}
+		name := pickName(r.GalgameID)
+		switch r.TypeStr {
+		case "GALGAME_CREATION":
+			items[i].Content = name
+			// galgame table has no local user_id; pull the creator from
+			// the wiki brief.
+			if items[i].Actor.ID == 0 {
+				if b, ok := briefMap[r.GalgameID]; ok {
+					items[i].Actor.ID = b.UserID
 				}
+			}
+		case "GALGAME_RESOURCE_CREATION":
+			items[i].Content = fmt.Sprintf("在《%s》发布了下载资源", name)
+		case "GALGAME_RATING_CREATION":
+			if r.Content != "" {
+				items[i].Content = fmt.Sprintf("%s · %s", name, r.Content)
+			} else {
+				items[i].Content = fmt.Sprintf("评价了《%s》", name)
+			}
+		case "GALGAME_COMMENT_CREATION":
+			if r.Content != "" {
+				items[i].Content = fmt.Sprintf("在《%s》%s", name, r.Content)
+			} else {
+				items[i].Content = fmt.Sprintf("评论了《%s》", name)
 			}
 		}
 	}
 
-	// Batch resolve user names for galgame creation items that still lack one.
-	userIDs := make([]int, 0)
+	// Resolve display name/avatar for galgame-creation actors whose ID
+	// was just injected from the wiki brief (LEFT JOIN missed them at
+	// query time because user_id was 0).
+	needUsers := make([]int, 0)
 	for _, it := range items {
 		if it.Type == "GALGAME_CREATION" && it.Actor.Name == "" && it.Actor.ID > 0 {
-			userIDs = append(userIDs, it.Actor.ID)
+			needUsers = append(needUsers, it.Actor.ID)
 		}
 	}
-	if len(userIDs) == 0 {
+	if len(needUsers) == 0 {
 		return
 	}
-	users := s.repo.FindUsersByIDs(userIDs)
-	userMap := make(map[int]repository.UserInfoRow, len(users))
-	for _, u := range users {
+	userMap := map[int]repository.UserInfoRow{}
+	for _, u := range s.repo.FindUsersByIDs(needUsers) {
 		userMap[u.ID] = u
 	}
 	for i := range items {

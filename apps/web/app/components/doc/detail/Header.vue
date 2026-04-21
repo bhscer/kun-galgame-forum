@@ -65,9 +65,8 @@ const handleDelete = async () => {
       </h1>
 
       <div class="flex flex-wrap items-center gap-3 text-sm">
-        <!-- TODO: category is now category_id (flat), need separate fetch for title -->
         <KunBadge color="secondary">
-          {{ `分类 #${metadata.category_id}` }}
+          {{ metadata.category?.title || `分类 #${metadata.category_id}` }}
         </KunBadge>
         <div class="text-default-500 flex items-center gap-1">
           <KunIcon name="lucide:eye" class="h-4 w-4" />
