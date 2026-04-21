@@ -13,11 +13,15 @@ import (
 )
 
 type ArticleService struct {
-	articleRepo *repository.ArticleRepository
+	articleRepo  *repository.ArticleRepository
+	categoryRepo *repository.CategoryRepository
 }
 
-func NewArticleService(articleRepo *repository.ArticleRepository) *ArticleService {
-	return &ArticleService{articleRepo: articleRepo}
+func NewArticleService(
+	articleRepo *repository.ArticleRepository,
+	categoryRepo *repository.CategoryRepository,
+) *ArticleService {
+	return &ArticleService{articleRepo: articleRepo, categoryRepo: categoryRepo}
 }
 
 // ──────────────────────────────────────────
@@ -26,7 +30,7 @@ func NewArticleService(articleRepo *repository.ArticleRepository) *ArticleServic
 
 // ArticleListResult carries the list + total for paginated handler responses.
 type ArticleListResult struct {
-	Items []model.DocArticle
+	Items []dto.ArticleSummary
 	Total int64
 }
 
@@ -39,7 +43,59 @@ func (s *ArticleService) GetList(req *dto.GetArticlesRequest) *ArticleListResult
 	}
 
 	items, total := s.articleRepo.FindPaginated(req)
-	return &ArticleListResult{Items: items, Total: total}
+
+	categoryByID := s.loadCategoriesFor(items)
+	summaries := make([]dto.ArticleSummary, 0, len(items))
+	for _, a := range items {
+		summaries = append(summaries, toArticleSummary(a, categoryByID[a.CategoryID]))
+	}
+	return &ArticleListResult{Items: summaries, Total: total}
+}
+
+func (s *ArticleService) loadCategoriesFor(articles []model.DocArticle) map[int]dto.ArticleCategoryBrief {
+	out := map[int]dto.ArticleCategoryBrief{}
+	if len(articles) == 0 {
+		return out
+	}
+	idSet := map[int]struct{}{}
+	ids := make([]int, 0, len(articles))
+	for _, a := range articles {
+		if _, ok := idSet[a.CategoryID]; ok {
+			continue
+		}
+		idSet[a.CategoryID] = struct{}{}
+		ids = append(ids, a.CategoryID)
+	}
+	var cats []model.DocCategory
+	s.categoryRepo.DB().Where("id IN ?", ids).Find(&cats)
+	for _, c := range cats {
+		out[c.ID] = dto.ArticleCategoryBrief{ID: c.ID, Slug: c.Slug, Title: c.Title}
+	}
+	return out
+}
+
+func toArticleSummary(a model.DocArticle, cat dto.ArticleCategoryBrief) dto.ArticleSummary {
+	if cat.ID == 0 {
+		cat = dto.ArticleCategoryBrief{ID: a.CategoryID}
+	}
+	return dto.ArticleSummary{
+		ID:            a.ID,
+		Title:         a.Title,
+		Slug:          a.Slug,
+		Path:          a.Path,
+		Description:   a.Description,
+		Banner:        a.Banner,
+		Status:        a.Status,
+		IsPin:         a.IsPin,
+		View:          a.View,
+		PublishedTime: a.PublishedTime,
+		EditedTime:    a.EditedTime,
+		CategoryID:    a.CategoryID,
+		AuthorID:      a.AuthorID,
+		Category:      cat,
+		Created:       a.CreatedAt,
+		Updated:       a.UpdatedAt,
+	}
 }
 
 // ──────────────────────────────────────────
@@ -55,6 +111,8 @@ func (s *ArticleService) GetBySlug(slug string) (*dto.ArticleDetailResponse, *er
 	// Bump view asynchronously to preserve the old fire-and-forget behavior.
 	go s.articleRepo.IncrementView(article.ID)
 
+	html, toc := markdown.RenderWithTOC(article.ContentMarkdown)
+
 	return &dto.ArticleDetailResponse{
 		ID:              article.ID,
 		Title:           article.Title,
@@ -68,7 +126,8 @@ func (s *ArticleService) GetBySlug(slug string) (*dto.ArticleDetailResponse, *er
 		PublishedTime:   article.PublishedTime,
 		EditedTime:      article.EditedTime,
 		ContentMarkdown: article.ContentMarkdown,
-		ContentHTML:     markdown.Render(article.ContentMarkdown),
+		ContentHTML:     html,
+		Toc:             toc,
 		CategoryID:      article.CategoryID,
 		AuthorID:        article.AuthorID,
 		Created:         article.CreatedAt,

@@ -39,6 +39,12 @@ export interface DocTagListResponse {
   limit: number
 }
 
+export interface DocArticleCategoryBrief {
+  id: number
+  slug: string
+  title: string
+}
+
 export interface DocArticle {
   id: number
   title: string
@@ -54,6 +60,7 @@ export interface DocArticle {
   content_markdown: string
   category_id: number
   author_id: number
+  category: DocArticleCategoryBrief
   created: Date | string
   updated: Date | string
   // TODO: server-side markdown rendering

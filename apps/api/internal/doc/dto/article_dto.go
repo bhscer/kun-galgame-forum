@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"time"
+
+	"kun-galgame-api/internal/infrastructure/markdown"
+)
 
 // ──────────────────────────────────────────
 // Requests
@@ -9,7 +13,7 @@ import "time"
 // GetArticlesRequest is the query for GET /doc/article.
 type GetArticlesRequest struct {
 	Page       int    `query:"page" validate:"min=1"`
-	Limit      int    `query:"limit" validate:"min=1,max=50"`
+	Limit      int    `query:"limit" validate:"min=1,max=100"`
 	CategoryID *int   `query:"categoryId"`
 	TagID      *int   `query:"tagId"`
 	Status     *int   `query:"status"`
@@ -55,6 +59,36 @@ type DeleteArticleRequest struct {
 // Responses
 // ──────────────────────────────────────────
 
+// ArticleCategoryBrief is the nested category shape embedded in list/detail
+// responses so the frontend can render category pills without a separate
+// fetch. Matches the legacy Nitro relation output.
+type ArticleCategoryBrief struct {
+	ID    int    `json:"id"`
+	Slug  string `json:"slug"`
+	Title string `json:"title"`
+}
+
+// ArticleSummary is the list-row shape of GET /doc/article. Mirrors
+// model.DocArticle's JSON tags but adds the `category` relation.
+type ArticleSummary struct {
+	ID            int                  `json:"id"`
+	Title         string               `json:"title"`
+	Slug          string               `json:"slug"`
+	Path          string               `json:"path"`
+	Description   string               `json:"description"`
+	Banner        string               `json:"banner"`
+	Status        int                  `json:"status"`
+	IsPin         bool                 `json:"is_pin"`
+	View          int                  `json:"view"`
+	PublishedTime time.Time            `json:"published_time"`
+	EditedTime    *time.Time           `json:"edited_time"`
+	CategoryID    int                  `json:"category_id"`
+	AuthorID      int                  `json:"author_id"`
+	Category      ArticleCategoryBrief `json:"category"`
+	Created       time.Time            `json:"created"`
+	Updated       time.Time            `json:"updated"`
+}
+
 // ArticleDetailResponse is the shape of GET /doc/article/:slug.
 // Field names mirror the pre-refactor handler output exactly (mixing snake_case
 // from the GORM model with one camelCase field for the rendered HTML).
@@ -70,10 +104,11 @@ type ArticleDetailResponse struct {
 	View            int        `json:"view"`
 	PublishedTime   time.Time  `json:"published_time"`
 	EditedTime      *time.Time `json:"edited_time"`
-	ContentMarkdown string     `json:"content_markdown"`
-	ContentHTML     string     `json:"contentHtml"`
-	CategoryID      int        `json:"category_id"`
-	AuthorID        int        `json:"author_id"`
-	Created         time.Time  `json:"created"`
-	Updated         time.Time  `json:"updated"`
+	ContentMarkdown string             `json:"content_markdown"`
+	ContentHTML     string             `json:"contentHtml"`
+	Toc             []markdown.TocLink `json:"toc"`
+	CategoryID      int                `json:"category_id"`
+	AuthorID        int                `json:"author_id"`
+	Created         time.Time          `json:"created"`
+	Updated         time.Time          `json:"updated"`
 }

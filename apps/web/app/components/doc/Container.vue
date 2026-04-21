@@ -43,10 +43,9 @@ const articles = computed(() => articleResponse.value?.items || [])
         :href="post.path"
         content-class="space-y-3"
       >
-        <!-- TODO: category is now category_id (flat), need separate fetch for slug/title -->
         <div class="flex items-center gap-3 text-sm">
           <KunBadge color="default">
-            {{ `分类 #${post.category_id}` }}
+            {{ post.category?.title || `分类 #${post.category_id}` }}
           </KunBadge>
 
           <time

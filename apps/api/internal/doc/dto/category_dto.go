@@ -7,7 +7,7 @@ package dto
 // GetCategoriesRequest is the query for GET /doc/category.
 type GetCategoriesRequest struct {
 	Page    int    `query:"page" validate:"min=1"`
-	Limit   int    `query:"limit" validate:"min=1,max=50"`
+	Limit   int    `query:"limit" validate:"min=1,max=100"`
 	Keyword string `query:"keyword"`
 }
 

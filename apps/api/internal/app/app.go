@@ -22,11 +22,8 @@ import (
 	imageHandler "kun-galgame-api/internal/image/handler"
 	imageRepo "kun-galgame-api/internal/image/repository"
 	imageService "kun-galgame-api/internal/image/service"
-	toolsetHandler "kun-galgame-api/internal/toolset/handler"
-	toolsetRepo "kun-galgame-api/internal/toolset/repository"
-	toolsetService "kun-galgame-api/internal/toolset/service"
-	cronPkg "kun-galgame-api/internal/infrastructure/cron"
 	"kun-galgame-api/internal/infrastructure/cache"
+	cronPkg "kun-galgame-api/internal/infrastructure/cron"
 	"kun-galgame-api/internal/infrastructure/database"
 	"kun-galgame-api/internal/infrastructure/mail"
 	"kun-galgame-api/internal/infrastructure/storage"
@@ -46,6 +43,9 @@ import (
 	sectionHandler "kun-galgame-api/internal/section/handler"
 	sectionRepo "kun-galgame-api/internal/section/repository"
 	sectionService "kun-galgame-api/internal/section/service"
+	toolsetHandler "kun-galgame-api/internal/toolset/handler"
+	toolsetRepo "kun-galgame-api/internal/toolset/repository"
+	toolsetService "kun-galgame-api/internal/toolset/service"
 	topicHandler "kun-galgame-api/internal/topic/handler"
 	topicRepo "kun-galgame-api/internal/topic/repository"
 	topicService "kun-galgame-api/internal/topic/service"
@@ -80,46 +80,46 @@ type App struct {
 	OAuthClient *oauth.Client
 
 	// Handlers
-	OAuthHandler   *handler.OAuthHandler
-	UserHandler    *handler.UserHandler
-	HomeHandler    *homeHandler.HomeHandler
-	TopicHandler        *topicHandler.TopicHandler
-	ReplyHandler        *topicHandler.ReplyHandler
-	TopicCommentHandler *topicHandler.CommentHandler
-	PollHandler         *topicHandler.PollHandler
-	MessageHandler     *msgHandler.MessageHandler
-	MessageChatHandler *msgHandler.ChatHandler
-	AdminOverviewHandler *adminHandler.OverviewHandler
-	AdminSettingHandler  *adminHandler.SettingHandler
-	AdminUserHandler     *adminHandler.UserHandler
-	RankingHandler *rankingHandler.RankingHandler
-	SectionHandler *sectionHandler.SectionHandler
-	DocArticleHandler  *docHandler.ArticleHandler
-	DocCategoryHandler *docHandler.CategoryHandler
-	DocTagHandler      *docHandler.TagHandler
-	WebsiteHandler         *websiteHandler.WebsiteHandler
-	WebsiteCommentHandler  *websiteHandler.CommentHandler
-	WebsiteCategoryHandler *websiteHandler.CategoryHandler
-	WebsiteTagHandler      *websiteHandler.TagHandler
-	UpdateHandler    *updateHandler.UpdateHandler
-	UnmoeHandler     *unmoeHandler.UnmoeHandler
-	ReportHandler    *reportHandler.ReportHandler
-	RSSHandler       *rssHandler.RSSHandler
-	GalgameHandler         *galgameHandler.GalgameHandler
-	GalgameCommentHandler  *galgameHandler.CommentHandler
-	GalgameResourceHandler *galgameHandler.ResourceHandler
-	GalgameRatingHandler   *galgameHandler.RatingHandler
-	GalgameEntityHandler   *galgameHandler.EntityHandler
-	GalgameWikiHandler     *galgameHandler.WikiHandler
-	ActivityHandler  *activityHandler.ActivityHandler
-	ImageHandler     *imageHandler.ImageHandler
-	SearchHandler    *searchHandler.SearchHandler
+	OAuthHandler               *handler.OAuthHandler
+	UserHandler                *handler.UserHandler
+	HomeHandler                *homeHandler.HomeHandler
+	TopicHandler               *topicHandler.TopicHandler
+	ReplyHandler               *topicHandler.ReplyHandler
+	TopicCommentHandler        *topicHandler.CommentHandler
+	PollHandler                *topicHandler.PollHandler
+	MessageHandler             *msgHandler.MessageHandler
+	MessageChatHandler         *msgHandler.ChatHandler
+	AdminOverviewHandler       *adminHandler.OverviewHandler
+	AdminSettingHandler        *adminHandler.SettingHandler
+	AdminUserHandler           *adminHandler.UserHandler
+	RankingHandler             *rankingHandler.RankingHandler
+	SectionHandler             *sectionHandler.SectionHandler
+	DocArticleHandler          *docHandler.ArticleHandler
+	DocCategoryHandler         *docHandler.CategoryHandler
+	DocTagHandler              *docHandler.TagHandler
+	WebsiteHandler             *websiteHandler.WebsiteHandler
+	WebsiteCommentHandler      *websiteHandler.CommentHandler
+	WebsiteCategoryHandler     *websiteHandler.CategoryHandler
+	WebsiteTagHandler          *websiteHandler.TagHandler
+	UpdateHandler              *updateHandler.UpdateHandler
+	UnmoeHandler               *unmoeHandler.UnmoeHandler
+	ReportHandler              *reportHandler.ReportHandler
+	RSSHandler                 *rssHandler.RSSHandler
+	GalgameHandler             *galgameHandler.GalgameHandler
+	GalgameCommentHandler      *galgameHandler.CommentHandler
+	GalgameResourceHandler     *galgameHandler.ResourceHandler
+	GalgameRatingHandler       *galgameHandler.RatingHandler
+	GalgameEntityHandler       *galgameHandler.EntityHandler
+	GalgameWikiHandler         *galgameHandler.WikiHandler
+	ActivityHandler            *activityHandler.ActivityHandler
+	ImageHandler               *imageHandler.ImageHandler
+	SearchHandler              *searchHandler.SearchHandler
 	ToolsetHandler             *toolsetHandler.ToolsetHandler
 	ToolsetPracticalityHandler *toolsetHandler.PracticalityHandler
 	ToolsetCommentHandler      *toolsetHandler.CommentHandler
 	ToolsetResourceHandler     *toolsetHandler.ResourceHandler
 	ToolsetUploadHandler       *toolsetHandler.UploadHandler
-	CronStop         func()
+	CronStop                   func()
 }
 
 func New(cfg *config.Config) *App {
@@ -210,7 +210,7 @@ func New(cfg *config.Config) *App {
 	docArticleRepo := docRepo.NewArticleRepository(db)
 	docCategoryRepo := docRepo.NewCategoryRepository(db)
 	docTagRepo := docRepo.NewTagRepository(db)
-	docArticleSvc := docService.NewArticleService(docArticleRepo)
+	docArticleSvc := docService.NewArticleService(docArticleRepo, docCategoryRepo)
 	docCategorySvc := docService.NewCategoryService(docCategoryRepo)
 	docTagSvc := docService.NewTagService(docTagRepo)
 
@@ -231,31 +231,31 @@ func New(cfg *config.Config) *App {
 	// Handlers
 	app := &App{
 		DB: db, Redis: rdb, S3: s3Client, Mailer: mailer, Config: cfg, OAuthClient: oauthClient,
-		OAuthHandler:   handler.NewOAuthHandler(authService, cfg.Server.Mode == "prod"),
-		UserHandler:    handler.NewUserHandler(userService, userContentService),
-		HomeHandler:    homeHandler.NewHomeHandler(homeService.NewHomeService(homeRepo.NewHomeRepository(db), gc)),
-		TopicHandler:        topicHandler.NewTopicHandler(topicSvc, topicWriteSvc),
-		ReplyHandler:        topicHandler.NewReplyHandler(replySvc),
-		TopicCommentHandler: topicHandler.NewCommentHandler(commentSvc),
-		PollHandler:         topicHandler.NewPollHandler(pollSvc),
-		MessageHandler:     msgHandler.NewMessageHandler(messageSvc),
-		MessageChatHandler: msgHandler.NewChatHandler(chatSvc),
-		AdminOverviewHandler: adminHandler.NewOverviewHandler(adminOverviewSvc),
-		AdminSettingHandler:  adminHandler.NewSettingHandler(adminSettingSvc),
-		AdminUserHandler:     adminHandler.NewUserHandler(adminUserSvc),
-		RankingHandler: rankingHandler.NewRankingHandler(rankingService.NewRankingService(rankingRepo.NewRankingRepository(db), gc)),
-		SectionHandler: sectionHandler.NewSectionHandler(sectionService.NewSectionService(sectionRepo.NewSectionRepository(db))),
-		DocArticleHandler:  docHandler.NewArticleHandler(docArticleSvc),
-		DocCategoryHandler: docHandler.NewCategoryHandler(docCategorySvc),
-		DocTagHandler:      docHandler.NewTagHandler(docTagSvc),
+		OAuthHandler:           handler.NewOAuthHandler(authService, cfg.Server.Mode == "prod"),
+		UserHandler:            handler.NewUserHandler(userService, userContentService),
+		HomeHandler:            homeHandler.NewHomeHandler(homeService.NewHomeService(homeRepo.NewHomeRepository(db), gc)),
+		TopicHandler:           topicHandler.NewTopicHandler(topicSvc, topicWriteSvc),
+		ReplyHandler:           topicHandler.NewReplyHandler(replySvc),
+		TopicCommentHandler:    topicHandler.NewCommentHandler(commentSvc),
+		PollHandler:            topicHandler.NewPollHandler(pollSvc),
+		MessageHandler:         msgHandler.NewMessageHandler(messageSvc),
+		MessageChatHandler:     msgHandler.NewChatHandler(chatSvc),
+		AdminOverviewHandler:   adminHandler.NewOverviewHandler(adminOverviewSvc),
+		AdminSettingHandler:    adminHandler.NewSettingHandler(adminSettingSvc),
+		AdminUserHandler:       adminHandler.NewUserHandler(adminUserSvc),
+		RankingHandler:         rankingHandler.NewRankingHandler(rankingService.NewRankingService(rankingRepo.NewRankingRepository(db), gc)),
+		SectionHandler:         sectionHandler.NewSectionHandler(sectionService.NewSectionService(sectionRepo.NewSectionRepository(db))),
+		DocArticleHandler:      docHandler.NewArticleHandler(docArticleSvc),
+		DocCategoryHandler:     docHandler.NewCategoryHandler(docCategorySvc),
+		DocTagHandler:          docHandler.NewTagHandler(docTagSvc),
 		WebsiteHandler:         websiteHandler.NewWebsiteHandler(websiteCoreSvc),
 		WebsiteCommentHandler:  websiteHandler.NewCommentHandler(websiteCommentSvc),
 		WebsiteCategoryHandler: websiteHandler.NewCategoryHandler(websiteCategorySvc),
 		WebsiteTagHandler:      websiteHandler.NewTagHandler(websiteTagSvc),
-		UpdateHandler:    updateHandler.NewUpdateHandler(updateRepo.NewUpdateRepository(db)),
-		UnmoeHandler:     unmoeHandler.NewUnmoeHandler(unmoeRepo.NewUnmoeRepository(db)),
-		ReportHandler:    reportHandler.NewReportHandler(reportRepo.NewReportRepository(db)),
-		RSSHandler:       rssHandler.NewRSSHandler(rssRepo.NewRSSRepository(db), gc, userBriefRepo),
+		UpdateHandler:          updateHandler.NewUpdateHandler(updateRepo.NewUpdateRepository(db)),
+		UnmoeHandler:           unmoeHandler.NewUnmoeHandler(unmoeRepo.NewUnmoeRepository(db)),
+		ReportHandler:          reportHandler.NewReportHandler(reportRepo.NewReportRepository(db)),
+		RSSHandler:             rssHandler.NewRSSHandler(rssRepo.NewRSSRepository(db), gc, userBriefRepo),
 		GalgameHandler:         galgameHandler.NewGalgameHandler(galgameCoreSvc),
 		GalgameCommentHandler:  galgameHandler.NewCommentHandler(galgameCommentSvc),
 		GalgameResourceHandler: galgameHandler.NewResourceHandler(galgameResourceSvc),
@@ -263,16 +263,16 @@ func New(cfg *config.Config) *App {
 		GalgameEntityHandler: galgameHandler.NewEntityHandler(
 			galgameSeriesSvc, galgameOfficialSvc, galgameEngineSvc, galgameTagSvc,
 		),
-		GalgameWikiHandler: galgameHandler.NewWikiHandler(galgameWikiSvc),
-		ActivityHandler:  activityHandler.NewActivityHandler(activityService.NewActivityService(activityRepo.NewActivityRepository(db), gc)),
-		ImageHandler:     imageHandler.NewImageHandler(imageService.NewImageService(imageRepo.NewImageRepository(db), s3Client)),
-		SearchHandler:    searchHandler.NewSearchHandler(searchService.NewSearchService(searchRepo.NewSearchRepository(db))),
+		GalgameWikiHandler:         galgameHandler.NewWikiHandler(galgameWikiSvc),
+		ActivityHandler:            activityHandler.NewActivityHandler(activityService.NewActivityService(activityRepo.NewActivityRepository(db), gc)),
+		ImageHandler:               imageHandler.NewImageHandler(imageService.NewImageService(imageRepo.NewImageRepository(db), s3Client)),
+		SearchHandler:              searchHandler.NewSearchHandler(searchService.NewSearchService(searchRepo.NewSearchRepository(db))),
 		ToolsetHandler:             toolsetHandler.NewToolsetHandler(toolsetCoreSvc),
 		ToolsetPracticalityHandler: toolsetHandler.NewPracticalityHandler(toolsetPracticalitySvc),
 		ToolsetCommentHandler:      toolsetHandler.NewCommentHandler(toolsetCommentSvc),
 		ToolsetResourceHandler:     toolsetHandler.NewResourceHandler(toolsetResourceSvc),
 		ToolsetUploadHandler:       toolsetHandler.NewUploadHandler(toolsetUploadSvc),
-		CronStop:         cronPkg.Start(db, rdb),
+		CronStop:                   cronPkg.Start(db, rdb),
 	}
 
 	// Fiber

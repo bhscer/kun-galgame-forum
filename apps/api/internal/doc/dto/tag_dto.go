@@ -3,7 +3,7 @@ package dto
 // GetTagsRequest is the query for GET /doc/tag.
 type GetTagsRequest struct {
 	Page    int    `query:"page" validate:"min=1"`
-	Limit   int    `query:"limit" validate:"min=1,max=50"`
+	Limit   int    `query:"limit" validate:"min=1,max=100"`
 	Keyword string `query:"keyword"`
 }
 
