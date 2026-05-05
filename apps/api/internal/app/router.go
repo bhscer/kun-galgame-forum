@@ -28,18 +28,20 @@ func (a *App) setupRoutes() {
 	auth.Post("/email/code/reset", a.OAuthHandler.SendResetEmailCode)
 
 	// User (authenticated, fixed paths — registered before :uid to avoid conflicts)
-	userAuth := middleware.Auth(a.Redis, a.OAuthClient)
+	userAuth := middleware.Auth(a.Redis, a.OAuthClient, a.UserRepo)
 	checkInRL := middleware.RateLimit(a.Redis, "checkin", 1, 24*time.Hour)
 	usernameRL := middleware.RateLimit(a.Redis, "username", 3, time.Hour)
 	emailRL := middleware.RateLimit(a.Redis, "email", 3, time.Hour)
-	avatarRL := middleware.RateLimit(a.Redis, "avatar", 5, time.Hour)
+	// Avatar upload removed: kungal no longer hosts avatars locally.
+	// users.avatar is now a mirror of OAuth's `picture`, refreshed by the
+	// auth middleware on every access-token refresh (~once per hour per
+	// user). To change avatar, the user goes to the OAuth profile page.
 	api.Post("/user/check-in", userAuth, checkInRL, a.UserHandler.CheckIn)
 	api.Put("/user/bio", userAuth, a.UserHandler.UpdateBio)
 	api.Put("/user/username", userAuth, usernameRL, a.UserHandler.UpdateUsername)
 	api.Put("/user/email", userAuth, emailRL, a.UserHandler.UpdateEmail)
 	api.Get("/user/email", userAuth, a.UserHandler.GetEmail)
 	api.Get("/user/status", userAuth, a.UserHandler.GetStatus)
-	api.Post("/user/avatar", userAuth, avatarRL, a.UserHandler.UploadAvatar)
 
 	// User (public, parameterized — AFTER fixed paths)
 	api.Get("/user/:uid/floating", a.UserHandler.GetFloatingCard)
@@ -173,7 +175,7 @@ func (a *App) setupRoutes() {
 	// AUTHENTICATED routes (require valid session)
 	// ════════════════════════════════════════════
 
-	authed := api.Group("", middleware.Auth(a.Redis, a.OAuthClient))
+	authed := api.Group("", middleware.Auth(a.Redis, a.OAuthClient, a.UserRepo))
 	authed.Get("/auth/me", a.OAuthHandler.Me)
 
 	// Topic (authenticated)

@@ -195,12 +195,6 @@ func (s *UserService) GetUserStatus(ctx context.Context, uid int) (*dto.UserStat
 	}, nil
 }
 
-func (s *UserService) UploadAvatar(ctx context.Context, uid int, avatarData []byte) (string, *errors.AppError) {
-	// TODO: implement S3 upload + sharp resize
-	// For now return error
-	return "", errors.ErrBadRequest("头像上传功能正在迁移中")
-}
-
 // ──────────────────────────────────────────
 // Floating hover card
 // ──────────────────────────────────────────

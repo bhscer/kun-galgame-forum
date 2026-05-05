@@ -1,62 +1,31 @@
 <script setup lang="ts">
-const uploadedImage = ref<Blob>()
-const isUploading = ref(false)
-const { avatar, avatarMin } = storeToRefs(usePersistUserStore())
-
-const handleChangeAvatar = async () => {
-  if (!uploadedImage.value) {
-    useMessage(10113, 'warn')
-    return
-  }
-
-  const formData = new FormData()
-  formData.append('avatar', uploadedImage.value, usePersistUserStore().name)
-
-  isUploading.value = true
-  useMessage(10114, 'info')
-
-  const avatarLink = await kunFetch<string>('/user/avatar', {
-    method: 'POST',
-    body: formData
-  })
-
-  if (avatarLink) {
-    avatar.value = avatarLink
-    avatarMin.value = avatarLink.replace(/\.webp$/, '-100.webp')
-    isUploading.value = false
-    useMessage(10115, 'success')
-  }
-}
+const oauthProfileURL = computed(() => {
+  // oauthServerUrl 是 .../api/v1 形式；剥到根域作为账户中心入口
+  const apiBase = useRuntimeConfig().public.oauthServerUrl || ''
+  return apiBase.replace(/\/api\/v\d+\/?$/, '') + '/profile'
+})
 </script>
 
 <template>
   <KunCard :is-hoverable="false" content-class="space-y-3">
-    <div class="flex justify-between gap-3">
-      <div>
-        <span class="text-xl">更改头像</span>
-        <p class="text-default-500 text-sm">
-          更改头像不是必须, 但是还是有头像比较好, 最好是小只可爱软萌的孩子, 嗯。
-        </p>
-        <p class="text-default-500 text-sm">
-          您的默认头像将会从
-          <KunLink size="sm" :to="kungal.domain.sticker" target="_blank">
-            鲲 Galgame 表情包
-          </KunLink>
-          中随机选取, 每一次都是不同的孩子哦, 欸嘿嘿嘿
-        </p>
-      </div>
-
-      <KunUpload
-        class-name="w-24"
-        :size="1920"
-        :aspect="1 / 1"
-        @set-image="(img) => (uploadedImage = img)"
-      />
+    <div class="space-y-2">
+      <span class="text-xl">更改头像</span>
+      <p class="text-default-500 text-sm">
+        头像现在统一由 OAuth 账户中心管理。请前往 OAuth
+        账户中心修改，修改后下次刷新页面即会同步至 {{ kungal.titleShort }}。
+      </p>
+      <p class="text-default-500 text-sm">
+        您的默认头像将会从
+        <KunLink size="sm" :to="kungal.domain.sticker" target="_blank">
+          鲲 Galgame 表情包
+        </KunLink>
+        中随机选取, 每一次都是不同的孩子哦, 欸嘿嘿嘿
+      </p>
     </div>
 
     <div class="flex justify-end">
-      <KunButton :loading="isUploading" @click="handleChangeAvatar">
-        确定更改
+      <KunButton :href="oauthProfileURL" target="_blank">
+        前往 OAuth 账户中心
       </KunButton>
     </div>
   </KunCard>

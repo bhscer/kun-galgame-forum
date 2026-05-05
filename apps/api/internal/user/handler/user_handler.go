@@ -135,24 +135,6 @@ func (h *UserHandler) GetStatus(c *fiber.Ctx) error {
 	return response.OK(c, status)
 }
 
-// UploadAvatar handles avatar upload.
-// POST /api/user/avatar
-func (h *UserHandler) UploadAvatar(c *fiber.Ctx) error {
-	user, appErr := middleware.MustGetUser(c)
-	if appErr != nil {
-		return response.Error(c, appErr)
-	}
-	buf, appErr := readFormFile(c, "avatar")
-	if appErr != nil {
-		return response.Error(c, appErr)
-	}
-	link, appErr := h.userService.UploadAvatar(c.Context(), user.UID, buf)
-	if appErr != nil {
-		return response.Error(c, appErr)
-	}
-	return response.OK(c, link)
-}
-
 // readFormFile loads a multipart file into memory, returning a friendly
 // Chinese error on any IO hiccup.
 func readFormFile(c *fiber.Ctx, field string) ([]byte, *errors.AppError) {

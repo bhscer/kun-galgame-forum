@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kun-galgame-api/internal/user/oauth"
+	"kun-galgame-api/internal/user/repository"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/response"
 
@@ -39,7 +40,12 @@ type SessionData struct {
 //
 // Take an *oauth.Client (the same one AuthService uses) so that token
 // refresh logic lives in exactly one place — see oauth.Client.RefreshOAuthToken.
-func Auth(rdb *redis.Client, oauthClient *oauth.Client) fiber.Handler {
+//
+// userRepo is used for the OAuth-mirror path: whenever the access token is
+// refreshed we piggyback a userinfo fetch + avatar upsert. This keeps
+// kungal's local users.avatar snapshot in sync with the canonical OAuth
+// avatar without polling on every request.
+func Auth(rdb *redis.Client, oauthClient *oauth.Client, userRepo *repository.UserRepository) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := c.Cookies("kun_session")
 		if token == "" {
@@ -80,6 +86,13 @@ func Auth(rdb *redis.Client, oauthClient *oauth.Client) fiber.Handler {
 					return response.Error(c, errors.ErrInternal("服务器内部错误"))
 				}
 				rdb.Set(ctx, "session:"+token, data, 7*24*time.Hour)
+
+				// Mirror the canonical OAuth avatar into kungal's local
+				// users.avatar. Naturally rate-limited to "once per access
+				// token TTL" because we only land here when the token just
+				// expired. Fire-and-forget: failure must not break the
+				// current request.
+				go syncOAuthMirror(oauthClient, userRepo, refreshed.AccessToken, session.UID)
 			} else {
 				// Another request is refreshing, re-read session from Redis
 				val, err = rdb.Get(ctx, "session:"+token).Result()
@@ -138,5 +151,34 @@ func MustGetUser(c *fiber.Ctx) (*UserInfo, *errors.AppError) {
 		return nil, errors.ErrAuthExpired()
 	}
 	return info, nil
+}
+
+// syncOAuthMirror fetches the user's current OAuth profile and updates
+// kungal's local users.avatar snapshot. Runs in its own goroutine — must
+// swallow all errors and never panic. The repo write is idempotent / no-op
+// when the avatar URL hasn't changed.
+//
+// Only `picture` is mirrored on purpose:
+//   - `name` collides with kungal's local UpdateUsername path (uniqueness
+//     constraints + user may have intentionally diverged)
+//   - `email` collides with kungal's local UpdateEmail path
+//   - `role` is a kungal business concept, not an OAuth identity field
+func syncOAuthMirror(oauthClient *oauth.Client, userRepo *repository.UserRepository, accessToken string, uid int) {
+	if oauthClient == nil || userRepo == nil || accessToken == "" || uid <= 0 {
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("oauth mirror panic", "uid", uid, "panic", r)
+		}
+	}()
+	info, err := oauthClient.FetchUserInfo(accessToken)
+	if err != nil {
+		slog.Warn("oauth mirror: fetch userinfo failed", "uid", uid, "error", err)
+		return
+	}
+	if err := userRepo.UpdateAvatar(uid, info.Picture); err != nil {
+		slog.Warn("oauth mirror: update avatar failed", "uid", uid, "error", err)
+	}
 }
 

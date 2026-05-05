@@ -78,6 +78,7 @@ type App struct {
 	Mailer      *mail.Mailer
 	Config      *config.Config
 	OAuthClient *oauth.Client
+	UserRepo    *repository.UserRepository
 
 	// Handlers
 	OAuthHandler               *handler.OAuthHandler
@@ -232,6 +233,7 @@ func New(cfg *config.Config) *App {
 	// Handlers
 	app := &App{
 		DB: db, Redis: rdb, S3: s3Client, Mailer: mailer, Config: cfg, OAuthClient: oauthClient,
+		UserRepo: userRepo,
 		OAuthHandler:           handler.NewOAuthHandler(authService, cfg.Server.Mode == "prod"),
 		UserHandler:            handler.NewUserHandler(userService, userContentService),
 		HomeHandler:            homeHandler.NewHomeHandler(homeService.NewHomeService(homeRepo.NewHomeRepository(db), gc)),

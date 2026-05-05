@@ -97,6 +97,19 @@ func (r *UserRepository) IncrementMoemoepoint(userID int, amount int) error {
 		Update("moemoepoint", gorm.Expr("moemoepoint + ?", amount)).Error
 }
 
+// UpdateAvatar overwrites the user's avatar URL. Used by the OAuth-mirror
+// path in the auth middleware to keep kungal's snapshot in sync with the
+// canonical avatar served by the OAuth provider. No-op when avatar is the
+// empty string (defensive against an OAuth response that lost the field).
+func (r *UserRepository) UpdateAvatar(uid int, avatar string) error {
+	if avatar == "" {
+		return nil
+	}
+	return r.db.Model(&model.User{}).
+		Where("id = ? AND avatar IS DISTINCT FROM ?", uid, avatar).
+		Update("avatar", avatar).Error
+}
+
 func (r *UserRepository) CheckIn(uid int, points int) error {
 	return r.db.Model(&model.User{}).Where("id = ?", uid).
 		Updates(map[string]any{
