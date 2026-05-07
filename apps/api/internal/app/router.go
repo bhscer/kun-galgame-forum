@@ -122,7 +122,7 @@ func (a *App) setupRoutes() {
 	// registered in the optAuth group below to avoid Fiber route shadowing
 	// by /galgame/:gid.
 	api.Get("/galgame-tag", a.GalgameEntityHandler.GetTagList)
-	api.Get("/galgame-tag/search", a.GalgameWikiHandler.ProxyGet)
+	api.Get("/galgame-tag/search", a.GalgameEntityHandler.SearchTags)
 	api.Get("/galgame-tag/multi", a.GalgameEntityHandler.GetMultiTagGalgames)
 	api.Get("/galgame-tag/:name", a.GalgameEntityHandler.GetTagDetail)
 	api.Get("/galgame-official", a.GalgameEntityHandler.GetOfficialList)

@@ -3,37 +3,48 @@ import { navItems } from './items'
 
 const { keywords } = storeToRefs(useTempSearchStore())
 
+// Backend (Go SearchHandler) wraps every type in `{items, total}` via
+// response.Paginated. Match that shape verbatim.
+interface SearchPage {
+  items: SearchResult[]
+  total: number
+}
+
 const results = ref<SearchResult[]>([])
+const total = ref(0)
 const isLoading = ref(false)
-const isLoadComplete = ref(false)
 const pageData = reactive({
   type: 'topic' as SearchType,
   page: 1,
   limit: 12
 })
 
-const searchQuery = async () => {
+// Derive load-complete from total instead of counting pages — works for the
+// last page being non-full and for total being 0 (no results).
+const isLoadComplete = computed(
+  () => total.value > 0 && results.value.length >= total.value
+)
+
+const searchQuery = async (): Promise<SearchPage> => {
   isLoading.value = true
-  const result = await kunFetch<SearchResult[]>('/search', {
+  const result = await kunFetch<SearchPage>('/search', {
     method: 'GET',
     query: { keywords: keywords.value, ...pageData }
   })
-
-  if (result.length < 12) {
-    isLoadComplete.value = true
-  }
-
   isLoading.value = false
-  return result
+  return result ?? { items: [], total: 0 }
 }
 
 const handleSetType = async (value: SearchType) => {
   pageData.type = value
   pageData.page = 1
   results.value = []
+  total.value = 0
 
   if (keywords.value) {
-    results.value = await searchQuery()
+    const page = await searchQuery()
+    results.value = page.items
+    total.value = page.total
   } else {
     isLoading.value = false
   }
@@ -45,9 +56,12 @@ watch(
     pageData.page = 1
 
     if (keywords.value) {
-      results.value = await searchQuery()
+      const page = await searchQuery()
+      results.value = page.items
+      total.value = page.total
     } else {
       results.value = []
+      total.value = 0
       isLoading.value = false
     }
   }
@@ -55,8 +69,9 @@ watch(
 
 const handleLoadMore = async () => {
   pageData.page++
-  const newData = await searchQuery()
-  results.value = results.value.concat(newData)
+  const page = await searchQuery()
+  results.value = results.value.concat(page.items)
+  total.value = page.total
 }
 </script>
 

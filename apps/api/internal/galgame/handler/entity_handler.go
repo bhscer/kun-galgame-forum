@@ -136,6 +136,15 @@ func (h *EntityHandler) GetTagList(c *fiber.Ctx) error {
 	return response.OK(c, page)
 }
 
+// SearchTags — GET /galgame-tag/search
+func (h *EntityHandler) SearchTags(c *fiber.Ctx) error {
+	items, appErr := h.tagService.Search(c.Context(), collectQuery(c))
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, items)
+}
+
 // GetMultiTagGalgames — GET /galgame-tag/multi
 func (h *EntityHandler) GetMultiTagGalgames(c *fiber.Ctx) error {
 	page, appErr := h.tagService.GetByMultiTag(c.Context(), collectQuery(c), utils.IsSFW(c))

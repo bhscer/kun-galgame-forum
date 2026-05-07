@@ -269,7 +269,7 @@ func New(cfg *config.Config) *App {
 		GalgameWikiHandler:         galgameHandler.NewWikiHandler(galgameWikiSvc),
 		ActivityHandler:            activityHandler.NewActivityHandler(activityService.NewActivityService(activityRepo.NewActivityRepository(db), gc)),
 		ImageHandler:               imageHandler.NewImageHandler(imageService.NewImageService(imageRepo.NewImageRepository(db), s3Client)),
-		SearchHandler:              searchHandler.NewSearchHandler(searchService.NewSearchService(searchRepo.NewSearchRepository(db))),
+		SearchHandler:              searchHandler.NewSearchHandler(searchService.NewSearchService(searchRepo.NewSearchRepository(db), gc, galgameEnricher)),
 		ToolsetHandler:             toolsetHandler.NewToolsetHandler(toolsetCoreSvc),
 		ToolsetPracticalityHandler: toolsetHandler.NewPracticalityHandler(toolsetPracticalitySvc),
 		ToolsetCommentHandler:      toolsetHandler.NewCommentHandler(toolsetCommentSvc),

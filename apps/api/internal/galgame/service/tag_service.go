@@ -58,6 +58,37 @@ type TagMultiPage struct {
 	Total    int64             `json:"total"`
 }
 
+// Search — GET /galgame-tag/search
+//
+// Wiki search is Meilisearch-backed; response shape is
+// `{items, total, processing_time_ms}`. The frontend
+// (galgame/tag/Container.vue) does `searchResult.value = res` expecting a
+// bare TagListItem[]. We unwrap `items` here so the gateway response stays
+// compatible without touching the frontend.
+func (s *TagService) Search(
+	ctx context.Context,
+	rawQuery url.Values,
+) ([]dto.TagListItem, *errors.AppError) {
+	data, appErr := s.wikiClient.Get(ctx, "/tag/search", rawQuery)
+	if appErr != nil {
+		return nil, appErr
+	}
+	var resp struct {
+		Items []wikiTagListItem `json:"items"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, errors.ErrInternal("解析 Wiki 响应失败")
+	}
+	items := make([]dto.TagListItem, len(resp.Items))
+	for i, t := range resp.Items {
+		items[i] = dto.TagListItem{
+			ID: t.ID, Name: t.Name, Category: t.Category,
+			GalgameCount: t.GalgameCount,
+		}
+	}
+	return items, nil
+}
+
 // GetByMultiTag — GET /galgame-tag/multi
 //
 // Proxies to the wiki /tag/multi endpoint with param renamed to the

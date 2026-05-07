@@ -93,10 +93,15 @@ func (s *OfficialService) GetList(
 // Search — GET /galgame-official/search
 // ──────────────────────────────────────────
 //
-// Wiki returns a bare array of officials whose alias field may be missing
-// entirely or populated with {id, name, ...} objects. Normalize both to the
-// OfficialListItem shape the frontend list already uses so the search UI
-// can render the same card component without per-field guards.
+// Wiki search is Meilisearch-backed and returns the standard
+// `{items, total, processing_time_ms}` envelope. The alias field on each
+// item may be missing entirely or populated with {id, name, ...} objects;
+// aliasesToNames(nil) → []string{} keeps the frontend contract intact.
+//
+// The frontend (galgame/official/Container.vue) does
+//   `searchResult.value = res`  expecting a bare GalgameOfficialItem[].
+// We unwrap `items` here so the gateway response stays compatible without
+// touching the frontend.
 func (s *OfficialService) Search(
 	ctx context.Context,
 	rawQuery url.Values,
@@ -105,10 +110,13 @@ func (s *OfficialService) Search(
 	if appErr != nil {
 		return nil, appErr
 	}
-	var raw []wikiOfficialListItem
-	if err := json.Unmarshal(data, &raw); err != nil {
+	var resp struct {
+		Items []wikiOfficialListItem `json:"items"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, errors.ErrInternal("解析 Wiki 响应失败")
 	}
+	raw := resp.Items
 
 	items := make([]dto.OfficialListItem, len(raw))
 	for i, o := range raw {
