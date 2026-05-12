@@ -34,9 +34,10 @@ func (h *GalgameHandler) Create(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	token := c.Get("X-OAuth-Token")
+	// Session-stored token; see middleware.GetAccessToken for rationale.
+	token := middleware.GetAccessToken(c)
 	if token == "" {
-		return response.Error(c, errors.ErrBadRequest("缺少 OAuth 访问令牌"))
+		return response.Error(c, errors.ErrAuthExpired())
 	}
 
 	data, appErr := h.galgameService.Create(c.Context(), user.UID, token, c.Body(), c.Get("Content-Type"))
@@ -53,7 +54,11 @@ func (h *GalgameHandler) MergePR(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	token := c.Get("X-OAuth-Token")
+	token := middleware.GetAccessToken(c)
+	if token == "" {
+		return response.Error(c, errors.ErrAuthExpired())
+	}
+
 	data, appErr := h.galgameService.MergePR(
 		c.Context(), user.UID, c.Params("gid"), c.Params("id"), token,
 	)

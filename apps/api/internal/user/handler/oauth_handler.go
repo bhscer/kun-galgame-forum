@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"log/slog"
-
 	"kun-galgame-api/internal/middleware"
 	"kun-galgame-api/internal/user/dto"
 	"kun-galgame-api/internal/user/service"
@@ -23,15 +21,14 @@ func NewOAuthHandler(authService *service.AuthService, isProd bool) *OAuthHandle
 
 // Callback handles the OAuth code exchange: code → token → userinfo → session.
 // POST /api/auth/oauth/callback
+//
+// SECURITY: never log the request body — it carries the one-shot authorization
+// code and the PKCE code_verifier, both of which are short-lived credentials.
+// Logging them (even at Debug level) leaks them to any log sink and creates a
+// replay window if an attacker reads the log before the token exchange.
 func (h *OAuthHandler) Callback(c *fiber.Ctx) error {
 	var req dto.OAuthCallbackRequest
-	slog.Debug("OAuth callback",
-		"content-type", c.Get("Content-Type"),
-		"body", string(c.Body()),
-	)
-
 	if err := utils.ParseAndValidate(c, &req); err != nil {
-		slog.Error("OAuth callback 验证失败", "error", err.Message, "body", string(c.Body()))
 		return response.Error(c, err)
 	}
 

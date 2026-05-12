@@ -15,7 +15,10 @@ import (
 
 type contextKey string
 
-const UserInfoKey contextKey = "userInfo"
+const (
+	UserInfoKey         contextKey = "userInfo"
+	OAuthAccessTokenKey contextKey = "oauthAccessToken"
+)
 
 // UserInfo represents the authenticated user extracted from session.
 type UserInfo struct {
@@ -120,6 +123,11 @@ func Auth(rdb *redis.Client, oauthClient *oauth.Client) fiber.Handler {
 		}
 
 		c.Locals(string(UserInfoKey), &session.UserInfo)
+		// Expose the session's OAuth access token to handlers that need to
+		// forward authority to the wiki service. Sourcing this from Redis
+		// (rather than a client-supplied X-OAuth-Token header) guarantees
+		// the token's subject matches the kun_session cookie holder.
+		c.Locals(string(OAuthAccessTokenKey), session.OAuthAccessToken)
 		return c.Next()
 	}
 }
@@ -165,6 +173,17 @@ func MustGetUser(c *fiber.Ctx) (*UserInfo, *errors.AppError) {
 		return nil, errors.ErrAuthExpired()
 	}
 	return info, nil
+}
+
+// GetAccessToken returns the session-stored OAuth access token attached by
+// Auth middleware. Returns empty when no valid session is present (e.g.
+// OptionalAuth path with anonymous user). Callers that forward authority to
+// the wiki service MUST source the token from here — never from a
+// client-supplied header — so the token subject is guaranteed to match the
+// kun_session cookie holder.
+func GetAccessToken(c *fiber.Ctx) string {
+	tok, _ := c.Locals(string(OAuthAccessTokenKey)).(string)
+	return tok
 }
 
 

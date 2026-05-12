@@ -35,16 +35,19 @@ func (h *WikiHandler) ProxyGet(c *fiber.Ctx) error {
 }
 
 // ProxyWriteWithToken returns a Fiber handler that forwards a POST/PUT/DELETE
-// to wiki with the user's OAuth token.
+// to wiki with the session-stored OAuth access token. The token is taken
+// from the Redis session (attached by middleware.Auth) — NOT from a
+// client-supplied header — so wiki always sees the authenticated kungal
+// user's identity rather than whatever bearer the client felt like sending.
 func (h *WikiHandler) ProxyWriteWithToken(method string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if _, appErr := middleware.MustGetUser(c); appErr != nil {
 			return response.Error(c, appErr)
 		}
 
-		token := c.Get("X-OAuth-Token")
+		token := middleware.GetAccessToken(c)
 		if token == "" {
-			return response.Error(c, errors.ErrBadRequest("缺少 OAuth 访问令牌"))
+			return response.Error(c, errors.ErrAuthExpired())
 		}
 
 		data, appErr := h.wikiService.ProxyWrite(
