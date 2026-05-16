@@ -20,6 +20,14 @@ type Config struct {
 
 type GalgameWikiConfig struct {
 	BaseURL string
+	// ImageCDNBase is the image_service public CDN prefix (no trailing
+	// slash), identical to the wiki's KUN_IMAGE_PUBLIC_BASE_URL. Wiki
+	// returns image_service-backed banners as banner="" + a
+	// banner_image_hash; kungal resolves the hash → CDN URL server-side
+	// (in the galgame client) so every downstream banner stays a plain
+	// usable URL. See docs/galgame_wiki/07-submission.md §banner and
+	// docs/image_service/06-integration-guide.md.
+	ImageCDNBase string
 }
 
 type ServerConfig struct {
@@ -146,6 +154,9 @@ func Load() (*Config, error) {
 		},
 		GalgameWiki: GalgameWikiConfig{
 			BaseURL: envOrDefault("GALGAME_WIKI_BASE_URL", "http://127.0.0.1:9280/api"),
+			// Must match the wiki's KUN_IMAGE_PUBLIC_BASE_URL exactly —
+			// both build the same {base}/{hh}/{hh}/{hash}.webp layout.
+			ImageCDNBase: envOrDefault("KUN_IMAGE_PUBLIC_BASE_URL", "https://image.kungal.iloveren.link"),
 		},
 	}, nil
 }

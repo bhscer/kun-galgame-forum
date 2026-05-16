@@ -174,6 +174,15 @@ func OptionalAuth(rdb *redis.Client) fiber.Handler {
 		}
 
 		c.Locals(string(UserInfoKey), &session.UserInfo)
+		// Mirror Auth(): also attach the session's OAuth access token so
+		// GetAccessToken works on optAuth routes for logged-in users.
+		// Without this, optAuth handlers that forward authority to wiki
+		// (e.g. GET /galgame/:gid → GetDetail) always sent an empty
+		// token, so wiki saw an anonymous caller and a submitter could
+		// not open their own status=3/4 draft (20001 "Galgame 不存在").
+		// Anonymous callers still hit the early c.Next() above, so this
+		// is purely additive — public reads are unchanged.
+		c.Locals(string(OAuthAccessTokenKey), session.OAuthAccessToken)
 		return c.Next()
 	}
 }

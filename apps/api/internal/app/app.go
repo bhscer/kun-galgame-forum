@@ -147,6 +147,7 @@ func New(cfg *config.Config) *App {
 	// forwarded from the user session.
 	gc := galgameClient.NewGalgameClientWithBasicAuth(
 		cfg.GalgameWiki.BaseURL,
+		cfg.GalgameWiki.ImageCDNBase,
 		cfg.OAuth.ClientID,
 		cfg.OAuth.ClientSecret,
 	)

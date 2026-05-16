@@ -28,22 +28,30 @@ type GalgameClient struct {
 	baseURL    string
 	httpClient *http.Client
 	basicAuth  string
+	// imageCDNBase resolves wiki banner_image_hash → CDN URL inside
+	// doRequest (see banner.go). Empty disables resolution (responses
+	// pass through untouched).
+	imageCDNBase string
 }
 
 // NewGalgameClient builds a client that can only do anonymous + Bearer calls.
 // Suitable when service-to-service endpoints aren't needed.
-func NewGalgameClient(baseURL string) *GalgameClient {
+//
+// imageCDNBase must match the wiki's KUN_IMAGE_PUBLIC_BASE_URL so
+// hash-backed banners resolve to the same CDN URLs the wiki would build.
+func NewGalgameClient(baseURL, imageCDNBase string) *GalgameClient {
 	return &GalgameClient{
-		baseURL:    baseURL,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		baseURL:      baseURL,
+		httpClient:   &http.Client{Timeout: 10 * time.Second},
+		imageCDNBase: imageCDNBase,
 	}
 }
 
 // NewGalgameClientWithBasicAuth additionally enables service-to-service
 // endpoints (currently: /galgame/messages/feed) by pre-computing the Basic
 // auth header. Pass the same OAuth Client ID/secret used by pkg/userclient.
-func NewGalgameClientWithBasicAuth(baseURL, clientID, clientSecret string) *GalgameClient {
-	c := NewGalgameClient(baseURL)
+func NewGalgameClientWithBasicAuth(baseURL, imageCDNBase, clientID, clientSecret string) *GalgameClient {
+	c := NewGalgameClient(baseURL, imageCDNBase)
 	c.basicAuth = "Basic " + base64.StdEncoding.EncodeToString([]byte(clientID+":"+clientSecret))
 	return c
 }
@@ -425,5 +433,8 @@ func (c *GalgameClient) doRequest(req *http.Request) (json.RawMessage, *errors.A
 		return nil, errors.New(result.Code, result.Message, resp.StatusCode)
 	}
 
-	return result.Data, nil
+	// Resolve image_service hash-backed banners → CDN URLs once, here,
+	// for EVERY galgame payload (typed mappers + verbatim passthroughs
+	// like /galgame/mine). Cosmetic + fail-safe: see banner.go.
+	return rewriteBanners(result.Data, c.imageCDNBase), nil
 }

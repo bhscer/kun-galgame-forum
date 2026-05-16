@@ -132,11 +132,11 @@ const draft = computed(() => galgamePR.value[0])
 
 // Shared mapping — see shared/utils/galgameStatus.ts.
 const statusBadge = computed(() =>
-  galgameStatusBadge(data.value?.galgame.status)
+  galgameStatusBadge(data.value?.galgame?.status)
 )
 
 const isEditable = computed(() => {
-  const s = data.value?.galgame.status
+  const s = data.value?.galgame?.status
   return s === GalgameStatus.Pending || s === GalgameStatus.Declined
 })
 

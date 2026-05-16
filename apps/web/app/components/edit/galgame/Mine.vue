@@ -6,6 +6,15 @@
 //
 // See docs/galgame_wiki/07-submission.md §GET /galgame/mine for the
 // upstream wire format. Kungal forwards verbatim — no enrichment.
+//
+// TEMPLATE SINGLE-ROOT: the root <KunCard> renders unconditionally and
+// must be the *only* top-level template node — NOT preceded by a
+// template comment. In dev, Vue keeps template comments as comment
+// vnodes, so a leading `<!-- ... -->` becomes a sibling of KunCard,
+// making the page's render root a 2-child Fragment and tripping Nuxt's
+// "does not have a single root node" route-transition warning. A bare
+// `v-if="data"` root has the same effect (empty comment vnode on
+// fetch failure). Hence: all conditional content lives INSIDE the card.
 
 const pageData = reactive({
   // Default 3,4 = pending + declined. Approved drafts disappear from
@@ -49,13 +58,6 @@ const handleWithdraw = async (item: MineGalgameItem) => {
 </script>
 
 <template>
-  <!--
-    Root KunCard renders unconditionally (single stable root). A bare
-    `v-if="data"` root produced an empty comment node whenever the fetch
-    failed, which (a) breaks the kun-page route transition and (b)
-    white-screens with no explanation. Conditional content lives INSIDE
-    the card instead — same pattern as Draft.vue / pages/edit/doc/rewrite.
-  -->
   <KunCard
     :is-hoverable="false"
     :is-pressable="false"
