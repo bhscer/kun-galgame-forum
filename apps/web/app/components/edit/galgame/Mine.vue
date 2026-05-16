@@ -20,30 +20,11 @@ const { data, status, refresh } = await useKunFetch<MineGalgameList>(
   { query: pageData }
 )
 
-const statusBadge = (s: number) => {
-  switch (s) {
-    case GalgameStatus.Pending:
-      return { label: '待审核', color: 'warning' as const }
-    case GalgameStatus.Declined:
-      return { label: '已拒绝', color: 'danger' as const }
-    case GalgameStatus.Published:
-      return { label: '已发布', color: 'success' as const }
-    case GalgameStatus.Banned:
-      return { label: '已封禁', color: 'default' as const }
-    default:
-      return { label: '未知', color: 'default' as const }
-  }
-}
-
-// MineGalgameItem keeps wiki's snake_case wire keys — convert to the
-// KunLanguage hyphen shape on demand for getPreferredLanguageText.
-const nameOf = (item: MineGalgameItem) =>
-  getPreferredLanguageText({
-    'en-us': item.name_en_us,
-    'ja-jp': item.name_ja_jp,
-    'zh-cn': item.name_zh_cn,
-    'zh-tw': item.name_zh_tw
-  }) || '(无标题)'
+// status badge + wire-name resolution are shared (shared/utils/
+// galgameStatus.ts) so this list, the wizard, the draft editor and the
+// admin queue can't drift apart.
+const statusBadge = galgameStatusBadge
+const nameOf = (item: MineGalgameItem) => galgameNameFromWire(item, '(无标题)')
 
 const isWithdrawing = ref<Record<number, boolean>>({})
 

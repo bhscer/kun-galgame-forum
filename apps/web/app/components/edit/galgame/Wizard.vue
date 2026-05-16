@@ -68,44 +68,17 @@ const searchResults = ref<WizardSearchResp | null>(null)
 const vndbHit = ref<DetailGalgame | null>(null)
 const vndbMissed = ref(false)
 
-// Search hits and detail responses arrive in snake_case (wiki wire
-// format); shim into the KunLanguage hyphen shape on demand so we can
-// reuse getPreferredLanguageText with the same locale priority the rest
-// of the site uses.
+// status badge + wire-name resolution are shared (shared/utils/
+// galgameStatus.ts). Search hits and detail responses both arrive in
+// snake_case; the fallback (VNDB id / #id) is computed per call site
+// since galgameNameFromWire only takes a plain string fallback.
 const nameOfHit = (h: SearchHit): string =>
-  getPreferredLanguageText({
-    'en-us': h.name_en_us ?? '',
-    'ja-jp': h.name_ja_jp ?? '',
-    'zh-cn': h.name_zh_cn ?? '',
-    'zh-tw': h.name_zh_tw ?? ''
-  }) ||
-  (h.vndb_id ? `VNDB ${h.vndb_id}` : `#${h.id}`)
+  galgameNameFromWire(h, h.vndb_id ? `VNDB ${h.vndb_id}` : `#${h.id}`)
 
 const nameOfDetail = (g: DetailGalgame): string =>
-  getPreferredLanguageText({
-    'en-us': g.name_en_us,
-    'ja-jp': g.name_ja_jp,
-    'zh-cn': g.name_zh_cn,
-    'zh-tw': g.name_zh_tw
-  }) ||
-  (g.vndb_id ? `VNDB ${g.vndb_id}` : `#${g.id}`)
+  galgameNameFromWire(g, g.vndb_id ? `VNDB ${g.vndb_id}` : `#${g.id}`)
 
-const statusBadge = (s: number | undefined) => {
-  switch (s) {
-    case GalgameStatus.Published:
-      return { label: '已发布', color: 'success' as const }
-    case GalgameStatus.VndbDraft:
-      return { label: 'VNDB 草稿', color: 'primary' as const }
-    case GalgameStatus.Pending:
-      return { label: '待审核', color: 'warning' as const }
-    case GalgameStatus.Declined:
-      return { label: '已拒绝', color: 'danger' as const }
-    case GalgameStatus.Banned:
-      return { label: '已封禁', color: 'default' as const }
-    default:
-      return { label: '已发布', color: 'success' as const }
-  }
-}
+const statusBadge = galgameStatusBadge
 
 const handleSearch = async () => {
   if (!q.value.trim()) {
@@ -235,7 +208,8 @@ const handleCreateNew = async () => {
         </KunButton>
       </div>
       <p class="text-default-500 text-sm">
-        搜索覆盖已发布的 Galgame, 同时会显示您自己的待审核 / 已拒绝草稿。
+        搜索覆盖已发布的 Galgame 及系统从 VNDB 同步的草稿 (可一键认领),
+        同时会显示您自己的待审核 / 已拒绝草稿。
       </p>
     </div>
 
@@ -272,9 +246,19 @@ const handleCreateNew = async () => {
         </div>
       </div>
 
-      <!-- items: public status=0 hits -->
+      <!--
+        items: search hits. Despite the include_pending=true endpoint,
+        the wiki search index also surfaces VNDB-source drafts (status=2)
+        — the ~60k rows seeded by sync-vndb. The action MUST branch on
+        status, identical to the VNDB-id lookup block below:
+          status=0 已发布 → 前往发布资源 (/galgame/:gid)
+          status=2 VNDB 草稿 → 认领并发布 (POST /:gid/claim)
+          status=3/4 自己的草稿 → 继续编辑 (/edit/galgame/draft/:gid)
+        A status=2 row is NOT viewable via /galgame/:gid (not published),
+        so a blanket "前往发布资源" link 404s with "未找到这个 Galgame".
+      -->
       <div v-if="searchResults.items.length" class="space-y-2">
-        <h3 class="text-default-700 text-sm font-bold">已发布的 Galgame</h3>
+        <h3 class="text-default-700 text-sm font-bold">匹配的 Galgame</h3>
         <div
           v-for="hit in searchResults.items"
           :key="`item-${hit.id}`"
@@ -303,7 +287,25 @@ const handleCreateNew = async () => {
               VNDB: {{ hit.vndb_id || '—' }}
             </p>
           </div>
-          <KunLink :to="`/galgame/${hit.id}`">
+          <KunButton
+            v-if="hit.status === GalgameStatus.VndbDraft"
+            size="sm"
+            :loading="isClaiming"
+            :disabled="isClaiming"
+            @click="handleClaim(hit.id)"
+          >
+            认领并发布
+          </KunButton>
+          <KunLink
+            v-else-if="
+              hit.status === GalgameStatus.Pending ||
+              hit.status === GalgameStatus.Declined
+            "
+            :to="`/edit/galgame/draft/${hit.id}`"
+          >
+            <KunButton size="sm" variant="flat">继续编辑</KunButton>
+          </KunLink>
+          <KunLink v-else :to="`/galgame/${hit.id}`">
             <KunButton size="sm" variant="flat">前往发布资源</KunButton>
           </KunLink>
         </div>

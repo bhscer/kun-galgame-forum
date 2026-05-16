@@ -55,17 +55,13 @@ const typeBadge = computed(() => {
   }
 })
 
+// Wire-name resolution is shared (shared/utils/galgameStatus.ts). The
+// message typeBadge stays local — notification wording ("审核通过") is
+// intentionally distinct from the admin queue's wording.
 const galgameName = computed(() => {
   const g = props.message.galgame
   if (!g) return '(已删除)'
-  return (
-    getPreferredLanguageText({
-      'en-us': g.name_en_us ?? '',
-      'ja-jp': g.name_ja_jp ?? '',
-      'zh-cn': g.name_zh_cn ?? '',
-      'zh-tw': g.name_zh_tw ?? ''
-    }) || `#${g.id}`
-  )
+  return galgameNameFromWire(g, `#${g.id}`)
 })
 
 const blurb = computed(() => {

@@ -55,15 +55,12 @@ const { data, status, refresh } = await useKunFetch<AdminQueueEnvelope>(
   { query: pageData }
 )
 
+// Wire-name resolution is shared (shared/utils/galgameStatus.ts).
+// typeBadge stays local: the admin queue wants queue-specific wording
+// ("新提交" / "修订重审") distinct from the user-facing notification
+// wording in the message center, so this is intentionally NOT shared.
 const nameOf = (g: AdminQueueGalgame | null) =>
-  g
-    ? getPreferredLanguageText({
-        'en-us': g.name_en_us ?? '',
-        'ja-jp': g.name_ja_jp ?? '',
-        'zh-cn': g.name_zh_cn ?? '',
-        'zh-tw': g.name_zh_tw ?? ''
-      }) || `#${g.id}`
-    : '(已删除)'
+  g ? galgameNameFromWire(g, `#${g.id}`) : '(已删除)'
 
 const typeBadge = (t: string) => {
   switch (t) {

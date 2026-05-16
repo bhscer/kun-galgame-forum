@@ -130,21 +130,10 @@ watch(
 
 const draft = computed(() => galgamePR.value[0])
 
-const statusBadge = computed(() => {
-  const s = data.value?.galgame.status
-  switch (s) {
-    case GalgameStatus.Pending:
-      return { label: '待审核', color: 'warning' as const }
-    case GalgameStatus.Declined:
-      return { label: '已拒绝', color: 'danger' as const }
-    case GalgameStatus.Published:
-      return { label: '已发布', color: 'success' as const }
-    case GalgameStatus.Banned:
-      return { label: '已封禁', color: 'default' as const }
-    default:
-      return { label: '未知', color: 'default' as const }
-  }
-})
+// Shared mapping — see shared/utils/galgameStatus.ts.
+const statusBadge = computed(() =>
+  galgameStatusBadge(data.value?.galgame.status)
+)
 
 const isEditable = computed(() => {
   const s = data.value?.galgame.status
