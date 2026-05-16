@@ -84,6 +84,12 @@ const handleSubmitGalgame = async () => {
 
   if (created?.id) {
     await deleteImage('kun-galgame-publish-banner')
+    // Clear the persisted wizard-step draft key (set by Galgame.vue via
+    // useLocalStorage) so the next "new submission" starts at step ①
+    // rather than resuming a stale position over empty fields.
+    if (import.meta.client) {
+      localStorage.removeItem('kun-galgame-publish-step')
+    }
 
     useKunLoliInfo('Galgame 申请已提交, 等待审核', 5)
     await navigateTo('/edit/galgame/mine')

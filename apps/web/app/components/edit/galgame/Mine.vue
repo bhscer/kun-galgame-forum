@@ -49,8 +49,14 @@ const handleWithdraw = async (item: MineGalgameItem) => {
 </script>
 
 <template>
+  <!--
+    Root KunCard renders unconditionally (single stable root). A bare
+    `v-if="data"` root produced an empty comment node whenever the fetch
+    failed, which (a) breaks the kun-page route transition and (b)
+    white-screens with no explanation. Conditional content lives INSIDE
+    the card instead — same pattern as Draft.vue / pages/edit/doc/rewrite.
+  -->
   <KunCard
-    v-if="data"
     :is-hoverable="false"
     :is-pressable="false"
     :is-transparent="false"
@@ -74,7 +80,14 @@ const handleWithdraw = async (item: MineGalgameItem) => {
 
     <KunDivider />
 
-    <div v-if="data.items.length" class="flex flex-col gap-3">
+    <KunInfo
+      v-if="!data"
+      color="danger"
+      title="加载失败"
+      description="无法获取您的提交列表, 可能是后端 / Galgame Wiki 暂时不可用, 请稍后重试。"
+    />
+
+    <div v-else-if="data.items.length" class="flex flex-col gap-3">
       <div
         v-for="item in data.items"
         :key="item.id"
@@ -130,10 +143,10 @@ const handleWithdraw = async (item: MineGalgameItem) => {
       </div>
     </div>
 
-    <KunNull v-if="!data.items.length" />
+    <KunNull v-else-if="data && !data.items.length" />
 
     <KunPagination
-      v-if="data.total > pageData.limit"
+      v-if="data && data.total > pageData.limit"
       v-model:current-page="pageData.page"
       :total-page="Math.ceil(data.total / pageData.limit)"
       :is-loading="status === 'pending'"

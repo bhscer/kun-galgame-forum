@@ -17,8 +17,16 @@
 // reaching THIS form is by definition NOT in VNDB (original / doujin /
 // indie); VNDB works go through the publish wizard's claim flow.
 
+import { useLocalStorage } from '@vueuse/core'
 import { languageItems } from '~/constants/edit'
 
+// Field content is already auto-saved as a local draft:
+//   - text fields → usePersistEditGalgameStore (pinia persist → localStorage)
+//   - banner image → useLocalforage saveImage/getImage (localforage/IndexedDB)
+// The only thing not persisted was the wizard position, so a reload bounced
+// the user back to step ① with their (preserved) content. Persist the step
+// too so the draft truly resumes where they left off. Cleared by
+// EditGalgameFooter on successful submit (alongside the store/image reset).
 const { name } = storeToRefs(usePersistEditGalgameStore())
 
 const introductionLanguage = ref<Language>('zh-cn')
@@ -30,8 +38,17 @@ const steps = [
   { n: 4, label: '预览图与提交' }
 ] as const
 
-const step = ref(1)
 const totalSteps = steps.length
+
+// useLocalStorage is SSR-safe (returns the default on the server) and
+// reactive both ways. Guard against a stale out-of-range value (e.g. the
+// step count changed between visits).
+const step = useLocalStorage('kun-galgame-publish-step', 1)
+onMounted(() => {
+  if (step.value < 1 || step.value > totalSteps) {
+    step.value = 1
+  }
+})
 
 const goNext = () => {
   if (step.value < totalSteps) step.value++
