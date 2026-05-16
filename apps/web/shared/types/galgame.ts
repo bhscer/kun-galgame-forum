@@ -70,16 +70,21 @@ export interface GalgameCard {
 // MineGalgameItem matches the per-row shape of GET /api/galgame/mine.
 // Wire-format keeps snake_case (passed through verbatim from wiki).
 // See docs/galgame_wiki/07-submission.md §GET /galgame/mine.
+//
+// Optional name_* / banner_* / vndb_id reflect that wiki's example
+// payload only includes name_zh_cn — other languages may simply be
+// absent for drafts that don't have a translation yet. Marking these
+// required would be a type lie that crashes strict consumers.
 export interface MineGalgameItem {
   id: number
   status: number
-  vndb_id: string
-  name_en_us: string
-  name_ja_jp: string
-  name_zh_cn: string
-  name_zh_tw: string
-  banner: string
-  banner_image_hash: string
+  vndb_id?: string
+  name_en_us?: string
+  name_ja_jp?: string
+  name_zh_cn?: string
+  name_zh_tw?: string
+  banner?: string
+  banner_image_hash?: string
   created: string
   updated: string
 }

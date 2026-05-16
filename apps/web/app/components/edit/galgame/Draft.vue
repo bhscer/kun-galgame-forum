@@ -157,9 +157,15 @@ const handleSave = async () => {
   const cur = draft.value
   if (!cur) return
 
-  // Always include every editable field — wiki merges so this is safe
-  // even when most are unchanged, and it sidesteps the "did the user
-  // intend an empty string or a no-op?" ambiguity. is_minor stays opt-in.
+  // Include the fields the form exposes — wiki merges so unchanged
+  // values are no-ops, which sidesteps the "did the user intend an
+  // empty string or a no-op?" ambiguity. is_minor stays opt-in.
+  //
+  // `aliases` is INTENTIONALLY OMITTED: this form doesn't (yet) expose
+  // alias editing, and wiki's PATCH treats an explicit `aliases: ""`
+  // as "replace with empty array", which would silently wipe the
+  // submitter's existing aliases. Until the alias UI lands, leave the
+  // key off the payload so wiki keeps whatever's there.
   const payload = {
     vndb_id: cur.vndbId,
     name_en_us: cur.name['en-us'],
@@ -173,7 +179,6 @@ const handleSave = async () => {
     content_limit: cur.contentLimit,
     age_limit: cur.ageLimit,
     original_language: originalLanguageLocal.value,
-    aliases: cur.alias.join(','),
     is_minor: isMinor.value
   }
 

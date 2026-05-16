@@ -102,6 +102,18 @@ func (a *App) setupRoutes() {
 	// Galgame wiki proxies (public reads)
 	api.Get("/galgame", a.GalgameHandler.GetList)
 	api.Get("/galgame/check", a.GalgameWikiHandler.ProxyGet)
+	// /galgame/mine and /galgame/search/wizard MUST be registered BEFORE
+	// /galgame/:gid below — Fiber matches by registration order and a
+	// catch-all `:gid` happily binds to the literal "mine" / "search",
+	// which would route to GetDetail and then fail with Atoi("mine").
+	// Both endpoints require auth; inline userAuth here so we don't have
+	// to predeclare the `authed` group above the optAuth section.
+	api.Get("/galgame/mine", userAuth, a.GalgameSubmissionHandler.ListMine)
+	api.Get(
+		"/galgame/search/wizard",
+		userAuth,
+		a.GalgameSubmissionHandler.SearchWithPending,
+	)
 	api.Get("/galgame/:gid/revisions", a.GalgameWikiHandler.ProxyGet)
 	api.Get("/galgame/:gid/revisions/:rev", a.GalgameWikiHandler.ProxyGet)
 	api.Get("/galgame/:gid/revisions/:rev/diff", a.GalgameWikiHandler.ProxyGet)
@@ -225,12 +237,14 @@ func (a *App) setupRoutes() {
 	// Galgame submission flow (authenticated, any role) — see
 	// docs/galgame_wiki/07-submission.md. The wizard search forces
 	// include_pending=true so the caller sees their own pending hits.
+	//
+	// /mine + /search/wizard are registered earlier (above the
+	// /galgame/:gid catch-all) because Fiber matches in registration
+	// order; see the comment near api.Get("/galgame/mine", ...) above.
 	authed.Post("/galgame/submit", a.GalgameSubmissionHandler.Submit)
 	authed.Post("/galgame/:gid/claim", a.GalgameSubmissionHandler.Claim)
 	authed.Patch("/galgame/:gid", a.GalgameSubmissionHandler.PatchDraft)
 	authed.Delete("/galgame/:gid", a.GalgameSubmissionHandler.DeleteDraft)
-	authed.Get("/galgame/mine", a.GalgameSubmissionHandler.ListMine)
-	authed.Get("/galgame/search/wizard", a.GalgameSubmissionHandler.SearchWithPending)
 
 	// Wiki message stream — user notifications + per-user read marker.
 	authed.Get("/galgame/messages/mine", a.GalgameMessageHandler.MessagesMine)

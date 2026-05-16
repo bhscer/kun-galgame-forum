@@ -73,13 +73,25 @@ func (h *GalgameHandler) MergePR(c *fiber.Ctx) error {
 // ──────────────────────────────────────────
 
 // GetDetail — GET /api/galgame/:gid
+//
+// Bearer-aware: forwards the caller's OAuth access token (when present
+// via OptionalAuth) so the wiki returns the caller's own pending /
+// declined drafts in addition to public status=0 rows. Without the
+// token, wiki applies its default visibility filter and the call
+// behaves identically to the legacy anonymous path.
+//
+// This is what makes /edit/galgame/draft/:gid (owner viewing own
+// pending) and the publish wizard's VNDB-id lookup (claimable VNDB
+// draft, status=2) work without dedicated owner-only endpoints.
 func (h *GalgameHandler) GetDetail(c *fiber.Ctx) error {
 	gid, err := strconv.Atoi(c.Params("gid"))
 	if err != nil {
 		return response.Error(c, errors.ErrBadRequest("无效的 Galgame ID"))
 	}
 
-	detail, appErr := h.galgameService.GetDetail(c.Context(), gid, optionalUID(c))
+	detail, appErr := h.galgameService.GetDetail(
+		c.Context(), gid, optionalUID(c), middleware.GetAccessToken(c),
+	)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

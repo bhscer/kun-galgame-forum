@@ -235,11 +235,22 @@ func (s *GalgameService) fetchOwnerID(ctx context.Context, galgameID int) int {
 // GetDetail — GET /galgame/:gid
 // ──────────────────────────────────────────
 
+// GetDetail aggregates wiki metadata + local interaction stats into the
+// full detail payload.
+//
+// token (Bearer access token from session, may be empty) is forwarded to
+// wiki so its visibility filter sees the caller's identity — the
+// submitter of a pending draft can view their own row, an authenticated
+// user can see VNDB-source drafts, etc. Anonymous viewers get the same
+// behavior as before (status=0 only).
 func (s *GalgameService) GetDetail(
 	ctx context.Context,
 	galgameID, currentUserID int,
+	token string,
 ) (*dto.GalgameDetail, *errors.AppError) {
-	wikiData, appErr := s.wikiClient.Get(ctx, fmt.Sprintf("/galgame/%d", galgameID), nil)
+	wikiData, appErr := s.wikiClient.GetWithToken(
+		ctx, fmt.Sprintf("/galgame/%d", galgameID), token, nil,
+	)
 	if appErr != nil {
 		return nil, appErr
 	}
