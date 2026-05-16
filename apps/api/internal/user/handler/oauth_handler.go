@@ -38,7 +38,7 @@ func (h *OAuthHandler) Callback(c *fiber.Ctx) error {
 	}
 
 	c.Cookie(&fiber.Cookie{
-		Name:     "kun_session",
+		Name:     middleware.SessionCookieName,
 		Value:    session.Token,
 		MaxAge:   7 * 24 * 3600, // 7 days
 		HTTPOnly: true,
@@ -53,13 +53,13 @@ func (h *OAuthHandler) Callback(c *fiber.Ctx) error {
 // Logout clears the session.
 // POST /api/auth/logout
 func (h *OAuthHandler) Logout(c *fiber.Ctx) error {
-	token := c.Cookies("kun_session")
+	token := c.Cookies(middleware.SessionCookieName)
 	if token != "" {
 		_ = h.authService.Logout(c.Context(), token)
 	}
 
 	c.Cookie(&fiber.Cookie{
-		Name:     "kun_session",
+		Name:     middleware.SessionCookieName,
 		Value:    "",
 		MaxAge:   -1,
 		HTTPOnly: true,

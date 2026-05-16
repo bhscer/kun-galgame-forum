@@ -21,6 +21,24 @@ const (
 	OAuthAccessTokenKey contextKey = "oauthAccessToken"
 )
 
+// Session namespace constants. These MUST be distinct from moyu's
+// (kun-galgame-patch-next) values: in local dev both sites run on
+// 127.0.0.1 (cookies are domain-scoped, NOT port-scoped) and share one
+// Redis. A shared cookie name + key prefix made kungal read/refresh/delete
+// moyu's sessions (and vice versa) → cross-site logout with
+// client_id_mismatch on the OAuth server. Keep these site-unique.
+const (
+	// SessionCookieName is the browser cookie holding the session id.
+	// kungal: "kungal_session"; moyu: "moyu_session".
+	SessionCookieName = "kungal_session"
+	// SessionPrefix namespaces session keys in Redis so a shared Redis
+	// instance can't collide kungal vs moyu. kungal: "kungal:session:".
+	SessionPrefix = "kungal:session:"
+)
+
+// SessionKey returns the Redis key for a session token.
+func SessionKey(token string) string { return SessionPrefix + token }
+
 // UserInfo represents the authenticated user extracted from session.
 type UserInfo struct {
 	UID   int    `json:"uid"`
@@ -70,13 +88,13 @@ type SessionData struct {
 // fetch via pkg/userclient.
 func Auth(rdb *redis.Client, oauthClient *oauth.Client) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		token := c.Cookies("kun_session")
+		token := c.Cookies(SessionCookieName)
 		if token == "" {
 			return response.Error(c, errors.ErrAuthExpired())
 		}
 
 		ctx := c.Context()
-		val, err := rdb.Get(ctx, "session:"+token).Result()
+		val, err := rdb.Get(ctx, SessionKey(token)).Result()
 		if err != nil {
 			return response.Error(c, errors.ErrAuthExpired())
 		}
@@ -139,13 +157,13 @@ func Auth(rdb *redis.Client, oauthClient *oauth.Client) fiber.Handler {
 // If a valid session exists, UserInfo is attached; otherwise the request proceeds.
 func OptionalAuth(rdb *redis.Client) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		token := c.Cookies("kun_session")
+		token := c.Cookies(SessionCookieName)
 		if token == "" {
 			return c.Next()
 		}
 
 		ctx := c.Context()
-		val, err := rdb.Get(ctx, "session:"+token).Result()
+		val, err := rdb.Get(ctx, SessionKey(token)).Result()
 		if err != nil {
 			return c.Next()
 		}
@@ -217,11 +235,11 @@ func refreshSession(
 		switch {
 		case oauth.IsBanned(err):
 			slog.Warn("OAuth 刷新返回账号封禁", "error", err)
-			rdb.Del(ctx, "session:"+token)
+			rdb.Del(ctx, SessionKey(token))
 			return errors.ErrAccountBanned()
 		case oauth.IsRefreshTokenDead(err):
 			slog.Warn("OAuth refresh_token 不可恢复, 清除 session", "error", err)
-			rdb.Del(ctx, "session:"+token)
+			rdb.Del(ctx, SessionKey(token))
 			return errors.ErrAuthExpired()
 		default:
 			// Transient: don't touch the session, let the next request retry.
@@ -239,7 +257,7 @@ func refreshSession(
 		slog.Error("序列化 session 失败", "error", mErr)
 		return errors.ErrInternal("服务器内部错误")
 	}
-	rdb.Set(ctx, "session:"+token, data, 7*24*time.Hour)
+	rdb.Set(ctx, SessionKey(token), data, 7*24*time.Hour)
 	return nil
 }
 
@@ -270,7 +288,7 @@ func waitForRefresh(
 	for {
 		time.Sleep(150 * time.Millisecond)
 
-		val, err := rdb.Get(ctx, "session:"+token).Result()
+		val, err := rdb.Get(ctx, SessionKey(token)).Result()
 		if err != nil {
 			return errors.ErrAuthExpired()
 		}

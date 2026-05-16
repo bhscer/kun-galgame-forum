@@ -118,7 +118,7 @@ func (s *AuthService) OAuthCallback(
 	if err != nil {
 		return nil, errors.ErrInternal("序列化会话数据失败")
 	}
-	s.rdb.Set(ctx, "session:"+sessionToken, data, 7*24*time.Hour)
+	s.rdb.Set(ctx, middleware.SessionKey(sessionToken), data, 7*24*time.Hour)
 
 	return &dto.SessionResponse{
 		Token: sessionToken,
@@ -135,14 +135,14 @@ func (s *AuthService) OAuthCallback(
 
 // Logout deletes the session from Redis and revokes the OAuth token.
 func (s *AuthService) Logout(ctx context.Context, sessionToken string) error {
-	val, err := s.rdb.Get(ctx, "session:"+sessionToken).Result()
+	val, err := s.rdb.Get(ctx, middleware.SessionKey(sessionToken)).Result()
 	if err == nil {
 		var session middleware.SessionData
 		if json.Unmarshal([]byte(val), &session) == nil && session.OAuthRefreshToken != "" {
 			_ = s.oauthClient.RevokeToken(session.OAuthRefreshToken)
 		}
 	}
-	return s.rdb.Del(ctx, "session:"+sessionToken).Err()
+	return s.rdb.Del(ctx, middleware.SessionKey(sessionToken)).Err()
 }
 
 // GetProfile returns the full profile for the currently logged-in user.
