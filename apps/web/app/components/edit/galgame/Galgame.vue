@@ -1,92 +1,18 @@
 <script setup lang="ts">
+// Submission form for the "new galgame" flow (POST /galgame/submit).
+//
+// No VNDB ID field: the wiki has already run `sync-vndb --full`, so
+// every VNDB-listed work already exists there as a status=2 claimable
+// draft. Anything reaching THIS form is by definition NOT in VNDB
+// (original / doujin / indie), so a VNDB ID is meaningless here and
+// would only collide with an existing draft (wiki 20004). VNDB works
+// are handled by the publish wizard's claim flow, not submission.
+
 import { languageItems } from '~/constants/edit'
-import type { VNDB, VNDBResponse } from '../utils/VNDB'
 
 const introductionLanguage = ref<Language>('zh-cn')
-const isSuccess = ref(false)
-const isFetching = ref(false)
 
-const data = ref<VNDB>({
-  title: '',
-  titles: [],
-  description: '',
-  aliases: []
-})
-
-const { vndbId, name, introduction, aliases } = storeToRefs(
-  usePersistEditGalgameStore()
-)
-
-const handleGetVNData = async () => {
-  // After the submission flow landed, VNDB ID is OPTIONAL — original /
-  // indie titles without a VNDB entry can submit with an empty field
-  // (wiki accepts it; see docs/galgame_wiki/07-submission.md). This
-  // helper is only useful when the user has typed a VNDB id and wants
-  // the title/description auto-filled.
-  if (!vndbId.value) {
-    useMessage('请先填写 VNDB ID 后再获取数据', 'warn')
-    return
-  }
-  if (!VNDBPattern.test(vndbId.value)) {
-    useMessage(10501, 'warn')
-    return
-  }
-
-  // Wiki API: /galgame/check returns { exists: bool, galgame_id: int? }.
-  // Query param is snake_case `vndb_id` per docs/galgame_wiki/01-galgame.md.
-  const check = await kunFetch<{ exists: boolean; galgame_id?: number }>(
-    '/galgame/check',
-    {
-      method: 'GET',
-      query: { vndb_id: vndbId.value }
-    }
-  )
-  if (check?.exists) {
-    useMessage(
-      '该 VNDB ID 已经存在, 请直接在对应 Galgame 下发布资源',
-      'warn'
-    )
-    return
-  }
-
-  if (isFetching.value) {
-    return
-  } else {
-    isFetching.value = true
-    useMessage(10502, 'info')
-  }
-
-  const vndbData = await $fetch<VNDBResponse>(`https://api.vndb.org/kana/vn`, {
-    method: 'POST',
-    body: {
-      filters: ['id', '=', vndbId.value],
-      fields: 'title, titles.title, description, aliases'
-    }
-  })
-
-  if (vndbData) {
-    if (!vndbData.results.length || !vndbData.results[0]) {
-      isFetching.value = false
-      useMessage(10503, 'error')
-      return
-    }
-
-    isFetching.value = false
-    useMessage(10504, 'info')
-
-    data.value = vndbData.results[0]
-    name.value['en-us'] = data.value.title
-    introduction.value['en-us'] = data.value.description ?? ''
-    aliases.value = data.value.aliases
-
-    // For reactivity
-    if (introductionLanguage.value !== 'en-us') {
-      introductionLanguage.value = 'en-us'
-    } else {
-      isSuccess.value = !isSuccess.value
-    }
-  }
-}
+const { name } = storeToRefs(usePersistEditGalgameStore())
 </script>
 
 <template>
@@ -99,7 +25,7 @@ const handleGetVNData = async () => {
       >
         <KunHeader
           name="提交 Galgame 申请"
-          description="提交后将进入审核队列, 审核通过后才会被公开。如果该 Galgame 已经存在, 直接在该 Galgame 下添加资源即可。您可以在「我的提交」页面查看进度、修改或撤回申请。"
+          description="提交后将进入审核队列, 审核通过后才会被公开。如果该 Galgame 已收录于 VNDB 或已存在, 请通过「发布 Galgame」向导搜索并认领, 不要在此重复提交。您可以在「我的提交」页面查看进度、修改或撤回申请。"
         >
           <template #endContent>
             <KunLink target="_blank" to="/doc/galgame-publish-help">
@@ -109,53 +35,22 @@ const handleGetVNData = async () => {
           </template>
         </KunHeader>
 
+        <KunInfo
+          color="warning"
+          title="此表单仅用于 VNDB 未收录的作品"
+          description="Galgame Wiki 已全量同步 VNDB，VNDB 收录的作品都已是可认领草稿。请先在「发布 Galgame」向导按名称或 VNDB ID 搜索；搜索得到的就直接认领 / 发布资源，确实搜不到的原创 / 同人 / 独立作品再用本表单提交。"
+        />
+
         <KunDivider>
           <span class="mx-2">必要信息</span>
         </KunDivider>
-
-        <div>
-          <h2 class="text-xl">VNDB 编号 (可选)</h2>
-          <div class="my-2 flex items-center justify-center gap-2">
-            <KunInput
-              v-model="vndbId"
-              placeholder="例如: v19658 (无 VNDB 可留空)"
-            />
-            <KunButton class-name="whitespace-nowrap" @click="handleGetVNData">
-              获取数据
-            </KunButton>
-          </div>
-          <p class="text-default-500 text-sm">
-            在您获取数据时，我们会自动为您检查该游戏是否重复
-          </p>
-          <p class="text-default-500 text-sm">
-            原创 / 独立 / 暂未收录 VNDB 的作品可以留空 VNDB ID。VNDB ID 可在
-            vndb.org 获取，进入对应游戏的页面，URL (形如
-            https://vndb.org/v19658) 中的 v19658 就是 VNDB ID。输入 ID
-            后点击「获取数据」，会根据该 ID 尝试从 VNDB
-            获取游戏的标题和介绍 (均为英语)
-          </p>
-        </div>
 
         <div class="space-y-2">
           <h2 class="text-xl">游戏名</h2>
           <p class="text-default-500 text-sm">
             游戏名要求至少写一种, 非常建议全部填写
-            (如果游戏没有对应翻译可以不填写, 英语标题可以从 VNDB 自动获取到)
+            (如果游戏没有对应语言的官方译名可以不填写)
           </p>
-          <div class="space-y-2" v-if="data.titles.length">
-            <p>参考标题（点击复制）</p>
-            <div>
-              <KunButton
-                size="sm"
-                variant="flat"
-                v-for="(title, index) in data.titles"
-                :key="index"
-                @click="useKunCopy(title.title)"
-              >
-                {{ title.title }}
-              </KunButton>
-            </div>
-          </div>
           <div class="space-y-2">
             <KunInput placeholder="英语" v-model="name['en-us']" />
             <KunInput placeholder="日语" v-model="name['ja-jp']" />
@@ -167,11 +62,8 @@ const handleGetVNData = async () => {
         <div class="space-y-2">
           <h2 class="text-xl">介绍</h2>
           <p class="text-default-500 text-sm">
-            介绍要求至少写一种。英语介绍在点击 '获取数据' 时可以自动获取,
-            有概率获取不到; 日语介绍可以点击页面上方的 DLsite 网站,
-            进入游戏详情页面, 该页面的 ストーリー 部分就是日语介绍;
-            汉语介绍可以在 Bangumi
-            或者萌娘百科获得。您也可以抛弃官方对游戏的介绍，自己介绍游戏
+            介绍要求至少写一种。可以参考官方页面、DLsite ストーリー、Bangumi
+            或萌娘百科, 也可以抛弃官方介绍自己撰写。
           </p>
           <p class="text-default-500 text-sm">
             请不要在介绍部分放置任何 R18 图片, 我们的系统还没有开发完毕,
@@ -199,7 +91,7 @@ const handleGetVNData = async () => {
 
         <KunInfo
           title="标签 / 会社 / 引擎"
-          description="标签、会社、引擎等元数据由 Galgame Wiki 后续从 VNDB 自动同步；发布时无需手动填写。如同步后仍缺失，可在 Galgame 详情页提交 PR 补充。"
+          description="标签、会社、引擎等元数据由 Galgame Wiki 维护；审核通过后可在 Galgame 详情页提交 PR 补充。"
           color="info"
         />
 

@@ -153,14 +153,13 @@ const handleClaim = async (gid: number) => {
   }
 }
 
-// Pre-populate the create form's persisted store with whatever the user
-// typed in the wizard, then jump to the form. Avoids forcing them to
-// re-type. The store is the same one Galgame.vue reads from.
+// Carry the typed name over to the create form so the user doesn't
+// re-type. We deliberately DON'T carry vndbInput — the submission form
+// has no VNDB field (a found-via-VNDB work would be a claimable draft,
+// not a new submission; an unfound VNDB id means the work isn't in VNDB
+// so the id is irrelevant to the wiki).
 const handleCreateNew = async () => {
   const store = usePersistEditGalgameStore()
-  if (vndbInput.value && VNDBPattern.test(vndbInput.value)) {
-    store.vndbId = vndbInput.value
-  }
   // Best-effort: stash the query in the zh-cn name slot so the user sees
   // their own search term carried over. They can edit before submitting.
   if (q.value.trim() && !store.name['zh-cn']) {

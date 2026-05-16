@@ -151,21 +151,13 @@ export const createGalgameSchema = z
 
 // Wire-format schema for the user-submission flow (POST /galgame/submit).
 //
-// Differences from createGalgameSchema:
-//   - vndb_id is OPTIONAL — wiki accepts empty for original/indie titles
-//     that lack a VNDB entry (see docs/galgame_wiki/07-submission.md
-//     §POST /galgame/submit). When provided, the v\d+ format is still
-//     enforced. Wiki additionally rejects duplicate VNDB ids server-side.
-//   - All other fields share createGalgameSchema's constraints.
+// No vndb_id: the wiki has fully synced VNDB, so any VNDB-listed work is
+// already a claimable status=2 draft — submission is exclusively for
+// VNDB-unlisted (original / doujin / indie) works. VNDB titles go through
+// the wizard's claim flow instead. Wiki still accepts vndb_id optionally
+// on the endpoint; we just never collect it from this form.
 export const submitGalgameSchema = z
   .object({
-    vndb_id: z
-      .string()
-      .max(10)
-      .refine((value) => value === '' || VNDBPattern.test(value), {
-        message: '非法的 VNDB ID 格式 (留空表示无 VNDB 编号)'
-      })
-      .default(''),
     name_en_us: z
       .string()
       .max(100007, { message: '游戏名称最多 233 字' })

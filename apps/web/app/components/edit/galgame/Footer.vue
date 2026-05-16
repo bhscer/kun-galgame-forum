@@ -9,15 +9,10 @@ import { submitGalgameSchema } from '~/validations/galgame'
 // /edit/galgame/mine — status=3 isn't anonymously visible, so /galgame/:gid
 // would 404 for the submitter until approval.
 
-const {
-  vndbId,
-  name,
-  contentLimit,
-  ageLimit,
-  originalLanguage,
-  introduction,
-  aliases
-} = storeToRefs(usePersistEditGalgameStore())
+// No vndbId: submission is exclusively for VNDB-unlisted works (wiki has
+// the full VNDB set as claimable drafts already) — see Galgame.vue.
+const { name, contentLimit, ageLimit, originalLanguage, introduction, aliases } =
+  storeToRefs(usePersistEditGalgameStore())
 
 const isPublishing = ref(false)
 
@@ -28,7 +23,6 @@ const handleSubmitGalgame = async () => {
   // rename at the boundary so the schema, the JSON body, and the wiki
   // contract all agree.
   const data: Record<string, number | string | string[] | Blob | null> = {
-    vndb_id: vndbId.value,
     name_en_us: name.value['en-us'],
     name_ja_jp: name.value['ja-jp'],
     name_zh_cn: name.value['zh-cn'],
