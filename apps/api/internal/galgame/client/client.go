@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -368,25 +369,59 @@ func (c *GalgameClient) MessagesFeed(ctx context.Context, sinceID int64, limit i
 	return &feed, nil
 }
 
+// bodySnippet trims an upstream body for safe logging / error context.
+// Wiki errors are tiny JSON; a misconfigured upstream may return a large
+// HTML page, so cap it.
+func bodySnippet(b []byte) string {
+	const max = 512
+	if len(b) > max {
+		return string(b[:max]) + "…(truncated)"
+	}
+	return string(b)
+}
+
 func (c *GalgameClient) doRequest(req *http.Request) (json.RawMessage, *errors.AppError) {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, errors.ErrInternal(fmt.Sprintf("Wiki 服务请求失败: %v", err))
+		// Transport-level failure: wiki unreachable / DNS / timeout /
+		// connection refused. The most common operational cause is the
+		// wiki service simply not running on the configured base URL.
+		slog.Error("Wiki 服务请求失败 (传输层)",
+			"method", req.Method, "url", req.URL.String(), "error", err)
+		return nil, errors.ErrInternal(fmt.Sprintf("Wiki 服务不可达: %v", err))
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		slog.Error("读取 Wiki 响应失败",
+			"method", req.Method, "url", req.URL.String(), "error", err)
 		return nil, errors.ErrInternal("读取 Wiki 响应失败")
 	}
 
 	var result apiResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, errors.ErrInternal("解析 Wiki 响应失败")
+		// Wiki returned something that isn't the {code,message,data}
+		// envelope — almost always a Fiber default error page (e.g. a
+		// plain-text "Cannot POST /api/galgame/30831/claim" when the
+		// running wiki binary predates the submission endpoints, or an
+		// upstream proxy 5xx HTML). Surface the real HTTP status + body
+		// so this is diagnosable instead of a blanket 500.
+		slog.Error("解析 Wiki 响应失败 (非 JSON 响应)",
+			"method", req.Method, "url", req.URL.String(),
+			"status", resp.StatusCode, "body", bodySnippet(respBody))
+		return nil, errors.New(
+			errors.CodeBiz,
+			fmt.Sprintf(
+				"Wiki 服务返回了非预期响应 (HTTP %d), 请确认 wiki 服务已部署对应接口",
+				resp.StatusCode,
+			),
+			resp.StatusCode,
+		)
 	}
 
 	if result.Code != 0 {
-		// Transparently forward wiki service error code + message
+		// Transparently forward wiki service error code + message.
 		return nil, errors.New(result.Code, result.Message, resp.StatusCode)
 	}
 
