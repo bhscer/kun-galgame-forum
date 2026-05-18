@@ -272,13 +272,17 @@ export const patchDraftSchema = z.object({
 // endpoint which takes a comma-separated string.
 export const updateGalgameSchema = z
   .object({
+    // Relaxed vs create: a published entry may legitimately have NO
+    // vndb_id (original works, doujin games). Forcing min(2)+pattern
+    // would make their PRs unsubmittable. Empty OR valid format — same
+    // rule as patchDraftSchema.
     vndb_id: z
       .string()
-      .min(2)
       .max(10)
-      .refine((value) => VNDBPattern.test(value), {
+      .refine((value) => value === '' || VNDBPattern.test(value), {
         message: '非法的 VNDB ID 格式'
-      }),
+      })
+      .default(''),
     name_en_us: z
       .string()
       .max(100007, { message: '游戏名称最多 233 字' })
@@ -312,7 +316,27 @@ export const updateGalgameSchema = z
       .max(100007, { message: '游戏介绍最多 100007 字' })
       .default(''),
     content_limit: z.enum(['sfw', 'nsfw']),
-    aliases: z.array(z.string()).default([])
+    age_limit: z.enum(['all', 'r18']).default('all'),
+    original_language: z
+      .enum(['ja-jp', 'en-us', 'zh-cn', 'zh-tw', 'others'])
+      .default('ja-jp'),
+    aliases: z.array(z.string()).default([]),
+    // Replace-all relation arrays — see GalgameEditStoreTemp note. Empty
+    // array is meaningful (= "this entry has none"), so .default([]) is
+    // intentional, not a "skip".
+    tag_ids: z.array(z.number().int().positive()).default([]),
+    official_ids: z.array(z.number().int().positive()).default([]),
+    engine_ids: z.array(z.number().int().positive()).default([]),
+    links: z
+      .array(
+        z.object({
+          name: z.string().min(1, { message: '链接名称不能为空' }).max(107),
+          link: z.string().min(1, { message: '链接地址不能为空' }).max(1007)
+        })
+      )
+      .max(107, { message: '相关链接最多 107 条' })
+      .default([]),
+    note: z.string().max(1007, { message: 'PR 说明最多 1007 字' }).default('')
   })
   .superRefine((data, ctx) => {
     if (data.aliases.length >= 30) {

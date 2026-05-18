@@ -20,7 +20,19 @@ const handlePublishGalgamePR = async () => {
         .map((a) => a.trim())
         .filter((a) => a.length > 0)
 
-  const data: Record<string, number | string | string[]> = {
+  // Relation arrays are sent as id arrays / {name,link} objects and
+  // REPLACE the whole set on merge — Rewrite.vue pre-hydrated them from
+  // current data so an untouched section round-trips unchanged. Blank
+  // link rows are dropped here so the schema's min(1) doesn't reject
+  // them.
+  const links = galgame.links
+    .map((l) => ({ name: l.name.trim(), link: l.link.trim() }))
+    .filter((l) => l.name.length > 0 && l.link.length > 0)
+
+  const data: Record<
+    string,
+    number | string | string[] | number[] | { name: string; link: string }[]
+  > = {
     vndb_id: galgame.vndbId,
     name_en_us: galgame.name['en-us'],
     name_ja_jp: galgame.name['ja-jp'],
@@ -31,7 +43,14 @@ const handlePublishGalgamePR = async () => {
     intro_zh_cn: galgame.introduction['zh-cn'],
     intro_zh_tw: galgame.introduction['zh-tw'],
     content_limit: galgame.contentLimit,
-    aliases: aliasList
+    age_limit: galgame.ageLimit,
+    original_language: galgame.originalLanguage,
+    aliases: aliasList,
+    tag_ids: galgame.tags.map((t) => t.id),
+    official_ids: galgame.officials.map((o) => o.id),
+    engine_ids: galgame.engines.map((e) => e.id),
+    links,
+    note: galgame.note
   }
 
   const result = updateGalgameSchema.safeParse(data)
@@ -44,7 +63,8 @@ const handlePublishGalgamePR = async () => {
     return
   }
   const res = await useComponentMessageStore().alert(
-    '确定发布 Galgame 信息更新请求吗?'
+    '确定发布 Galgame 信息更新请求吗?',
+    '别名 / 标签 / 会社 / 引擎 / 相关链接为整组替换, 请确认上方各项即为最终完整列表。'
   )
   if (!res) {
     return

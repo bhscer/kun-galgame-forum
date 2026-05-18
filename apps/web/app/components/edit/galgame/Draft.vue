@@ -118,7 +118,16 @@ watch(
         originalLanguage: isOriginalLanguage(g.original_language)
           ? g.original_language
           : 'ja-jp',
-        alias: []
+        alias: [],
+        // Draft (status=3/4) PATCH doesn't touch relations/links/note —
+        // patchDraftSchema has no such fields. These are only here to
+        // satisfy the shared GalgameEditStoreTemp shape (the PR flow
+        // uses them); Draft.vue neither reads nor submits them.
+        tags: [],
+        officials: [],
+        engines: [],
+        links: [],
+        note: ''
       }
     ]
     originalLanguageLocal.value = isOriginalLanguage(g.original_language)
