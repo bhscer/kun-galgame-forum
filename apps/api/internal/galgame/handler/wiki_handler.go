@@ -51,7 +51,8 @@ func (h *WikiHandler) ProxyWriteWithToken(method string) fiber.Handler {
 		}
 
 		data, appErr := h.wikiService.ProxyWrite(
-			c.Context(), method, c.Path(), token, c.Body(), c.Get("Content-Type"),
+			c.Context(), method, c.Path(), token,
+			collectQuery(c), c.Body(), c.Get("Content-Type"),
 		)
 		if appErr != nil {
 			return response.Error(c, appErr)

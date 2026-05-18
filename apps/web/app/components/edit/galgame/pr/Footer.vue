@@ -116,10 +116,92 @@ const handlePublishGalgamePR = async () => {
     if (banner instanceof Blob) {
       await deleteImage('kun-galgame-publish-banner')
     }
+    // PUT /galgame/:gid does NOT process aliases/links (01-galgame.md);
+    // they live on dedicated add/remove endpoints. The PR endpoint DOES
+    // take them (replace-all), so only the direct path needs to
+    // reconcile aliases/links itself against the current set.
+    if (direct) {
+      await reconcileAliasesLinks(galgame.id, galgame.alias, galgame.links)
+    }
     useKunLoliInfo(direct ? '已保存, 修改已生效' : '创建更新请求成功', 5)
     await navigateTo(`/galgame/${galgame.id}`, {
       replace: true
     })
+  }
+}
+
+// Reconcile aliases & links to the edited set via the dedicated
+// per-item endpoints (docs 03-relations): GET current → POST the added,
+// DELETE the removed (each creates its own revision). Best-effort: a
+// failure warns but doesn't undo the already-applied PUT.
+const reconcileAliasesLinks = async (
+  gid: number,
+  desiredAliasRaw: string[],
+  desiredLinksRaw: { name: string; link: string }[]
+) => {
+  let failed = false
+
+  // aliases
+  const curAliases =
+    (await kunFetch<{ id: number; name: string }[]>(
+      `/galgame/${gid}/aliases`,
+      { method: 'GET' }
+    )) ?? []
+  const desiredAlias = [
+    ...new Set(desiredAliasRaw.map((a) => a.trim()).filter(Boolean))
+  ]
+  for (const name of desiredAlias) {
+    if (!curAliases.some((a) => a.name === name)) {
+      const r = await kunFetch(`/galgame/${gid}/aliases`, {
+        method: 'POST',
+        body: { name }
+      })
+      if (r === null) failed = true
+    }
+  }
+  for (const a of curAliases) {
+    if (!desiredAlias.includes(a.name)) {
+      const r = await kunFetch(`/galgame/${gid}/aliases`, {
+        method: 'DELETE',
+        body: { id: a.id }
+      })
+      if (r === null) failed = true
+    }
+  }
+
+  // links — identity is the (name, link) pair
+  const curLinks =
+    (await kunFetch<{ id: number; name: string; link: string }[]>(
+      `/galgame/${gid}/links`,
+      { method: 'GET' }
+    )) ?? []
+  const key = (n: string, l: string) => JSON.stringify([n, l])
+  const desiredLinks = desiredLinksRaw
+    .map((l) => ({ name: l.name.trim(), link: l.link.trim() }))
+    .filter((l) => l.name && l.link)
+  const desiredSet = new Set(desiredLinks.map((l) => key(l.name, l.link)))
+  const curSet = new Set(curLinks.map((l) => key(l.name, l.link)))
+  for (const l of desiredLinks) {
+    if (!curSet.has(key(l.name, l.link))) {
+      const r = await kunFetch(`/galgame/${gid}/links`, {
+        method: 'POST',
+        body: { name: l.name, link: l.link }
+      })
+      if (r === null) failed = true
+    }
+  }
+  for (const l of curLinks) {
+    if (!desiredSet.has(key(l.name, l.link))) {
+      const r = await kunFetch(`/galgame/${gid}/links`, {
+        method: 'DELETE',
+        body: { id: l.id }
+      })
+      if (r === null) failed = true
+    }
+  }
+
+  if (failed) {
+    useMessage('部分别名 / 链接未能保存, 请到该条目核对后重试', 'warn', 5000)
   }
 }
 </script>

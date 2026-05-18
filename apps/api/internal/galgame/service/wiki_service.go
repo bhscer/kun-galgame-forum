@@ -47,13 +47,21 @@ func (s *WikiService) ProxyGet(
 // contentType is the original Content-Type from the gateway request — kept
 // verbatim so multipart boundaries / form-encoded payloads survive the hop.
 // Empty defaults to application/json (what the wiki expects on JSON bodies).
+// query is the original gateway query string (url.Values). It MUST be
+// forwarded — e.g. the two-stage safe delete on tag/official/engine
+// keys off `?force=true` (docs 04-taxonomy / 00-handbook): dropping it
+// would make every force-delete silently behave as a plain delete.
 func (s *WikiService) ProxyWrite(
 	ctx context.Context,
 	method, gatewayPath, token string,
+	query url.Values,
 	body []byte,
 	contentType string,
 ) (json.RawMessage, *errors.AppError) {
 	wikiPath := client.ToWikiPath(gatewayPath)
+	if len(query) > 0 {
+		wikiPath += "?" + query.Encode()
+	}
 	payload := json.RawMessage(body)
 
 	switch method {

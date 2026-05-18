@@ -51,23 +51,45 @@ const handleUpdateTag = async (data: UpdateGalgameTagPayload) => {
   }
 }
 
-// DELETE /galgame-tag/:id → wiki DELETE /tag/:id (router 316; cascades
-// aliases + relations + Meilisearch). admin/moderator only — wiki gates
-// it; UI gated at role>=2 (wiki semantics; §15.2 forbids narrowing).
+// Two-stage safe delete (docs 04-taxonomy / 00-handbook): a plain
+// DELETE /galgame-tag/:id is REJECTED while the tag is still referenced
+// by any galgame (wiki returns the reference count, surfaced by
+// kunFetch as a toast). Only then, after an explicit second
+// confirmation, retry with ?force=true to purge all relations + hard
+// delete. admin/moderator only — wiki gates; UI gated role>=2 (§15.2).
 const isDeleting = ref(false)
 const handleDeleteTag = async () => {
   const ok = await useComponentMessageStore().alert(
     `确定删除标签「${data.value?.name}」吗?`,
-    '将级联移除该标签的别名与所有 Galgame 关联, 不可撤销。'
+    '若该标签未被任何 Galgame 引用将直接删除; 仍被引用时会先提示。'
   )
   if (!ok) return
   isDeleting.value = true
   const res = await kunFetch(`/galgame-tag/${tagId.value}`, {
     method: 'DELETE'
   })
-  isDeleting.value = false
   if (res !== null) {
+    isDeleting.value = false
     useMessage('标签已删除', 'success')
+    await navigateTo('/galgame-tag')
+    return
+  }
+  // Rejected — almost always "still referenced" (wiki already toasted
+  // the count). Offer the force path explicitly.
+  isDeleting.value = false
+  const force = await useComponentMessageStore().alert(
+    '该标签仍被 Galgame 引用, 删除已被拒绝',
+    '强制删除会先清除该标签在所有 Galgame 上的关联, 再硬删除该标签, 不可撤销。确定强制删除吗?'
+  )
+  if (!force) return
+  isDeleting.value = true
+  const forced = await kunFetch(`/galgame-tag/${tagId.value}`, {
+    method: 'DELETE',
+    query: { force: true }
+  })
+  isDeleting.value = false
+  if (forced !== null) {
+    useMessage('标签已强制删除', 'success')
     await navigateTo('/galgame-tag')
   }
 }

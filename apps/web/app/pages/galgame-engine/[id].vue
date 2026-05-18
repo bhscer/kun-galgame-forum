@@ -51,23 +51,41 @@ const handleUpdateEngine = async (data: UpdateGalgameEnginePayload) => {
   }
 }
 
-// DELETE /galgame-engine/:id → wiki DELETE /engine/:id (router 320;
-// cascades relations). admin/moderator only — wiki gates; UI gated
-// role>=2 (wiki semantics; §15.2).
+// Two-stage safe delete (docs 04-taxonomy / 00-handbook): plain DELETE
+// is rejected while still referenced (wiki toasts the count); only after
+// an explicit second confirm do we retry ?force=true to purge relations
+// + hard delete. admin/moderator only — wiki gates; UI role>=2 (§15.2).
 const isDeleting = ref(false)
 const handleDeleteEngine = async () => {
   const ok = await useComponentMessageStore().alert(
     `确定删除引擎「${data.value?.name}」吗?`,
-    '将级联移除该引擎的所有 Galgame 关联, 不可撤销。'
+    '若该引擎未被任何 Galgame 引用将直接删除; 仍被引用时会先提示。'
   )
   if (!ok) return
   isDeleting.value = true
   const res = await kunFetch(`/galgame-engine/${engineId.value}`, {
     method: 'DELETE'
   })
-  isDeleting.value = false
   if (res !== null) {
+    isDeleting.value = false
     useMessage('引擎已删除', 'success')
+    await navigateTo('/galgame-engine')
+    return
+  }
+  isDeleting.value = false
+  const force = await useComponentMessageStore().alert(
+    '该引擎仍被 Galgame 引用, 删除已被拒绝',
+    '强制删除会先清除该引擎在所有 Galgame 上的关联, 再硬删除该引擎, 不可撤销。确定强制删除吗?'
+  )
+  if (!force) return
+  isDeleting.value = true
+  const forced = await kunFetch(`/galgame-engine/${engineId.value}`, {
+    method: 'DELETE',
+    query: { force: true }
+  })
+  isDeleting.value = false
+  if (forced !== null) {
+    useMessage('引擎已强制删除', 'success')
     await navigateTo('/galgame-engine')
   }
 }
