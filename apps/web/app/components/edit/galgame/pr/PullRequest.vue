@@ -1,27 +1,39 @@
 <script setup lang="ts">
-// PR edit form for a PUBLISHED galgame (POST /galgame/:gid/prs). Single
-// page, sectioned with KunDivider — deliberately NOT a stepper: editing
-// is "tweak a field or two on fully-known data", and the wiki's
-// replace-all semantics mean every relation section must stay visible &
-// pre-filled at once so the user can see "this is the current set".
-// Aligns with Draft.vue's KunCard + KunDivider look.
+// PR edit form for a PUBLISHED galgame (POST /galgame/:gid/prs).
 //
-// Single root is <div class="contents"> (page renders us bare); the
-// galgamePR[0] guard handles the persist:false edge (browser back into
-// an emptied temp store) — the normal entry (components/galgame/
-// Rewrite.vue) always hydrates it first, and ?type=pr arms the
-// `prevent` middleware against hard refreshes.
+// Layout: top segmented KunTab groups the form into focused sections
+// (basic / intro / relations / links / advanced) + a sticky bottom
+// action bar (PR note + submit) that's always reachable. This declutters
+// what used to be one long scroll while keeping EVERY field bound &
+// submitted regardless of the active tab — panels use v-show (NOT v-if)
+// so child state (alias chips, editor buffer, loaded selector lists)
+// survives tab switches and the wiki replace-all relations never reset.
+// Footer always submits the whole store, so unvisited tabs round-trip
+// their pre-hydrated values unchanged.
+//
+// Single root is <div class="contents"> (page renders us bare). The
+// galgamePR[0] guard handles the persist:false edge; ?type=pr arms the
+// `prevent` middleware against hard refreshes (see Rewrite.vue).
 import type { KunSelectOption } from '~/components/kun/select/type'
+import type { KunTabItem } from '~/components/kun/tab/type'
 import { languageItems } from '~/constants/edit'
 
 const { galgamePR } = storeToRefs(useTempGalgamePRStore())
 const pr = computed(() => galgamePR.value[0])
 
+const sectionTabs: KunTabItem[] = [
+  { value: 'basic', textValue: '基本信息', icon: 'lucide:info' },
+  { value: 'intro', textValue: '游戏介绍', icon: 'lucide:file-text' },
+  { value: 'relations', textValue: '标签 / 会社 / 引擎', icon: 'lucide:tags' },
+  { value: 'links', textValue: '相关链接', icon: 'lucide:link' },
+  { value: 'advanced', textValue: '分级 / 封面 / 高级', icon: 'lucide:settings-2' }
+]
+const activeSection = ref('basic')
+
 const introductionLanguage = ref<Language>('zh-cn')
 
 // Typed as KunSelectOption[] (not `as const`): KunSelect.options is a
-// mutable KunSelectOption[], a readonly tuple from `as const` is not
-// assignable. Matches the convention in app/constants/*.ts.
+// mutable KunSelectOption[]; a readonly tuple is not assignable.
 const ageLimitOptions: KunSelectOption[] = [
   { value: 'all', label: '全年龄' },
   { value: 'r18', label: 'R18' }
@@ -55,17 +67,20 @@ const originalLanguageOptions: KunSelectOption[] = [
         />
 
         <template v-else>
-          <KunDivider>
-            <span class="mx-2">基本信息</span>
-          </KunDivider>
+          <KunTab
+            :items="sectionTabs"
+            v-model="activeSection"
+            variant="solid"
+            color="primary"
+            size="md"
+          />
 
-          <EditGalgamePrTitle />
+          <div v-show="activeSection === 'basic'" class="space-y-6">
+            <EditGalgamePrTitle />
+            <EditGalgamePrAlias type="rewrite" />
+          </div>
 
-          <KunDivider>
-            <span class="mx-2">游戏介绍</span>
-          </KunDivider>
-
-          <div class="space-y-2">
+          <div v-show="activeSection === 'intro'" class="space-y-2">
             <KunTab
               :items="languageItems"
               v-model="introductionLanguage"
@@ -76,78 +91,64 @@ const originalLanguageOptions: KunSelectOption[] = [
             <EditGalgameEditor :lang="introductionLanguage" type="rewrite" />
           </div>
 
-          <KunDivider>
-            <span class="mx-2">别名</span>
-          </KunDivider>
-
-          <EditGalgamePrAlias type="rewrite" />
-
-          <KunDivider>
-            <span class="mx-2">标签 / 会社 / 引擎</span>
-          </KunDivider>
-
-          <EditGalgamePrTagSelector />
-          <EditGalgamePrOfficialSelector />
-          <EditGalgamePrEngineSelector />
-
-          <KunDivider>
-            <span class="mx-2">相关链接</span>
-          </KunDivider>
-
-          <EditGalgamePrLinks />
-
-          <KunDivider>
-            <span class="mx-2">分级与元数据</span>
-          </KunDivider>
-
-          <EditGalgameContentLimit type="rewrite" />
-
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <KunSelect
-              v-model="pr!.ageLimit"
-              label="年龄分级"
-              :options="ageLimitOptions"
-            />
-            <KunSelect
-              v-model="pr!.originalLanguage"
-              label="原始语言"
-              :options="originalLanguageOptions"
-            />
+          <div v-show="activeSection === 'relations'" class="space-y-6">
+            <EditGalgamePrTagSelector />
+            <EditGalgamePrOfficialSelector />
+            <EditGalgamePrEngineSelector />
           </div>
 
-          <KunDivider>
-            <span class="mx-2">高级 (可选)</span>
-          </KunDivider>
-
-          <div class="space-y-2">
-            <h2 class="text-xl">VNDB 编号</h2>
-            <p class="text-default-500 text-sm">
-              该作品在 VNDB 的编号, 无对应条目 (如原创 / 同人作品) 可留空。
-            </p>
-            <KunInput
-              v-model="pr!.vndbId"
-              placeholder="例如: v19658 (可留空)"
-            />
+          <div v-show="activeSection === 'links'" class="space-y-6">
+            <EditGalgamePrLinks />
           </div>
 
-          <div class="space-y-2">
-            <h2 class="text-xl">PR 说明</h2>
-            <p class="text-default-500 text-sm">
-              简述本次修改了什么、依据来源, 便于审核者快速判断是否合并。
-            </p>
-            <KunTextarea
-              v-model="pr!.note"
-              placeholder="例如: 补充标签与开发商, 修正简体中文简介"
-            />
+          <div v-show="activeSection === 'advanced'" class="space-y-6">
+            <EditGalgameContentLimit type="rewrite" />
+
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <KunSelect
+                v-model="pr!.ageLimit"
+                label="年龄分级"
+                :options="ageLimitOptions"
+              />
+              <KunSelect
+                v-model="pr!.originalLanguage"
+                label="原始语言"
+                :options="originalLanguageOptions"
+              />
+            </div>
+
+            <div class="space-y-2">
+              <h2 class="text-xl">VNDB 编号</h2>
+              <p class="text-default-500 text-sm">
+                该作品在 VNDB 的编号, 无对应条目 (如原创 / 同人作品) 可留空。
+              </p>
+              <KunInput
+                v-model="pr!.vndbId"
+                placeholder="例如: v19658 (可留空)"
+              />
+            </div>
+
+            <div class="space-y-2">
+              <h2 class="text-xl">封面</h2>
+              <p class="text-default-500 text-sm">
+                可选: 重新选择封面图; 不变更则沿用当前封面。
+              </p>
+              <EditGalgameBanner />
+            </div>
           </div>
 
-          <KunDivider>
-            <span class="mx-2">封面</span>
-          </KunDivider>
-
-          <EditGalgameBanner />
-
-          <EditGalgamePrFooter />
+          <div class="sticky bottom-2 z-10">
+            <div
+              class="border-default-200 bg-content1/90 flex flex-col gap-3 rounded-xl border p-3 shadow-lg backdrop-blur sm:flex-row sm:items-center"
+            >
+              <KunInput
+                v-model="pr!.note"
+                class="flex-1"
+                placeholder="PR 说明 (可选): 简述本次修改了什么 / 来源依据, 便于审核"
+              />
+              <EditGalgamePrFooter />
+            </div>
+          </div>
         </template>
       </KunCard>
     </ClientOnly>
