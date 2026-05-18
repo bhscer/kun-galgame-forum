@@ -50,6 +50,27 @@ const handleUpdateTag = async (data: UpdateGalgameTagPayload) => {
     useMessage('重新编辑成功', 'success')
   }
 }
+
+// DELETE /galgame-tag/:id → wiki DELETE /tag/:id (router 316; cascades
+// aliases + relations + Meilisearch). admin/moderator only — wiki gates
+// it; UI gated at role>=2 (wiki semantics; §15.2 forbids narrowing).
+const isDeleting = ref(false)
+const handleDeleteTag = async () => {
+  const ok = await useComponentMessageStore().alert(
+    `确定删除标签「${data.value?.name}」吗?`,
+    '将级联移除该标签的别名与所有 Galgame 关联, 不可撤销。'
+  )
+  if (!ok) return
+  isDeleting.value = true
+  const res = await kunFetch(`/galgame-tag/${tagId.value}`, {
+    method: 'DELETE'
+  })
+  isDeleting.value = false
+  if (res !== null) {
+    useMessage('标签已删除', 'success')
+    await navigateTo('/galgame-tag')
+  }
+}
 </script>
 
 <template>
@@ -99,8 +120,16 @@ const handleUpdateTag = async (data: UpdateGalgameTagPayload) => {
               {{ a }}
             </KunBadge>
           </div>
-          <div v-if="role > 2" class="flex justify-end">
+          <div v-if="role >= 2" class="flex justify-end gap-2">
             <KunButton @click="openEditTagModal">编辑标签</KunButton>
+            <KunButton
+              variant="flat"
+              color="danger"
+              :loading="isDeleting"
+              @click="handleDeleteTag"
+            >
+              删除标签
+            </KunButton>
           </div>
         </div>
       </template>

@@ -127,7 +127,8 @@ watch(
         officials: [],
         engines: [],
         links: [],
-        note: ''
+        note: '',
+        canDirectEdit: false
       }
     ]
     originalLanguageLocal.value = isOriginalLanguage(g.original_language)

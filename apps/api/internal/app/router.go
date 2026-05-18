@@ -307,6 +307,17 @@ func (a *App) setupRoutes() {
 	authed.Put("/galgame-tag", a.GalgameWikiHandler.ProxyWriteWithToken("PUT"))
 	authed.Put("/galgame-official", a.GalgameWikiHandler.ProxyWriteWithToken("PUT"))
 	authed.Put("/galgame-engine", a.GalgameWikiHandler.ProxyWriteWithToken("PUT"))
+	// Taxonomy create/delete (04-taxonomy.md, new). POST = any logged-in
+	// user (lets users add a tag/official/engine missing for an original
+	// /doujin work); PUT/DELETE = admin/moderator. Auth is enforced by
+	// wiki — kungal only forwards the token, never widens/narrows it
+	// (00-handbook §15.2). ToWikiPath maps /galgame-tag → /tag etc.
+	authed.Post("/galgame-tag", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
+	authed.Delete("/galgame-tag/:id", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
+	authed.Post("/galgame-official", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
+	authed.Delete("/galgame-official/:id", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
+	authed.Post("/galgame-engine", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
+	authed.Delete("/galgame-engine/:id", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
 	authed.Post("/galgame-series", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
 	authed.Post("/galgame-series/modal", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
 	authed.Put("/galgame-series/:id", a.GalgameWikiHandler.ProxyWriteWithToken("PUT"))

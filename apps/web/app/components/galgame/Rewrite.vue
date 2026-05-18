@@ -4,6 +4,7 @@ defineProps<{
 }>()
 
 const { galgamePR } = storeToRefs(useTempGalgamePRStore())
+const { id: currentUserId, role: currentUserRole } = usePersistUserStore()
 
 const isOpening = ref(false)
 
@@ -47,7 +48,12 @@ const handleRewriteGalgame = async (galgame: GalgameDetail) => {
     officials: [...galgame.official],
     engines: [...galgame.engine],
     links: (linkRes ?? []).map((l) => ({ name: l.name, link: l.link })),
-    note: ''
+    note: '',
+    // Creator or admin/moderator → wiki allows direct PUT (instant).
+    // Everyone else → PR. Decided here (we have galgame.user + the user
+    // store); Footer.vue branches the submit endpoint on this.
+    canDirectEdit:
+      galgame.user.id === currentUserId || currentUserRole >= 2
   }
 
   isOpening.value = false

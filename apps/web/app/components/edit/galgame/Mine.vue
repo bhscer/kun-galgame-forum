@@ -126,6 +126,14 @@ const handleWithdraw = async (item: MineGalgameItem) => {
               <span>最后修改 {{ formatTimeDifference(item.updated) }}</span>
             </template>
           </div>
+          <div
+            v-if="
+              item.status === GalgameStatus.Declined && item.decline_reason
+            "
+            class="text-danger bg-danger/10 mt-1 rounded-md px-2 py-1 text-sm"
+          >
+            被拒原因: {{ item.decline_reason }}
+          </div>
         </div>
         <div class="flex shrink-0 gap-2">
           <KunLink :to="`/edit/galgame/draft/${item.id}`">

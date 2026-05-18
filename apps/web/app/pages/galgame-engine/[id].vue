@@ -51,6 +51,27 @@ const handleUpdateEngine = async (data: UpdateGalgameEnginePayload) => {
   }
 }
 
+// DELETE /galgame-engine/:id → wiki DELETE /engine/:id (router 320;
+// cascades relations). admin/moderator only — wiki gates; UI gated
+// role>=2 (wiki semantics; §15.2).
+const isDeleting = ref(false)
+const handleDeleteEngine = async () => {
+  const ok = await useComponentMessageStore().alert(
+    `确定删除引擎「${data.value?.name}」吗?`,
+    '将级联移除该引擎的所有 Galgame 关联, 不可撤销。'
+  )
+  if (!ok) return
+  isDeleting.value = true
+  const res = await kunFetch(`/galgame-engine/${engineId.value}`, {
+    method: 'DELETE'
+  })
+  isDeleting.value = false
+  if (res !== null) {
+    useMessage('引擎已删除', 'success')
+    await navigateTo('/galgame-engine')
+  }
+}
+
 useKunSeoMeta({
   title: `${data.value?.name} 引擎`,
   description: `查看所有使用 ${data.value?.name} 引擎制作的 Galgame`
@@ -90,8 +111,16 @@ useKunSeoMeta({
               {{ a }}
             </KunBadge>
           </div>
-          <div v-if="role > 2" class="flex justify-end">
+          <div v-if="role >= 2" class="flex justify-end gap-2">
             <KunButton @click="openEditEngineModal">编辑引擎</KunButton>
+            <KunButton
+              variant="flat"
+              color="danger"
+              :loading="isDeleting"
+              @click="handleDeleteEngine"
+            >
+              删除引擎
+            </KunButton>
           </div>
         </div>
       </template>

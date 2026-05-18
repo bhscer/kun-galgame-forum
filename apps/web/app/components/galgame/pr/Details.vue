@@ -1,23 +1,24 @@
 <script setup lang="ts">
-import DOMPurify from 'isomorphic-dompurify'
-import { diffGalgame } from './compare'
-import { KUN_GALGAME_RESOURCE_PULL_REQUEST_I18N_FIELD_MAP } from '~/constants/galgame'
-
+// PR review: renders the proposed change (GalgameSnapshotDiff: base
+// revision snapshot → pr.snapshot, limited to changed_keys) plus
+// merge / decline for the creator or admin/moderator. Endpoints verified
+// against router.go: PUT /galgame/:gid/prs/:id/merge (298) and
+// /decline (301, body {note}). Only pending (status=0) PRs are
+// actionable; merged/declined are view-only.
 const props = defineProps<{
-  details: Partial<GalgamePRDetails>
+  details: GalgamePRDiffView
   refresh: () => void
 }>()
 const galgame = inject<GalgameDetail>('galgame')
 
 const { id, role } = usePersistUserStore()
-const isShowButton = computed(() => galgame?.user.id === id || role >= 2)
+const isShowButton = computed(
+  () => galgame?.user.id === id || role >= 2
+)
+const isPending = computed(() => props.details.status === 0)
 const isFetching = ref(false)
 const isShowReasonInput = ref(false)
 const declineInput = ref('')
-
-const diff = computed(() => {
-  return diffGalgame(toRaw(props.details.oldData), toRaw(props.details.newData))
-})
 
 const handleDeclineRequest = async () => {
   if (!declineInput.value.trim() || declineInput.value.trim().length > 1007) {
@@ -72,22 +73,16 @@ const handleMergeRequest = async () => {
 </script>
 
 <template>
-  <div class="space-y-3">
-    <div class="diff">
-      <div v-for="(kun, index) in diff" :key="index">
-        <p class="mb-2 font-bold">
-          {{ KUN_GALGAME_RESOURCE_PULL_REQUEST_I18N_FIELD_MAP[kun.name] }}
-        </p>
-        <div
-          class="break-word mb-4"
-          v-html="DOMPurify.sanitize(kun.value.replace(/\\/g, ''))"
-        />
-      </div>
-    </div>
+  <div class="border-default-200 space-y-3 rounded-lg border p-3">
+    <GalgameSnapshotDiff
+      :changed-keys="details.changedKeys"
+      :old-snap="details.oldSnap"
+      :new-snap="details.newSnap"
+    />
 
     <div
       class="flex items-center justify-end gap-1"
-      v-if="!details.status && isShowButton"
+      v-if="isPending && isShowButton"
     >
       <KunButton
         variant="light"
@@ -104,9 +99,9 @@ const handleMergeRequest = async () => {
 
     <div
       class="text-default-500 text-sm"
-      v-if="!details.status && !isShowButton"
+      v-else-if="isPending && !isShowButton"
     >
-      要处理该请求, 需要资源的发布者、或管理员
+      要处理该请求, 需要是该资源的发布者或管理员
     </div>
 
     <div class="flex items-center gap-1" v-if="isShowReasonInput">
@@ -122,34 +117,3 @@ const handleMergeRequest = async () => {
     </div>
   </div>
 </template>
-
-<style  scoped>
-.diff {
-  :deep(h2) {
-    margin-bottom: 10px;
-  }
-
-  :deep(strong) {
-    color: var(--color-danger);
-    background-color: color-mix(in oklab, var(--color-danger) 20%, transparent);
-  }
-
-  :deep(b) {
-    color: var(--color-primary);
-    background-color: color-mix(
-      in oklab,
-      var(--color-primary) 20%,
-      transparent
-    );
-  }
-
-  :deep(i) {
-    color: var(--color-success);
-    background-color: color-mix(
-      in oklab,
-      var(--color-success) 20%,
-      transparent
-    );
-  }
-}
-</style>

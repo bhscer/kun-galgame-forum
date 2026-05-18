@@ -3,6 +3,12 @@ import { updateGalgameSchema } from '~/validations/galgame'
 
 const { galgamePR } = storeToRefs(useTempGalgamePRStore())
 
+// Creator/admin edit directly (instant); others open a PR. Drives the
+// button label here and the endpoint branch in the handler.
+const canDirectEdit = computed(
+  () => galgamePR.value[0]?.canDirectEdit ?? false
+)
+
 const isPublishing = ref(false)
 
 const handlePublishGalgamePR = async () => {
@@ -62,9 +68,16 @@ const handlePublishGalgamePR = async () => {
     )
     return
   }
+  // Creator / admin edit directly (PUT /galgame/:gid — instant, new
+  // revision). Everyone else opens a PR (POST /:gid/prs). Decided in
+  // Rewrite.vue at hydration; see GalgameEditStoreTemp.canDirectEdit.
+  const direct = canDirectEdit.value
+
   const res = await useComponentMessageStore().alert(
-    '确定发布 Galgame 信息更新请求吗?',
-    '别名 / 标签 / 会社 / 引擎 / 相关链接为整组替换, 请确认上方各项即为最终完整列表。'
+    direct ? '确定直接保存对该 Galgame 的修改吗?' : '确定发布 Galgame 信息更新请求吗?',
+    direct
+      ? '保存后立即生效并写入一条新的版本历史。别名 / 标签 / 会社 / 引擎 / 相关链接为整组替换, 请确认上方各项即为最终完整列表。'
+      : '别名 / 标签 / 会社 / 引擎 / 相关链接为整组替换, 请确认上方各项即为最终完整列表。'
   )
   if (!res) {
     return
@@ -80,20 +93,22 @@ const handlePublishGalgamePR = async () => {
   // multipart 约定见 docs/galgame_wiki/api-reference.md "Banner 上传"。
   const banner = await getImage('kun-galgame-publish-banner')
 
+  // Direct edit → PUT /galgame/:gid; PR → POST /galgame/:gid/prs. Both
+  // accept the same JSON body or multipart (data + file) per wiki
+  // 01-galgame.md §multipart.
+  const path = direct
+    ? `/galgame/${galgame.id}`
+    : `/galgame/${galgame.id}/prs`
+  const method = direct ? 'PUT' : 'POST'
+
   let response: unknown
   if (banner instanceof Blob) {
     const formData = new FormData()
     formData.append('data', JSON.stringify(data))
     formData.append('file', banner)
-    response = await kunFetch(`/galgame/${galgame.id}/prs`, {
-      method: 'POST',
-      body: formData
-    })
+    response = await kunFetch(path, { method, body: formData })
   } else {
-    response = await kunFetch(`/galgame/${galgame.id}/prs`, {
-      method: 'POST',
-      body: data
-    })
+    response = await kunFetch(path, { method, body: data })
   }
   isPublishing.value = false
 
@@ -101,7 +116,7 @@ const handlePublishGalgamePR = async () => {
     if (banner instanceof Blob) {
       await deleteImage('kun-galgame-publish-banner')
     }
-    useKunLoliInfo('创建更新请求成功', 5)
+    useKunLoliInfo(direct ? '已保存, 修改已生效' : '创建更新请求成功', 5)
     await navigateTo(`/galgame/${galgame.id}`, {
       replace: true
     })
@@ -117,7 +132,7 @@ const handlePublishGalgamePR = async () => {
       size="lg"
       @click="handlePublishGalgamePR"
     >
-      确定发布
+      {{ canDirectEdit ? '保存修改' : '提交更新请求' }}
     </KunButton>
   </div>
 </template>

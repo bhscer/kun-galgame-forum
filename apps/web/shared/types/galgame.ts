@@ -85,8 +85,14 @@ export interface MineGalgameItem {
   name_zh_tw?: string
   banner?: string
   banner_image_hash?: string
+  content_limit?: string
   created: string
   updated: string
+  // Only present when status=4 (declined): the latest admin decline
+  // reason, lifted from the wiki message payload server-side so the
+  // "我的提交" page shows "被拒 + 原因" without a second /messages/mine
+  // call. omitempty otherwise. See docs/galgame_wiki/07-submission.md.
+  decline_reason?: string
 }
 
 export interface MineGalgameList {

@@ -109,7 +109,7 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
             </span>
           </div>
 
-          <KunAvatarGroup :users="galgame.contributor" :ellipsis="false" />
+          <GalgameContributorContainer />
         </KunCard>
 
         <div class="text-default-500 flex items-center justify-center text-sm">

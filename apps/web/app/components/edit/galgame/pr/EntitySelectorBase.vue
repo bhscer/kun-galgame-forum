@@ -22,7 +22,14 @@ const props = defineProps<{
   // Resolve a query string to candidate entities. Async covers both the
   // network pickers (tag/official) and the local-filter one (engine).
   search: (q: string) => Promise<T[]>
+  // When true, a "create「query」" row shows if no existing entity name
+  // matches — the doc-mandated "选已有 + 没有就新建" interaction
+  // (00-handbook §15 / 04-taxonomy). The parent handles `create` (opens
+  // a per-entity create modal) then calls addCreated() with the result.
+  creatable?: boolean
 }>()
+
+const emit = defineEmits<{ create: [query: string] }>()
 
 const selected = defineModel<T[]>({ required: true })
 
@@ -47,8 +54,21 @@ const run = async () => {
 
 watchDebounced(() => query.value, run, { debounce: 500, maxWait: 1000 })
 
+// Offer "create" only when the trimmed query has no case-insensitive
+// exact name match among the current results (an inexact/substring hit
+// shouldn't block creating a distinct new entity).
+const canCreate = computed(() => {
+  const q = query.value.trim()
+  if (!props.creatable || !q) return false
+  const lower = q.toLowerCase()
+  return !results.value.some((e) => e.name.toLowerCase() === lower)
+})
+
 const isDropdownOpen = computed(
-  () => focused.value && !!query.value.trim() && !!results.value.length
+  () =>
+    focused.value &&
+    !!query.value.trim() &&
+    (!!results.value.length || canCreate.value)
 )
 
 const onBlur = () => {
@@ -68,6 +88,10 @@ const add = (item: T) => {
 const remove = (id: number) => {
   selected.value = selected.value.filter((e) => e.id !== id)
 }
+
+// Parent calls this after its create modal resolves: dedupe + select +
+// reset, identical to picking an existing one.
+defineExpose({ addCreated: add })
 </script>
 
 <template>
@@ -126,6 +150,15 @@ const remove = (id: number) => {
               name="lucide:check"
               class="text-success shrink-0"
             />
+          </div>
+
+          <div
+            v-if="canCreate"
+            class="text-primary border-default-200 hover:bg-default-100 flex cursor-pointer items-center gap-2 border-t px-3 py-2"
+            @mousedown.prevent="emit('create', query.trim())"
+          >
+            <KunIcon name="lucide:plus" class="shrink-0" />
+            <span class="truncate">新建「{{ query.trim() }}」</span>
           </div>
         </KunScrollShadow>
       </div>

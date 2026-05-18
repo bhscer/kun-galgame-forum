@@ -18,22 +18,41 @@ const statusColorMap: Record<number, string> = {
   2: 'text-danger'
 }
 
-const details = ref<Partial<GalgamePRDetails>>()
+const details = ref<GalgamePRDiffView>()
 const isFetching = ref(false)
 
+// Wiki GET /galgame/:gid/prs/:id is passed through verbatim and now
+// returns { pr: { snapshot, base_revision, ... }, changed_keys }
+// (NOT the old oldData/newData). To show old → new we pair pr.snapshot
+// (new) with the base revision's snapshot (old), limited to
+// changed_keys. See docs/galgame_wiki/02-revisions-and-prs.md.
 const handleGetDetails = async (galgamePrId: number) => {
   if (details.value) {
     return
   }
   isFetching.value = true
-  const result = await kunFetch(
+  const detail = await kunFetch<WikiPRDetailResponse>(
     `/galgame/${props.galgameId}/prs/${galgamePrId}`,
+    { method: 'GET' }
+  )
+  if (!detail?.pr) {
+    isFetching.value = false
+    return
+  }
+  const baseRev = await kunFetch<{ snapshot?: Record<string, unknown> }>(
+    `/galgame/${props.galgameId}/revisions/${detail.pr.base_revision}`,
     { method: 'GET' }
   )
   isFetching.value = false
 
-  if (result) {
-    details.value = result
+  details.value = {
+    id: detail.pr.id,
+    galgameId: detail.pr.galgame_id,
+    status: detail.pr.status,
+    note: detail.pr.note,
+    changedKeys: detail.changed_keys ?? {},
+    oldSnap: baseRev?.snapshot ?? {},
+    newSnap: detail.pr.snapshot ?? {}
   }
 }
 
@@ -58,7 +77,7 @@ watch(
         </span>
       </div>
 
-      <div class="flex gap-1 text-sm">
+      <div class="flex items-center gap-1 text-sm">
         <span
           class="flex items-center gap-1"
           :class="statusColorMap[pr.status]"
@@ -80,14 +99,12 @@ watch(
         <KunButton
           size="sm"
           variant="flat"
-          v-if="!details && pr.status !== 2"
+          v-if="!details"
           @click="handleGetDetails(pr.id)"
           :loading="isFetching"
         >
-          详情
+          {{ pr.status === 0 ? '查看 / 处理' : '查看差异' }}
         </KunButton>
-
-        <span v-if="pr.status == 2">{{ `#${pr.id}` }}</span>
 
         <KunButton
           :is-icon-only="true"
@@ -101,6 +118,10 @@ watch(
         </KunButton>
       </div>
     </div>
+
+    <p v-if="pr.note" class="text-default-600 text-sm">
+      <span class="text-default-400">说明: </span>{{ pr.note }}
+    </p>
 
     <GalgamePrDetails v-if="details" :details="details" :refresh="refresh" />
   </div>

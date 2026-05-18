@@ -67,6 +67,16 @@ const originalLanguageOptions: KunSelectOption[] = [
         />
 
         <template v-else>
+          <KunInfo
+            :color="pr!.canDirectEdit ? 'success' : 'primary'"
+            :title="pr!.canDirectEdit ? '直接编辑模式' : '更新请求模式'"
+            :description="
+              pr!.canDirectEdit
+                ? '你是创建者或管理员, 保存后立即生效并记录一条版本历史。'
+                : '你的修改将作为更新请求提交, 由创建者或管理员审核合并后生效。'
+            "
+          />
+
           <KunTab
             :items="sectionTabs"
             v-model="activeSection"

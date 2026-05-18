@@ -64,6 +64,27 @@ const handleUpdateOfficial = async (data: UpdateGalgameOfficialPayload) => {
   }
 }
 
+// DELETE /galgame-official/:id → wiki DELETE /official/:id (router 318;
+// cascades aliases + relations + Meilisearch). admin/moderator only —
+// wiki gates; UI gated role>=2 (wiki semantics; §15.2).
+const isDeleting = ref(false)
+const handleDeleteOfficial = async () => {
+  const ok = await useComponentMessageStore().alert(
+    `确定删除会社「${data.value?.name}」吗?`,
+    '将级联移除该会社的别名与所有 Galgame 关联, 不可撤销。'
+  )
+  if (!ok) return
+  isDeleting.value = true
+  const res = await kunFetch(`/galgame-official/${officialId.value}`, {
+    method: 'DELETE'
+  })
+  isDeleting.value = false
+  if (res !== null) {
+    useMessage('会社已删除', 'success')
+    await navigateTo('/galgame-official')
+  }
+}
+
 useKunSeoMeta({
   title: `${data.value?.name} 会社`,
   description: `${data.value?.name}${data.value?.alias ? `, 即 ${data.value?.alias.join('| ')}` : ''}, 查看会社 ${data.value?.name} 制作的所有 Galgame`
@@ -117,8 +138,16 @@ useKunSeoMeta({
               {{ a }}
             </KunBadge>
           </div>
-          <div v-if="role > 2" class="flex justify-end">
+          <div v-if="role >= 2" class="flex justify-end gap-2">
             <KunButton @click="openEditOfficialModal">编辑会社</KunButton>
+            <KunButton
+              variant="flat"
+              color="danger"
+              :loading="isDeleting"
+              @click="handleDeleteOfficial"
+            >
+              删除会社
+            </KunButton>
           </div>
         </div>
       </template>
