@@ -15,7 +15,9 @@ interface WikiMessageGalgame {
   name_ja_jp?: string
   name_en_us?: string
   name_zh_tw?: string
-  banner_image_hash?: string
+  // K-PR6: banner_image_hash retired in wiki PR5; effective_banner_hash
+  // is the derived banner source (= covers[sort_order=0].image_hash).
+  effective_banner_hash?: string
   status: number
 }
 

@@ -34,6 +34,15 @@ export const getGalgameOfficialBySearchSchema = z.object({
 export const updateGalgameOfficialSchema = z.object({
   officialId: z.coerce.number<number>().min(1).max(9999999),
   name: z.string().min(1).max(200, 'Galgame 制作会社名最多 200 个字符'),
+  // K-PR6 (wiki PR4 sub-change): UpdateOfficialRequest gained
+  // `Original *string` — the Japanese / original-language name that
+  // was previously unconditionally hidden from edit. Optional + may be
+  // empty (kept as is in wiki when not sent).
+  original: z
+    .string()
+    .max(200, '原文名最多 200 个字符')
+    .optional()
+    .default(''),
   link: z.url('请输入有效的链接').max(500, '会社链接最多 500 个字符'),
   category: z.enum(KUN_GALGAME_OFFICIAL_TYPE),
   lang: z.string().max(20).optional().default('ja'),

@@ -29,7 +29,10 @@ interface WikiDraftDetail {
   name_zh_cn: string
   name_zh_tw: string
   banner: string
-  banner_image_hash: string
+  // K-PR6: banner_image_hash retired in wiki PR5; effective_banner_hash
+  // is the derived banner source. Draft form doesn't edit banner today
+  // but consumes the read-only hash for preview.
+  effective_banner_hash?: string
   intro_en_us: string
   intro_ja_jp: string
   intro_zh_cn: string

@@ -209,9 +209,10 @@ func (c *GalgameClient) GetAdminStats(ctx context.Context, days int) (*WikiAdmin
 // caller's own status=3 pending / 4 declined drafts in addition to status=0).
 // Anonymous calls always get status=0 entries — see 01-galgame.md.
 //
-// BannerImageHash is the image_service content hash. Frontend rendering
-// prefers it (resolveBannerUrl(hash)) and falls back to the legacy Banner
-// URL when the hash is empty.
+// EffectiveBannerHash is the derived hash from covers[sort_order=0];
+// frontend reads it (or the rewriteBanners-injected
+// effective_banner_url) to render head images. banner_image_hash was
+// retired in wiki PR5 (K-PR6) — no top-level field any more.
 type GalgameBrief struct {
 	ID                 int    `json:"id"`
 	VndbID             string `json:"vndb_id"`
@@ -220,7 +221,6 @@ type GalgameBrief struct {
 	NameZhCn           string `json:"name_zh_cn"`
 	NameZhTw           string `json:"name_zh_tw"`
 	Banner             string `json:"banner"`
-	BannerImageHash    string `json:"banner_image_hash"`
 	Status             int    `json:"status"`
 	ContentLimit       string `json:"content_limit"`
 	UserID             int    `json:"user_id"`
@@ -232,12 +232,12 @@ type GalgameBrief struct {
 	ReleaseDate        *string `json:"release_date"`
 	ReleaseDateTBA     bool    `json:"release_date_tba"`
 	// U2: derived effective banner hash on briefs (wiki computes from the
-	// row's covers[sort_order=0]). banner_image_hash retained during
-	// transition; drop in K-PR6.
-	// EffectiveBannerURL is injected by rewriteBanners over the wiki
-	// response BEFORE this struct is unmarshalled — declare the field
-	// so we capture it; without it Go's unmarshal silently drops the
-	// walker's work and downstream DTOs are stuck with only the hash.
+	// row's covers[sort_order=0]). EffectiveBannerURL is injected by
+	// rewriteBanners over the wiki response BEFORE this struct is
+	// unmarshalled — declare the field so we capture it; without it
+	// Go's unmarshal silently drops the walker's work and downstream
+	// DTOs are stuck with only the hash. banner_image_hash retired in
+	// wiki PR5 (K-PR6).
 	EffectiveBannerHash string `json:"effective_banner_hash"`
 	EffectiveBannerURL  string `json:"effective_banner_url"`
 }

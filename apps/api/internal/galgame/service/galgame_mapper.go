@@ -70,13 +70,13 @@ func galgameDetailFromWiki(g dto.WikiGalgameDetailFull, users map[string]dto.Wik
 		AgeLimit:           g.AgeLimit,
 		ReleaseDate:        g.ReleaseDate,
 		ReleaseDateTBA:     g.ReleaseDateTBA,
-		// U2: banner_image_hash retained for transition (drop in K-PR6);
-		// effective_banner_hash + Covers/Screenshots are the canonical
-		// new sources. CDN URLs (effective_banner_url + per-row cdn_url)
-		// are injected by client.rewriteBanners over the wiki response
-		// BEFORE we unmarshal — and we explicitly declare the fields on
-		// WikiGalgameDetailFull so they survive, then pipe through here.
-		BannerImageHash:     g.BannerImageHash,
+		// U2: effective_banner_hash + Covers/Screenshots are the
+		// canonical banner/gallery sources. CDN URLs (effective_banner_url
+		// + per-row cdn_url) are injected by client.rewriteBanners over
+		// the wiki response BEFORE we unmarshal — and we explicitly
+		// declare the fields on WikiGalgameDetailFull so they survive,
+		// then pipe through here. banner_image_hash retired in wiki
+		// PR5 (K-PR6).
 		EffectiveBannerHash: g.EffectiveBannerHash,
 		EffectiveBannerURL:  g.EffectiveBannerURL,
 		Covers:              coversFromWiki(g.Covers),

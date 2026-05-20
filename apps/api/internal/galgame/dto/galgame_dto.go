@@ -66,10 +66,10 @@ type GalgameListCard struct {
 	ReleaseDate        *string     `json:"releaseDate"`
 	ReleaseDateTBA     bool        `json:"releaseDateTBA"`
 	// U2: list cards only need the derived banner. Full covers[] /
-	// screenshots[] are detail-only. URL is injected by rewriteBanners.
-	BannerImageHash     string     `json:"banner_image_hash,omitempty"`
-	EffectiveBannerHash string     `json:"effective_banner_hash,omitempty"`
-	EffectiveBannerURL  string     `json:"effective_banner_url,omitempty"`
+	// screenshots[] are detail-only. URL injected by rewriteBanners.
+	// banner_image_hash retired in wiki PR5 (K-PR6).
+	EffectiveBannerHash string `json:"effective_banner_hash,omitempty"`
+	EffectiveBannerURL  string `json:"effective_banner_url,omitempty"`
 }
 
 // GalgameListPage is the {galgames, total} envelope for GET /galgame.
@@ -177,13 +177,12 @@ type GalgameDetail struct {
 	// U2: derived effective banner (sort_order=0 cover). URL is injected
 	// by client.rewriteBanners so the FE never has to hash → URL on its
 	// own. covers/screenshots also receive a `cdn_url` per row from the
-	// same walker. banner_image_hash kept during transition (decision #5)
-	// — drop in K-PR6 once cover[sort_order=0] migration is verified.
-	BannerImageHash     string             `json:"banner_image_hash,omitempty"`
-	EffectiveBannerHash string             `json:"effective_banner_hash,omitempty"`
-	EffectiveBannerURL  string             `json:"effective_banner_url,omitempty"`
-	Covers              []GalgameCover     `json:"covers"`
-	Screenshots         []GalgameScreenshot `json:"screenshots"`
+	// same walker. banner_image_hash retired in wiki PR5 (K-PR6);
+	// covers[sort_order=0] is now the canonical banner source.
+	EffectiveBannerHash string                  `json:"effective_banner_hash,omitempty"`
+	EffectiveBannerURL  string                  `json:"effective_banner_url,omitempty"`
+	Covers              []GalgameCover          `json:"covers"`
+	Screenshots         []GalgameScreenshot     `json:"screenshots"`
 	Platform           []string                `json:"platform"`
 	Language           []string                `json:"language"`
 	Type               []string                `json:"type"`

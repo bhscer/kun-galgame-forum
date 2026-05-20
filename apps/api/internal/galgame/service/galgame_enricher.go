@@ -103,10 +103,7 @@ func (e *GalgameEnricher) ToCards(ctx context.Context, items []dto.WikiGalgameIt
 			ReleaseDateTBA:      g.ReleaseDateTBA,
 			// U2: card carries only the derived banner; cdn_url/
 			// effective_banner_url is injected by client.rewriteBanners
-			// walker. Pipe BOTH hash and URL: the URL is what the FE
-			// renders, the hash is kept for diagnostics / future
-			// per-variant lookups.
-			BannerImageHash:     g.BannerImageHash,
+			// walker. banner_image_hash retired in wiki PR5 (K-PR6).
 			EffectiveBannerHash: g.EffectiveBannerHash,
 			EffectiveBannerURL:  g.EffectiveBannerURL,
 			Platform:            []string{},

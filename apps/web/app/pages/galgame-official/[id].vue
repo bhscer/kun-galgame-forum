@@ -43,6 +43,10 @@ const openEditOfficialModal = () => {
   const res = data.value
   editingOfficial.value = {
     name: res.name,
+    // K-PR6: wiki PR4 sub-change added `Original *string` to
+    // UpdateOfficialRequest. Hydrate from detail; empty string when
+    // wiki returns no original-language name yet.
+    original: res.original ?? '',
     officialId: res.id,
     link: res.link,
     lang: res.lang,

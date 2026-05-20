@@ -29,12 +29,10 @@ type WikiGalgameItem struct {
 	ReleaseDate        *string `json:"release_date"`
 	ReleaseDateTBA     bool    `json:"release_date_tba"`
 	// U2: derived effective banner hash on list rows (wiki computes it
-	// from the row's covers — sort_order=0 wins). banner_image_hash kept
-	// during transition.
-	// EffectiveBannerURL is injected by client.rewriteBanners on the
-	// wiki response BEFORE we unmarshal — capture it explicitly or
-	// Go's unmarshal drops the walker's work.
-	BannerImageHash     string `json:"banner_image_hash"`
+	// from covers[sort_order=0]). EffectiveBannerURL is injected by
+	// client.rewriteBanners BEFORE we unmarshal — capture it
+	// explicitly or Go's unmarshal drops the walker's work.
+	// banner_image_hash was retired in wiki PR5 (K-PR6) — no field.
 	EffectiveBannerHash string `json:"effective_banner_hash"`
 	EffectiveBannerURL  string `json:"effective_banner_url"`
 	UserID              int    `json:"user_id"`
@@ -180,12 +178,12 @@ type WikiGalgameDetailFull struct {
 	SeriesID           *int                 `json:"series_id"`
 	Status             int                  `json:"status"`
 	// U2: cover candidate set + screenshot gallery + derived effective
-	// banner. Legacy banner_image_hash (top-level) stays during transition
-	// — wiki keeps writing both until U2.c drops the column.
-	BannerImageHash     string             `json:"banner_image_hash"`
-	EffectiveBannerHash string             `json:"effective_banner_hash"`
-	EffectiveBannerURL  string             `json:"effective_banner_url"`
-	Covers              []WikiGalgameCover `json:"covers"`
+	// banner. wiki PR5 (K-PR6) dropped the legacy banner_image_hash
+	// top-level field — banner is now expressed solely through
+	// covers[sort_order=0] and its derived effective_banner_hash.
+	EffectiveBannerHash string                  `json:"effective_banner_hash"`
+	EffectiveBannerURL  string                  `json:"effective_banner_url"`
+	Covers              []WikiGalgameCover      `json:"covers"`
 	Screenshots         []WikiGalgameScreenshot `json:"screenshots"`
 	Alias              []WikiAlias          `json:"alias"`
 	Official           []WikiOfficialRel    `json:"official"`

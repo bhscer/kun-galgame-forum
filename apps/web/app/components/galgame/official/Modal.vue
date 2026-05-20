@@ -86,6 +86,10 @@ const handleUpdateGalgameOfficialAlias = (value: string | number) => {
           label="名称"
           required
         />
+        <KunInput
+          v-model="formData.original"
+          label="原文名 (日文 / 原语言, 可留空)"
+        />
         <KunInput v-model="formData.link" label="官网链接" type="url" />
 
         <KunSelect

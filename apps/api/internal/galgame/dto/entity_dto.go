@@ -21,10 +21,10 @@ type GalgameCard struct {
 	ReleaseDate        *string     `json:"releaseDate"`
 	ReleaseDateTBA     bool        `json:"releaseDateTBA"`
 	// U2: same convention as GalgameListCard — card only carries the
-	// derived banner; URL is injected by rewriteBanners.
-	BannerImageHash     string     `json:"banner_image_hash,omitempty"`
-	EffectiveBannerHash string     `json:"effective_banner_hash,omitempty"`
-	EffectiveBannerURL  string     `json:"effective_banner_url,omitempty"`
+	// derived banner; URL injected by rewriteBanners. banner_image_hash
+	// retired in wiki PR5 (K-PR6).
+	EffectiveBannerHash string `json:"effective_banner_hash,omitempty"`
+	EffectiveBannerURL  string `json:"effective_banner_url,omitempty"`
 }
 
 // GalgameSample is a minimal galgame sample (name + banner) used in list views.

@@ -46,9 +46,10 @@ export interface GalgameDetail {
   // "YYYY-MM-DD"). Server passes through as null when unknown.
   releaseDate: string | null
   releaseDateTBA: boolean
-  // U2: banner_image_hash retained during transition (drop in K-PR6).
-  // effective_banner_url is the canonical head image URL once available.
-  banner_image_hash?: string
+  // U2 / K-PR6: covers[sort_order=0] is the canonical banner source.
+  // wiki exposes the derived hash; kungal's rewriteBanners walker
+  // injects effective_banner_url. (banner_image_hash was retired in
+  // wiki PR5; legacy `banner` URL field is still emitted for old data.)
   effective_banner_hash?: string
   effective_banner_url?: string
   covers: GalgameCover[]
@@ -98,8 +99,8 @@ export interface GalgameCard {
   // U1: optional on card; nil = unknown.
   releaseDate?: string | null
   releaseDateTBA?: boolean
-  // U2: cards only carry the derived banner. URL injected by kungal.
-  banner_image_hash?: string
+  // U2 / K-PR6: cards carry only the derived banner; URL injected by
+  // kungal. banner_image_hash retired in wiki PR5.
   effective_banner_hash?: string
   effective_banner_url?: string
 }
@@ -121,14 +122,12 @@ export interface MineGalgameItem {
   name_zh_cn?: string
   name_zh_tw?: string
   banner?: string
-  banner_image_hash?: string
   content_limit?: string
   // U1: wire is snake_case (verbatim from wiki /galgame/mine).
   release_date?: string | null
   release_date_tba?: boolean
-  // U2: kungal walker injects effective_banner_url on the verbatim wiki
-  // wire — declare here so getEffectiveBanner() can prefer it (and the
-  // legacy `banner` fallback survives until K-PR6).
+  // U2 / K-PR6: kungal walker injects effective_banner_url on the
+  // verbatim wiki wire (banner_image_hash retired in wiki PR5).
   effective_banner_hash?: string
   effective_banner_url?: string
   created: string

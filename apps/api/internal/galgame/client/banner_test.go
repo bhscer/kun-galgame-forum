@@ -32,61 +32,27 @@ func TestBannerURLFromHash(t *testing.T) {
 	}
 }
 
-func TestRewriteBanners_DetailEnvelope(t *testing.T) {
-	in := json.RawMessage(`{"galgame":{"id":60744,"banner":"","banner_image_hash":"abcd1234ef","status":3}}`)
+// Number-precision smoke: numbers must round-trip exactly through the
+// json.Number decode path (no float mangling).
+func TestRewriteBanners_NumberRoundtrip(t *testing.T) {
+	in := json.RawMessage(`{"galgame":{"id":60744,"status":3,"effective_banner_hash":"abcd1234ef"}}`)
 	out := rewriteBanners(in, cdn)
 
 	var got struct {
 		Galgame struct {
 			ID     int    `json:"id"`
-			Banner string `json:"banner"`
 			Status int    `json:"status"`
+			URL    string `json:"effective_banner_url"`
 		} `json:"galgame"`
 	}
 	if err := json.Unmarshal(out, &got); err != nil {
 		t.Fatalf("unmarshal: %v (out=%s)", err, out)
 	}
-	if got.Galgame.Banner != cdn+"/ab/cd/abcd1234ef.webp" {
-		t.Errorf("banner not resolved: %q", got.Galgame.Banner)
-	}
-	// numbers must round-trip exactly (json.Number, no float mangling)
 	if got.Galgame.ID != 60744 || got.Galgame.Status != 3 {
 		t.Errorf("number round-trip broke: id=%d status=%d", got.Galgame.ID, got.Galgame.Status)
 	}
-}
-
-func TestRewriteBanners_MineListMixed(t *testing.T) {
-	// item[0]: new submission (empty banner + hash) → resolve
-	// item[1]: legacy (populated banner, no hash)    → keep verbatim
-	// item[2]: legacy w/ BOTH banner + hash          → keep legacy (empty-only)
-	in := json.RawMessage(`{"items":[` +
-		`{"id":1,"banner":"","banner_image_hash":"deadbeef00"},` +
-		`{"id":2,"banner":"https://old.example/x.webp","banner_image_hash":""},` +
-		`{"id":3,"banner":"https://old.example/y.webp","banner_image_hash":"cafe1234"}` +
-		`],"total":3}`)
-	out := rewriteBanners(in, cdn)
-
-	var got struct {
-		Items []struct {
-			ID     int    `json:"id"`
-			Banner string `json:"banner"`
-		} `json:"items"`
-		Total int `json:"total"`
-	}
-	if err := json.Unmarshal(out, &got); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if got.Items[0].Banner != cdn+"/de/ad/deadbeef00.webp" {
-		t.Errorf("item0 not resolved: %q", got.Items[0].Banner)
-	}
-	if got.Items[1].Banner != "https://old.example/x.webp" {
-		t.Errorf("item1 legacy banner mutated: %q", got.Items[1].Banner)
-	}
-	if got.Items[2].Banner != "https://old.example/y.webp" {
-		t.Errorf("item2 legacy-with-hash should keep legacy: %q", got.Items[2].Banner)
-	}
-	if got.Total != 3 {
-		t.Errorf("sibling field lost: total=%d", got.Total)
+	if got.Galgame.URL != cdn+"/ab/cd/abcd1234ef.webp" {
+		t.Errorf("effective_banner_url not injected: %q", got.Galgame.URL)
 	}
 }
 
@@ -171,7 +137,7 @@ func TestRewriteBanners_SkipBareImageRecord(t *testing.T) {
 
 func TestRewriteBanners_FailSafe(t *testing.T) {
 	// empty cdn → passthrough untouched
-	raw := json.RawMessage(`{"galgame":{"banner":"","banner_image_hash":"abcd1234"}}`)
+	raw := json.RawMessage(`{"galgame":{"effective_banner_hash":"abcd1234"}}`)
 	if string(rewriteBanners(raw, "")) != string(raw) {
 		t.Error("empty cdnBase should passthrough verbatim")
 	}

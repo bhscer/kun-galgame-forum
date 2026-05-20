@@ -8,16 +8,16 @@ func TestToWikiPath(t *testing.T) {
 		in   string
 		want string
 	}{
-		// U3 taxonomy revisions / revert — keep under /galgame/<entity>/
-		// namespace (decision §10 #1). MUST match before the generic
-		// /galgame-tag → /tag rewrite.
-		{"tag revisions list", "/api/galgame-tag/5/revisions", "/galgame/tag/5/revisions"},
-		{"tag revision single", "/api/galgame-tag/5/revisions/3", "/galgame/tag/5/revisions/3"},
-		{"tag revert", "/api/galgame-tag/5/revert", "/galgame/tag/5/revert"},
-		{"official revisions list", "/api/galgame-official/9/revisions", "/galgame/official/9/revisions"},
-		{"engine revert", "/api/galgame-engine/2/revert", "/galgame/engine/2/revert"},
-		{"series revision single", "/api/galgame-series/7/revisions/1", "/galgame/series/7/revisions/1"},
-		{"taxonomy /revisions/:rev/diff (defensive)", "/api/galgame-tag/5/revisions/3/diff", "/galgame/tag/5/revisions/3/diff"},
+		// U3 taxonomy revisions / revert — wiki keeps them on the bare
+		// entity path (same shape as /tag/search, PUT /tag, DELETE
+		// /tag/:id). No namespace special-case: the standard kebab
+		// prefix rewrite handles them.
+		{"tag revisions list", "/api/galgame-tag/5/revisions", "/tag/5/revisions"},
+		{"tag revision single", "/api/galgame-tag/5/revisions/3", "/tag/5/revisions/3"},
+		{"tag revert", "/api/galgame-tag/5/revert", "/tag/5/revert"},
+		{"official revisions list", "/api/galgame-official/9/revisions", "/official/9/revisions"},
+		{"engine revert", "/api/galgame-engine/2/revert", "/engine/2/revert"},
+		{"series revision single", "/api/galgame-series/7/revisions/1", "/series/7/revisions/1"},
 
 		// Regression: existing top-level endpoints on the SAME entities
 		// must keep the bare single-word path (we only namespace revs).

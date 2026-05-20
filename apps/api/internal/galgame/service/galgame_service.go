@@ -433,7 +433,6 @@ func (s *GalgameService) GetList(
 			ResourceUpdateTime:  b.ResourceUpdateTime,
 			ReleaseDate:         b.ReleaseDate,
 			ReleaseDateTBA:      b.ReleaseDateTBA,
-			BannerImageHash:     b.BannerImageHash,
 			EffectiveBannerHash: b.EffectiveBannerHash,
 			EffectiveBannerURL:  b.EffectiveBannerURL,
 			Platform:            emptyStrSliceIfNil(platformMap[id]),

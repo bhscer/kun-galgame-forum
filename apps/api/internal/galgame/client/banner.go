@@ -6,23 +6,15 @@ import (
 	"strings"
 )
 
-// Banner resolution — server-side hash → CDN URL.
+// Banner / image resolution — server-side hash → CDN URL.
 //
-// Background: the Galgame Wiki is the SoT for galgame metadata. For
-// banners uploaded through image_service (every NEW submission), wiki
-// returns `banner: ""` + `banner_image_hash: "<sha256>"` — this is the
-// documented, intended contract (docs/galgame_wiki/07-submission.md
-// §banner; docs/image_service/06-integration-guide.md "新数据走 hash …
-// 这是期望行为，不是 bug"). Legacy VNDB-synced rows keep a populated
-// `banner` URL and an empty hash.
-//
-// The whole kungal frontend (cards, detail hero, /edit/galgame/mine
-// list, SEO og:image) reads `galgame.banner` as a ready-to-use URL and
-// has no hash→URL resolver. Rather than thread a resolver through every
-// component + DTO, we resolve once here, at the single point every wiki
-// payload funnels through (doRequest). Downstream — typed mappers AND
-// verbatim json.RawMessage passthroughs like /galgame/mine — then see a
-// plain usable `banner` with zero further changes.
+// Background: the Galgame Wiki is the SoT for galgame metadata. After
+// wiki PR5 (K-PR6) the canonical banner source is the
+// `covers[sort_order=0]` row — wiki exposes a derived `effective_banner_hash`
+// on every detail / list / brief response (with hash + sort_order on
+// each covers/screenshots row). The walker below turns hashes into
+// ready-to-use CDN URLs in a single pass over the wiki response so
+// downstream code never has to construct image URLs itself.
 //
 // URL layout mirrors the wiki's imageclient.MainURL exactly
 // (kun-oauth-admin/apps/api/pkg/imageclient/client.go):
@@ -42,11 +34,12 @@ func bannerURLFromHash(cdnBase, hash string) string {
 		hash[:2] + "/" + hash[2:4] + "/" + hash + ".webp"
 }
 
-// rewriteBanners walks the wiki response JSON and, for every object that
-// carries an EMPTY `banner` alongside a non-empty `banner_image_hash`,
-// fills `banner` with the resolved CDN URL. Objects whose `banner` is
-// already a non-empty (legacy) URL are left untouched — this fixes the
-// broken new-submission case without perturbing working legacy rows.
+// rewriteBanners walks the wiki response JSON and, for every object
+// carrying U2 hash fields (`effective_banner_hash` / per-row
+// `image_hash` + `sort_order`), injects a CDN URL alongside (so the FE
+// renders without computing URLs itself). See walkResolveBanner for
+// the exact rules. The legacy `banner_image_hash → banner` fill rule
+// was retired with wiki PR5 (K-PR6).
 //
 // Safety: any parse/encode failure returns the original bytes verbatim,
 // so a malformed or unexpected payload can never be turned into an error
@@ -80,42 +73,33 @@ func rewriteBanners(raw json.RawMessage, cdnBase string) json.RawMessage {
 // walkResolveBanner recurses through maps/slices, resolving banners in
 // place. Returns true if it changed anything.
 //
-// Three injection rules — all defensive (only fill empties; never
-// overwrite an existing legacy URL or a pre-resolved field):
+// Two injection rules — both defensive (only fill empties; never
+// overwrite an existing pre-resolved field):
 //
-//  1. (legacy U2-transition) Object with `banner_image_hash` non-empty
-//     and empty `banner` → fill `banner` with the resolved URL. This
-//     keeps existing FE code that reads `galgame.banner` working until
-//     K-PR6 drops `banner_image_hash`.
-//
-//  2. (U2) Object with `effective_banner_hash` non-empty and no
+//  1. (U2) Object with `effective_banner_hash` non-empty and no
 //     `effective_banner_url` → fill `effective_banner_url`. This is the
 //     forward-facing "head image" field (galgame detail / list cards).
 //
-//  3. (U2) Object with `image_hash` non-empty and no `cdn_url` → fill
-//     `cdn_url`. Captures every row in a `covers[]` / `screenshots[]`
-//     array — and any future image-bearing relation — without the
-//     walker needing to know its parent key.
+//  2. (U2) Object with `image_hash` non-empty + `sort_order` present
+//     and no `cdn_url` → fill `cdn_url`. Captures every row in a
+//     `covers[]` / `screenshots[]` array — and any future image-bearing
+//     relation — without the walker needing to know its parent key.
+//     The sort_order guard distinguishes cover/screenshot rows from the
+//     image_service bare image record (which carries image_hash but no
+//     sort_order).
 //
-// Rules are independent (an object MAY trigger more than one). Walking
-// proceeds into all children regardless, so nested revision/PR
-// snapshots are resolved in the same pass.
+// Wiki PR5 (K-PR6) retired the legacy `banner_image_hash` → `banner`
+// fill rule; the wire field is gone in both responses and snapshots,
+// and `covers[sort_order=0]` is the canonical banner source.
+//
+// Rules are independent (an object MAY trigger both). Walking proceeds
+// into all children regardless, so nested revision/PR snapshots are
+// resolved in the same pass.
 func walkResolveBanner(node any, cdnBase string) bool {
 	changed := false
 	switch v := node.(type) {
 	case map[string]any:
-		// Rule 1: legacy banner_image_hash → banner URL (transition).
-		if hashRaw, ok := v["banner_image_hash"]; ok {
-			hash, _ := hashRaw.(string)
-			bannerStr, _ := v["banner"].(string)
-			if strings.TrimSpace(hash) != "" && strings.TrimSpace(bannerStr) == "" {
-				if url := bannerURLFromHash(cdnBase, hash); url != "" {
-					v["banner"] = url
-					changed = true
-				}
-			}
-		}
-		// Rule 2: effective_banner_hash → effective_banner_url (U2).
+		// Rule 1: effective_banner_hash → effective_banner_url (U2).
 		if hashRaw, ok := v["effective_banner_hash"]; ok {
 			hash, _ := hashRaw.(string)
 			existing, _ := v["effective_banner_url"].(string)
@@ -126,7 +110,7 @@ func walkResolveBanner(node any, cdnBase string) bool {
 				}
 			}
 		}
-		// Rule 3: image_hash (covers / screenshots / future) → cdn_url.
+		// Rule 2: image_hash (covers / screenshots / future) → cdn_url.
 		// Skipped when the object is the WIKI image-record itself (it has
 		// its own `url` field) — the heuristic: cover/screenshot rows
 		// also carry `sort_order`; image records do not. Cheap to guard.

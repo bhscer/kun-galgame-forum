@@ -168,7 +168,9 @@ func (s *SearchService) SearchGalgames(
 	q.Set("limit", strconv.Itoa(limit))
 	// Field projection: list view only needs the basics. Drop intro_* (1–10KB
 	// each, 4 langs) + tag/official/engine name arrays. Saves ~95% bandwidth.
-	q.Set("fields", "id,vndb_id,name_zh_cn,name_ja_jp,name_en_us,name_zh_tw,banner,banner_image_hash,content_limit,view,resource_update_time,user_id,original_language,age_limit")
+	// K-PR6: banner_image_hash retired; effective_banner_hash is the
+	// derived banner source. release_date/release_date_tba added per U1.
+	q.Set("fields", "id,vndb_id,name_zh_cn,name_ja_jp,name_en_us,name_zh_tw,banner,effective_banner_hash,content_limit,view,resource_update_time,user_id,original_language,age_limit,release_date,release_date_tba")
 	if isSFW {
 		q.Set("content_limit", "sfw")
 	}

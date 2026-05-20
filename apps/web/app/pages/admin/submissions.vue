@@ -15,9 +15,9 @@ interface AdminQueueGalgame {
   name_en_us?: string
   name_zh_tw?: string
   banner?: string
-  banner_image_hash?: string
-  // U2: walker injects effective_banner_url on every wiki object that
-  // carries effective_banner_hash, including embeddeds in wiki messages.
+  // K-PR6: banner_image_hash retired in wiki PR5. walker injects
+  // effective_banner_url on every wiki object that carries
+  // effective_banner_hash, including embeddeds in wiki messages.
   effective_banner_hash?: string
   effective_banner_url?: string
   status: number
