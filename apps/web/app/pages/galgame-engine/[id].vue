@@ -167,5 +167,12 @@ useKunSeoMeta({
       v-if="!data.galgameCount"
       :description="`${data.name} 引擎下暂无 Galgame`"
     />
+
+    <GalgameRevisionList
+      entity="engine"
+      :id="engineId"
+      :entity-label="`引擎「${data.name}」`"
+      :can-revert="role >= 2"
+    />
   </KunCard>
 </template>

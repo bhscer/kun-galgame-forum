@@ -17,6 +17,14 @@ type GalgameCard struct {
 	ResourceUpdateTime string      `json:"resourceUpdateTime"`
 	Platform           []string    `json:"platform"`
 	Language           []string    `json:"language"`
+	// U1: nil = unknown release; see WikiGalgameDetailFull comment.
+	ReleaseDate        *string     `json:"releaseDate"`
+	ReleaseDateTBA     bool        `json:"releaseDateTBA"`
+	// U2: same convention as GalgameListCard — card only carries the
+	// derived banner; URL is injected by rewriteBanners.
+	BannerImageHash     string     `json:"banner_image_hash,omitempty"`
+	EffectiveBannerHash string     `json:"effective_banner_hash,omitempty"`
+	EffectiveBannerURL  string     `json:"effective_banner_url,omitempty"`
 }
 
 // GalgameSample is a minimal galgame sample (name + banner) used in list views.

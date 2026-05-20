@@ -15,6 +15,7 @@ import (
 	"kun-galgame-api/internal/image/repository"
 	"kun-galgame-api/internal/infrastructure/storage"
 	"kun-galgame-api/pkg/errors"
+	"kun-galgame-api/pkg/imageclient"
 )
 
 const (
@@ -26,10 +27,19 @@ const (
 type ImageService struct {
 	repo *repository.ImageRepository
 	s3   *storage.S3Client
+	// imgCli is the image_service client used by U2 galgame multi-image
+	// uploads (covers / screenshots). Nil-able: when credentials are
+	// unset the legacy /image/topic path still works (it doesn't touch
+	// image_service) and /image/galgame surfaces a clear error.
+	imgCli *imageclient.Client
 }
 
-func NewImageService(repo *repository.ImageRepository, s3 *storage.S3Client) *ImageService {
-	return &ImageService{repo: repo, s3: s3}
+func NewImageService(
+	repo *repository.ImageRepository,
+	s3 *storage.S3Client,
+	imgCli *imageclient.Client,
+) *ImageService {
+	return &ImageService{repo: repo, s3: s3, imgCli: imgCli}
 }
 
 // UploadTopicImage validates the user's daily quota, decodes + re-encodes

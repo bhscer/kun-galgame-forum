@@ -49,6 +49,15 @@ const handleRewriteGalgame = async (galgame: GalgameDetail) => {
     engines: [...galgame.engine],
     links: (linkRes ?? []).map((l) => ({ name: l.name, link: l.link })),
     note: '',
+    // U1: hydrate from detail; nil → empty (treated as "unknown" by the
+    // schema's `"" | YYYY-MM-DD` refinement).
+    releaseDate: galgame.releaseDate ?? '',
+    releaseDateTBA: galgame.releaseDateTBA ?? false,
+    // U2: deep-clone each row — covers/screenshots are presence-replace,
+    // and a shallow ...spread would let the editor mutate the original
+    // detail object on add/remove/pin operations (subtle, ugly bugs).
+    covers: (galgame.covers ?? []).map((c) => ({ ...c })),
+    screenshots: (galgame.screenshots ?? []).map((s) => ({ ...s })),
     // Creator or admin/moderator → wiki allows direct PUT (instant).
     // Everyone else → PR. Decided here (we have galgame.user + the user
     // store); Footer.vue branches the submit endpoint on this.

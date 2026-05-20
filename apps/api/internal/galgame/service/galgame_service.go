@@ -430,9 +430,14 @@ func (s *GalgameService) GetList(
 			ContentLimit:       b.ContentLimit,
 			View:               localMap[id].View,
 			LikeCount:          localMap[id].LikeCount,
-			ResourceUpdateTime: b.ResourceUpdateTime,
-			Platform:           emptyStrSliceIfNil(platformMap[id]),
-			Language:           emptyStrSliceIfNil(languageMap[id]),
+			ResourceUpdateTime:  b.ResourceUpdateTime,
+			ReleaseDate:         b.ReleaseDate,
+			ReleaseDateTBA:      b.ReleaseDateTBA,
+			BannerImageHash:     b.BannerImageHash,
+			EffectiveBannerHash: b.EffectiveBannerHash,
+			EffectiveBannerURL:  b.EffectiveBannerURL,
+			Platform:            emptyStrSliceIfNil(platformMap[id]),
+			Language:            emptyStrSliceIfNil(languageMap[id]),
 		})
 	}
 	return &dto.GalgameListPage{Galgames: cards, Total: total}, nil

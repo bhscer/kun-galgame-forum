@@ -40,7 +40,7 @@ const platformLabels = computed(() => {
         <KunImage
           data-kun-lazy-image="true"
           class="size-full rounded-lg object-cover"
-          :src="galgame.banner"
+          :src="getEffectiveBanner(galgame)"
           loading="lazy"
           :alt="getPreferredLanguageText(galgame.name)"
         />

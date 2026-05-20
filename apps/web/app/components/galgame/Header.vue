@@ -107,7 +107,7 @@ onMounted(async () => {
       <KunImage
         data-kun-lazy-image="true"
         class="size-full cursor-pointer object-cover"
-        :src="galgame.banner"
+        :src="getEffectiveBanner(galgame)"
         loading="lazy"
         :alt="getPreferredLanguageText(galgame.name)"
       />

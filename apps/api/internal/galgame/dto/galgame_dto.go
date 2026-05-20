@@ -22,6 +22,33 @@ type GalgameListRequest struct {
 // Response: list
 // ──────────────────────────────────────────
 
+// U2: cover / screenshot rows exposed to the frontend. Mirror the wiki
+// wire shape (snake_case) — kungal doesn't rename here because the FE
+// stores these in the temp PR store and submits them back unchanged on
+// PUT/PR (presence-replace semantics; see frontend Footer). `cdn_url`
+// is injected by client.rewriteBanners on every walker pass over a wiki
+// response (current + revision/PR snapshots).
+type GalgameCover struct {
+	ImageHash string `json:"image_hash"`
+	SortOrder int    `json:"sort_order"`
+	Sexual    int    `json:"sexual"`
+	Violence  int    `json:"violence"`
+	Source    string `json:"source"`
+	SourceKey string `json:"source_key"`
+	CDNURL    string `json:"cdn_url,omitempty"`
+}
+
+type GalgameScreenshot struct {
+	ImageHash string `json:"image_hash"`
+	SortOrder int    `json:"sort_order"`
+	Caption   string `json:"caption"`
+	Sexual    int    `json:"sexual"`
+	Violence  int    `json:"violence"`
+	Source    string `json:"source"`
+	SourceKey string `json:"source_key"`
+	CDNURL    string `json:"cdn_url,omitempty"`
+}
+
 // GalgameListCard matches the existing frontend card used on galgame listings.
 // Note: platform/language are denormalised from galgame_resource.
 type GalgameListCard struct {
@@ -35,6 +62,14 @@ type GalgameListCard struct {
 	ResourceUpdateTime string      `json:"resourceUpdateTime"`
 	Platform           []string    `json:"platform"`
 	Language           []string    `json:"language"`
+	// U1: nil = unknown; cards may sort/filter by release date when set.
+	ReleaseDate        *string     `json:"releaseDate"`
+	ReleaseDateTBA     bool        `json:"releaseDateTBA"`
+	// U2: list cards only need the derived banner. Full covers[] /
+	// screenshots[] are detail-only. URL is injected by rewriteBanners.
+	BannerImageHash     string     `json:"banner_image_hash,omitempty"`
+	EffectiveBannerHash string     `json:"effective_banner_hash,omitempty"`
+	EffectiveBannerURL  string     `json:"effective_banner_url,omitempty"`
 }
 
 // GalgameListPage is the {galgames, total} envelope for GET /galgame.
@@ -135,6 +170,20 @@ type GalgameDetail struct {
 	View               int                     `json:"view"`
 	OriginalLanguage   string                  `json:"originalLanguage"`
 	AgeLimit           string                  `json:"ageLimit"`
+	// U1 (release_date / release_date_tba): nil = unknown; TBA is
+	// independent of the date (a TBA entry may still carry "预计 Y/M").
+	ReleaseDate        *string                 `json:"releaseDate"`
+	ReleaseDateTBA     bool                    `json:"releaseDateTBA"`
+	// U2: derived effective banner (sort_order=0 cover). URL is injected
+	// by client.rewriteBanners so the FE never has to hash → URL on its
+	// own. covers/screenshots also receive a `cdn_url` per row from the
+	// same walker. banner_image_hash kept during transition (decision #5)
+	// — drop in K-PR6 once cover[sort_order=0] migration is verified.
+	BannerImageHash     string             `json:"banner_image_hash,omitempty"`
+	EffectiveBannerHash string             `json:"effective_banner_hash,omitempty"`
+	EffectiveBannerURL  string             `json:"effective_banner_url,omitempty"`
+	Covers              []GalgameCover     `json:"covers"`
+	Screenshots         []GalgameScreenshot `json:"screenshots"`
 	Platform           []string                `json:"platform"`
 	Language           []string                `json:"language"`
 	Type               []string                `json:"type"`

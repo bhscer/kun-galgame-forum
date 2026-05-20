@@ -6,6 +6,11 @@ export interface GalgameStorePersist {
   ageLimit: 'all' | 'r18'
   originalLanguage: Language
   aliases: string[]
+  // U1: "" = unknown; sent as wire `release_date` (snake_case at boundary
+  // by Footer). releaseDateTBA can coexist with a concrete date (semantic
+  // "predicted Y/M").
+  releaseDate: string
+  releaseDateTBA: boolean
 }
 
 // PR-edit working copy (also reused by Draft.vue). Backs the temp,
@@ -36,6 +41,18 @@ export interface GalgameEditStoreTemp {
   engines: GalgameEngineItem[]
   links: { name: string; link: string }[]
   note: string
+  // U1: "" = unknown (cleared); concrete "YYYY-MM-DD" or any (TBA may set
+  // a predicted partial date — wiki accepts the same string format).
+  releaseDate: string
+  releaseDateTBA: boolean
+  // U2: cover candidate set + screenshot gallery, presence-replace
+  // (wiki PUT/PR treats the whole array as authoritative). Pre-hydrated
+  // COMPLETELY from galgame.covers/screenshots in Rewrite.vue — drop a
+  // row by removing from the array, add new by uploading then pushing.
+  // cdn_url is a server-injected derived field for previews; Footer
+  // strips it before sending to wiki (wiki doesn't accept it on write).
+  covers: GalgameCover[]
+  screenshots: GalgameScreenshot[]
   // True when the current user is the galgame's creator or an
   // admin/moderator (role>=2): wiki lets them edit directly via
   // PUT /galgame/:gid (instant, new revision) instead of opening a PR.

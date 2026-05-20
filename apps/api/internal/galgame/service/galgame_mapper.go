@@ -68,6 +68,19 @@ func galgameDetailFromWiki(g dto.WikiGalgameDetailFull, users map[string]dto.Wik
 		ResourceUpdateTime: g.ResourceUpdateTime,
 		OriginalLanguage:   g.OriginalLanguage,
 		AgeLimit:           g.AgeLimit,
+		ReleaseDate:        g.ReleaseDate,
+		ReleaseDateTBA:     g.ReleaseDateTBA,
+		// U2: banner_image_hash retained for transition (drop in K-PR6);
+		// effective_banner_hash + Covers/Screenshots are the canonical
+		// new sources. CDN URLs (effective_banner_url + per-row cdn_url)
+		// are injected by client.rewriteBanners over the wiki response
+		// BEFORE we unmarshal — and we explicitly declare the fields on
+		// WikiGalgameDetailFull so they survive, then pipe through here.
+		BannerImageHash:     g.BannerImageHash,
+		EffectiveBannerHash: g.EffectiveBannerHash,
+		EffectiveBannerURL:  g.EffectiveBannerURL,
+		Covers:              coversFromWiki(g.Covers),
+		Screenshots:         screenshotsFromWiki(g.Screenshots),
 		Contributor:        contributorsFromWiki(g.Contributor, users),
 		Alias:              wikiAliasesToNames(g.Alias),
 		Engine:             enginesFromWiki(g.Engine),
@@ -83,6 +96,34 @@ func lookupWikiUser(users map[string]dto.WikiUser, uid int) dto.UserBrief {
 		return dto.UserBrief{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
 	}
 	return dto.UserBrief{ID: uid}
+}
+
+// U2: cover/screenshot row mappers. Plain field-by-field copy — wire
+// shape is identical (snake_case JSON tags); the wrappers exist so the
+// frontend-exposed types can later diverge (e.g. omit Source/SourceKey
+// from public responses) without rewriting the mapper site.
+func coversFromWiki(rows []dto.WikiGalgameCover) []dto.GalgameCover {
+	out := make([]dto.GalgameCover, len(rows))
+	for i, r := range rows {
+		out[i] = dto.GalgameCover{
+			ImageHash: r.ImageHash, SortOrder: r.SortOrder,
+			Sexual: r.Sexual, Violence: r.Violence,
+			Source: r.Source, SourceKey: r.SourceKey,
+		}
+	}
+	return out
+}
+
+func screenshotsFromWiki(rows []dto.WikiGalgameScreenshot) []dto.GalgameScreenshot {
+	out := make([]dto.GalgameScreenshot, len(rows))
+	for i, r := range rows {
+		out[i] = dto.GalgameScreenshot{
+			ImageHash: r.ImageHash, SortOrder: r.SortOrder, Caption: r.Caption,
+			Sexual: r.Sexual, Violence: r.Violence,
+			Source: r.Source, SourceKey: r.SourceKey,
+		}
+	}
+	return out
 }
 
 func contributorsFromWiki(contribs []dto.WikiContributor, users map[string]dto.WikiUser) []dto.UserBrief {

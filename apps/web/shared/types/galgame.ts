@@ -13,6 +13,24 @@ export interface GalgameDetailTag extends GalgameTagItem {
   spoilerLevel: number
 }
 
+// U2: cover/screenshot row shapes (snake_case wire — matches wiki and
+// the kungal DTO; the FE stores them verbatim and round-trips them on
+// PUT/PR with presence-replace semantics). `cdn_url` is injected by
+// kungal (rewriteBanners walker) — FE never has to hash → URL itself.
+export interface GalgameCover {
+  image_hash: string
+  sort_order: number
+  sexual: number
+  violence: number
+  source: string
+  source_key: string
+  cdn_url?: string
+}
+
+export interface GalgameScreenshot extends GalgameCover {
+  caption: string
+}
+
 export interface GalgameDetail {
   id: number
   vndbId: string
@@ -23,6 +41,18 @@ export interface GalgameDetail {
   contentLimit: string
   markdown: KunLanguage
   resourceUpdateTime: Date | string
+  // U1 (wiki release_date / release_date_tba): nil = unknown; TBA flag is
+  // independent of the date (a TBA entry may still carry a predicted
+  // "YYYY-MM-DD"). Server passes through as null when unknown.
+  releaseDate: string | null
+  releaseDateTBA: boolean
+  // U2: banner_image_hash retained during transition (drop in K-PR6).
+  // effective_banner_url is the canonical head image URL once available.
+  banner_image_hash?: string
+  effective_banner_hash?: string
+  effective_banner_url?: string
+  covers: GalgameCover[]
+  screenshots: GalgameScreenshot[]
   view: number
   originalLanguage: string
   ageLimit: 'all' | 'r18'
@@ -65,6 +95,13 @@ export interface GalgameCard {
   platform: string[]
   language: string[]
   resourceUpdateTime: Date | string
+  // U1: optional on card; nil = unknown.
+  releaseDate?: string | null
+  releaseDateTBA?: boolean
+  // U2: cards only carry the derived banner. URL injected by kungal.
+  banner_image_hash?: string
+  effective_banner_hash?: string
+  effective_banner_url?: string
 }
 
 // MineGalgameItem matches the per-row shape of GET /api/galgame/mine.
@@ -86,6 +123,14 @@ export interface MineGalgameItem {
   banner?: string
   banner_image_hash?: string
   content_limit?: string
+  // U1: wire is snake_case (verbatim from wiki /galgame/mine).
+  release_date?: string | null
+  release_date_tba?: boolean
+  // U2: kungal walker injects effective_banner_url on the verbatim wiki
+  // wire — declare here so getEffectiveBanner() can prefer it (and the
+  // legacy `banner` fallback survives until K-PR6).
+  effective_banner_hash?: string
+  effective_banner_url?: string
   created: string
   updated: string
   // Only present when status=4 (declined): the latest admin decline

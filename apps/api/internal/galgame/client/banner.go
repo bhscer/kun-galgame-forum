@@ -79,20 +79,66 @@ func rewriteBanners(raw json.RawMessage, cdnBase string) json.RawMessage {
 
 // walkResolveBanner recurses through maps/slices, resolving banners in
 // place. Returns true if it changed anything.
+//
+// Three injection rules — all defensive (only fill empties; never
+// overwrite an existing legacy URL or a pre-resolved field):
+//
+//  1. (legacy U2-transition) Object with `banner_image_hash` non-empty
+//     and empty `banner` → fill `banner` with the resolved URL. This
+//     keeps existing FE code that reads `galgame.banner` working until
+//     K-PR6 drops `banner_image_hash`.
+//
+//  2. (U2) Object with `effective_banner_hash` non-empty and no
+//     `effective_banner_url` → fill `effective_banner_url`. This is the
+//     forward-facing "head image" field (galgame detail / list cards).
+//
+//  3. (U2) Object with `image_hash` non-empty and no `cdn_url` → fill
+//     `cdn_url`. Captures every row in a `covers[]` / `screenshots[]`
+//     array — and any future image-bearing relation — without the
+//     walker needing to know its parent key.
+//
+// Rules are independent (an object MAY trigger more than one). Walking
+// proceeds into all children regardless, so nested revision/PR
+// snapshots are resolved in the same pass.
 func walkResolveBanner(node any, cdnBase string) bool {
 	changed := false
 	switch v := node.(type) {
 	case map[string]any:
-		hashRaw, hasHash := v["banner_image_hash"]
-		if hasHash {
+		// Rule 1: legacy banner_image_hash → banner URL (transition).
+		if hashRaw, ok := v["banner_image_hash"]; ok {
 			hash, _ := hashRaw.(string)
 			bannerStr, _ := v["banner"].(string)
-			// Resolve only when there's a usable hash and no usable
-			// legacy URL already present.
 			if strings.TrimSpace(hash) != "" && strings.TrimSpace(bannerStr) == "" {
 				if url := bannerURLFromHash(cdnBase, hash); url != "" {
 					v["banner"] = url
 					changed = true
+				}
+			}
+		}
+		// Rule 2: effective_banner_hash → effective_banner_url (U2).
+		if hashRaw, ok := v["effective_banner_hash"]; ok {
+			hash, _ := hashRaw.(string)
+			existing, _ := v["effective_banner_url"].(string)
+			if strings.TrimSpace(hash) != "" && strings.TrimSpace(existing) == "" {
+				if url := bannerURLFromHash(cdnBase, hash); url != "" {
+					v["effective_banner_url"] = url
+					changed = true
+				}
+			}
+		}
+		// Rule 3: image_hash (covers / screenshots / future) → cdn_url.
+		// Skipped when the object is the WIKI image-record itself (it has
+		// its own `url` field) — the heuristic: cover/screenshot rows
+		// also carry `sort_order`; image records do not. Cheap to guard.
+		if hashRaw, ok := v["image_hash"]; ok {
+			if _, isRow := v["sort_order"]; isRow {
+				hash, _ := hashRaw.(string)
+				existing, _ := v["cdn_url"].(string)
+				if strings.TrimSpace(hash) != "" && strings.TrimSpace(existing) == "" {
+					if url := bannerURLFromHash(cdnBase, hash); url != "" {
+						v["cdn_url"] = url
+						changed = true
+					}
 				}
 			}
 		}

@@ -47,6 +47,8 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
         >
           <GalgameIntroduction :introduction="galgame.introduction" />
 
+          <GalgameGallery :screenshots="galgame.screenshots" />
+
           <GalgameResource />
 
           <GalgamePatchContainer :vndb-id="galgame.vndbId" />
@@ -73,6 +75,8 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
           :engine="galgame.engine"
           :age-limit="galgame.ageLimit"
           :original-language="galgame.originalLanguage"
+          :release-date="galgame.releaseDate"
+          :release-date-tba="galgame.releaseDateTBA"
         />
 
         <KunCard :is-hoverable="false" :is-transparent="false">

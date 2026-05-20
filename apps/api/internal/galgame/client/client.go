@@ -224,9 +224,22 @@ type GalgameBrief struct {
 	Status             int    `json:"status"`
 	ContentLimit       string `json:"content_limit"`
 	UserID             int    `json:"user_id"`
-	ResourceUpdateTime string `json:"resource_update_time"`
-	OriginalLanguage   string `json:"original_language"`
-	AgeLimit           string `json:"age_limit"`
+	ResourceUpdateTime string  `json:"resource_update_time"`
+	OriginalLanguage   string  `json:"original_language"`
+	AgeLimit           string  `json:"age_limit"`
+	// U1: see WikiGalgameDetailFull. nil = unknown; TBA can coexist with a
+	// concrete date ("predicted 2024 sometime") so don't enforce mutex.
+	ReleaseDate        *string `json:"release_date"`
+	ReleaseDateTBA     bool    `json:"release_date_tba"`
+	// U2: derived effective banner hash on briefs (wiki computes from the
+	// row's covers[sort_order=0]). banner_image_hash retained during
+	// transition; drop in K-PR6.
+	// EffectiveBannerURL is injected by rewriteBanners over the wiki
+	// response BEFORE this struct is unmarshalled — declare the field
+	// so we capture it; without it Go's unmarshal silently drops the
+	// walker's work and downstream DTOs are stuck with only the hash.
+	EffectiveBannerHash string `json:"effective_banner_hash"`
+	EffectiveBannerURL  string `json:"effective_banner_url"`
 }
 
 // GetBatch fetches lightweight galgame info for multiple IDs anonymously

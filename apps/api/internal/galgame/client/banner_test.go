@@ -2,8 +2,12 @@ package client
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
+
+// contains is a thin wrapper so the test reads as English prose.
+func contains(haystack, needle string) bool { return strings.Contains(haystack, needle) }
 
 const cdn = "https://image.kungal.iloveren.link"
 
@@ -83,6 +87,85 @@ func TestRewriteBanners_MineListMixed(t *testing.T) {
 	}
 	if got.Total != 3 {
 		t.Errorf("sibling field lost: total=%d", got.Total)
+	}
+}
+
+// U2: effective_banner_hash on a detail/list object → effective_banner_url.
+func TestRewriteBanners_EffectiveBannerURL(t *testing.T) {
+	in := json.RawMessage(`{"galgame":{"id":1,"effective_banner_hash":"abcd1234ef"}}`)
+	out := rewriteBanners(in, cdn)
+	var got struct {
+		Galgame struct {
+			URL string `json:"effective_banner_url"`
+		} `json:"galgame"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.Galgame.URL != cdn+"/ab/cd/abcd1234ef.webp" {
+		t.Errorf("effective_banner_url not injected: %q", got.Galgame.URL)
+	}
+
+	// Existing URL must not be overwritten.
+	keep := json.RawMessage(`{"effective_banner_hash":"abcd","effective_banner_url":"https://pinned/x.webp"}`)
+	out2 := rewriteBanners(keep, cdn)
+	if !contains(string(out2), `"https://pinned/x.webp"`) {
+		t.Errorf("existing effective_banner_url should be preserved: %s", out2)
+	}
+}
+
+// U2: cover/screenshot row injection — heuristic requires sort_order so
+// the wiki image record (which also carries image_hash but no sort_order)
+// is left alone.
+func TestRewriteBanners_CoverAndScreenshotCDNURL(t *testing.T) {
+	in := json.RawMessage(`{"galgame":{
+		"covers":[
+			{"image_hash":"deadbeef","sort_order":0,"sexual":0,"violence":0},
+			{"image_hash":"cafef00d","sort_order":1,"sexual":0,"violence":0}
+		],
+		"screenshots":[
+			{"image_hash":"feedbabe","sort_order":0,"caption":"OP","sexual":0,"violence":0}
+		]
+	}}`)
+	out := rewriteBanners(in, cdn)
+	var got struct {
+		Galgame struct {
+			Covers []struct {
+				ImageHash string `json:"image_hash"`
+				CDNURL    string `json:"cdn_url"`
+			} `json:"covers"`
+			Screenshots []struct {
+				ImageHash string `json:"image_hash"`
+				CDNURL    string `json:"cdn_url"`
+				Caption   string `json:"caption"`
+			} `json:"screenshots"`
+		} `json:"galgame"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("unmarshal: %v (out=%s)", err, out)
+	}
+	if got.Galgame.Covers[0].CDNURL != cdn+"/de/ad/deadbeef.webp" {
+		t.Errorf("cover[0] cdn_url wrong: %q", got.Galgame.Covers[0].CDNURL)
+	}
+	if got.Galgame.Covers[1].CDNURL != cdn+"/ca/fe/cafef00d.webp" {
+		t.Errorf("cover[1] cdn_url wrong: %q", got.Galgame.Covers[1].CDNURL)
+	}
+	if got.Galgame.Screenshots[0].CDNURL != cdn+"/fe/ed/feedbabe.webp" {
+		t.Errorf("screenshot cdn_url wrong: %q", got.Galgame.Screenshots[0].CDNURL)
+	}
+	if got.Galgame.Screenshots[0].Caption != "OP" {
+		t.Errorf("sibling caption lost: %q", got.Galgame.Screenshots[0].Caption)
+	}
+}
+
+// U2: a bare image_hash without sort_order (the wiki image-service
+// record itself) must NOT receive a cdn_url — that field is the image
+// record's own concern, not ours.
+func TestRewriteBanners_SkipBareImageRecord(t *testing.T) {
+	in := json.RawMessage(`{"image":{"image_hash":"abcd1234","url":"https://wiki-image/x.webp"}}`)
+	out := rewriteBanners(in, cdn)
+	if contains(string(out), `"cdn_url"`) {
+		t.Errorf("should not inject cdn_url on bare image record: %s", out)
 	}
 }
 

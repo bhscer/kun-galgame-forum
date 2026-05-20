@@ -28,6 +28,11 @@ export const usePersistEditGalgameStore = defineStore(
     const originalLanguage =
       ref<GalgameStorePersist['originalLanguage']>('ja-jp')
     const aliases = ref<GalgameStorePersist['aliases']>([])
+    // U1: "" = unknown release date; serialized to wire `release_date` (a
+    // bare empty string is valid per the schema's "empty OR YYYY-MM-DD"
+    // refinement). TBA defaults false; user opts in for未发布 entries.
+    const releaseDate = ref<GalgameStorePersist['releaseDate']>('')
+    const releaseDateTBA = ref<GalgameStorePersist['releaseDateTBA']>(false)
 
     const resetEditGalgameStore = () => {
       vndbId.value = ''
@@ -37,6 +42,8 @@ export const usePersistEditGalgameStore = defineStore(
       ageLimit.value = 'all'
       originalLanguage.value = 'ja-jp'
       aliases.value = []
+      releaseDate.value = ''
+      releaseDateTBA.value = false
     }
 
     return {
@@ -47,6 +54,8 @@ export const usePersistEditGalgameStore = defineStore(
       ageLimit,
       originalLanguage,
       aliases,
+      releaseDate,
+      releaseDateTBA,
 
       resetEditGalgameStore
     }

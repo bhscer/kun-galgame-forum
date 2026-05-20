@@ -6,6 +6,10 @@ defineProps<{
   engine: GalgameEngineItem[]
   originalLanguage: string
   ageLimit: 'all' | 'r18'
+  // U1: nil/'' = unknown release; TBA flag is independent. Rendering
+  // logic in shared/utils/getReleaseDateText.ts.
+  releaseDate?: string | null
+  releaseDateTBA?: boolean
 }>()
 
 const getLanguageName = (langCode: string) => {
@@ -66,6 +70,13 @@ const getLanguageName = (langCode: string) => {
           <KunBadge color="warning">
             {{ getLanguageName(originalLanguage) }}
           </KunBadge>
+        </dd>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <dt class="text-default-500 text-sm font-medium">发售日期</dt>
+        <dd class="text-default-700 text-sm">
+          {{ getReleaseDateText(releaseDate, releaseDateTBA) }}
         </dd>
       </div>
 

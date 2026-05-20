@@ -102,6 +102,14 @@ export const createGalgameSchema = z
     original_language: z
       .enum(['ja-jp', 'en-us', 'zh-cn', 'zh-tw', 'others'])
       .default('ja-jp'),
+    // U1: "" = unknown (cleared on update). TBA is independent of date.
+    release_date: z
+      .string()
+      .refine((v) => v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v), {
+        message: '发售日期格式应为 YYYY-MM-DD 或留空'
+      })
+      .default(''),
+    release_date_tba: z.boolean().default(false),
     // Create accepts comma-separated string (matches wiki POST /galgame).
     aliases: z.string().default(''),
     banner: z.unknown()
@@ -195,6 +203,14 @@ export const submitGalgameSchema = z
     original_language: z
       .enum(['ja-jp', 'en-us', 'zh-cn', 'zh-tw', 'others'])
       .default('ja-jp'),
+    // U1: see createGalgameSchema; same rule + default.
+    release_date: z
+      .string()
+      .refine((v) => v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v), {
+        message: '发售日期格式应为 YYYY-MM-DD 或留空'
+      })
+      .default(''),
+    release_date_tba: z.boolean().default(false),
     aliases: z.string().default(''),
     banner: z.unknown()
   })
@@ -263,6 +279,15 @@ export const patchDraftSchema = z.object({
   original_language: z
     .enum(['ja-jp', 'en-us', 'zh-cn', 'zh-tw', 'others'])
     .optional(),
+  // U1: optional on patch — nil = keep; "" = clear to unknown; concrete
+  // "YYYY-MM-DD" = set.
+  release_date: z
+    .string()
+    .refine((v) => v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v), {
+      message: '发售日期格式应为 YYYY-MM-DD 或留空'
+    })
+    .optional(),
+  release_date_tba: z.boolean().optional(),
   aliases: z.string().optional(),
   is_minor: z.boolean().optional()
 })
@@ -320,6 +345,45 @@ export const updateGalgameSchema = z
     original_language: z
       .enum(['ja-jp', 'en-us', 'zh-cn', 'zh-tw', 'others'])
       .default('ja-jp'),
+    // U1: "" = clear to unknown; concrete "YYYY-MM-DD" = set; TBA is
+    // independent (true may coexist with a predicted date).
+    release_date: z
+      .string()
+      .refine((v) => v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v), {
+        message: '发售日期格式应为 YYYY-MM-DD 或留空'
+      })
+      .default(''),
+    release_date_tba: z.boolean().default(false),
+    // U2: presence-replace arrays (wiki snapshot semantics). Each row
+    // requires image_hash; sexual/violence ratings 0..3 per the v1 UI
+    // scheme (0 = unrated, 1..3 = low/medium/high). cdn_url is a derived
+    // read-only field — Footer strips it before sending so callers can
+    // pass the full row shape they hold without manual scrubbing.
+    covers: z
+      .array(
+        z.object({
+          image_hash: z.string().min(4, '无效的图片 hash'),
+          sort_order: z.number().int().min(0).default(0),
+          sexual: z.number().int().min(0).max(3).default(0),
+          violence: z.number().int().min(0).max(3).default(0),
+          source: z.string().default(''),
+          source_key: z.string().default('')
+        })
+      )
+      .default([]),
+    screenshots: z
+      .array(
+        z.object({
+          image_hash: z.string().min(4, '无效的图片 hash'),
+          sort_order: z.number().int().min(0).default(0),
+          caption: z.string().max(1007).default(''),
+          sexual: z.number().int().min(0).max(3).default(0),
+          violence: z.number().int().min(0).max(3).default(0),
+          source: z.string().default(''),
+          source_key: z.string().default('')
+        })
+      )
+      .default([]),
     aliases: z.array(z.string()).default([]),
     // Replace-all relation arrays — see GalgameEditStoreTemp note. Empty
     // array is meaningful (= "this entry has none"), so .default([]) is

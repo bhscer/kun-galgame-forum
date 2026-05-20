@@ -11,8 +11,16 @@ import { submitGalgameSchema } from '~/validations/galgame'
 
 // No vndbId: submission is exclusively for VNDB-unlisted works (wiki has
 // the full VNDB set as claimable drafts already) — see Galgame.vue.
-const { name, contentLimit, ageLimit, originalLanguage, introduction, aliases } =
-  storeToRefs(usePersistEditGalgameStore())
+const {
+  name,
+  contentLimit,
+  ageLimit,
+  originalLanguage,
+  introduction,
+  aliases,
+  releaseDate,
+  releaseDateTBA
+} = storeToRefs(usePersistEditGalgameStore())
 
 const isPublishing = ref(false)
 
@@ -22,7 +30,10 @@ const handleSubmitGalgame = async () => {
   // (POST /galgame/submit). The Vue store keeps camelCase locally; we
   // rename at the boundary so the schema, the JSON body, and the wiki
   // contract all agree.
-  const data: Record<string, number | string | string[] | Blob | null> = {
+  const data: Record<
+    string,
+    number | string | string[] | Blob | boolean | null
+  > = {
     name_en_us: name.value['en-us'],
     name_ja_jp: name.value['ja-jp'],
     name_zh_cn: name.value['zh-cn'],
@@ -34,6 +45,9 @@ const handleSubmitGalgame = async () => {
     content_limit: contentLimit.value,
     age_limit: ageLimit.value,
     original_language: originalLanguage.value,
+    // U1: empty string = unknown; wiki schema accepts "" or YYYY-MM-DD.
+    release_date: releaseDate.value,
+    release_date_tba: releaseDateTBA.value,
     banner,
     aliases: String(aliases.value)
   }

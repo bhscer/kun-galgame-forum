@@ -16,6 +16,22 @@ type Config struct {
 	Search      SearchConfig
 	CORS        CORSConfig
 	GalgameWiki GalgameWikiConfig
+	ImageClient ImageClientConfig
+}
+
+// ImageClientConfig holds the credentials kungal uses to call the image
+// service directly (multi-image upload paths for galgame covers /
+// screenshots — U2). Distinct from GalgameWikiConfig.ImageCDNBase which
+// is just the public URL prefix for the response-rewrite walker.
+//
+// Set the three env vars below; the public CDN prefix is shared with
+// the walker (GalgameWikiConfig.ImageCDNBase) so it isn't duplicated.
+// When ClientID/ClientSecret are unset, kungal's upload endpoints
+// return a clear error (no silent fallback to a misconfigured client).
+type ImageClientConfig struct {
+	BaseURL      string // image service base, e.g. http://127.0.0.1:9278
+	ClientID     string // OAuth client id (Basic auth)
+	ClientSecret string // OAuth client secret
 }
 
 type GalgameWikiConfig struct {
@@ -157,6 +173,11 @@ func Load() (*Config, error) {
 			// Must match the wiki's KUN_IMAGE_PUBLIC_BASE_URL exactly —
 			// both build the same {base}/{hh}/{hh}/{hash}.webp layout.
 			ImageCDNBase: envOrDefault("KUN_IMAGE_PUBLIC_BASE_URL", "https://image.kungal.iloveren.link"),
+		},
+		ImageClient: ImageClientConfig{
+			BaseURL:      envOrDefault("KUN_IMAGE_CLIENT_BASE_URL", "http://127.0.0.1:9278"),
+			ClientID:     envOrDefault("KUN_IMAGE_CLIENT_ID", ""),
+			ClientSecret: envOrDefault("KUN_IMAGE_CLIENT_SECRET", ""),
 		},
 	}, nil
 }

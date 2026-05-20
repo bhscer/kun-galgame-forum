@@ -3,8 +3,14 @@
 // fine for most Japanese visual novels but we expose them as choices so
 // authors can correct non-default games (English VNs, all-ages titles) at
 // publish time instead of needing a follow-up PR. See audit batch 2 §10.
+//
+// U1 (release date): wiki stores a real date + TBA flag instead of a
+// free-form string. Empty input = unknown; TBA toggle is independent of
+// the date (a TBA-flagged entry can still carry a predicted date).
 
-const { ageLimit, originalLanguage } = storeToRefs(usePersistEditGalgameStore())
+const { ageLimit, originalLanguage, releaseDate, releaseDateTBA } = storeToRefs(
+  usePersistEditGalgameStore()
+)
 
 const ageLimitOptions = [
   { value: 'all', label: '全年龄 (本游戏不含成人内容)' },
@@ -37,6 +43,14 @@ const originalLanguageOptions = [
         label="原始语言"
         :options="originalLanguageOptions"
       />
+    </div>
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <KunInput
+        v-model="releaseDate"
+        type="date"
+        label="发售日期 (可留空)"
+      />
+      <KunSwitch v-model="releaseDateTBA" label="发售日期待定 (TBA)" />
     </div>
   </div>
 </template>

@@ -180,5 +180,12 @@ const handleDeleteTag = async () => {
       v-if="!data.galgameCount"
       :description="`${data.name} 标签下暂无 Galgame`"
     />
+
+    <GalgameRevisionList
+      entity="tag"
+      :id="tagId"
+      :entity-label="`标签「${data.name}」`"
+      :can-revert="role >= 2"
+    />
   </KunCard>
 </template>

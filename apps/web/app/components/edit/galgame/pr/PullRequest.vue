@@ -26,7 +26,8 @@ const sectionTabs: KunTabItem[] = [
   { value: 'intro', textValue: '游戏介绍', icon: 'lucide:file-text' },
   { value: 'relations', textValue: '标签 / 会社 / 引擎', icon: 'lucide:tags' },
   { value: 'links', textValue: '相关链接', icon: 'lucide:link' },
-  { value: 'advanced', textValue: '分级 / 封面 / 高级', icon: 'lucide:settings-2' }
+  { value: 'media', textValue: '封面 / 画廊', icon: 'lucide:image' },
+  { value: 'advanced', textValue: '分级 / 高级', icon: 'lucide:settings-2' }
 ]
 const activeSection = ref('basic')
 
@@ -127,6 +128,18 @@ const originalLanguageOptions: KunSelectOption[] = [
               />
             </div>
 
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <KunInput
+                v-model="pr!.releaseDate"
+                type="date"
+                label="发售日期 (留空=未公布)"
+              />
+              <KunSwitch
+                v-model="pr!.releaseDateTBA"
+                label="发售日期待定 (TBA)"
+              />
+            </div>
+
             <div class="space-y-2">
               <h2 class="text-xl">VNDB 编号</h2>
               <p class="text-default-500 text-sm">
@@ -138,13 +151,11 @@ const originalLanguageOptions: KunSelectOption[] = [
               />
             </div>
 
-            <div class="space-y-2">
-              <h2 class="text-xl">封面</h2>
-              <p class="text-default-500 text-sm">
-                可选: 重新选择封面图; 不变更则沿用当前封面。
-              </p>
-              <EditGalgameBanner />
-            </div>
+          </div>
+
+          <div v-show="activeSection === 'media'" class="space-y-6">
+            <EditGalgamePrCovers />
+            <EditGalgamePrScreenshots />
           </div>
 
           <div class="sticky bottom-2 z-10">

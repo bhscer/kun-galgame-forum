@@ -22,7 +22,7 @@ defineProps<{
     >
       <div class="relative overflow-hidden">
         <KunImage
-          :src="galgame.banner.replace(/\.webp$/, '-mini.webp')"
+          :src="getEffectiveBanner(galgame)"
           loading="lazy"
           :alt="getPreferredLanguageText(galgame.name)"
           placeholder="/placeholder.webp"

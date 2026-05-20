@@ -16,6 +16,10 @@ interface AdminQueueGalgame {
   name_zh_tw?: string
   banner?: string
   banner_image_hash?: string
+  // U2: walker injects effective_banner_url on every wiki object that
+  // carries effective_banner_hash, including embeddeds in wiki messages.
+  effective_banner_hash?: string
+  effective_banner_url?: string
   status: number
   user_id?: number
 }
@@ -217,8 +221,8 @@ const handleConfirmReason = async () => {
         class="dark:border-default-200 flex flex-col gap-3 rounded-lg border border-transparent p-3 backdrop-blur-none transition-all duration-200 sm:flex-row sm:items-start"
       >
         <KunImage
-          v-if="msg.galgame?.banner"
-          :src="msg.galgame.banner"
+          v-if="getEffectiveBanner(msg.galgame)"
+          :src="getEffectiveBanner(msg.galgame)"
           loading="lazy"
           placeholder="/placeholder.webp"
           class="h-20 w-32 shrink-0 rounded object-cover"

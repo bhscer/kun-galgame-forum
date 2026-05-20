@@ -98,9 +98,19 @@ func (e *GalgameEnricher) ToCards(ctx context.Context, items []dto.WikiGalgameIt
 			// not metadata; pull from the local stats row instead of wiki.
 			View:               localMap[g.ID].View,
 			LikeCount:          localMap[g.ID].LikeCount,
-			ResourceUpdateTime: g.ResourceUpdateTime,
-			Platform:           []string{},
-			Language:           []string{},
+			ResourceUpdateTime:  g.ResourceUpdateTime,
+			ReleaseDate:         g.ReleaseDate,
+			ReleaseDateTBA:      g.ReleaseDateTBA,
+			// U2: card carries only the derived banner; cdn_url/
+			// effective_banner_url is injected by client.rewriteBanners
+			// walker. Pipe BOTH hash and URL: the URL is what the FE
+			// renders, the hash is kept for diagnostics / future
+			// per-variant lookups.
+			BannerImageHash:     g.BannerImageHash,
+			EffectiveBannerHash: g.EffectiveBannerHash,
+			EffectiveBannerURL:  g.EffectiveBannerURL,
+			Platform:            []string{},
+			Language:            []string{},
 		}
 	}
 	return cards

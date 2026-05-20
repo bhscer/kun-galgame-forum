@@ -22,6 +22,7 @@ import (
 	imageHandler "kun-galgame-api/internal/image/handler"
 	imageRepo "kun-galgame-api/internal/image/repository"
 	imageService "kun-galgame-api/internal/image/service"
+	"kun-galgame-api/pkg/imageclient"
 	"kun-galgame-api/internal/infrastructure/cache"
 	cronPkg "kun-galgame-api/internal/infrastructure/cron"
 	"kun-galgame-api/internal/infrastructure/database"
@@ -163,6 +164,26 @@ func New(cfg *config.Config) *App {
 		ClientSecret: cfg.OAuth.ClientSecret,
 	})
 
+	// image_service client — covers/screenshots multi-image upload path
+	// (U2 / K-PR3a). ONLY construct when credentials are present, so the
+	// downstream service-level `imgCli == nil` guard actually fires when
+	// the operator forgot to set KUN_IMAGE_CLIENT_ID/SECRET — and
+	// surfaces "图片上传服务未配置" instead of a misleading image_service
+	// 401 when the user tries to upload. Mirrors the wiki side's same
+	// guard pattern. A loud warn-on-startup so ops notices early.
+	var imgCli *imageclient.Client
+	if cfg.ImageClient.ClientID != "" && cfg.ImageClient.ClientSecret != "" {
+		imgCli = imageclient.New(imageclient.Config{
+			BaseURL:      cfg.ImageClient.BaseURL,
+			CDNBase:      cfg.GalgameWiki.ImageCDNBase,
+			ClientID:     cfg.ImageClient.ClientID,
+			ClientSecret: cfg.ImageClient.ClientSecret,
+		})
+		slog.Info("image_service client configured", "base_url", cfg.ImageClient.BaseURL)
+	} else {
+		slog.Warn("image_service client NOT configured; /image/galgame upload will return 未配置 — set KUN_IMAGE_CLIENT_ID / KUN_IMAGE_CLIENT_SECRET")
+	}
+
 	// Services
 	authService := service.NewAuthService(userStateRepo, rdb, oauthClient, uc)
 	userService := service.NewUserService(userStateRepo, userStatsRepo, rdb, gc, uc)
@@ -297,7 +318,7 @@ func New(cfg *config.Config) *App {
 		GalgameSubmissionHandler:   galgameHandler.NewSubmissionHandler(galgameSubmissionSvc),
 		GalgameMessageHandler:      galgameHandler.NewWikiMessageHandler(galgameMessageSvc),
 		ActivityHandler:            activityHandler.NewActivityHandler(activityService.NewActivityService(activityRepo.NewActivityRepository(db), gc, uc)),
-		ImageHandler:               imageHandler.NewImageHandler(imageService.NewImageService(imageRepo.NewImageRepository(db), s3Client)),
+		ImageHandler:               imageHandler.NewImageHandler(imageService.NewImageService(imageRepo.NewImageRepository(db), s3Client, imgCli)),
 		SearchHandler:              searchHandler.NewSearchHandler(searchService.NewSearchService(searchRepo.NewSearchRepository(db), gc, galgameEnricher, uc)),
 		ToolsetHandler:             toolsetHandler.NewToolsetHandler(toolsetCoreSvc),
 		ToolsetPracticalityHandler: toolsetHandler.NewPracticalityHandler(toolsetPracticalitySvc),

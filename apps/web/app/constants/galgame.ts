@@ -184,6 +184,12 @@ export const KUN_GALGAME_RESOURCE_PULL_REQUEST_I18N_FIELD_MAP: Record<
   content_limit: '内容限制',
   age_limit: '年龄分级',
   original_language: '原始语言',
+  // U1: replaces the legacy `released` free-form string.
+  release_date: '发售日期',
+  release_date_tba: '发售日 TBA',
+  // U2: presence-replace arrays in PR / direct-edit payloads.
+  covers: '封面',
+  screenshots: '画廊',
   aliases: '别名',
   name_en_us: '英语标题',
   name_ja_jp: '日语标题',

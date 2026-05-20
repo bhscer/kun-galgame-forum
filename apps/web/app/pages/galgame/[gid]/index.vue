@@ -60,7 +60,7 @@ if (galgame) {
       name: titleBase,
       alternateName: galgame.alias,
       url: pageUrl,
-      image: galgame.banner,
+      image: getEffectiveBanner(galgame),
       description: description,
       inLanguage: galgame.originalLanguage,
       datePublished: new Date(galgame.created).toISOString(),
@@ -126,7 +126,7 @@ if (galgame) {
     useKunSeoMeta({
       title,
       description,
-      ogImage: galgame.banner,
+      ogImage: getEffectiveBanner(galgame),
       articleAuthor: [`${kungal.domain.main}/user/${galgame.user.id}/info`],
       articlePublishedTime: galgame.created.toString(),
       articleModifiedTime: galgame.updated.toString()

@@ -17,6 +17,60 @@ func NewImageHandler(imageService *service.ImageService) *ImageHandler {
 	return &ImageHandler{imageService: imageService}
 }
 
+// allowedGalgamePresets restricts which image_service presets the galgame
+// upload proxy can request. Keeps the proxy from doubling as a generic
+// image-service tunnel; presets here MUST also be in this site's
+// image_allowed_presets on the image_service side.
+var allowedGalgamePresets = map[string]struct{}{
+	"galgame_banner":     {}, // cover / banner / pinned head image
+	"galgame_screenshot": {}, // screenshot / CG gallery
+}
+
+// UploadGalgameImage handles cover/screenshot upload (U2). Multipart form:
+//   - file:   image binary (required)
+//   - preset: one of "galgame_banner" / "galgame_screenshot" (required)
+//
+// Returns the image_service {hash, url, ...} payload so the FE can
+// immediately add a new cover/screenshot row referencing the hash and
+// submit it on the next PUT /galgame/:gid or POST /galgame/:gid/prs
+// (presence-replace arrays — see GalgameEditStoreTemp note).
+//
+// POST /api/image/galgame
+func (h *ImageHandler) UploadGalgameImage(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	preset := c.FormValue("preset")
+	if _, ok := allowedGalgamePresets[preset]; !ok {
+		return response.Error(c, errors.ErrBadRequest(
+			"preset 必须为 galgame_banner 或 galgame_screenshot"))
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		return response.Error(c, errors.ErrBadRequest("请选择要上传的图片"))
+	}
+	if file.Size > service.MaxImageSize {
+		return response.Error(c, errors.ErrBadRequest("图片大小不能超过 10MB"))
+	}
+
+	f, err := file.Open()
+	if err != nil {
+		return response.Error(c, errors.ErrBadRequest("读取图片失败"))
+	}
+	defer f.Close()
+
+	res, sErr := h.imageService.UploadGalgameImage(
+		c.Context(), user.UID, f, file.Filename, preset,
+	)
+	if sErr != nil {
+		return response.Error(c, sErr)
+	}
+	return response.OK(c, res)
+}
+
 // UploadTopicImage handles topic image upload.
 // POST /api/image/topic
 func (h *ImageHandler) UploadTopicImage(c *fiber.Ctx) error {

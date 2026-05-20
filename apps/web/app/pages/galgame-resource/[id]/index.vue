@@ -37,7 +37,7 @@ if (data.value && data.value !== 'not found') {
     description: data.value.resource.note
       ? data.value.resource.note
       : description,
-    ogImage: data.value.galgame.banner
+    ogImage: getEffectiveBanner(data.value.galgame)
   })
 } else {
   useKunDisableSeo('未找到 Galgame 资源')

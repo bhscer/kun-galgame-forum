@@ -37,6 +37,9 @@ interface WikiDraftDetail {
   content_limit: 'sfw' | 'nsfw'
   age_limit: 'all' | 'r18'
   original_language: string
+  // U1: wiki returns snake_case; nil = unknown.
+  release_date: string | null
+  release_date_tba: boolean
   status: number
   user_id: number
   created: string
@@ -128,6 +131,16 @@ watch(
         engines: [],
         links: [],
         note: '',
+        // U1: empty string when wiki has no date (draft.release_date is
+        // nullable on the wire); user can fill in the form below.
+        releaseDate: g.release_date ?? '',
+        releaseDateTBA: g.release_date_tba ?? false,
+        // U2: Draft (PATCH) intentionally does NOT edit covers/screenshots
+        // — that surface only opens on the published-galgame PR/direct
+        // edit form. The store fields exist for type-shape consistency
+        // with GalgameEditStoreTemp; Draft never reads or sends them.
+        covers: [],
+        screenshots: [],
         canDirectEdit: false
       }
     ]
@@ -178,6 +191,9 @@ const handleSave = async () => {
     content_limit: cur.contentLimit,
     age_limit: cur.ageLimit,
     original_language: originalLanguageLocal.value,
+    // U1: "" = clear to unknown; TBA independent.
+    release_date: cur.releaseDate,
+    release_date_tba: cur.releaseDateTBA,
     is_minor: isMinor.value
   }
 
@@ -301,6 +317,18 @@ const handleSave = async () => {
           v-model="originalLanguageLocal"
           label="原始语言"
           :options="originalLanguageOptions"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <KunInput
+          v-model="draft.releaseDate"
+          type="date"
+          label="发售日期 (留空=未公布)"
+        />
+        <KunSwitch
+          v-model="draft.releaseDateTBA"
+          label="发售日期待定 (TBA)"
         />
       </div>
 

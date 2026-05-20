@@ -196,5 +196,12 @@ useKunSeoMeta({
       v-if="!data.galgameCount"
       :description="`${data.name} 会社下暂无 Galgame`"
     />
+
+    <GalgameRevisionList
+      entity="official"
+      :id="officialId"
+      :entity-label="`会社「${data.name}」`"
+      :can-revert="role >= 2"
+    />
   </KunCard>
 </template>

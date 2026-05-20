@@ -48,7 +48,7 @@ const jsonLd = computed<WithContext<Review> | null>(() => {
     '@type': 'VideoGame',
     name: titleBase,
     url: gameUrl,
-    image: rating.galgame.banner,
+    image: getEffectiveBanner(rating.galgame),
     inLanguage: rating.galgame.originalLanguage,
     isFamilyFriendly: rating.galgame.ageLimit !== 'r18',
     ...(rating.galgame.official?.length && {
@@ -146,7 +146,7 @@ if (data.value) {
     useKunSeoMeta({
       title,
       description,
-      ogImage: data.value.galgame.banner,
+      ogImage: getEffectiveBanner(data.value.galgame),
       articleAuthor: [`${kungal.domain.main}/user/${data.value.user.id}/info`],
       articlePublishedTime: data.value.created.toString(),
       articleModifiedTime: data.value.updated.toString()

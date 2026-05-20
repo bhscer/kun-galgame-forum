@@ -35,9 +35,36 @@ const handlePublishGalgamePR = async () => {
     .map((l) => ({ name: l.name.trim(), link: l.link.trim() }))
     .filter((l) => l.name.length > 0 && l.link.length > 0)
 
+  // U2 (K-PR3b): covers/screenshots are presence-replace; strip the
+  // server-injected `cdn_url` preview field — wiki doesn't accept it on
+  // write (silent-ignored at best, schema-noisy at worst).
+  const coversWire = galgame.covers.map((c) => ({
+    image_hash: c.image_hash,
+    sort_order: c.sort_order,
+    sexual: c.sexual,
+    violence: c.violence,
+    source: c.source,
+    source_key: c.source_key
+  }))
+  const screenshotsWire = galgame.screenshots.map((s) => ({
+    image_hash: s.image_hash,
+    sort_order: s.sort_order,
+    caption: s.caption,
+    sexual: s.sexual,
+    violence: s.violence,
+    source: s.source,
+    source_key: s.source_key
+  }))
+
   const data: Record<
     string,
-    number | string | string[] | number[] | { name: string; link: string }[]
+    | number
+    | string
+    | boolean
+    | string[]
+    | number[]
+    | { name: string; link: string }[]
+    | Record<string, unknown>[]
   > = {
     vndb_id: galgame.vndbId,
     name_en_us: galgame.name['en-us'],
@@ -51,11 +78,16 @@ const handlePublishGalgamePR = async () => {
     content_limit: galgame.contentLimit,
     age_limit: galgame.ageLimit,
     original_language: galgame.originalLanguage,
+    // U1: empty = clear to unknown; TBA is independent.
+    release_date: galgame.releaseDate,
+    release_date_tba: galgame.releaseDateTBA,
     aliases: aliasList,
     tag_ids: galgame.tags.map((t) => t.id),
     official_ids: galgame.officials.map((o) => o.id),
     engine_ids: galgame.engines.map((e) => e.id),
     links,
+    covers: coversWire,
+    screenshots: screenshotsWire,
     note: galgame.note
   }
 
@@ -76,8 +108,8 @@ const handlePublishGalgamePR = async () => {
   const res = await useComponentMessageStore().alert(
     direct ? '确定直接保存对该 Galgame 的修改吗?' : '确定发布 Galgame 信息更新请求吗?',
     direct
-      ? '保存后立即生效并写入一条新的版本历史。别名 / 标签 / 会社 / 引擎 / 相关链接为整组替换, 请确认上方各项即为最终完整列表。'
-      : '别名 / 标签 / 会社 / 引擎 / 相关链接为整组替换, 请确认上方各项即为最终完整列表。'
+      ? '保存后立即生效并写入一条新的版本历史。别名 / 标签 / 会社 / 引擎 / 相关链接 / 封面 / 画廊为整组替换, 请确认上方各项即为最终完整列表。'
+      : '别名 / 标签 / 会社 / 引擎 / 相关链接 / 封面 / 画廊为整组替换, 请确认上方各项即为最终完整列表。'
   )
   if (!res) {
     return
@@ -89,33 +121,21 @@ const handlePublishGalgamePR = async () => {
     isPublishing.value = true
   }
 
-  // 可选 banner：用户在 PR 页改了 banner 就一并提交，没改则只发 JSON 字段。
-  // multipart 约定见 docs/galgame_wiki/api-reference.md "Banner 上传"。
-  const banner = await getImage('kun-galgame-publish-banner')
-
-  // Direct edit → PUT /galgame/:gid; PR → POST /galgame/:gid/prs. Both
-  // accept the same JSON body or multipart (data + file) per wiki
-  // 01-galgame.md §multipart.
+  // Direct edit → PUT /galgame/:gid; PR → POST /galgame/:gid/prs. JSON
+  // only. The legacy "banner as multipart `file`" path was retired in
+  // K-PR3b: cover images now upload via /image/galgame and live in the
+  // covers[] array (presence-replace). NEW cover/screenshot uploads
+  // happen INSIDE the editor (covers/screenshots components), not at
+  // submit time, so this Footer has no file-body branch any more.
   const path = direct
     ? `/galgame/${galgame.id}`
     : `/galgame/${galgame.id}/prs`
   const method = direct ? 'PUT' : 'POST'
 
-  let response: unknown
-  if (banner instanceof Blob) {
-    const formData = new FormData()
-    formData.append('data', JSON.stringify(data))
-    formData.append('file', banner)
-    response = await kunFetch(path, { method, body: formData })
-  } else {
-    response = await kunFetch(path, { method, body: data })
-  }
+  const response = await kunFetch(path, { method, body: data })
   isPublishing.value = false
 
   if (response) {
-    if (banner instanceof Blob) {
-      await deleteImage('kun-galgame-publish-banner')
-    }
     // PUT /galgame/:gid does NOT process aliases/links (01-galgame.md);
     // they live on dedicated add/remove endpoints. The PR endpoint DOES
     // take them (replace-all), so only the direct path needs to

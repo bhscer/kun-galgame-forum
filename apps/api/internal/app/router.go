@@ -224,6 +224,11 @@ func (a *App) setupRoutes() {
 
 	// Image upload (authenticated)
 	authed.Post("/image/topic", a.ImageHandler.UploadTopicImage)
+	// U2 (K-PR3a): galgame cover / screenshot upload — proxies a
+	// single image to image_service under one of the gated presets and
+	// returns the resulting {hash, url, ...} to the FE so it can attach
+	// the hash to a covers[] or screenshots[] row on the next PUT/PR.
+	authed.Post("/image/galgame", a.ImageHandler.UploadGalgameImage)
 
 	// Report (authenticated)
 	authed.Post("/report/submit", a.ReportHandler.SubmitReport)
@@ -318,6 +323,18 @@ func (a *App) setupRoutes() {
 	authed.Delete("/galgame-official/:id", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
 	authed.Post("/galgame-engine", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
 	authed.Delete("/galgame-engine/:id", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
+
+	// U3 taxonomy revisions + revert (K-PR5). ToWikiPath has a
+	// suffix-aware rule that keeps these under the /galgame/<entity>/
+	// namespace on the wiki side; the bare prefix mapping
+	// (/galgame-tag → /tag) does NOT apply here.
+	// GETs are public — list + single revision snapshot. POST revert
+	// is authed; wiki gates creator/admin authorization.
+	for _, ent := range []string{"galgame-tag", "galgame-official", "galgame-engine", "galgame-series"} {
+		api.Get("/"+ent+"/:id/revisions", a.GalgameWikiHandler.ProxyGet)
+		api.Get("/"+ent+"/:id/revisions/:rev", a.GalgameWikiHandler.ProxyGet)
+		authed.Post("/"+ent+"/:id/revert", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
+	}
 	authed.Post("/galgame-series", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
 	authed.Post("/galgame-series/modal", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
 	authed.Put("/galgame-series/:id", a.GalgameWikiHandler.ProxyWriteWithToken("PUT"))

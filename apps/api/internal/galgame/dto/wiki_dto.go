@@ -18,15 +18,47 @@ type WikiAlias struct {
 // stat — see WikiGalgameDetailFull comment. We don't parse it; enricher
 // reads view from the local stats row.
 type WikiGalgameItem struct {
-	ID                 int    `json:"id"`
-	NameEnUs           string `json:"name_en_us"`
-	NameJaJp           string `json:"name_ja_jp"`
-	NameZhCn           string `json:"name_zh_cn"`
-	NameZhTw           string `json:"name_zh_tw"`
-	Banner             string `json:"banner"`
-	ContentLimit       string `json:"content_limit"`
-	ResourceUpdateTime string `json:"resource_update_time"`
-	UserID             int    `json:"user_id"`
+	ID                 int     `json:"id"`
+	NameEnUs           string  `json:"name_en_us"`
+	NameJaJp           string  `json:"name_ja_jp"`
+	NameZhCn           string  `json:"name_zh_cn"`
+	NameZhTw           string  `json:"name_zh_tw"`
+	Banner             string  `json:"banner"`
+	ContentLimit       string  `json:"content_limit"`
+	ResourceUpdateTime string  `json:"resource_update_time"`
+	ReleaseDate        *string `json:"release_date"`
+	ReleaseDateTBA     bool    `json:"release_date_tba"`
+	// U2: derived effective banner hash on list rows (wiki computes it
+	// from the row's covers — sort_order=0 wins). banner_image_hash kept
+	// during transition.
+	// EffectiveBannerURL is injected by client.rewriteBanners on the
+	// wiki response BEFORE we unmarshal — capture it explicitly or
+	// Go's unmarshal drops the walker's work.
+	BannerImageHash     string `json:"banner_image_hash"`
+	EffectiveBannerHash string `json:"effective_banner_hash"`
+	EffectiveBannerURL  string `json:"effective_banner_url"`
+	UserID              int    `json:"user_id"`
+}
+
+// U2 cover/screenshot row shapes (snake_case, matches wiki wire). Both
+// share the scalar fields; screenshot additionally has Caption.
+type WikiGalgameCover struct {
+	ImageHash string `json:"image_hash"`
+	SortOrder int    `json:"sort_order"`
+	Sexual    int    `json:"sexual"`
+	Violence  int    `json:"violence"`
+	Source    string `json:"source"`
+	SourceKey string `json:"source_key"`
+}
+
+type WikiGalgameScreenshot struct {
+	ImageHash string `json:"image_hash"`
+	SortOrder int    `json:"sort_order"`
+	Caption   string `json:"caption"`
+	Sexual    int    `json:"sexual"`
+	Violence  int    `json:"violence"`
+	Source    string `json:"source"`
+	SourceKey string `json:"source_key"`
 }
 
 // WikiOfficial is a company/publisher/developer entity from the wiki.
@@ -137,11 +169,24 @@ type WikiGalgameDetailFull struct {
 	// Intentionally not parsed — see GetDetail in galgame_service.go which
 	// reads view from the local galgame stats row instead.
 	ResourceUpdateTime string               `json:"resource_update_time"`
+	// Wiki upgrade U1: `released` (free-form string) was replaced by a
+	// proper date column + a TBA flag. `*string "YYYY-MM-DD"` keeps tz/
+	// precision out of revision diffs (wire is plain string, not Time).
+	ReleaseDate        *string              `json:"release_date"`
+	ReleaseDateTBA     bool                 `json:"release_date_tba"`
 	OriginalLanguage   string               `json:"original_language"`
 	AgeLimit           string               `json:"age_limit"`
 	UserID             int                  `json:"user_id"`
 	SeriesID           *int                 `json:"series_id"`
 	Status             int                  `json:"status"`
+	// U2: cover candidate set + screenshot gallery + derived effective
+	// banner. Legacy banner_image_hash (top-level) stays during transition
+	// — wiki keeps writing both until U2.c drops the column.
+	BannerImageHash     string             `json:"banner_image_hash"`
+	EffectiveBannerHash string             `json:"effective_banner_hash"`
+	EffectiveBannerURL  string             `json:"effective_banner_url"`
+	Covers              []WikiGalgameCover `json:"covers"`
+	Screenshots         []WikiGalgameScreenshot `json:"screenshots"`
 	Alias              []WikiAlias          `json:"alias"`
 	Official           []WikiOfficialRel    `json:"official"`
 	Engine             []WikiEngineWithAlias `json:"engine"`
