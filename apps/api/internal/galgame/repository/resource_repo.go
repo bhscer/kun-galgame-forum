@@ -2,12 +2,41 @@ package repository
 
 import (
 	"encoding/json"
+	"strings"
 
 	"kun-galgame-api/internal/galgame/model"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+// pgTextArrayLiteral renders a []string as a Postgres text[] literal,
+// e.g. ["baidu", "quark"] → `{"baidu","quark"}`. Empty/nil input yields
+// `{}` (an empty text[]).
+//
+// GORM has no native binding for Postgres array types — passing
+// `[]string{...}` as a positional parameter expands to `('baidu')`,
+// which the server parses as a parenthesised scalar (not an array)
+// and rejects with `malformed array literal`. Producing the literal
+// ourselves and casting via `?::text[]` is the dep-free workaround
+// (avoids pulling in `github.com/lib/pq` just for `pq.StringArray`).
+//
+// Each element is double-quoted, with `\` and `"` escaped — this keeps
+// the format safe even if a provider key ever contains `,`, `{`, `}`,
+// or whitespace. (Today our keys are simple ASCII identifiers from
+// pkg/utils/provider.go, but we don't want to invent landmines.)
+func pgTextArrayLiteral(items []string) string {
+	if len(items) == 0 {
+		return "{}"
+	}
+	parts := make([]string, len(items))
+	for i, v := range items {
+		escaped := strings.ReplaceAll(v, `\`, `\\`)
+		escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+		parts[i] = `"` + escaped + `"`
+	}
+	return "{" + strings.Join(parts, ",") + "}"
+}
 
 // onConflictNothing is shared for batch inserts that should tolerate uniqueness
 // collisions (e.g. re-inserting resource links after an edit).
@@ -142,11 +171,13 @@ func (r *ResourceRepository) Create(tx *gorm.DB, res *model.GalgameResource) err
 }
 
 // ReplaceProviders overwrites the text[] provider column for a resource.
-// GORM has no native array type, so this uses raw SQL.
+// GORM has no native array type, so this uses raw SQL with a manually-
+// formatted Postgres array literal (see pgTextArrayLiteral above for
+// why a plain `?` placeholder won't work).
 func (r *ResourceRepository) ReplaceProviders(tx *gorm.DB, resourceID int, providers []string) error {
 	return tx.Exec(
-		"UPDATE galgame_resource SET provider = ? WHERE id = ?",
-		providers, resourceID,
+		"UPDATE galgame_resource SET provider = ?::text[] WHERE id = ?",
+		pgTextArrayLiteral(providers), resourceID,
 	).Error
 }
 

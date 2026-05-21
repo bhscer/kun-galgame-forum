@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import {
+  GALGAME_RESOURCE_PROVIDER_BUCKETS,
+  bucketizeResourceProvider,
+  type GalgameResourceProviderBucketKey
+} from '~/constants/galgameResource'
+
 const route = useRoute()
 const gid = computed(() => {
   return parseInt((route.params as { gid: string }).gid)
@@ -7,13 +13,71 @@ const gid = computed(() => {
 const { isShowPublish } = storeToRefs(useTempGalgameResourceStore())
 const { id } = usePersistUserStore()
 
-const { data, status, refresh } = await useKunFetch(
+const { data, status, refresh } = await useKunFetch<GalgameResource[]>(
   `/galgame/${gid.value}/resource/all`,
   {
     lazy: true,
     method: 'GET',
     query: { galgameId: gid.value }
   }
+)
+
+// Group resources into the 7 user-facing provider buckets; skip empty
+// buckets so the tablist collapses when a galgame only has, say, baidu
+// + quark links. Each resource appears in exactly one bucket (its
+// primary provider per bucketizeResourceProvider's first-match-wins
+// rule).
+const groupedResources = computed(() => {
+  const grouped: Record<GalgameResourceProviderBucketKey, GalgameResource[]> =
+    {
+      baidu: [],
+      quark: [],
+      caiyun: [],
+      pan123: [],
+      xunlei: [],
+      lanzou: [],
+      other: []
+    }
+  for (const r of data.value ?? []) {
+    grouped[bucketizeResourceProvider(r.providerNames)].push(r)
+  }
+  return GALGAME_RESOURCE_PROVIDER_BUCKETS.flatMap((bucket) => {
+    const items = grouped[bucket.key]
+    return items.length ? [{ ...bucket, items }] : []
+  })
+})
+
+// KunTab items map: each non-empty bucket becomes a tab. textValue
+// embeds the bucket label + count so the tab itself doubles as a
+// section header.
+const providerTabs = computed(() =>
+  groupedResources.value.map((g) => ({
+    value: g.key,
+    textValue: `${g.label} (${g.items.length})`,
+    icon: g.icon
+  }))
+)
+
+// activeProvider follows the first non-empty bucket on data load, then
+// the user's choice. Re-pinned to a still-existing bucket if a refresh
+// removes the previously-selected one (e.g. all baidu links deleted).
+const activeProvider = ref<GalgameResourceProviderBucketKey | ''>('')
+watchEffect(() => {
+  const first = groupedResources.value[0]?.key
+  if (!first) {
+    activeProvider.value = ''
+    return
+  }
+  const stillExists = groupedResources.value.some(
+    (g) => g.key === activeProvider.value
+  )
+  if (!stillExists) {
+    activeProvider.value = first
+  }
+})
+
+const activeBucket = computed(() =>
+  groupedResources.value.find((g) => g.key === activeProvider.value)
 )
 </script>
 
@@ -117,13 +181,24 @@ const { data, status, refresh } = await useKunFetch(
       />
     </KunModal>
 
-    <template v-if="status !== 'pending'">
-      <GalgameResourceLink
-        v-for="resource in data"
-        :key="resource.id"
-        :resource="resource"
-        :refresh="refresh"
+    <template v-if="status !== 'pending' && data?.length">
+      <KunTab
+        v-if="providerTabs.length > 1"
+        v-model="activeProvider"
+        :items="providerTabs"
+        variant="light"
+        color="primary"
+        size="md"
+        scrollable
       />
+      <div v-if="activeBucket" class="space-y-3">
+        <GalgameResourceLink
+          v-for="resource in activeBucket.items"
+          :key="resource.id"
+          :resource="resource"
+          :refresh="refresh"
+        />
+      </div>
     </template>
 
     <KunLoading v-if="status === 'pending'" />
