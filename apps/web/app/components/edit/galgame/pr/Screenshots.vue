@@ -46,7 +46,12 @@ const handleFile = async (e: Event) => {
   if (!file) return
 
   isUploading.value = true
-  const res = await uploadGalgameImage(file, 'galgame_screenshot', file.name)
+  // AUDIT FIX: wiki's image_presets.yaml only registers
+  // `galgame_banner`; there's no `galgame_screenshot` preset. Reuse
+  // banner preset — image_service's main pipeline (fit 1920x1080
+  // webp@77) produces a usable screenshot. The `mini` variant
+  // generated alongside is unused for gallery rendering but harmless.
+  const res = await uploadGalgameImage(file, 'galgame_banner', file.name)
   isUploading.value = false
   if (!res) return
 

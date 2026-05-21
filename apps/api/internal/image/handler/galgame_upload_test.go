@@ -105,11 +105,15 @@ func TestUploadGalgameImage_RejectsMissingFile(t *testing.T) {
 }
 
 func TestUploadGalgameImage_AcceptsAllowedPresets(t *testing.T) {
-	// Both gated presets must pass the boundary and reach the service.
-	// With imgCli=nil the service returns "未配置" — that's how we
-	// confirm the boundary checks all passed (preset OK, file OK,
-	// size OK) without needing a real image_service.
-	for _, preset := range []string{"galgame_banner", "galgame_screenshot"} {
+	// The single gated preset must pass the boundary and reach the
+	// service. With imgCli=nil the service returns "未配置" — that's
+	// how we confirm the boundary checks all passed (preset OK, file
+	// OK, size OK) without needing a real image_service.
+	//
+	// AUDIT: wiki's image_presets.yaml only registers `galgame_banner`,
+	// so screenshots reuse it. If wiki adds `galgame_screenshot`
+	// later, expand this slice and the allowlist in the handler.
+	for _, preset := range []string{"galgame_banner"} {
 		t.Run(preset, func(t *testing.T) {
 			app := newTestApp(t)
 			body, ct := makeMultipart(t, map[string]string{"preset": preset}, "x.png", []byte("xxxxx"))

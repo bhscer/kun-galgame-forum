@@ -86,19 +86,10 @@ const handleFile = async (e: Event) => {
 
 // Atomic pin: set picked → 0, demote old 0-row to (max+1). Mirrors the
 // wiki's "Pin new banner" transaction so the partial unique index is
-// never violated on submit. Idempotent: pinning the already-pinned row
-// is a no-op.
+// never violated on submit. Logic + edge cases extracted to
+// shared/utils/pinCoverAtomic.ts (covered by pinCoverAtomic.spec.ts).
 const handlePin = (target: GalgameCover) => {
-  if (target.sort_order === 0) return
-  const maxOrder = covers.value.reduce(
-    (m, c) => (c.sort_order > m ? c.sort_order : m),
-    0
-  )
-  covers.value = covers.value.map((c) => {
-    if (c.image_hash === target.image_hash) return { ...c, sort_order: 0 }
-    if (c.sort_order === 0) return { ...c, sort_order: maxOrder + 1 }
-    return c
-  })
+  covers.value = pinCoverAtomic(covers.value, target.image_hash)
 }
 
 const handleRemove = (hash: string) => {

@@ -21,14 +21,23 @@ func NewImageHandler(imageService *service.ImageService) *ImageHandler {
 // upload proxy can request. Keeps the proxy from doubling as a generic
 // image-service tunnel; presets here MUST also be in this site's
 // image_allowed_presets on the image_service side.
+//
+// AUDIT FIX: wiki's image_presets.yaml only registers `galgame_banner`
+// (no `galgame_screenshot` preset). Both cover and screenshot uploads
+// flow through the same preset — image_service's main pipeline (fit
+// 1920x1080 webp@77) is suitable for both. The mini variant (460x259)
+// generated alongside is unused on screenshots; wasteful but not
+// broken. If wiki later registers a dedicated screenshot preset, add
+// it here and route Screenshots.vue to it; until then a single preset
+// keeps the contract honest.
 var allowedGalgamePresets = map[string]struct{}{
-	"galgame_banner":     {}, // cover / banner / pinned head image
-	"galgame_screenshot": {}, // screenshot / CG gallery
+	"galgame_banner": {}, // cover (sort_order=0 pinned) + screenshot rows
 }
 
 // UploadGalgameImage handles cover/screenshot upload (U2). Multipart form:
 //   - file:   image binary (required)
-//   - preset: one of "galgame_banner" / "galgame_screenshot" (required)
+//   - preset: "galgame_banner" (required; only registered galgame
+//             preset on wiki — see allowedGalgamePresets above)
 //
 // Returns the image_service {hash, url, ...} payload so the FE can
 // immediately add a new cover/screenshot row referencing the hash and
@@ -45,7 +54,7 @@ func (h *ImageHandler) UploadGalgameImage(c *fiber.Ctx) error {
 	preset := c.FormValue("preset")
 	if _, ok := allowedGalgamePresets[preset]; !ok {
 		return response.Error(c, errors.ErrBadRequest(
-			"preset 必须为 galgame_banner 或 galgame_screenshot"))
+			"preset 必须为 galgame_banner"))
 	}
 
 	file, err := c.FormFile("file")
