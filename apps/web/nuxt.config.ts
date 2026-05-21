@@ -17,6 +17,17 @@ const sharedTsConfig: TSConfig = {
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  // @kun/ui is consumed as a Nuxt layer — components / composables /
+  // styles flow in via the layer system instead of duplicated files.
+  extends: ['../../packages/ui'],
+
+  // Alias for explicit type-only imports from the layer (the auto-import
+  // path handles components / composables, but `import type {…}` still
+  // needs a real path).
+  alias: {
+    '@kun/ui': path.resolve(__dirname, '../../packages/ui/app')
+  },
+
   devtools: { enabled: false },
 
   app: {

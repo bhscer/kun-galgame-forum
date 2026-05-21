@@ -10,8 +10,6 @@ const MAX_SECTIONS = 3
 const MAX_TAGS = 7
 
 const { category, section, tags, isNSFW } = useTopicEditorStore()
-const tagInput = ref('')
-const isTagInputFocused = ref(false)
 
 const handleSelectCategory = (key: TopicCategoryKey) => {
   if (category.value !== key) {
@@ -44,30 +42,10 @@ const handleToggleSection = (sectionKey: string) => {
   }
 }
 
-const handleAddTag = () => {
-  const newTag = tagInput.value.trim().slice(0, 17)
-  if (!newTag) {
-    return
-  }
-  if (tags.value.length >= MAX_TAGS) {
+const onTagInvalid = (reason: KunTagInputInvalidReason) => {
+  if (reason === 'duplicate') useMessage('标签已存在', 'warn')
+  else if (reason === 'max-reached') {
     useMessage(`最多只能添加 ${MAX_TAGS} 个标签`, 'warn')
-    return
-  }
-  if (tags.value.map((t) => t.toLowerCase()).includes(newTag.toLowerCase())) {
-    useMessage('标签已存在', 'warn')
-    return
-  }
-  tags.value.push(newTag)
-  tagInput.value = ''
-}
-
-const handleRemoveTag = (tagToRemove: string) => {
-  tags.value = tags.value.filter((t) => t !== tagToRemove)
-}
-
-const handleTagInputBackspace = () => {
-  if (tagInput.value === '' && tags.value.length > 0) {
-    handleRemoveTag(tags.value[tags.value.length - 1]!)
   }
 }
 </script>
@@ -158,48 +136,15 @@ const handleTagInputBackspace = () => {
           (已添加 {{ tags.length }}/{{ MAX_TAGS }})
         </span>
       </h3>
-      <div
-        class="flex flex-wrap items-center gap-2 rounded-lg border p-3 transition-all"
-        :class="
-          isTagInputFocused ? 'ring-primary-500 ring-2' : 'border-default-300'
-        "
-      >
-        <KunBadge size="md" color="default" v-for="t in tags" :key="t">
-          {{ t }}
-          <KunButton
-            variant="light"
-            color="default"
-            size="xs"
-            :is-icon-only="true"
-            @click="handleRemoveTag(t)"
-            class="text-default-500 hover:text-danger-500"
-          >
-            <Icon name="lucide:x" class="h-3 w-3" />
-          </KunButton>
-        </KunBadge>
-        <input
-          v-if="tags.length < MAX_TAGS"
-          v-model="tagInput"
-          type="text"
-          placeholder="输入后按回车添加..."
-          class="text-default-800 placeholder-default-400 min-w-[120px] flex-grow bg-transparent p-1 outline-none"
-          @keydown.enter.prevent="handleAddTag"
-          @keydown.backspace="handleTagInputBackspace"
-          @focus="isTagInputFocused = true"
-          @blur="isTagInputFocused = false"
-        />
-        <KunButton
-          v-if="tags.length < MAX_TAGS"
-          variant="flat"
-          :is-icon-only="true"
-          @click="handleAddTag"
-        >
-          <KunIcon name="lucide:plus" />
-        </KunButton>
-      </div>
-      <p class="text-default-500 mt-2 text-sm">
-        话题至少选择一个标签，最多 {{ MAX_TAGS }} 个
-      </p>
+      <KunTagInput
+        v-model="tags"
+        :max-tags="MAX_TAGS"
+        :max-tag-length="17"
+        placeholder="输入后按回车添加..."
+        helper-text="话题至少选择一个标签，最多 7 个"
+        color="primary"
+        @invalid="onTagInvalid"
+      />
     </div>
 
     <div class="space-y-4">

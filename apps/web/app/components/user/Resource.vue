@@ -100,7 +100,6 @@ const submitFix = async (index: number) => {
     <div class="flex flex-col space-y-3" v-if="data && data.resources.length">
       <template v-if="props.type !== 'galgame_resource_like' && isCurrentUser">
         <KunCard
-          :is-pressable="false"
           :is-hoverable="false"
           v-for="(res, index) in data.resources"
           :key="index"
@@ -110,24 +109,24 @@ const submitFix = async (index: number) => {
           </div>
 
           <div class="mb-2 flex flex-wrap items-center gap-2">
-            <KunBadge color="primary">
+            <KunChip color="primary">
               <KunIcon :name="GALGAME_RESOURCE_TYPE_ICON_MAP[res.type]" />
               {{ KUN_GALGAME_RESOURCE_TYPE_MAP[res.type] }}
-            </KunBadge>
-            <KunBadge color="warning">
+            </KunChip>
+            <KunChip color="warning">
               <KunIcon name="lucide:database" />
               {{ res.size }}
-            </KunBadge>
-            <KunBadge color="success">
+            </KunChip>
+            <KunChip color="success">
               <KunIcon
                 :name="GALGAME_RESOURCE_PLATFORM_ICON_MAP[res.platform]"
               />
               {{ KUN_GALGAME_RESOURCE_PLATFORM_MAP[res.platform] }}
-            </KunBadge>
-            <KunBadge color="secondary">
+            </KunChip>
+            <KunChip color="secondary">
               {{ KUN_GALGAME_RESOURCE_LANGUAGE_MAP[res.language] }}
-            </KunBadge>
-            <KunBadge color="danger">链接过期</KunBadge>
+            </KunChip>
+            <KunChip color="danger">链接过期</KunChip>
             <div class="text-default-500 text-sm">
               {{ `创建于 ${formatDate(res.created, { isShowYear: true })}` }}
             </div>
@@ -156,7 +155,6 @@ const submitFix = async (index: number) => {
 
       <template v-else>
         <KunCard
-          :is-pressable="true"
           v-for="(res, index) in data.resources"
           :key="index"
           :href="`/galgame/${res.galgameId}`"
@@ -167,16 +165,16 @@ const submitFix = async (index: number) => {
 
           <div class="flex items-center justify-between">
             <div class="space-x-2">
-              <KunBadge color="primary">
+              <KunChip color="primary">
                 <KunIcon
                   :name="GALGAME_RESOURCE_PLATFORM_ICON_MAP[res.platform]"
                 />
                 {{ KUN_GALGAME_RESOURCE_PLATFORM_MAP[res.platform] }}
-              </KunBadge>
+              </KunChip>
 
-              <KunBadge :color="res.status ? 'danger' : 'success'">
+              <KunChip :color="res.status ? 'danger' : 'success'">
                 {{ res.status ? '链接过期' : '链接有效' }}
-              </KunBadge>
+              </KunChip>
             </div>
 
             <div class="text-default-500 text-sm">

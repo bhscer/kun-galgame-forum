@@ -63,7 +63,6 @@ watch(
     <KunCard
       :is-hoverable="true"
       :is-transparent="true"
-      :is-pressable="true"
       :dark-border="true"
       content-class="items-start flex flex-row gap-3 flex-nowrap"
       v-for="(topic, index) in data?.topics"

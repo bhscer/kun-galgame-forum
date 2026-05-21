@@ -36,7 +36,6 @@ const articles = computed(() => articleResponse.value?.items || [])
       v-if="articles.length"
     >
       <KunCard
-        :is-pressable="true"
         :dark-border="true"
         v-for="post in articles"
         :key="post.id"
@@ -44,9 +43,9 @@ const articles = computed(() => articleResponse.value?.items || [])
         content-class="space-y-3"
       >
         <div class="flex items-center gap-3 text-sm">
-          <KunBadge color="default">
+          <KunChip color="default">
             {{ post.category?.title || `分类 #${post.category_id}` }}
-          </KunBadge>
+          </KunChip>
 
           <time
             :datetime="post.published_time?.toString()"

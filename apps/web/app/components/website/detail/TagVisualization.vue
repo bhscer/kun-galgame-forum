@@ -178,7 +178,6 @@ const getBackgroundColor = (color: string): string => {
       <KunCard
         :is-transparent="true"
         :is-hoverable="true"
-        :is-pressable="false"
         v-for="category in categoryStats"
         :key="category.name"
         :dark-border="true"

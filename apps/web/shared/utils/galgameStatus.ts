@@ -13,7 +13,7 @@ import { getPreferredLanguageText } from './getPreferredLanguageText'
 // makes that class of drift impossible.
 
 // Subset of KunUIColor actually used for status badges. Assignable to
-// KunBadge's `color` prop (which is the full KunUIColor union).
+// KunChip's `color` prop (which is the full KunUIColor union).
 type GalgameStatusColor =
   | 'default'
   | 'primary'

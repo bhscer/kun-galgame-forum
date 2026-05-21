@@ -10,7 +10,6 @@ const actionsCount = computed(
 
 <template>
   <KunCard
-    :is-pressable="true"
     :is-transparent="false"
     content-class="justify-between gap-2"
     :href="`/topic/${props.topic.id}`"

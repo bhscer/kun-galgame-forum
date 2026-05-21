@@ -71,7 +71,6 @@ useKunSeoMeta({
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     content-class="space-y-12"
   >
     <KunHeader
@@ -89,7 +88,6 @@ useKunSeoMeta({
         <KunCard
           :is-transparent="true"
           :is-hoverable="false"
-          :is-pressable="false"
           v-for="stat in allStats"
           :key="stat.name"
           :dark-border="true"
@@ -116,7 +114,6 @@ useKunSeoMeta({
         <KunCard
           :is-transparent="true"
           :is-hoverable="false"
-          :is-pressable="false"
           v-for="stat in totalStats"
           :key="stat.name"
           :dark-border="true"
@@ -151,7 +148,6 @@ useKunSeoMeta({
       <KunCard
         :is-transparent="true"
         :is-hoverable="false"
-        :is-pressable="false"
         :dark-border="true"
       >
         <AdminOverviewChart v-if="data" :data="data" />

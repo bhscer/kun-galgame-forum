@@ -68,12 +68,12 @@ const getLanguageName = (langCode: string) => {
           position="left"
           :text="KUN_GALGAME_AGE_LIMIT_MAP[galgame.ageLimit]"
         >
-          <KunBadge
+          <KunChip
             variant="flat"
             :color="galgame.ageLimit === 'all' ? 'success' : 'danger'"
           >
             {{ galgame.ageLimit === 'all' ? '全年龄' : 'R18' }}
-          </KunBadge>
+          </KunChip>
         </KunTooltip>
 
         <span class="bg-default-300 h-3 w-px" />
@@ -83,9 +83,9 @@ const getLanguageName = (langCode: string) => {
         >
           原始语言
         </span>
-        <KunBadge color="warning" variant="flat">
+        <KunChip color="warning" variant="flat">
           {{ getLanguageName(galgame.originalLanguage) }}
-        </KunBadge>
+        </KunChip>
       </div>
 
       <dl>

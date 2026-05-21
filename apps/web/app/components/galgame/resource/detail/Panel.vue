@@ -45,32 +45,32 @@ const galgameTitle = getPreferredLanguageText(props.galgame.name)
     />
 
     <div class="flex flex-wrap gap-2">
-      <KunBadge color="primary">
+      <KunChip color="primary">
         <KunIcon :name="GALGAME_RESOURCE_TYPE_ICON_MAP[resource.type]" />
         {{ resourceTypeLabel }}
-      </KunBadge>
-      <KunBadge color="secondary">
+      </KunChip>
+      <KunChip color="secondary">
         <KunIcon name="lucide:languages" />
         {{ resourceLanguageLabel }}
-      </KunBadge>
-      <KunBadge color="success">
+      </KunChip>
+      <KunChip color="success">
         <KunIcon
           :name="GALGAME_RESOURCE_PLATFORM_ICON_MAP[resource.platform]"
         />
         {{ resourcePlatformLabel }}
-      </KunBadge>
-      <KunBadge color="warning">
+      </KunChip>
+      <KunChip color="warning">
         <KunIcon name="lucide:database" />
         {{ resource.size }}
-      </KunBadge>
-      <KunBadge color="default">
+      </KunChip>
+      <KunChip color="default">
         <KunIcon name="lucide:download" />
         {{ resource.download }}
-      </KunBadge>
-      <KunBadge color="default">
+      </KunChip>
+      <KunChip color="default">
         <KunIcon name="lucide:eye" />
         {{ resource.view }}
-      </KunBadge>
+      </KunChip>
     </div>
 
     <GalgameResourceDetailInfo

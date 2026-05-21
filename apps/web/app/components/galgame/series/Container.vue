@@ -28,7 +28,6 @@ const handleCreateSeries = async (data: UpdateGalgameSeriesPayload) => {
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     content-class="space-y-3"
   >

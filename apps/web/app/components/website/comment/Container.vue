@@ -31,7 +31,6 @@ const handleRemoveComment = (commentId: number) => {
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     class-name="p-6"
   >
     <h2 class="text-default-900 mb-6 text-2xl font-bold">用户评论</h2>

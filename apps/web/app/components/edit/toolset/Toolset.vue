@@ -10,7 +10,7 @@ import type { z } from 'zod'
 
 type CreateFormType = z.infer<typeof createToolsetSchema>
 
-const form = reactive<CreateFormType & { aliasInput: string }>({
+const form = reactive<CreateFormType>({
   name: '',
   description: '',
   language: 'zh-cn',
@@ -18,9 +18,13 @@ const form = reactive<CreateFormType & { aliasInput: string }>({
   type: 'emulator',
   version: 'stable',
   homepage: [] as string[],
-  aliasInput: '',
   aliases: [] as string[]
 })
+
+const onAliasInvalid = (reason: KunTagInputInvalidReason) => {
+  if (reason === 'duplicate') useMessage(10505, 'warn')
+  else if (reason === 'max-reached') useMessage(10508, 'warn')
+}
 
 const isSubmitting = ref(false)
 
@@ -48,24 +52,6 @@ const handleSubmit = async () => {
   if (id) {
     useMessage('创建工具成功', 'success')
     navigateTo(`/toolset/${id}`)
-  }
-}
-
-const handleAddAlias = () => {
-  const value = form.aliasInput.trim()
-  if (
-    value &&
-    form.aliases.length < 17 &&
-    !form.aliases.map((x) => x.toLowerCase()).includes(value.toLowerCase())
-  ) {
-    form.aliases.push(value)
-    form.aliasInput = ''
-  }
-}
-
-const handleRemoveAlias = () => {
-  if (!form.aliasInput && form.aliases.length) {
-    form.aliases.pop()
   }
 }
 
@@ -149,34 +135,16 @@ const handleUpdatePageLink = (value: string | number) => {
     </div>
 
     <div class="space-y-2">
-      <div class="text-xl font-medium">别名（按 Enter 添加，最多 17 个）</div>
-      <div
-        class="ring-default-500 bg-default/10 w-full rounded-lg px-4 py-2 transition-all focus-within:ring-1"
-      >
-        <div class="flex flex-wrap gap-2">
-          <KunBadge
-            v-for="(a, i) in form.aliases"
-            :key="i"
-            color="primary"
-            size="sm"
-          >
-            {{ a }}
-            <button
-              class="ml-1 cursor-pointer"
-              @click="form.aliases.splice(i, 1)"
-            >
-              ×
-            </button>
-          </KunBadge>
-          <input
-            v-model="form.aliasInput"
-            @keydown.enter.prevent="handleAddAlias"
-            @keydown.backspace="handleRemoveAlias"
-            class="placeholder-default-500 text-default-700 min-w-[120px] flex-grow bg-transparent outline-none"
-            placeholder="输入别名后按下回车添加"
-          />
-        </div>
-      </div>
+      <div class="text-xl font-medium">别名</div>
+      <KunTagInput
+        v-model="form.aliases"
+        :max-tags="17"
+        :max-tag-length="500"
+        placeholder="输入别名后按下回车添加"
+        helper-text="按 Enter 添加，最多 17 个"
+        color="primary"
+        @invalid="onAliasInvalid"
+      />
     </div>
 
     <div class="flex justify-end">

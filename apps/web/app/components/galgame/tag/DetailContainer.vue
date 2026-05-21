@@ -99,7 +99,6 @@ const handleDeleteTag = async () => {
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     content-class="space-y-6"
     v-if="data"
   >
@@ -117,7 +116,7 @@ const handleDeleteTag = async () => {
 
           <div class="text-default-500">
             标签类别
-            <KunBadge
+            <KunChip
               :color="
                 data.category === 'content'
                   ? 'primary'
@@ -127,20 +126,20 @@ const handleDeleteTag = async () => {
               "
             >
               {{ KUN_GALGAME_TAG_CATEGORY_MAP[data.category] }}
-            </KunBadge>
+            </KunChip>
           </div>
           <div
             v-if="data.alias.length"
             class="text-default-500 flex flex-wrap gap-2"
           >
             别名
-            <KunBadge
+            <KunChip
               color="primary"
               v-for="(a, index) in data.alias"
               :key="index"
             >
               {{ a }}
-            </KunBadge>
+            </KunChip>
           </div>
           <div v-if="role >= 2" class="flex justify-end gap-2">
             <KunButton @click="openEditTagModal">编辑标签</KunButton>

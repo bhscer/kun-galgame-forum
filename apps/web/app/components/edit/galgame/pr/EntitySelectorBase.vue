@@ -8,7 +8,7 @@
 // Mirrors the established search-dropdown UX from
 // components/galgame/tag/Container.vue (relative wrapper + absolute
 // dropdown, @mousedown.prevent so the click lands before blur, 120ms
-// blur close). Selected entities render as removable KunBadge.
+// blur close). Selected entities render as removable KunChip.
 //
 // The model holds FULL entity objects (not ids): callers store these in
 // the temp PR store so names render without a second lookup, and
@@ -102,7 +102,7 @@ defineExpose({ addCreated: add })
     </p>
 
     <div v-if="selected.length" class="flex flex-wrap gap-2">
-      <KunBadge
+      <KunChip
         v-for="e in selected"
         :key="e.id"
         color="primary"
@@ -117,7 +117,7 @@ defineExpose({ addCreated: add })
         >
           ×
         </button>
-      </KunBadge>
+      </KunChip>
     </div>
 
     <div class="relative">

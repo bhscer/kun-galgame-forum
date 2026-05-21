@@ -38,7 +38,6 @@ const { data, status } = await useKunFetch<{
 
     <div v-if="data" class="flex flex-col space-y-3">
       <KunCard
-        :is-pressable="true"
         v-for="(reply, index) in data.replies"
         :key="index"
         :href="`/topic/${reply.topicId}`"

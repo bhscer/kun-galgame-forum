@@ -106,8 +106,8 @@ const { data, status, refresh } = await useKunFetch(
     <KunModal
       :is-dismissable="false"
       :is-show-close-button="false"
-      :modal-value="isShowPublish"
-      @update:modal-value="(value) => (isShowPublish = value)"
+      :model-value="isShowPublish"
+      @update:model-value="(value) => (isShowPublish = value)"
     >
       <GalgameResourcePublish
         :refresh="refresh"

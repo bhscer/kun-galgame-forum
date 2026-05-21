@@ -9,7 +9,11 @@ import { toolsetUpdateForm } from '~/components/toolset/rewriteStore'
 import { updateToolsetSchema } from '~/validations/toolset'
 
 const isSubmitting = ref(false)
-const aliasInput = ref('')
+
+const onAliasInvalid = (reason: KunTagInputInvalidReason) => {
+  if (reason === 'duplicate') useMessage(10505, 'warn')
+  else if (reason === 'max-reached') useMessage(10508, 'warn')
+}
 
 const handleSubmit = async () => {
   const result = updateToolsetSchema.safeParse(toolsetUpdateForm)
@@ -34,26 +38,6 @@ const handleSubmit = async () => {
 
   useMessage('更新工具信息成功', 'success')
   navigateTo(`/toolset/${toolsetUpdateForm.toolsetId}`)
-}
-
-const handleAddAlias = () => {
-  const value = aliasInput.value.trim()
-  if (
-    value &&
-    toolsetUpdateForm.aliases.length < 17 &&
-    !toolsetUpdateForm.aliases
-      .map((x) => x.toLowerCase())
-      .includes(value.toLowerCase())
-  ) {
-    toolsetUpdateForm.aliases.push(value)
-    aliasInput.value = ''
-  }
-}
-
-const handleRemoveAlias = () => {
-  if (!aliasInput.value && toolsetUpdateForm.aliases.length) {
-    toolsetUpdateForm.aliases.pop()
-  }
 }
 
 const handleUpdatePageLink = (value: string | number) => {
@@ -137,34 +121,16 @@ const handleUpdatePageLink = (value: string | number) => {
     </div>
 
     <div class="space-y-2">
-      <div class="text-sm font-medium">别名（按 Enter 添加，最多 17 个）</div>
-      <div
-        class="ring-default-500 bg-default/10 min-h-[44px] w-full rounded-lg px-4 py-2 transition-all focus-within:ring-1"
-      >
-        <div class="flex flex-wrap gap-2">
-          <KunBadge
-            v-for="(a, i) in toolsetUpdateForm.aliases"
-            :key="i"
-            color="primary"
-            size="sm"
-          >
-            {{ a }}
-            <button
-              class="ml-1 cursor-pointer"
-              @click="toolsetUpdateForm.aliases.splice(i, 1)"
-            >
-              ×
-            </button>
-          </KunBadge>
-          <input
-            v-model="aliasInput"
-            @keydown.enter.prevent="handleAddAlias"
-            @keydown.backspace="handleRemoveAlias"
-            class="placeholder-default-500 text-default-700 min-w-[120px] flex-grow bg-transparent outline-none"
-            placeholder="输入别名后回车"
-          />
-        </div>
-      </div>
+      <div class="text-sm font-medium">别名</div>
+      <KunTagInput
+        v-model="toolsetUpdateForm.aliases"
+        :max-tags="17"
+        :max-tag-length="500"
+        placeholder="输入别名后回车"
+        helper-text="按 Enter 添加，最多 17 个"
+        color="primary"
+        @invalid="onAliasInvalid"
+      />
     </div>
 
     <div class="flex justify-end">

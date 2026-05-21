@@ -121,7 +121,6 @@ watch(
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     content-class="space-y-6"
   >
     <KunHeader
@@ -140,7 +139,7 @@ watch(
             v-if="searchMode === 'multi' && selectedTags.length"
             class="flex flex-wrap gap-2"
           >
-            <KunBadge
+            <KunChip
               v-for="t in selectedTags"
               :key="t.id"
               color="primary"
@@ -155,7 +154,7 @@ watch(
               >
                 <KunIcon name="lucide:x" />
               </KunButton>
-            </KunBadge>
+            </KunChip>
           </div>
 
           <div class="flex items-center gap-2">

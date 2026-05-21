@@ -1,7 +1,7 @@
 // @vitest-environment nuxt
 //
 // SnapshotDiff structural-diff component spec. The Nuxt environment is
-// needed because the component reaches for the auto-imported KunBadge /
+// needed because the component reaches for the auto-imported KunChip /
 // KunNull / useDiff symbols at render time; happy-dom alone would
 // resolve them to undefined and the test would assert against an empty
 // HTML shell.

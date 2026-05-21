@@ -58,7 +58,6 @@ const handleUpdateTopicHideStatus = async (topicId: number) => {
     <div class="flex flex-col space-y-3" v-if="data && data.topics.length">
       <template v-if="pageData.type !== 'topic_hide'">
         <KunCard
-          :is-pressable="true"
           v-for="(topic, index) in data.topics"
           :key="index"
           :href="`/topic/${topic.id}`"
@@ -74,7 +73,6 @@ const handleUpdateTopicHideStatus = async (topicId: number) => {
 
       <template v-else>
         <KunCard
-          :is-pressable="false"
           :is-hoverable="false"
           :is-transparent="true"
           v-for="(topic, index) in data.topics"

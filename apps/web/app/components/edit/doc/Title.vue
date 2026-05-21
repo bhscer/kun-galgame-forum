@@ -12,9 +12,9 @@ const titlePlaceholder = computed(() =>
   <div class="space-y-4">
     <div class="flex items-center justify-between gap-3">
       <h3 class="text-lg font-semibold">文档标题</h3>
-      <KunBadge color="primary" variant="flat">
+      <KunChip color="primary" variant="flat">
         {{ mode === 'rewrite' ? '重新编辑' : '创建文档' }}
-      </KunBadge>
+      </KunChip>
     </div>
 
     <KunInput

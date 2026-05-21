@@ -118,34 +118,34 @@ const handleDeleteRating = async () => {
 
           <div class="flex flex-wrap items-center gap-2">
             <div class="text-default-500 text-sm">通关状态</div>
-            <KunBadge color="primary">
+            <KunChip color="primary">
               {{ KUN_GALGAME_RATING_PLAY_STATUS_MAP[data.play_status] }}
-            </KunBadge>
+            </KunChip>
 
             <span class="bg-default-300 h-3 w-px" />
 
             <div class="text-default-500 text-sm">推荐程度</div>
-            <KunBadge
+            <KunChip
               :color="KUN_GALGAME_RATING_RECOMMEND_COLOR_MAP[data.recommend]"
             >
               {{ KUN_GALGAME_RATING_RECOMMEND_MAP[data.recommend] }}
-            </KunBadge>
+            </KunChip>
 
             <span class="bg-default-300 h-3 w-px" />
 
             <div class="text-default-500 text-sm">剧透程度</div>
-            <KunBadge
+            <KunChip
               :color="KUN_GALGAME_RATING_SPOILER_COLOR_MAP[data.spoiler_level]"
             >
               {{ KUN_GALGAME_RATING_SPOILER_MAP[data.spoiler_level] }}
-            </KunBadge>
+            </KunChip>
 
             <span class="bg-default-300 h-3 w-px" />
 
-            <KunBadge color="warning" variant="solid">
+            <KunChip color="warning" variant="solid">
               用户总评分
               {{ data.overall }}
-            </KunBadge>
+            </KunChip>
           </div>
 
           <KunContentText
@@ -186,7 +186,7 @@ const handleDeleteRating = async () => {
             <span class="font-medium">
               {{ KUN_GALGAME_DIM_LABELS[dim] }}
             </span>
-            <KunBadge color="secondary">{{ data[dim] }}</KunBadge>
+            <KunChip color="secondary">{{ data[dim] }}</KunChip>
           </div>
           <p class="text-default-500 text-sm">
             {{ KUN_GALGAME_DIM_DESCRIPTIONS[dim][data[dim]] }}
@@ -249,7 +249,6 @@ const handleDeleteRating = async () => {
     <KunCard
       :is-hoverable="false"
       :is-transparent="false"
-      :is-pressable="false"
       v-if="data?.galgameSeries"
     >
       <KunHeader
@@ -269,7 +268,7 @@ const handleDeleteRating = async () => {
 
     <GalgameRatingPublish
       v-if="data && canEdit"
-      v-model:modal-value="isEditOpen"
+      v-model="isEditOpen"
       :galgame-id="data.galgame.id"
       :initial-data="{
         galgameRatingId: data.id,

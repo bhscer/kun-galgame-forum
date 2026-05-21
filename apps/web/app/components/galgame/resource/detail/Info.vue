@@ -203,7 +203,7 @@ const handleRewriteResource = async () => {
           </KunInfo>
 
           <div class="flex justify-end">
-            <KunBadge
+            <KunChip
               :color="isResourceExpired ? 'danger' : 'success'"
               variant="solid"
             >
@@ -212,7 +212,7 @@ const handleRewriteResource = async () => {
                   ? '该资源链接被其它用户标记为失效'
                   : '该资源链接可用'
               }}
-            </KunBadge>
+            </KunChip>
           </div>
         </div>
       </template>
@@ -271,8 +271,8 @@ const handleRewriteResource = async () => {
     <KunModal
       :is-dismissable="false"
       :is-show-close-button="false"
-      :modal-value="isShowPublish"
-      @update:modal-value="(value) => (isShowPublish = value)"
+      :model-value="isShowPublish"
+      @update:model-value="(value) => (isShowPublish = value)"
     >
       <GalgameResourcePublish
         :refresh="refresh"

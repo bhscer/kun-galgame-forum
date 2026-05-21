@@ -14,8 +14,8 @@
 // Single root is <div class="contents"> (page renders us bare). The
 // galgamePR[0] guard handles the persist:false edge; ?type=pr arms the
 // `prevent` middleware against hard refreshes (see Rewrite.vue).
-import type { KunSelectOption } from '~/components/kun/select/type'
-import type { KunTabItem } from '~/components/kun/tab/type'
+import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
+import type { KunTabItem } from '@kun/ui/components/kun/tab/type'
 import { languageItems } from '~/constants/edit'
 
 const { galgamePR } = storeToRefs(useTempGalgamePRStore())
@@ -54,7 +54,6 @@ const originalLanguageOptions: KunSelectOption[] = [
     <ClientOnly>
       <KunCard
         :is-hoverable="false"
-        :is-pressable="false"
         :is-transparent="false"
         content-class="space-y-6"
       >

@@ -119,7 +119,6 @@ if (data.value) {
       <KunCard
         :is-transparent="false"
         :is-hoverable="false"
-        :is-pressable="false"
         class-name="p-6"
         content-class="space-y-6"
       >
@@ -167,7 +166,6 @@ if (data.value) {
       <KunCard
         :is-transparent="false"
         :is-hoverable="false"
-        :is-pressable="false"
         class-name="p-6"
       >
         <h3 class="text-default-900 mb-4 text-lg font-semibold">相关标签</h3>

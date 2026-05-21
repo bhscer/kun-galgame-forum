@@ -78,7 +78,6 @@ const handleDelete = async () => {
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     dark-border
     content-class="space-y-3"
@@ -90,25 +89,25 @@ const handleDelete = async () => {
       </div>
 
       <div class="flex items-center gap-1">
-        <KunBadge color="primary">
+        <KunChip color="primary">
           {{
             poll.min_choice === poll.max_choice
               ? `必选 ${poll.max_choice} 项`
               : `可选 ${poll.min_choice}-${poll.max_choice} 项`
           }}
-        </KunBadge>
+        </KunChip>
 
-        <KunBadge color="secondary">
+        <KunChip color="secondary">
           {{ TOPIC_POLL_VISIBILITY_MAP[poll.result_visibility] }}
-        </KunBadge>
+        </KunChip>
 
-        <KunBadge :color="poll.can_change_vote ? 'success' : 'danger'">
+        <KunChip :color="poll.can_change_vote ? 'success' : 'danger'">
           {{ poll.can_change_vote ? '可修改投票' : '不可修改投票' }}
-        </KunBadge>
+        </KunChip>
 
-        <KunBadge :color="isPollEnded ? 'default' : 'success'">
+        <KunChip :color="isPollEnded ? 'default' : 'success'">
           {{ isPollEnded ? '已结束' : '进行中' }}
-        </KunBadge>
+        </KunChip>
       </div>
     </div>
 

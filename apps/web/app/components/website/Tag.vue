@@ -80,14 +80,14 @@ const handleClick = async (tagName: string) => {
 <template>
   <template v-for="tag in sortedTags" :key="tag.id">
     <KunTooltip :text="`价值: ${tag.level}`">
-      <KunBadge
+      <KunChip
         @click="handleClick(tag.name)"
         :variant="tagVariant(tag)"
         :color="tagColor(tag)"
         :class-name="isNav ? 'cursor-pointer' : ''"
       >
         {{ tag.label }}
-      </KunBadge>
+      </KunChip>
     </KunTooltip>
   </template>
 </template>

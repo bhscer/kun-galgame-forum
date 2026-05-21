@@ -2,7 +2,7 @@
 import { KUN_DOC_CATEGORY_MAP, KUN_DOC_STATUS_OPTIONS } from '~/constants/doc'
 import { useDocEditorContext } from './context'
 import { normalizeDocSlug } from '~/utils/doc'
-import type { KunSelectOption } from '~/components/kun/select/type'
+import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
 
 const { form, categories, tags, refreshTags, readingMinute } =
   useDocEditorContext()
@@ -187,9 +187,9 @@ const handleCreateTag = async () => {
           <h4 class="font-semibold">文档标签</h4>
           <p class="text-default-500 text-xs">点击任意标签即可切换选中状态。</p>
         </div>
-        <KunBadge color="secondary" variant="flat">
+        <KunChip color="secondary" variant="flat">
           共 {{ tags.length }} 个标签
-        </KunBadge>
+        </KunChip>
       </div>
 
       <div
@@ -216,7 +216,7 @@ const handleCreateTag = async () => {
       >
         <span>已选择：</span>
         <div class="flex flex-wrap gap-2">
-          <KunBadge
+          <KunChip
             v-for="tagId in form.tagIds"
             :key="tagId"
             color="secondary"
@@ -225,7 +225,7 @@ const handleCreateTag = async () => {
             {{
               tags.find((tag) => tag.id === tagId)?.title || `标签 #${tagId}`
             }}
-          </KunBadge>
+          </KunChip>
         </div>
       </div>
 

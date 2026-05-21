@@ -50,7 +50,6 @@ const filteredTags = computed(() => {
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     class-name="overflow-visible"
     content-class="space-y-3"
@@ -93,7 +92,7 @@ const filteredTags = computed(() => {
           underline="none"
           :to="`/galgame-tag/${tag.id}`"
         >
-          <KunBadge class-name="bg-default-500/10 cursor-pointer" size="md">
+          <KunChip class-name="bg-default-500/10 cursor-pointer" size="md">
             <span
               :class="
                 cn(
@@ -113,7 +112,7 @@ const filteredTags = computed(() => {
             <span v-if="tag.spoilerLevel > 0" class="text-warning-600 text-xs">
               {{ tag.spoilerLevel > 1 ? '(严重剧透)' : '(剧透)' }}
             </span>
-          </KunBadge>
+          </KunChip>
         </KunLink>
       </TransitionGroup>
 

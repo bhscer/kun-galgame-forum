@@ -113,8 +113,8 @@ onMounted(async () => {
       />
 
       <KunModal
-        :modal-value="isShowUpload"
-        @update:modal-value="(value) => (isShowUpload = value)"
+        :model-value="isShowUpload"
+        @update:model-value="(value) => (isShowUpload = value)"
       >
         <div class="flex flex-col space-y-3">
           <h2>更改 Galgame 预览图</h2>
@@ -147,7 +147,7 @@ onMounted(async () => {
         </div>
       </KunModal>
 
-      <KunBadge
+      <KunChip
         variant="solid"
         class="absolute top-2 left-2"
         :color="galgame.contentLimit === 'sfw' ? 'success' : 'danger'"
@@ -158,7 +158,7 @@ onMounted(async () => {
         >
           {{ galgame.contentLimit.toLocaleUpperCase() }}
         </KunTooltip>
-      </KunBadge>
+      </KunChip>
 
       <KunButton
         class-name="absolute bottom-2 right-2"
@@ -179,32 +179,32 @@ onMounted(async () => {
       <div class="space-y-3">
         <div class="flex flex-wrap gap-2">
           <template v-for="(alias, index) in galgameAliasArray" :key="index">
-            <KunBadge v-if="alias">{{ alias }}</KunBadge>
+            <KunChip v-if="alias">{{ alias }}</KunChip>
           </template>
         </div>
 
         <KunDivider />
 
         <div class="space-y-1 space-x-1">
-          <KunBadge
+          <KunChip
             v-for="(t, index) in galgame.type"
             :key="index"
             color="primary"
           >
             <KunIcon :name="GALGAME_RESOURCE_TYPE_ICON_MAP[t]" />
             {{ KUN_GALGAME_RESOURCE_TYPE_MAP[t] }}
-          </KunBadge>
+          </KunChip>
 
-          <KunBadge
+          <KunChip
             v-for="(lang, index) in galgame.language"
             :key="index"
             color="secondary"
           >
             <KunIcon class="icon" name="lucide:globe" />
             {{ KUN_GALGAME_RESOURCE_LANGUAGE_MAP[lang] }}
-          </KunBadge>
+          </KunChip>
 
-          <KunBadge
+          <KunChip
             v-for="(platform, index) in galgame.platform"
             :key="index"
             color="success"
@@ -214,16 +214,16 @@ onMounted(async () => {
               :name="GALGAME_RESOURCE_PLATFORM_ICON_MAP[platform]"
             />
             {{ KUN_GALGAME_RESOURCE_PLATFORM_MAP[platform] }}
-          </KunBadge>
+          </KunChip>
         </div>
 
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-1">
             <KunTooltip :text="`浏览量: ${galgame.view}`">
-              <KunBadge size="md">
+              <KunChip size="md">
                 <KunIcon name="lucide:eye" />
                 <span>{{ formatNumber(galgame.view) }}</span>
-              </KunBadge>
+              </KunChip>
             </KunTooltip>
 
             <GalgameLike
@@ -253,7 +253,7 @@ onMounted(async () => {
             <GalgameRewrite :galgame="galgame" />
 
             <GalgameRatingPublish
-              v-model:modal-value="isRatingOpen"
+              v-model="isRatingOpen"
               :galgame-id="galgame.id"
               @on-published="(newRating) => emits('onRatingCreated', newRating)"
             />

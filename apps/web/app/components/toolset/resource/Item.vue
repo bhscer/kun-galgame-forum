@@ -171,10 +171,10 @@ const handleSave = async () => {
   <div class="space-y-3">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-2">
-        <KunBadge size="sm" color="secondary">
+        <KunChip size="sm" color="secondary">
           {{ KUN_GALGAME_TOOLSET_STORAGE_MAP[base.type] }}
-        </KunBadge>
-        <KunBadge size="sm" color="warning">
+        </KunChip>
+        <KunChip size="sm" color="warning">
           <KunIcon name="lucide:database" />
           <template v-if="base.type === 's3'">
             {{ s3DisplaySize }}
@@ -182,11 +182,11 @@ const handleSave = async () => {
           <template v-else>
             {{ base.size }}
           </template>
-        </KunBadge>
-        <KunBadge size="sm" color="primary">
+        </KunChip>
+        <KunChip size="sm" color="primary">
           <KunIcon name="lucide:download" />
           <span>{{ `${base.download} 人下载` }}</span>
-        </KunBadge>
+        </KunChip>
 
         <KunTooltip :text="base.status ? '资源已失效' : '资源有效'">
           <div
@@ -277,7 +277,6 @@ const handleSave = async () => {
     </div>
 
     <KunCard
-      :is-pressable="false"
       :is-hoverable="false"
       :is-transparent="true"
       v-if="isEditing && detail"

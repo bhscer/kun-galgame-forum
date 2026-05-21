@@ -1,4 +1,4 @@
-import type { KunSelectOption } from '~/components/kun/select/type'
+import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
 
 export const kunReportOptions: KunSelectOption[] = [
   { value: 'topic', label: '话题' },

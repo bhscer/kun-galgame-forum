@@ -202,10 +202,10 @@ watch(
         <slot name="footer" />
 
         <div class="flex shrink-0 items-center gap-2">
-          <KunBadge color="success">
+          <KunChip color="success">
             <KunIconMarkdown class="text-success-700 dark:text-success" />
             Markdown 支持
-          </KunBadge>
+          </KunChip>
           <span>
             {{ `${textCount} 字` }}
           </span>

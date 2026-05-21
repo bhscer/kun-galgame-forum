@@ -13,7 +13,6 @@ defineProps<{
   >
     <KunCard
       :is-transparent="isTransparent"
-      :is-pressable="true"
       :dark-border="true"
       v-for="galgame in galgames"
       :key="galgame.id"
@@ -52,13 +51,13 @@ defineProps<{
             </span>
           </div>
 
-          <KunBadge
+          <KunChip
             variant="solid"
             class-name="opacity-50 absolute top-0 right-0"
             :color="galgame.contentLimit === 'sfw' ? 'success' : 'danger'"
           >
             {{ galgame.contentLimit.toLocaleUpperCase() }}
-          </KunBadge>
+          </KunChip>
         </div>
 
         <div

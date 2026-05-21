@@ -52,7 +52,7 @@ const links = [
   >
     <div class="space-y-3 p-3">
       <template v-if="!isCollapsed">
-        <KunBrand />
+        <KunBrand :name="kungal.titleShort" badge="论坛" />
       </template>
       <template v-else>
         <KunLink

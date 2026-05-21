@@ -188,7 +188,6 @@ const handleConfirmReason = async () => {
   <KunCard
     v-if="data"
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     class="w-full"
     content-class="space-y-4"
@@ -233,9 +232,9 @@ const handleConfirmReason = async () => {
             <h3 class="truncate text-lg font-medium">
               {{ nameOf(msg.galgame) }}
             </h3>
-            <KunBadge size="xs" variant="flat" :color="typeBadge(msg.type).color">
+            <KunChip size="xs" variant="flat" :color="typeBadge(msg.type).color">
               {{ typeBadge(msg.type).label }}
-            </KunBadge>
+            </KunChip>
           </div>
           <div class="text-default-500 flex flex-wrap items-center gap-2 text-sm">
             <span>
@@ -302,9 +301,9 @@ const handleConfirmReason = async () => {
     />
 
     <KunModal
-      :modal-value="isReasonModalOpen"
+      :model-value="isReasonModalOpen"
       inner-class-name="w-full max-w-lg"
-      @update:modal-value="closeReasonModal"
+      @update:model-value="closeReasonModal"
     >
       <div class="space-y-4">
         <h3 class="text-xl font-medium">{{ modalTitle }}</h3>

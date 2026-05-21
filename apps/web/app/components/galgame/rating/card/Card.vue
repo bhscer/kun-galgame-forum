@@ -29,7 +29,6 @@ const systemRating = (rating: GalgameRatingCard) => {
       v-for="rating in ratings"
       :key="rating.id"
       :is-transparent="true"
-      :is-pressable="true"
       :is-hoverable="true"
       :href="`/galgame-rating/${rating.id}`"
     >
@@ -83,16 +82,16 @@ const systemRating = (rating: GalgameRatingCard) => {
             </span>
           </div>
 
-          <KunBadge variant="solid" color="success">
+          <KunChip variant="solid" color="success">
             {{ KUN_GALGAME_RATING_PLAY_STATUS_MAP[rating.play_status] }}
-          </KunBadge>
+          </KunChip>
         </div>
 
-        <KunBadge
+        <KunChip
           :color="KUN_GALGAME_RATING_SPOILER_COLOR_MAP[rating.spoiler_level]"
         >
           {{ KUN_GALGAME_RATING_SPOILER_MAP[rating.spoiler_level] }}
-        </KunBadge>
+        </KunChip>
       </div>
     </KunCard>
   </div>

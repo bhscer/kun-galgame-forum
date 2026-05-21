@@ -34,7 +34,7 @@ const title = isNSFWEnable.value
   >
     {{ title }}
 
-    <KunModal inner-class-name="overflow-visible" v-model:modal-value="open">
+    <KunModal inner-class-name="overflow-visible" v-model="open">
       <KunInfo
         :title="title"
         :color="isNSFWEnable ? 'danger' : 'warning'"

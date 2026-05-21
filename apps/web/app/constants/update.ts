@@ -1,5 +1,5 @@
-import type { KunSelectOption } from '~/components/kun/select/type'
-import type { KunTabItem } from '~/components/kun/tab/type'
+import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
+import type { KunTabItem } from '@kun/ui/components/kun/tab/type'
 
 export const kunUpdateLogTabItem: KunTabItem[] = [
   {

@@ -47,8 +47,8 @@ watch(
 
 <template>
   <KunModal
-    :modal-value="modelValue"
-    @update:modal-value="(value) => emits('update:modelValue', value)"
+    :model-value="modelValue"
+    @update:model-value="(value) => emits('update:modelValue', value)"
     inner-class-name="max-w-md"
   >
     <h2 class="mb-4 text-xl font-bold">投票记录</h2>

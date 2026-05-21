@@ -65,9 +65,9 @@ const handleDelete = async () => {
       </h1>
 
       <div class="flex flex-wrap items-center gap-3 text-sm">
-        <KunBadge color="secondary">
+        <KunChip color="secondary">
           {{ metadata.category?.title || `分类 #${metadata.category_id}` }}
-        </KunBadge>
+        </KunChip>
         <div class="text-default-500 flex items-center gap-1">
           <KunIcon name="lucide:eye" class="h-4 w-4" />
           <span>{{ metadata.view }} 次浏览</span>

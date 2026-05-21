@@ -1,4 +1,4 @@
-import type { KunTabItem } from '~/components/kun/tab/type'
+import type { KunTabItem } from '@kun/ui/components/kun/tab/type'
 
 type _NavItemData = { text: string; path: string }
 

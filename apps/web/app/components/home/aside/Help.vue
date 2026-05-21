@@ -4,7 +4,6 @@
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     color="success"
   >
     <h3 class="text-success-800 text-base sm:text-lg">鲲论坛的使用小提示</h3>

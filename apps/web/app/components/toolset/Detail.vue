@@ -121,18 +121,18 @@ const handleResourceUpdated = (res: ToolsetResource) => {
       <div class="space-y-3">
         <h1 class="text-2xl leading-tight font-bold">{{ data.name }}</h1>
         <div class="mt-2 flex flex-wrap items-center gap-2">
-          <KunBadge color="secondary" size="sm">
+          <KunChip color="secondary" size="sm">
             {{ KUN_GALGAME_TOOLSET_VERSION_MAP[data.version] }}
-          </KunBadge>
-          <KunBadge color="success" size="sm">
+          </KunChip>
+          <KunChip color="success" size="sm">
             {{ KUN_GALGAME_TOOLSET_PLATFORM_MAP[data.platform] }}
-          </KunBadge>
-          <KunBadge color="primary" size="sm">
+          </KunChip>
+          <KunChip color="primary" size="sm">
             {{ KUN_GALGAME_TOOLSET_LANGUAGE_MAP[data.language] }}
-          </KunBadge>
-          <KunBadge color="danger" size="sm">
+          </KunChip>
+          <KunChip color="danger" size="sm">
             {{ KUN_GALGAME_TOOLSET_TYPE_MAP[data.type] }}
-          </KunBadge>
+          </KunChip>
         </div>
 
         <KunDivider class-name="my-6" />
@@ -177,14 +177,14 @@ const handleResourceUpdated = (res: ToolsetResource) => {
           <div v-if="data.aliases.length" class="space-y-2">
             <h3 class="font-semibold">别名</h3>
             <div class="flex flex-wrap items-center gap-2">
-              <KunBadge
+              <KunChip
                 v-for="(a, i) in data.aliases"
                 :key="i"
                 color="default"
                 size="sm"
               >
                 {{ a }}
-              </KunBadge>
+              </KunChip>
             </div>
           </div>
 
@@ -196,9 +196,9 @@ const handleResourceUpdated = (res: ToolsetResource) => {
                 :model-value="practicalityData.mine"
                 @set="handleSetStar"
               />
-              <KunBadge size="sm" variant="flat">
+              <KunChip size="sm" variant="flat">
                 {{ practicalityData.mine }} / 5
-              </KunBadge>
+              </KunChip>
             </div>
           </div>
         </div>
@@ -254,8 +254,8 @@ const handleResourceUpdated = (res: ToolsetResource) => {
     </KunCard>
 
     <KunModal
-      :modal-value="showResourceModal"
-      @update:modal-value="(v) => (showResourceModal = v)"
+      :model-value="showResourceModal"
+      @update:model-value="(v) => (showResourceModal = v)"
       :is-dismissable="false"
     >
       <ToolsetResourceContainer

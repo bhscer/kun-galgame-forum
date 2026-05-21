@@ -17,13 +17,13 @@ const hoverTranslations = [
 
 <template>
   <div class="relative mb-4 h-32 w-full">
-    <KunBadge
+    <KunChip
       variant="solid"
       class="absolute top-2 left-2 z-100"
       :color="isNSFW ? 'danger' : 'success'"
     >
       {{ isNSFW ? 'NSFW' : 'SFW' }}
-    </KunBadge>
+    </KunChip>
 
     <div class="absolute inset-0">
       <div

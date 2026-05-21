@@ -100,7 +100,6 @@ useKunSeoMeta({
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     content-class="space-y-6"
     v-if="data"
   >
@@ -121,13 +120,13 @@ useKunSeoMeta({
             class="text-default-500 flex flex-wrap gap-2"
           >
             别名
-            <KunBadge
+            <KunChip
               color="primary"
               v-for="(a, index) in data.alias"
               :key="index"
             >
               {{ a }}
-            </KunBadge>
+            </KunChip>
           </div>
           <div v-if="role >= 2" class="flex justify-end gap-2">
             <KunButton @click="openEditEngineModal">编辑引擎</KunButton>

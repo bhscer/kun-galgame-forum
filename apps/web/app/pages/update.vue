@@ -10,7 +10,6 @@ const activeTab = computed(
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     content-class="space-y-3"
   >
     <KunTab :items="kunUpdateLogTabItem" :model-value="activeTab" size="sm" />

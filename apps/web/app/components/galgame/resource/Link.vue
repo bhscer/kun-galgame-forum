@@ -56,23 +56,23 @@ const handleMarkValid = async (
   <div class="space-y-2">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex flex-wrap items-center gap-1 rounded-lg">
-        <KunBadge color="primary">
+        <KunChip color="primary">
           <KunIcon :name="GALGAME_RESOURCE_TYPE_ICON_MAP[resource.type]" />
           {{ KUN_GALGAME_RESOURCE_TYPE_MAP[resource.type] }}
-        </KunBadge>
-        <KunBadge color="warning">
+        </KunChip>
+        <KunChip color="warning">
           <KunIcon name="lucide:database" />
           {{ resource.size }}
-        </KunBadge>
-        <KunBadge color="success">
+        </KunChip>
+        <KunChip color="success">
           <KunIcon
             :name="GALGAME_RESOURCE_PLATFORM_ICON_MAP[resource.platform]"
           />
           {{ KUN_GALGAME_RESOURCE_PLATFORM_MAP[resource.platform] }}
-        </KunBadge>
-        <KunBadge color="secondary">
+        </KunChip>
+        <KunChip color="secondary">
           {{ KUN_GALGAME_RESOURCE_LANGUAGE_MAP[resource.language] }}
-        </KunBadge>
+        </KunChip>
       </div>
 
       <div class="ml-auto flex items-center gap-1">

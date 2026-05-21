@@ -57,7 +57,6 @@ if (data.value) {
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     content-class="space-y-6"
     v-if="data"
   >
@@ -65,12 +64,12 @@ if (data.value) {
       <template #endContent>
         <div class="space-y-3">
           <div class="flex items-center space-x-3">
-            <KunBadge color="primary">
+            <KunChip color="primary">
               {{ `本 Wiki 拥有 ${data.websiteCount} 个 ${data.label}` }}
-            </KunBadge>
-            <KunBadge>
+            </KunChip>
+            <KunChip>
               更新于 {{ formatDate(data.updated, { isShowYear: true }) }}
-            </KunBadge>
+            </KunChip>
           </div>
 
           <div class="flex justify-end">

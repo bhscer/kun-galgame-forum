@@ -121,8 +121,8 @@ onMounted(async () => {
     <KunAdDZMMIcon />
 
     <!-- <KunModal
-      :modal-value="isShowUpdateAvatarModal"
-      @update:modal-value="(value) => (isShowUpdateAvatarModal = value)"
+      :model-value="isShowUpdateAvatarModal"
+      @update:model-value="(value) => (isShowUpdateAvatarModal = value)"
     >
       <div class="max-w-xl space-y-3">
         <p>之所以有这个丑陋的弹窗, 是因为我想看见大家都用可爱的孩子做头像!</p>

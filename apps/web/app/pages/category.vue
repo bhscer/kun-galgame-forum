@@ -10,7 +10,6 @@ const activeTab = computed(
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     class-name="h-full"
     content-class="space-y-3 justify-start"

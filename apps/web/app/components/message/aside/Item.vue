@@ -33,20 +33,20 @@ defineProps<{
         <span class="line-clamp-1 break-all">
           {{ markdownToText(room.content) }}
         </span>
-        <KunBadge
+        <KunChip
           class-name="whitespace-nowrap"
           color="primary"
           v-if="room.unreadCount"
         >
           {{ room.unreadCount }}
-        </KunBadge>
-        <KunBadge
+        </KunChip>
+        <KunChip
           class-name="whitespace-nowrap"
           color="default"
           v-if="!room.unreadCount"
         >
           {{ room.count }}
-        </KunBadge>
+        </KunChip>
       </div>
     </div>
   </KunLink>

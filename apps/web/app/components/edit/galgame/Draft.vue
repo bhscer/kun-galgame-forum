@@ -235,16 +235,15 @@ const handleSave = async () => {
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     content-class="space-y-6"
   >
     <KunHeader name="编辑 Galgame 草稿" description="保存后将进入审核队列。">
       <template #endContent>
         <div class="flex items-center gap-3">
-          <KunBadge size="xs" variant="flat" :color="statusBadge.color">
+          <KunChip size="xs" variant="flat" :color="statusBadge.color">
             {{ statusBadge.label }}
-          </KunBadge>
+          </KunChip>
           <KunLink to="/edit/galgame/mine">
             <KunButton size="sm" variant="flat">返回我的提交</KunButton>
           </KunLink>

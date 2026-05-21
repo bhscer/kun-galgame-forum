@@ -27,7 +27,6 @@ const handleUpdateRegisterStatus = async () => {
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     class="w-full"
     content-class="space-y-6"
@@ -40,7 +39,6 @@ const handleUpdateRegisterStatus = async () => {
 
     <KunCard
       :is-hoverable="false"
-      :is-pressable="false"
       :is-transparent="true"
       content-class="space-y-1"
     >

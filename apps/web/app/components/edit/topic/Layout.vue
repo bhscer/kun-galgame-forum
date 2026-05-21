@@ -25,7 +25,6 @@ onBeforeRouteLeave(async (to, from, next) => {
       <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <KunCard
           :is-hoverable="false"
-          :is-pressable="false"
           :is-transparent="false"
           class-name="lg:col-span-1 order-2 sm:order-1"
           content-class="space-y-6"
@@ -38,14 +37,12 @@ onBeforeRouteLeave(async (to, from, next) => {
         <div class="order-1 space-y-3 sm:order-2 lg:col-span-2">
           <KunCard
             :is-hoverable="false"
-            :is-pressable="false"
             :is-transparent="false"
           >
             <EditTopicTitle />
           </KunCard>
           <KunCard
             :is-hoverable="false"
-            :is-pressable="false"
             :is-transparent="false"
           >
             <EditTopicEditor />

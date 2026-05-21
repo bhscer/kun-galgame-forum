@@ -13,7 +13,6 @@ defineProps<{
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     class-name="p-6"
   >
     <h3 class="text-default-900 mb-4 text-lg font-semibold">网站信息</h3>
@@ -24,27 +23,27 @@ defineProps<{
           :to="`/website-category/${data.category.name}`"
           underline="none"
         >
-          <KunBadge class-name="cursor-pointer" color="primary">
+          <KunChip class-name="cursor-pointer" color="primary">
             {{ data.category.label }}
-          </KunBadge>
+          </KunChip>
         </KunLink>
       </div>
 
       <div class="flex items-center justify-between">
         <span class="text-default-500 text-sm">语言</span>
-        <KunBadge color="secondary">
+        <KunChip color="secondary">
           {{ KUN_WEBSITE_LANGUAGE_MAP[data.language] }}
-        </KunBadge>
+        </KunChip>
       </div>
 
       <div class="flex items-center justify-between">
         <span class="text-default-500 text-sm">年龄限制</span>
-        <KunBadge
+        <KunChip
           :variant="data.ageLimit === 'all' ? 'flat' : 'solid'"
           :color="data.ageLimit === 'all' ? 'success' : 'danger'"
         >
           {{ KUN_WEBSITE_ACG_LIMIT_MAP[data.ageLimit] }}
-        </KunBadge>
+        </KunChip>
       </div>
 
       <div>

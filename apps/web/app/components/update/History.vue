@@ -62,16 +62,15 @@ const handleUpdateLogAction = async (data: UpdateUpdateLogPayload) => {
     <KunCard
       :is-hoverable="false"
       :is-transparent="true"
-      :is-pressable="false"
       :dark-border="true"
       v-for="update in data.updates"
       :key="update.id"
     >
       <div class="mb-3 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <KunBadge color="primary">
+          <KunChip color="primary">
             {{ KUN_UPDATE_LOG_TYPE_MAP[update.type] }}
-          </KunBadge>
+          </KunChip>
           <span class="text-default-500 text-sm">
             {{ formatDate(update.created, { isShowYear: true }) }} - Version
             {{ update.version }}

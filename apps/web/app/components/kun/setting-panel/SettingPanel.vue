@@ -5,8 +5,8 @@ const { showKUNGalgamePanel } = storeToRefs(useTempSettingStore())
 
 <template>
   <KunModal
-    :modal-value="showKUNGalgamePanel"
-    @update:modal-value="(value) => (showKUNGalgamePanel = value)"
+    :model-value="showKUNGalgamePanel"
+    @update:model-value="(value) => (showKUNGalgamePanel = value)"
     inner-class-name="overflow-visible"
   >
     <div class="relative flex justify-between">

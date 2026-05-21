@@ -66,7 +66,6 @@ const goto = (n: number) => {
     <ClientOnly>
       <KunCard
         :is-hoverable="false"
-        :is-pressable="false"
         :is-transparent="false"
         content-class="space-y-6"
       >

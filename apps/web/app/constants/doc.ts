@@ -1,4 +1,4 @@
-import type { KunUIColor, KunUISize } from '~/components/kun/ui/type'
+import type { KunUIColor, KunUISize } from '@kun/ui/components/kun/ui/type'
 
 export const KUN_DOC_CATEGORY_MAP: Record<string, string> = {
   galgame: 'Galgame',

@@ -27,7 +27,6 @@ const getLanguageName = (langCode: string) => {
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     class-name="overflow-visible"
     content-class="space-y-3"
@@ -56,9 +55,9 @@ const getLanguageName = (langCode: string) => {
               class-name="text-foreground hover:text-primary text-base font-semibold"
             >
               {{ item.name }}
-              <KunBadge size="xs">
+              <KunChip size="xs">
                 {{ `+ ${item.galgameCount}` }}
-              </KunBadge>
+              </KunChip>
             </KunLink>
           </KunTooltip>
         </dd>
@@ -67,9 +66,9 @@ const getLanguageName = (langCode: string) => {
       <div class="flex items-center justify-between">
         <dt class="text-default-500 text-sm font-medium">游戏原语言</dt>
         <dd>
-          <KunBadge color="warning">
+          <KunChip color="warning">
             {{ getLanguageName(originalLanguage) }}
-          </KunBadge>
+          </KunChip>
         </dd>
       </div>
 
@@ -89,12 +88,12 @@ const getLanguageName = (langCode: string) => {
             position="left"
             :text="KUN_GALGAME_AGE_LIMIT_MAP[ageLimit]"
           >
-            <KunBadge
+            <KunChip
               variant="flat"
               :color="ageLimit === 'all' ? 'success' : 'danger'"
             >
               {{ ageLimit === 'all' ? '全年龄' : 'R18' }}
-            </KunBadge>
+            </KunChip>
           </KunTooltip>
         </dd>
       </div>

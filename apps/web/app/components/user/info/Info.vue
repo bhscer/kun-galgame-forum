@@ -78,12 +78,12 @@ const infoList = [
           </KunButton>
         </h1>
         <div class="mt-2 flex items-center space-x-3">
-          <KunBadge size="md" color="primary">
+          <KunChip size="md" color="primary">
             {{ KUN_USER_ROLE_MAP[user.role] }}
-          </KunBadge>
-          <KunBadge size="md" color="success">
+          </KunChip>
+          <KunChip size="md" color="success">
             {{ KUN_USER_STATUS_MAP[user.status] }}
-          </KunBadge>
+          </KunChip>
         </div>
       </div>
       <div class="text-right">
@@ -98,7 +98,6 @@ const infoList = [
       <KunCard
         :is-transparent="false"
         :is-hoverable="false"
-        :is-pressable="false"
         color="primary"
         v-for="block in statsBlocks"
         :key="block.key"

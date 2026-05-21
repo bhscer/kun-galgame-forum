@@ -6,7 +6,7 @@ import {
   KUN_WEBSITE_ACG_LIMIT_MAP
 } from '~/constants/galgameWebsite'
 import type { CreateWebsitePayload, UpdateWebsitePayload } from './types'
-import type { KunSelectOption } from '~/components/kun/select/type'
+import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
 
 type WebsiteData = CreateWebsitePayload & { websiteId?: number }
 
@@ -99,7 +99,7 @@ const handleSubmit = () => {
 <template>
   <KunModal
     :is-dismissable="false"
-    v-model:modal-value="isModalOpen"
+    v-model="isModalOpen"
     inner-class-name="max-w-2xl"
   >
     <form @submit.prevent>

@@ -15,7 +15,7 @@ import {
 import {
   KUN_GALGAME_OFFICIAL_CATEGORY_MAP
 } from '~/constants/galgameOfficial'
-import type { KunSelectOption } from '~/components/kun/select/type'
+import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
 
 interface CreatedEntity {
   id: number
@@ -122,7 +122,7 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <KunModal v-model:modal-value="open" inner-class-name="max-w-md">
+  <KunModal v-model="open" inner-class-name="max-w-md">
     <form class="space-y-4" @submit.prevent>
       <h2 class="text-xl font-bold">{{ title }}</h2>
 

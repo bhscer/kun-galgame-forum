@@ -27,7 +27,6 @@ import { friendArray } from '~/config/friend'
 
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KunCard
-          :is-pressable="true"
           :dark-border="true"
           v-for="(friend, i) in friendGroup.value"
           :key="i"
@@ -38,7 +37,7 @@ import { friendArray } from '~/config/friend'
             <span class="text-lg font-bold">
               {{ friend.name }}
             </span>
-            <KunBadge v-if="friend.status" color="danger">已下线</KunBadge>
+            <KunChip v-if="friend.status" color="danger">已下线</KunChip>
           </div>
           <div class="text-default-600 mb-3 text-sm">
             {{

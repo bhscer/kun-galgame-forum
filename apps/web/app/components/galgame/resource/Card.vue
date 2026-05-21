@@ -18,24 +18,23 @@ defineProps<{
   <KunCard
     :is-transparent="true"
     :is-hoverable="true"
-    :is-pressable="true"
     :to="`/galgame-resource/${resource.id}`"
     :dark-border="true"
     content-class="space-y-2"
   >
     <div class="flex flex-wrap items-center gap-2">
-      <KunBadge size="sm" variant="flat" color="primary">
+      <KunChip size="sm" variant="flat" color="primary">
         <KunIcon
           :name="GALGAME_RESOURCE_PLATFORM_ICON_MAP[resource.platform]"
           class="text-primary h-4 w-4"
         />
         {{ KUN_GALGAME_RESOURCE_PLATFORM_MAP[resource.platform] }}
-      </KunBadge>
+      </KunChip>
 
-      <KunBadge color="warning">
+      <KunChip color="warning">
         <KunIcon name="lucide:database" />
         {{ resource.size }}
-      </KunBadge>
+      </KunChip>
 
       <span class="text-default-500 text-sm">
         {{ formatTimeDifference(resource.created) }}

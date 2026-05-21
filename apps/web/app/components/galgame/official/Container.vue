@@ -46,7 +46,6 @@ watchDebounced(
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     content-class="space-y-6"
   >
     <KunHeader

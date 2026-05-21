@@ -52,7 +52,7 @@ const handleSubmit = () => {
 <template>
   <KunModal
     :is-dismissable="false"
-    v-model:modal-value="isModalOpen"
+    v-model="isModalOpen"
     inner-class-name="max-w-md"
   >
     <form @submit.prevent="handleSubmit">

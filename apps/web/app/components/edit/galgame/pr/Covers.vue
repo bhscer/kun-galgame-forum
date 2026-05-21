@@ -12,7 +12,7 @@
 //
 // Footer.vue strips `cdn_url` (server-injected preview) from the wire
 // payload — wiki doesn't accept it on write.
-import type { KunSelectOption } from '~/components/kun/select/type'
+import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
 
 const { galgamePR } = storeToRefs(useTempGalgamePRStore())
 
@@ -120,13 +120,13 @@ const handleRemove = (hash: string) => {
         />
         <div class="flex-1 space-y-2">
           <div class="flex flex-wrap items-center gap-2">
-            <KunBadge
+            <KunChip
               v-if="cover.sort_order === 0"
               color="primary"
               variant="flat"
             >
               已钉为封面
-            </KunBadge>
+            </KunChip>
             <KunButton
               v-else
               size="sm"

@@ -54,13 +54,13 @@ const handleBanUser = async () => {
   >
     <div class="flex items-center gap-3">
       <KunUser :user="user" />
-      <KunBadge
+      <KunChip
         size="xs"
         :variant="user.status ? 'solid' : 'flat'"
         :color="user.status ? 'danger' : 'success'"
       >
         {{ KUN_USER_STATUS_MAP[user.status] }}
-      </KunBadge>
+      </KunChip>
     </div>
 
     <div class="mt-2 flex items-center justify-between text-sm">

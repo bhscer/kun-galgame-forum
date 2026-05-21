@@ -395,7 +395,7 @@ const submit = async () => {
   <div class="space-y-4">
     <input ref="fileInput" type="file" hidden @change="onChange" />
 
-    <KunCard :is-hoverable="false" :is-pressable="false" :is-transparent="true">
+    <KunCard :is-hoverable="false" :is-transparent="true">
       <div
         class="cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors"
         :class="

@@ -96,9 +96,9 @@ const handleRevert = async (rev: number) => {
           <div class="space-y-1">
             <div class="flex flex-wrap items-center gap-2">
               <span>{{ rev.user.name }}</span>
-              <KunBadge size="sm">
+              <KunChip size="sm">
                 {{ ACTION_LABEL[rev.action] || rev.action }}
-              </KunBadge>
+              </KunChip>
               <span class="text-default-400 text-xs">#{{ rev.revision }}</span>
               <span v-if="rev.isMinor" class="text-default-400 text-xs">
                 (小修改)

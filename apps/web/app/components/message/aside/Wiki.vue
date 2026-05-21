@@ -107,9 +107,9 @@ const linkTo = computed(() => {
   <div class="space-y-2 rounded-lg p-2">
     <div class="flex items-center gap-2 break-all">
       <KunIcon class="text-secondary text-lg" name="lucide:info" />
-      <KunBadge size="xs" variant="flat" :color="typeBadge.color">
+      <KunChip size="xs" variant="flat" :color="typeBadge.color">
         {{ typeBadge.label }}
-      </KunBadge>
+      </KunChip>
       <span class="text-default-500 text-sm">
         {{ formatDate(message.created_at, { isShowYear: true, isPrecise: true }) }}
       </span>

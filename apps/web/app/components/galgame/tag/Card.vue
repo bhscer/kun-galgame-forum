@@ -13,7 +13,6 @@ defineProps<{
     <KunCard
       :is-transparent="true"
       :is-hoverable="true"
-      :is-pressable="true"
       :dark-border="true"
       :to="`/galgame-tag/${tag.id}`"
     >
@@ -31,9 +30,9 @@ defineProps<{
           #
         </span>
         {{ tag.name }}
-        <KunBadge size="xs">
+        <KunChip size="xs">
           {{ `+ ${tag.galgameCount}` }}
-        </KunBadge>
+        </KunChip>
       </h3>
     </KunCard>
   </KunTooltip>

@@ -60,7 +60,6 @@ const handleDeleteSeries = async () => {
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     content-class="space-y-3"
   >

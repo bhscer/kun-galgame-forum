@@ -22,7 +22,6 @@ defineProps<{
     <div class="flex" v-for="rating in ratings" :key="rating.id">
       <KunCard
         :is-transparent="false"
-        :is-pressable="false"
         :is-hoverable="false"
         class-name="max-w-80"
       >
@@ -63,20 +62,20 @@ defineProps<{
         </div>
 
         <div class="text-default-500 flex flex-wrap items-center gap-2">
-          <KunBadge
+          <KunChip
             class-name="shrink-0"
             :color="KUN_GALGAME_RATING_RECOMMEND_COLOR_MAP[rating.recommend]"
           >
             {{ KUN_GALGAME_RATING_RECOMMEND_MAP[rating.recommend] }}
-          </KunBadge>
-          <KunBadge color="primary">
+          </KunChip>
+          <KunChip color="primary">
             {{ KUN_GALGAME_RATING_PLAY_STATUS_MAP[rating.play_status] }}
-          </KunBadge>
-          <KunBadge
+          </KunChip>
+          <KunChip
             :color="KUN_GALGAME_RATING_SPOILER_COLOR_MAP[rating.spoiler_level]"
           >
             {{ KUN_GALGAME_RATING_SPOILER_MAP[rating.spoiler_level] }}
-          </KunBadge>
+          </KunChip>
         </div>
 
         <div class="text-default-500 flex flex-wrap items-center gap-3 text-xs">

@@ -52,9 +52,9 @@ const { data, status } = await useKunFetch('/activity', {
         class-name="hover:text-primary line-clamp-3 break-all transition-colors"
       >
         {{ activity.content }}
-        <KunBadge class-name="cursor-pointer" color="primary" size="xs">
+        <KunChip class-name="cursor-pointer" color="primary" size="xs">
           {{ KUN_ACTIVITY_TYPE_TYPE[activity.type] }}
-        </KunBadge>
+        </KunChip>
       </KunLink>
 
       <div class="flex items-center space-x-2">

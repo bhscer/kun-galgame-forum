@@ -45,13 +45,13 @@ const platformLabels = computed(() => {
           :alt="getPreferredLanguageText(galgame.name)"
         />
 
-        <KunBadge
+        <KunChip
           :color="galgame.contentLimit === 'sfw' ? 'success' : 'danger'"
           class-name="absolute top-2 left-2"
           variant="solid"
         >
           {{ props.galgame.contentLimit.toUpperCase() }}
-        </KunBadge>
+        </KunChip>
       </div>
 
       <div class="flex w-full flex-col gap-3 md:col-span-2 lg:col-span-3">
@@ -65,12 +65,12 @@ const platformLabels = computed(() => {
             >
               {{ galgameName }}
             </KunLink>
-            <KunBadge
+            <KunChip
               class-name="ml-2 -translate-y-1"
               :color="galgame.contentLimit === 'all' ? 'success' : 'danger'"
             >
               {{ galgame.contentLimit === 'all' ? '全年龄' : 'R18' }}
-            </KunBadge>
+            </KunChip>
           </h2>
           <p class="text-default-500 mt-1 text-sm">
             {{
@@ -85,9 +85,9 @@ const platformLabels = computed(() => {
               支持下载的类型
             </p>
             <div class="mt-1 flex flex-wrap gap-1">
-              <KunBadge v-for="type in typeLabels" :key="type" variant="flat">
+              <KunChip v-for="type in typeLabels" :key="type" variant="flat">
                 {{ type }}
-              </KunBadge>
+              </KunChip>
             </div>
           </div>
 
@@ -96,13 +96,13 @@ const platformLabels = computed(() => {
               支持下载的语言
             </p>
             <div class="mt-1 flex flex-wrap gap-1">
-              <KunBadge
+              <KunChip
                 v-for="lang in languageLabels"
                 :key="lang"
                 variant="flat"
               >
                 {{ lang }}
-              </KunBadge>
+              </KunChip>
             </div>
           </div>
 
@@ -111,13 +111,13 @@ const platformLabels = computed(() => {
               支持下载的平台
             </p>
             <div class="mt-1 flex flex-wrap gap-1">
-              <KunBadge
+              <KunChip
                 v-for="platform in platformLabels"
                 :key="platform"
                 variant="flat"
               >
                 {{ platform }}
-              </KunBadge>
+              </KunChip>
             </div>
           </div>
         </div>

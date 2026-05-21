@@ -8,7 +8,6 @@ defineProps<{
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     class-name="p-6"
   >
     <h3 class="text-default-900 mb-4 text-lg font-semibold">统计信息</h3>

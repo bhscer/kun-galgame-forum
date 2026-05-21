@@ -45,31 +45,31 @@ onMounted(async () => {
     <div class="space-y-2" v-for="resource in resources" :key="resource.id">
       <div class="flex flex-wrap items-center justify-between">
         <div class="flex flex-wrap items-center gap-1 rounded-lg">
-          <KunBadge
+          <KunChip
             v-for="(t, index) in resource.type"
             :key="index"
             color="primary"
           >
             {{ SUPPORTED_TYPE_MAP[t] }}
-          </KunBadge>
-          <KunBadge color="warning">
+          </KunChip>
+          <KunChip color="warning">
             <KunIcon name="lucide:database" />
             {{ resource.size }}
-          </KunBadge>
-          <KunBadge
+          </KunChip>
+          <KunChip
             v-for="(p, index) in resource.platform"
             :key="index"
             color="success"
           >
             {{ SUPPORTED_PLATFORM_MAP[p] }}
-          </KunBadge>
-          <KunBadge
+          </KunChip>
+          <KunChip
             v-for="(l, index) in resource.language"
             :key="index"
             color="secondary"
           >
             {{ SUPPORTED_LANGUAGE_MAP[l] }}
-          </KunBadge>
+          </KunChip>
         </div>
 
         <div class="ml-auto flex items-center gap-1">

@@ -63,7 +63,6 @@ if (data.value) {
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     content-class="space-y-6"
     v-if="data"
   >
@@ -74,11 +73,11 @@ if (data.value) {
       <template #endContent>
         <div class="space-y-3">
           <div class="flex items-center space-x-3">
-            <KunBadge color="primary">标签价值 {{ data.level }}</KunBadge>
+            <KunChip color="primary">标签价值 {{ data.level }}</KunChip>
 
-            <KunBadge>
+            <KunChip>
               更新于 {{ formatDate(data.updated, { isShowYear: true }) }}
-            </KunBadge>
+            </KunChip>
           </div>
 
           <div class="flex justify-end">

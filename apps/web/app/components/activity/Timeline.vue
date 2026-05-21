@@ -47,9 +47,9 @@ const { data, status } = await useKunFetch('/activity/timeline', {
               class-name="whitespace-normal!"
               :content="activity.content"
             />
-            <KunBadge color="primary" size="xs">
+            <KunChip color="primary" size="xs">
               {{ KUN_ACTIVITY_TYPE_TYPE[activity.type] }}
-            </KunBadge>
+            </KunChip>
           </KunLink>
 
           <div class="flex items-center space-x-2">

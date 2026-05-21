@@ -235,7 +235,7 @@ const inlineRow = (item: Record<string, unknown>): string => {
         v-else-if="row.kind === 'array_scalar' && row.arrayScalar"
         class="bg-default-100 flex flex-wrap gap-2 rounded-md px-3 py-2 text-sm"
       >
-        <KunBadge
+        <KunChip
           v-for="v in row.arrayScalar.added"
           :key="`+${v}`"
           color="success"
@@ -243,8 +243,8 @@ const inlineRow = (item: Record<string, unknown>): string => {
           variant="flat"
         >
           ➕ {{ v }}
-        </KunBadge>
-        <KunBadge
+        </KunChip>
+        <KunChip
           v-for="v in row.arrayScalar.removed"
           :key="`-${v}`"
           color="danger"
@@ -252,7 +252,7 @@ const inlineRow = (item: Record<string, unknown>): string => {
           variant="flat"
         >
           ➖ {{ v }}
-        </KunBadge>
+        </KunChip>
       </div>
 
       <!-- ARRAY OF OBJECTS (covers / screenshots / links) -->
@@ -265,7 +265,7 @@ const inlineRow = (item: Record<string, unknown>): string => {
           :key="`add-${i}`"
           class="flex items-start gap-2"
         >
-          <KunBadge color="success" size="sm" variant="flat">➕ 新增</KunBadge>
+          <KunChip color="success" size="sm" variant="flat">➕ 新增</KunChip>
           <code class="break-all text-xs">{{ inlineRow(item) }}</code>
         </div>
         <div
@@ -273,7 +273,7 @@ const inlineRow = (item: Record<string, unknown>): string => {
           :key="`rm-${i}`"
           class="flex items-start gap-2"
         >
-          <KunBadge color="danger" size="sm" variant="flat">➖ 删除</KunBadge>
+          <KunChip color="danger" size="sm" variant="flat">➖ 删除</KunChip>
           <code class="break-all text-xs">{{ inlineRow(item) }}</code>
         </div>
         <div
@@ -282,9 +282,9 @@ const inlineRow = (item: Record<string, unknown>): string => {
           class="space-y-1"
         >
           <div class="flex items-center gap-2">
-            <KunBadge color="warning" size="sm" variant="flat">
+            <KunChip color="warning" size="sm" variant="flat">
               ✏️ 修改
-            </KunBadge>
+            </KunChip>
             <span class="text-default-400 text-xs">
               {{ ch.fields.join(' / ') }}
             </span>

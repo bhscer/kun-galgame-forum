@@ -43,7 +43,6 @@ const openEditModal = (pollData: TopicPoll) => {
     <KunCard
       :is-hoverable="false"
       :is-transparent="false"
-      :is-pressable="false"
       v-if="isTopicAdmin"
       content-class="space-y-3"
     >

@@ -35,18 +35,17 @@ const getOfficialCategoryInfo = (category: string) => {
   <KunCard
     :is-transparent="true"
     :is-hoverable="true"
-    :is-pressable="true"
     :to="`/galgame-official/${official.id}`"
     :dark-border="true"
   >
     <h3 class="text-default-900 font-semibold">
       {{ official.name }}
-      <KunBadge size="xs">
+      <KunChip size="xs">
         {{ `+ ${official.galgameCount}` }}
-      </KunBadge>
+      </KunChip>
     </h3>
     <div class="flex items-center gap-x-2">
-      <KunBadge
+      <KunChip
         size="xs"
         class-name="rounded-md"
         :color="
@@ -58,7 +57,7 @@ const getOfficialCategoryInfo = (category: string) => {
         "
       >
         {{ getOfficialCategoryInfo(official.category).text }}
-      </KunBadge>
+      </KunChip>
       <span class="text-default-500 dark:text-default-400 text-xs">
         {{ KUN_GALGAME_OFFICIAL_LANGUAGE_MAP[official.lang] || official.lang }}
       </span>
@@ -67,14 +66,14 @@ const getOfficialCategoryInfo = (category: string) => {
       v-if="official.alias.length"
       class="text-default-500 flex flex-wrap gap-2"
     >
-      <KunBadge
+      <KunChip
         size="xs"
         color="success"
         v-for="(a, index) in official.alias"
         :key="index"
       >
         {{ a }}
-      </KunBadge>
+      </KunChip>
     </div>
   </KunCard>
 </template>

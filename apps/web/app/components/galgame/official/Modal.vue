@@ -5,7 +5,7 @@ import {
 } from '~/constants/galgameOfficial'
 import { updateGalgameOfficialSchema } from '~/validations/galgame-official'
 import type { UpdateGalgameOfficialPayload } from '../types'
-import type { KunSelectOption } from '~/components/kun/select/type'
+import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
 
 const props = defineProps<{
   modelValue: boolean
@@ -72,7 +72,7 @@ const handleUpdateGalgameOfficialAlias = (value: string | number) => {
 </script>
 
 <template>
-  <KunModal v-model:modal-value="isModalOpen" inner-class-name="max-w-md">
+  <KunModal v-model="isModalOpen" inner-class-name="max-w-md">
     <form @submit.prevent>
       <div class="mb-6 space-y-2">
         <h2 class="text-xl font-bold">编辑制作会社</h2>

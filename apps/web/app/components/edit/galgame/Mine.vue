@@ -60,7 +60,6 @@ const handleWithdraw = async (item: MineGalgameItem) => {
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     content-class="space-y-4"
   >
@@ -109,13 +108,13 @@ const handleWithdraw = async (item: MineGalgameItem) => {
             >
               {{ nameOf(item) }}
             </h3>
-            <KunBadge
+            <KunChip
               size="xs"
               variant="flat"
               :color="statusBadge(item.status).color"
             >
               {{ statusBadge(item.status).label }}
-            </KunBadge>
+            </KunChip>
           </div>
           <div class="text-default-500 flex flex-wrap items-center gap-2 text-sm">
             <span>VNDB: {{ item.vndb_id || '—' }}</span>

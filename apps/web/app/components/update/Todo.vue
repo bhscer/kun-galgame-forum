@@ -84,9 +84,9 @@ const handleTodoAction = async (data: UpdateTodoPayload) => {
       content-class="space-y-3"
     >
       <div class="flex items-center gap-3">
-        <KunBadge color="primary">
+        <KunChip color="primary">
           {{ KUN_TODO_TYPE_MAP[todo.type] }}
-        </KunBadge>
+        </KunChip>
 
         <span class="text-default-600 text-sm">
           {{ `该企划创建于 ${formatDate(todo.created, { isPrecise: true })}` }}

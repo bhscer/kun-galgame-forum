@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { KUN_TOPIC_SECTION } from '~/constants/topic'
-import type { KunUIColor, KunUISize } from '~/components/kun/ui/type'
+import type { KunUIColor, KunUISize } from '@kun/ui/components/kun/ui/type'
 
 const props = withDefaults(
   defineProps<{
@@ -41,38 +41,38 @@ const handleClickSection = async (section: string) => {
 
 <template>
   <div class="flex flex-wrap items-center gap-2">
-    <KunBadge
+    <KunChip
       variant="solid"
       color="warning"
       v-if="upvoteTime && isRecentlyUpvoted"
     >
       <KunIcon name="lucide:sparkles" class="size-4 text-inherit" />
       <span class="text-inherit">该话题被推</span>
-    </KunBadge>
+    </KunChip>
 
     <span v-if="hasBestAnswer" class="flex gap-1">
-      <KunBadge variant="solid" color="success">
+      <KunChip variant="solid" color="success">
         <KunIcon name="lucide:bookmark-check" class="size-4 text-inherit" />
         有解答
-      </KunBadge>
+      </KunChip>
     </span>
 
     <span v-if="isPollTopic" class="flex gap-1">
-      <KunBadge variant="solid" color="primary">
+      <KunChip variant="solid" color="primary">
         <KunIcon name="lucide:bar-chart-3" class="size-4 text-inherit" />
         投票话题
-      </KunBadge>
+      </KunChip>
     </span>
 
     <span v-if="isNSFWTopic" class="flex gap-1">
-      <KunBadge variant="solid" color="primary" class-name="bg-orange-600">
+      <KunChip variant="solid" color="primary" class-name="bg-orange-600">
         <KunIcon name="uil:18-plus" class="size-4 text-inherit" />
         NSFW 话题
-      </KunBadge>
+      </KunChip>
     </span>
 
     <span class="flex gap-1">
-      <KunBadge
+      <KunChip
         v-for="(sec, index) in props.section"
         :key="index"
         :color="sectionColors[sec.toLowerCase()[0]!]"
@@ -84,13 +84,13 @@ const handleClickSection = async (section: string) => {
           class="size-4 text-inherit"
         />
         {{ KUN_TOPIC_SECTION[sec] }}
-      </KunBadge>
+      </KunChip>
     </span>
 
     <template v-if="props.tags">
-      <KunBadge v-for="(tag, index) in props.tags" :key="index">
+      <KunChip v-for="(tag, index) in props.tags" :key="index">
         {{ tag }}
-      </KunBadge>
+      </KunChip>
     </template>
   </div>
 </template>

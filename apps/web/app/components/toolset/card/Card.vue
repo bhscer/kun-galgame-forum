@@ -21,7 +21,6 @@ defineProps<{
       :href="`/toolset/${t.id}`"
       :is-transparent="false"
       :is-hoverable="true"
-      :is-pressable="true"
       content-class="space-y-3 group"
     >
       <h2 class="group-hover:text-primary truncate text-base text-lg">
@@ -52,9 +51,9 @@ defineProps<{
           {{ formatTimeDifference(t.resource_update_time) }}
         </span>
 
-        <KunBadge class-name="ml-auto" color="primary" size="sm">
+        <KunChip class-name="ml-auto" color="primary" size="sm">
           {{ KUN_GALGAME_TOOLSET_TYPE_MAP[t.type] || t.type }}
-        </KunBadge>
+        </KunChip>
       </div>
     </KunCard>
   </div>

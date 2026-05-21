@@ -8,28 +8,27 @@ defineProps<{
   <KunCard
     :is-transparent="true"
     :is-hoverable="true"
-    :is-pressable="true"
     :dark-border="true"
     :to="`/galgame-engine/${engine.id}`"
   >
     <h3 class="text-default-900 font-semibold">
       {{ engine.name }}
-      <KunBadge size="xs">
+      <KunChip size="xs">
         {{ `+ ${engine.galgameCount}` }}
-      </KunBadge>
+      </KunChip>
     </h3>
     <div
       v-if="engine.alias.length"
       class="text-default-500 flex flex-wrap gap-2"
     >
-      <KunBadge
+      <KunChip
         size="xs"
         color="success"
         v-for="(a, index) in engine.alias"
         :key="index"
       >
         {{ a }}
-      </KunBadge>
+      </KunChip>
     </div>
   </KunCard>
 </template>

@@ -51,7 +51,6 @@ watchDebounced(
   <KunCard
     v-if="data"
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
   >
     <KunHeader

@@ -90,11 +90,11 @@ const handleBlur = () => {
   <div ref="wrapperRef" class="relative">
     <label v-if="label" class="text-default-700 mb-1 block text-sm font-medium">
       {{ label }}
-      <span v-if="required" class="text-red-500">*</span>
+      <span v-if="required" class="text-danger">*</span>
     </label>
 
     <div
-      class="border-default-300 focus-within:border-primary-500 focus-within:ring-primary-500 flex min-h-[38px] flex-wrap items-center gap-2 rounded-md border p-2 focus-within:ring-1"
+      class="border-default-300 focus-within:border-primary focus-within:ring-primary flex min-h-[38px] flex-wrap items-center gap-2 rounded-md border p-2 focus-within:ring-1"
     >
       <span
         v-for="game in selectedGalgames"

@@ -69,7 +69,7 @@ const open = (hash: string) => {
       </button>
     </div>
 
-    <KunModal v-model:modal-value="isOpen" inner-class-name="max-w-4xl">
+    <KunModal v-model="isOpen" inner-class-name="max-w-4xl">
       <div v-if="active" class="space-y-2">
         <KunImage
           :src="active.cdn_url!"

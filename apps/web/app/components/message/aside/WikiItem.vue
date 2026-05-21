@@ -86,13 +86,13 @@ const typeLabel = (t: string | undefined) => {
         <span class="line-clamp-1 break-all">
           {{ latest ? typeLabel(latest.type) : '暂无审核反馈' }}
         </span>
-        <KunBadge
+        <KunChip
           class-name="whitespace-nowrap"
           color="primary"
           v-if="hasUnread"
         >
           新
-        </KunBadge>
+        </KunChip>
       </div>
     </div>
   </KunLink>

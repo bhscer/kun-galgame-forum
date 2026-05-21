@@ -80,8 +80,8 @@ const handleCloseCapture = () => {
 
 <template>
   <KunModal
-    :modal-value="isShowCapture"
-    @update:modal-value="(value) => (isShowCapture = value)"
+    :model-value="isShowCapture"
+    @update:model-value="(value) => (isShowCapture = value)"
   >
     <div class="space-y-6">
       <h2 class="text-xl">请回答下面的问题</h2>

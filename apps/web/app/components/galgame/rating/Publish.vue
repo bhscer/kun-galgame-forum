@@ -36,12 +36,12 @@ type RatingInitialData = {
 
 const props = defineProps<{
   galgameId: number
-  modalValue: boolean
+  modelValue: boolean
   initialData?: RatingInitialData
 }>()
 
 const emits = defineEmits<{
-  'update:modalValue': [value: boolean]
+  'update:modelValue': [value: boolean]
   onUpdated: []
   onPublished: [GalgameRatingCardOnGalgamePage]
 }>()
@@ -129,11 +129,11 @@ const spoilerOptions = computed(() =>
   }))
 )
 
-const close = () => emits('update:modalValue', false)
+const close = () => emits('update:modelValue', false)
 const isEditing = computed(() => !!props.initialData?.galgameRatingId)
 
 watch(
-  () => props.modalValue,
+  () => props.modelValue,
   (open) => {
     if (open && props.initialData) {
       recommend.value = props.initialData.recommend
@@ -257,8 +257,8 @@ const submit = async () => {
 
 <template>
   <KunModal
-    :modal-value="modalValue"
-    @update:modal-value="(v) => emits('update:modalValue', v)"
+    :model-value="modelValue"
+    @update:model-value="(v) => emits('update:modelValue', v)"
     inner-class-name="max-w-[780px] w-[90vw]"
     :is-dismissable="false"
   >

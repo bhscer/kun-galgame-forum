@@ -105,7 +105,6 @@ const noMatches = computed(
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-pressable="false"
     :is-transparent="false"
     content-class="space-y-6"
   >
@@ -160,13 +159,13 @@ const noMatches = computed(
           <div class="min-w-0 flex-1 space-y-1">
             <div class="flex flex-wrap items-center gap-2">
               <h4 class="truncate font-medium">{{ nameOfHit(hit) }}</h4>
-              <KunBadge
+              <KunChip
                 size="xs"
                 variant="flat"
                 :color="statusBadge(hit.status).color"
               >
                 {{ statusBadge(hit.status).label }}
-              </KunBadge>
+              </KunChip>
             </div>
             <p class="text-default-500 text-sm">
               VNDB: {{ hit.vndb_id || '—' }}
@@ -205,13 +204,13 @@ const noMatches = computed(
           <div class="min-w-0 flex-1 space-y-1">
             <div class="flex flex-wrap items-center gap-2">
               <h4 class="truncate font-medium">{{ nameOfHit(hit) }}</h4>
-              <KunBadge
+              <KunChip
                 size="xs"
                 variant="flat"
                 :color="statusBadge(hit.status).color"
               >
                 {{ statusBadge(hit.status).label }}
-              </KunBadge>
+              </KunChip>
             </div>
             <p class="text-default-500 text-sm">
               VNDB: {{ hit.vndb_id || '—' }}

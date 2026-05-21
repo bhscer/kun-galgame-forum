@@ -59,7 +59,7 @@ const handleUpdateGalgameEngineAlias = (value: string | number) => {
 </script>
 
 <template>
-  <KunModal v-model:modal-value="isModalOpen" inner-class-name="max-w-md">
+  <KunModal v-model="isModalOpen" inner-class-name="max-w-md">
     <form @submit.prevent>
       <div class="mb-6 space-y-2">
         <h2 class="text-xl font-bold">编辑游戏引擎</h2>

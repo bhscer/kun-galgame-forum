@@ -6,10 +6,10 @@ const galgame = inject<GalgameDetail>('galgame')
   <div v-if="galgame" class="flex items-center justify-between">
     <div class="flex gap-1">
       <KunTooltip :text="`浏览量: ${galgame.view}`">
-        <KunBadge size="md">
+        <KunChip size="md">
           <KunIcon name="lucide:eye" />
           <span>{{ formatNumber(galgame.view) }}</span>
-        </KunBadge>
+        </KunChip>
       </KunTooltip>
 
       <GalgameLike

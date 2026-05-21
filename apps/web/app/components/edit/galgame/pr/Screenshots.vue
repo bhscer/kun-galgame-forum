@@ -7,7 +7,7 @@
 // Upload preset is galgame_screenshot (image_service may apply a
 // different size budget than the banner preset). Footer strips
 // `cdn_url` from the wire payload (read-only preview field).
-import type { KunSelectOption } from '~/components/kun/select/type'
+import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
 
 const { galgamePR } = storeToRefs(useTempGalgamePRStore())
 

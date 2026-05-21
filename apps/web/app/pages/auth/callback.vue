@@ -77,7 +77,7 @@ const redirectToLogin = () => {
   <div class="flex size-full items-center justify-center">
     <div class="text-center">
       <p v-if="!error" class="text-lg">正在登录...</p>
-      <p v-else class="text-red-500">{{ error }}</p>
+      <p v-else class="text-danger">{{ error }}</p>
     </div>
   </div>
 </template>

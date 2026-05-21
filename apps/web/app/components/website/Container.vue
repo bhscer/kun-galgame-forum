@@ -87,7 +87,6 @@ const handleCreateWebsite = async (
   <KunCard
     :is-transparent="false"
     :is-hoverable="false"
-    :is-pressable="false"
     content-class="space-y-6"
   >
     <KunHeader
@@ -135,7 +134,7 @@ const handleCreateWebsite = async (
         <h2 class="text-default-900 text-2xl">
           {{ categoryGroup.name }}
         </h2>
-        <KunBadge> {{ categoryGroup.sites.length }} 个网站 </KunBadge>
+        <KunChip> {{ categoryGroup.sites.length }} 个网站 </KunChip>
       </div>
 
       <div

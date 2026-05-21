@@ -21,7 +21,6 @@ const pageType = computed(() => {
     <KunCard
       :is-transparent="false"
       :is-hoverable="false"
-      :is-pressable="false"
       class-name="w-48 shrink-0 hidden sm:flex"
     >
       <div class="flex flex-col gap-1">

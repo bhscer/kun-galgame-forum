@@ -16,20 +16,19 @@ const includedGamesText = computed(() => {
 
 <template>
   <KunCard
-    :is-pressable="true"
     :href="`/galgame-series/${series.id}`"
     class-name="group relative flex h-full flex-col overflow-hidden backdrop-blur-none"
     :is-transparent="true"
     :dark-border="true"
   >
     <div class="relative mb-4 h-32 w-full">
-      <KunBadge
+      <KunChip
         variant="solid"
         class="absolute top-2 left-2 z-100"
         :color="series.isNSFW ? 'danger' : 'success'"
       >
         {{ series.isNSFW ? 'NSFW' : 'SFW' }}
-      </KunBadge>
+      </KunChip>
 
       <GalgameSeriesBanner
         :is-n-s-f-w="series.isNSFW"
