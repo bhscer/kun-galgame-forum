@@ -16,12 +16,25 @@ const props = defineProps<{
 
 const open = defineModel<boolean>({ required: true })
 
+// Capture the Nuxt app at setup; reused by every post-await branch
+// (handleReportExpire / handleDelete / handleEdit) to re-enter the
+// captured Nuxt context. After `await kunFetch` resumes the active
+// app instance is lost, so anything inside that touches
+// useRuntimeConfig / useState / useFetch().refresh() crashes with
+// "Cannot read properties of null (reading '$nuxt')" without
+// runWithContext.
+const nuxtApp = useNuxtApp()
+
 const { id: currentUserId, role: currentUserRole } = usePersistUserStore()
-const {
-  resource: storeResource,
-  rewriteResourceId,
-  isShowPublish
-} = storeToRefs(useTempGalgameResourceStore())
+
+// Local edit-modal state. Deliberately NOT going through
+// useTempGalgameResourceStore + Resource.vue's KunModal +
+// GalgameResourcePublish anymore — that triple-hop emit/store chain
+// was where `$nuxt of null` kept resurfacing on edit-modal close (the
+// refresh hop crossed too many post-await microtasks). The new
+// LinkEditModal is fully local: own form ref, own kunFetch PUT, own
+// refresh callback. See LinkEditModal.vue's header comment.
+const isEditOpen = ref(false)
 
 // Resource link/code/password are deliberately NOT in the summary
 // payload — they're only fetched on demand to keep the list endpoint
@@ -42,7 +55,7 @@ const providerName = computed(() => {
 })
 
 const fetchDetail = async () => {
-  if (detail.value || isFetching.value) return
+  if (detail.value || isFetching.value) return detail.value
   isFetching.value = true
   const result = await kunFetch<GalgameResourceDetailLink>(
     `/galgame-resource/${props.resource.id}/detail`,
@@ -56,11 +69,13 @@ const fetchDetail = async () => {
   return detail.value
 }
 
-// Fetch on open; reset never happens (resource id is bound on mount and
-// the modal is re-created per resource).
-watch(open, (isOpen) => {
-  if (isOpen) void fetchDetail()
-})
+// Exposed so the parent (Link.vue) can run the fetch BEFORE flipping
+// the modal open. Running fetch in the click handler's call stack keeps
+// the Nuxt app context alive (versus firing from `watch(open)`, which
+// runs in Vue's scheduler microtask where tryUseNuxtApp() returns null
+// and kunFetch's first useRuntimeConfig crashes). The parent also gets
+// to drive the button loading state directly off the returned promise.
+defineExpose({ prefetch: fetchDetail })
 
 const handleReportExpire = async () => {
   if (!currentUserId) {
@@ -84,9 +99,11 @@ const handleReportExpire = async () => {
   isFetching.value = false
 
   if (result) {
-    useMessage(10547, 'success')
-    props.refresh()
-    open.value = false
+    nuxtApp.runWithContext(() => {
+      useMessage(10547, 'success')
+      props.refresh()
+      open.value = false
+    })
   }
 }
 
@@ -108,33 +125,30 @@ const handleDelete = async () => {
   isFetching.value = false
 
   if (result) {
-    useMessage('删除资源成功', 'success')
-    props.refresh()
-    open.value = false
+    nuxtApp.runWithContext(() => {
+      useMessage('删除资源成功', 'success')
+      props.refresh()
+      open.value = false
+    })
   }
 }
 
-// Edit: hydrate the temp store from the full detail (link/code/password
-// are not in the summary props.resource — they only arrive via the
-// detail fetch), then open the global Publish modal. Closes this modal
-// so the edit form sits on top of the resource list, not nested under a
-// stale detail view.
-const handleEdit = async () => {
-  const data = detail.value ?? (await fetchDetail())
-  if (!data) return
+// Edit: simply flip a local ref. detail has been fetched on modal open
+// (Link.vue's openDetail awaits prefetch first), so detail.value is
+// guaranteed non-null by the time the user sees the 编辑 button.
+const handleEdit = () => {
+  if (!detail.value) return
+  isEditOpen.value = true
+}
 
-  storeResource.value = {
-    type: data.type,
-    link: data.link,
-    language: data.language,
-    platform: data.platform,
-    size: data.size,
-    code: data.code,
-    password: data.password,
-    note: data.note
-  }
-  rewriteResourceId.value = data.id
-  isShowPublish.value = true
+// Called by LinkEditModal after a successful save: refresh the parent
+// resource list AND dismiss the detail modal so the user returns to a
+// fresh list view. Local detail.value is also nulled so the next
+// 获取资源 click re-fetches (otherwise the modal would show stale
+// values).
+const handleEditDone = () => {
+  detail.value = null
+  props.refresh()
   open.value = false
 }
 </script>
@@ -326,7 +340,6 @@ const handleEdit = async () => {
               v-if="canManage"
               variant="light"
               color="default"
-              :loading="isFetching"
               @click="handleEdit"
             >
               <KunIcon name="lucide:pencil" />
@@ -370,5 +383,20 @@ const handleEdit = async () => {
         </div>
       </div>
     </div>
+
+    <!--
+      Inline edit modal. detail is guaranteed to exist here (handleEdit
+      guards on it). After a successful save the modal closes itself
+      and runs handleEditDone — which both refreshes the parent list
+      and dismisses THIS detail modal so the user lands back on a
+      fresh list.
+    -->
+    <GalgameResourceLinkEditModal
+      v-if="detail"
+      v-model="isEditOpen"
+      :galgame-id="resource.galgameId"
+      :resource="detail"
+      :refresh="handleEditDone"
+    />
   </KunModal>
 </template>

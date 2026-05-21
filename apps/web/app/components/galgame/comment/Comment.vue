@@ -8,7 +8,7 @@ const props = defineProps<{
 
 const galgame = inject<GalgameDetail>('galgame')
 
-const { commentToUserId } = storeToRefs(useTempGalgameResourceStore())
+const { commentToUserId } = storeToRefs(useTempGalgameCommentStore())
 const { id, role } = usePersistUserStore()
 
 const isShowComment = ref(false)

@@ -7,7 +7,7 @@ const emits = defineEmits<{
   close: []
 }>()
 
-const { commentToUserId } = storeToRefs(useTempGalgameResourceStore())
+const { commentToUserId } = storeToRefs(useTempGalgameCommentStore())
 const route = useRoute()
 
 const content = ref('')

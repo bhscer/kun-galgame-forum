@@ -17,6 +17,13 @@ const props = defineProps<{
 const isFetching = ref(false)
 const { id } = usePersistUserStore()
 
+// Captured at setup. Vue's template event handlers don't restore the
+// Nuxt app via getCurrentInstance, so any composable call inside
+// (useRuntimeConfig in kunFetch, useState in getRandomSticker, etc.)
+// can hit `$nuxt of null`. runWithContext re-enters the app handle
+// captured here whenever we cross an await boundary.
+const nuxtApp = useNuxtApp()
+
 const isExpired = computed(() => props.resource.status === 1)
 const isOwner = computed(() => id === props.resource.user.id)
 
@@ -28,8 +35,23 @@ const providerName = computed(() => {
 })
 
 const isDetailOpen = ref(false)
-const openDetail = () => {
-  isDetailOpen.value = true
+const isOpeningDetail = ref(false)
+const detailModalRef = ref<{ prefetch: () => Promise<unknown> } | null>(null)
+
+// Fetch FIRST, then open the modal. The prefetch() call must be wrapped
+// in runWithContext: Vue 3 template event handlers don't bind the Nuxt
+// app to the call site, so useRuntimeConfig inside kunFetch sees a null
+// `$nuxt` and crashes. The button stays in :loading while the detail
+// request is in flight.
+const openDetail = async () => {
+  if (isOpeningDetail.value) return
+  isOpeningDetail.value = true
+  try {
+    await nuxtApp.runWithContext(() => detailModalRef.value?.prefetch())
+    isDetailOpen.value = true
+  } finally {
+    isOpeningDetail.value = false
+  }
 }
 
 const handleMarkValid = async () => {
@@ -40,15 +62,19 @@ const handleMarkValid = async () => {
   if (!res) return
 
   isFetching.value = true
-  const result = await kunFetch(`/galgame/${props.resource.galgameId}/resource/valid`, {
-    method: 'PUT',
-    body: { galgameResourceId: props.resource.id }
-  })
+  const result = await nuxtApp.runWithContext(() =>
+    kunFetch(`/galgame/${props.resource.galgameId}/resource/valid`, {
+      method: 'PUT',
+      body: { galgameResourceId: props.resource.id }
+    })
+  )
   isFetching.value = false
 
   if (result) {
-    useMessage(10548, 'success')
-    props.refresh()
+    nuxtApp.runWithContext(() => {
+      useMessage(10548, 'success')
+      props.refresh()
+    })
   }
 }
 </script>
@@ -166,6 +192,7 @@ const handleMarkValid = async () => {
           size="sm"
           :color="isExpired ? 'warning' : 'primary'"
           variant="solid"
+          :loading="isOpeningDetail"
           @click="openDetail"
         >
           <KunIcon name="lucide:download-cloud" />
@@ -175,6 +202,7 @@ const handleMarkValid = async () => {
     </div>
 
     <GalgameResourceLinkDetailModal
+      ref="detailModalRef"
       v-model="isDetailOpen"
       :resource="resource"
       :refresh="refresh"

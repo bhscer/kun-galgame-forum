@@ -1,9 +1,14 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+// Pure content component — the 3 info blocks (docs / reward / cautions)
+// shared by every resource form. Each consumer modal renders its own
+// header (publish vs rewrite text differs), so this file does NOT emit
+// a title of its own — that decoupling is why deleting Publish.vue
+// didn't strand a now-wrong "发布 Galgame 资源提示" heading inside the
+// edit modal.
+</script>
 
 <template>
   <div class="space-y-4">
-    <h2 class="mb-6 text-2xl font-bold">发布 Galgame 资源提示</h2>
-
     <KunInfo title="相关文档" color="info" icon="lucide:book-open">
       <ul class="list-none space-y-1">
         <li>

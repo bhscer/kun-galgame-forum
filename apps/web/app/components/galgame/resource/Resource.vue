@@ -10,7 +10,10 @@ const gid = computed(() => {
   return parseInt((route.params as { gid: string }).gid)
 })
 
-const { isShowPublish } = storeToRefs(useTempGalgameResourceStore())
+// Publish-modal toggle is purely local to this page — no longer needs
+// the (now removed) tempGalgameResource Pinia store because no other
+// component reads / writes it.
+const isShowPublish = ref(false)
 const { id } = usePersistUserStore()
 
 const { data, status, refresh } = await useKunFetch<GalgameResource[]>(
@@ -167,19 +170,17 @@ const activeBucket = computed(() =>
       description="这个 Galgame 还没有资源链接, 快添加一个吧!"
     />
 
-    <KunModal
-      :is-dismissable="false"
-      :is-show-close-button="false"
-      :model-value="isShowPublish"
-      @update:model-value="(value) => (isShowPublish = value)"
-    >
-      <GalgameResourcePublish
-        :refresh="refresh"
-        :galgame-id="gid"
-        @close="isShowPublish = false"
-        @refresh="refresh"
-      />
-    </KunModal>
+    <!--
+      Create flow: no `resource` prop = LinkEditModal renders in
+      publish mode (POST, "发布资源" CTA, 10549 success message).
+      Same component handles the edit path elsewhere — see
+      LinkEditModal.vue's header for the unification rationale.
+    -->
+    <GalgameResourceLinkEditModal
+      v-model="isShowPublish"
+      :galgame-id="gid"
+      :refresh="refresh"
+    />
 
     <template v-if="status !== 'pending' && data?.length">
       <KunTab

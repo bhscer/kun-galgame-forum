@@ -1,16 +1,18 @@
 <script setup lang="ts">
 const { id, role } = usePersistUserStore()
-const {
-  isShowPublish,
-  resource: storeResource,
-  rewriteResourceId
-} = storeToRefs(useTempGalgameResourceStore())
 
 const props = defineProps<{
   resource: GalgameResource
   resourceTypeLabel: string
   refresh: () => void
 }>()
+
+// Local edit-modal state — same pattern as LinkDetailModal.
+// Switched away from the legacy useTempGalgameResourceStore +
+// `<GalgameResourcePublish>` triple-hop because that flow was the
+// recurring `$nuxt of null` offender (see LinkEditModal.vue's header
+// comment for the full diagnosis).
+const isEditOpen = ref(false)
 
 // Backend-computed labels (e.g. "百度网盘 / OneDrive"). Falls back to the
 // raw domain when the resource pre-dates the backfill or matches no rule.
@@ -99,17 +101,21 @@ const handleGetResourceLink = async () => {
   }
 }
 
+// Edit flow: ensure detail (link/code/password) is loaded, then open
+// the local LinkEditModal. After save the modal closes itself and
+// calls props.refresh to reload the detail page.
 const handleRewriteResource = async () => {
-  const _handleEdit = () => {
-    storeResource.value = detail.value!
-    rewriteResourceId.value = detail.value!.id
-    isShowPublish.value = true
+  if (!detail.value) {
+    const res = await handleGetResourceLink()
+    if (!res) return
   }
+  isEditOpen.value = true
+}
 
-  if (detail.value) _handleEdit()
-
-  const res = await handleGetResourceLink()
-  if (res) _handleEdit()
+const handleEditDone = () => {
+  detail.value = null
+  props.refresh()
+  isEditOpen.value = false
 }
 
 </script>
@@ -268,17 +274,12 @@ const handleRewriteResource = async () => {
       </KunButton>
     </div>
 
-    <KunModal
-      :is-dismissable="false"
-      :is-show-close-button="false"
-      :model-value="isShowPublish"
-      @update:model-value="(value) => (isShowPublish = value)"
-    >
-      <GalgameResourcePublish
-        :refresh="refresh"
-        @close="isShowPublish = false"
-        :galgame-id="resource.galgameId"
-      />
-    </KunModal>
+    <GalgameResourceLinkEditModal
+      v-if="detail"
+      v-model="isEditOpen"
+      :galgame-id="resource.galgameId"
+      :resource="detail"
+      :refresh="handleEditDone"
+    />
   </div>
 </template>

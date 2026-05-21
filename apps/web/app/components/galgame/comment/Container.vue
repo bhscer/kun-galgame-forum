@@ -5,7 +5,7 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
-const { commentToUserId } = storeToRefs(useTempGalgameResourceStore())
+const { commentToUserId } = storeToRefs(useTempGalgameCommentStore())
 
 const username = ref(props.targetUser.name)
 const gid = parseInt((route.params as { gid: string }).gid)
