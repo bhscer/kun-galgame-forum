@@ -6,7 +6,7 @@ const props = defineProps<{
 }>()
 const user = computed(() => props.user)
 
-const currentUserUid = usePersistUserStore().id
+const currentUserId = usePersistUserStore().id
 
 const statsBlocks = [
   { key: 'topic', label: '话题' },
@@ -66,7 +66,7 @@ const infoList = [
         <h1 class="flex items-center gap-2 text-2xl font-bold">
           <span>{{ user.name }}</span>
           <KunButton
-            v-if="currentUserUid !== user.id"
+            v-if="currentUserId !== user.id"
             variant="flat"
             size="xs"
             color="primary"

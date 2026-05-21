@@ -80,8 +80,8 @@ func (s *CommentService) GetComments(
 			User:      userBriefFromClient(userMap[cm.UserID]),
 		}
 		if cm.ParentID != nil {
-			if puid, ok := parentUserByID[*cm.ParentID]; ok {
-				pu := userBriefFromClient(userMap[puid])
+			if parentUserID, ok := parentUserByID[*cm.ParentID]; ok {
+				pu := userBriefFromClient(userMap[parentUserID])
 				item.TargetUser = &pu
 			}
 		}

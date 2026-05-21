@@ -4,13 +4,13 @@ const props = defineProps<{
   commentsData: TopicComment[]
 }>()
 
-const currentUserUid = usePersistUserStore().id
+const currentUserId = usePersistUserStore().id
 const comments = ref(props.commentsData)
 const activeCommentId = ref<number | null>(null)
 const targetUserForPanel = ref<KunUser | null>(null)
 
 const handleClickComment = (comment: TopicComment) => {
-  if (!currentUserUid) {
+  if (!currentUserId) {
     useMessage(10216, 'warn', 5000)
     return
   }

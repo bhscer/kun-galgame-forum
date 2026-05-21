@@ -9,16 +9,16 @@ const emits = defineEmits<{
   updated: [id: number, content: string, edited: string]
 }>()
 
-const { id: myUid, role } = usePersistUserStore()
+const { id: myId, role } = usePersistUserStore()
 
 const isShowReply = ref(false)
 const isEditing = ref(false)
 const editContent = ref('')
 
 const canDelete = computed(
-  () => props.comment.user.id === myUid || props.ownerId === myUid || role >= 2
+  () => props.comment.user.id === myId || props.ownerId === myId || role >= 2
 )
-const canEdit = computed(() => props.comment.user.id === myUid)
+const canEdit = computed(() => props.comment.user.id === myId)
 
 const handleDelete = async () => {
   const res = await useComponentMessageStore().alert('确认删除该评论？')

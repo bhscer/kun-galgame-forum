@@ -11,7 +11,7 @@ const props = withDefaults(
   }
 )
 
-const currentUserUid = usePersistUserStore().id
+const currentUserId = usePersistUserStore().id
 const showCard = ref(false)
 const userData = ref<UserFloatingCard | null>(null)
 const isLoading = ref(false)
@@ -150,7 +150,7 @@ onUnmounted(() => {
               </div>
             </div>
             <KunButton
-              v-if="currentUserUid !== userData.id"
+              v-if="currentUserId !== userData.id"
               class-name="shrink-0"
               :href="`/message/user/${userData.id}`"
             >

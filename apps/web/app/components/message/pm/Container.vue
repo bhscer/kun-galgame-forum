@@ -19,7 +19,7 @@ const isShowLoader = computed(() => {
   }
   return true
 })
-const currentUserUid = usePersistUserStore().id
+const currentUserId = usePersistUserStore().id
 const userId = props.userId
 const pageData = reactive({
   page: 1,
@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
       v-for="message in messages"
       :key="message.id"
       :message="message"
-      :is-sent="message.sender.id === currentUserUid"
+      :is-sent="message.sender.id === currentUserId"
     />
 
     <div v-if="!messages.length" class="text-default-500 py-10 text-center">
