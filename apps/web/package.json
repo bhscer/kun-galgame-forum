@@ -16,7 +16,7 @@
     "stop": "pm2 delete kun-visual-novel",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "up": "pnpm update --latest",
