@@ -89,7 +89,7 @@ func (s *SubmissionService) Claim(
 	})
 	if txErr != nil {
 		slog.Warn("claim 本地副作用失败 (wiki 已成功)",
-			"gid", gid, "uid", userID, "error", txErr)
+			"gid", gid, "userID", userID, "error", txErr)
 	}
 	return data, nil
 }
@@ -136,7 +136,7 @@ func (s *SubmissionService) ListMine(
 
 // SearchWithPending proxies GET /galgame/search?include_pending=true — the
 // "发布向导" flow. The handler is expected to have already set the
-// include_pending flag; we forward as-is so wiki sees the caller's JWT.uid
+// include_pending flag; we forward as-is so wiki sees the caller's JWT.userID
 // and merges the caller's pending hits into the response.
 func (s *SubmissionService) SearchWithPending(
 	ctx context.Context,

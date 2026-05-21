@@ -20,7 +20,7 @@ const isShowLoader = computed(() => {
   return true
 })
 const currentUserUid = usePersistUserStore().id
-const uid = props.userId
+const userId = props.userId
 const pageData = reactive({
   page: 1,
   limit: 30
@@ -39,7 +39,7 @@ const getMessageHistory = async () => {
   const histories = await kunFetch<ChatMessage[]>('/message/chat/history', {
     method: 'GET',
     query: {
-      receiverUid: uid,
+      receiverId: userId,
       page: pageData.page,
       limit: pageData.limit
     }
@@ -60,7 +60,7 @@ const sendMessage = async () => {
   isSending.value = true
   const result = await kunFetch('/message/chat/send', {
     method: 'POST',
-    body: { receiverUid: uid, content: messageInput.value }
+    body: { receiverId: userId, content: messageInput.value }
   })
   isSending.value = false
 

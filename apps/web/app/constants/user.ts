@@ -52,7 +52,7 @@ export const GALGAME_RESOURCE_NAV_CONFIG: Record<
 }
 
 const createUserPageNavItems = <T extends string>(
-  uid: number,
+  userId: number,
   basePath: string,
   typesArray: readonly T[],
   config: Record<T, _NavItemData>
@@ -60,49 +60,49 @@ const createUserPageNavItems = <T extends string>(
   return typesArray.map((value) => ({
     value,
     textValue: config[value].text,
-    href: `/user/${uid}/${basePath}/${config[value].path}`
+    href: `/user/${userId}/${basePath}/${config[value].path}`
   }))
 }
 
-export const kunUserTopicNavItem = (uid: number): KunTabItem[] => {
+export const kunUserTopicNavItem = (userId: number): KunTabItem[] => {
   return createUserPageNavItems(
-    uid,
+    userId,
     'topic',
     KUN_USER_PAGE_TOPIC_TYPE,
     TOPIC_NAV_CONFIG
   )
 }
 
-export const kunUserReplyNavItem = (uid: number): KunTabItem[] => {
+export const kunUserReplyNavItem = (userId: number): KunTabItem[] => {
   return createUserPageNavItems(
-    uid,
+    userId,
     'reply',
     KUN_USER_PAGE_REPLY_TYPE,
     REPLY_NAV_CONFIG
   )
 }
 
-export const kunUserCommentNavItem = (uid: number): KunTabItem[] => {
+export const kunUserCommentNavItem = (userId: number): KunTabItem[] => {
   return createUserPageNavItems(
-    uid,
+    userId,
     'comment',
     KUN_USER_PAGE_COMMENT_TYPE,
     COMMENT_NAV_CONFIG
   )
 }
 
-export const kunUserGalgameNavItem = (uid: number): KunTabItem[] => {
+export const kunUserGalgameNavItem = (userId: number): KunTabItem[] => {
   return createUserPageNavItems(
-    uid,
+    userId,
     'galgame',
     KUN_USER_PAGE_GALGAME_TYPE,
     GALGAME_NAV_CONFIG
   )
 }
 
-export const kunUserGalgameResourceNavItem = (uid: number): KunTabItem[] => {
+export const kunUserGalgameResourceNavItem = (userId: number): KunTabItem[] => {
   return createUserPageNavItems(
-    uid,
+    userId,
     'resource',
     KUN_USER_PAGE_GALGAME_RESOURCE_TYPE,
     GALGAME_RESOURCE_NAV_CONFIG

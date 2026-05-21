@@ -62,7 +62,7 @@ func (h *RatingHandler) CreateRating(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	created, appErr := h.ratingService.CreateRating(c.Context(), user.UID, &req)
+	created, appErr := h.ratingService.CreateRating(c.Context(), user.ID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -79,7 +79,7 @@ func (h *RatingHandler) UpdateRating(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.ratingService.UpdateRating(user.UID, &req); appErr != nil {
+	if appErr := h.ratingService.UpdateRating(user.ID, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "评分更新成功")
@@ -95,7 +95,7 @@ func (h *RatingHandler) DeleteRating(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.ratingService.DeleteRating(user.UID, user.Role, req.GalgameRatingID); appErr != nil {
+	if appErr := h.ratingService.DeleteRating(user.ID, user.Role, req.GalgameRatingID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "评分已删除")
@@ -111,7 +111,7 @@ func (h *RatingHandler) ToggleLike(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.ratingService.ToggleRatingLike(user.UID, &req); appErr != nil {
+	if appErr := h.ratingService.ToggleRatingLike(user.ID, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "操作成功")
@@ -127,7 +127,7 @@ func (h *RatingHandler) CreateComment(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	created, appErr := h.ratingService.CreateRatingComment(c.Context(), user.UID, &req)
+	created, appErr := h.ratingService.CreateRatingComment(c.Context(), user.ID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -144,7 +144,7 @@ func (h *RatingHandler) UpdateComment(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	updated, appErr := h.ratingService.UpdateRatingComment(c.Context(), user.UID, &req)
+	updated, appErr := h.ratingService.UpdateRatingComment(c.Context(), user.ID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -161,7 +161,7 @@ func (h *RatingHandler) DeleteComment(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.ratingService.DeleteRatingComment(user.UID, user.Role, req.GalgameRatingCommentID); appErr != nil {
+	if appErr := h.ratingService.DeleteRatingComment(user.ID, user.Role, req.GalgameRatingCommentID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "评论已删除")

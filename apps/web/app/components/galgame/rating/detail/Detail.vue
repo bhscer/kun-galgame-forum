@@ -17,10 +17,10 @@ const props = defineProps<{
   refresh: () => void
 }>()
 
-const { id: uid, role } = usePersistUserStore()
+const { id: userId, role } = usePersistUserStore()
 
-const canEdit = computed(() => props.data.user.id === uid)
-const canDelete = computed(() => props.data.user.id === uid || role >= 2)
+const canEdit = computed(() => props.data.user.id === userId)
+const canDelete = computed(() => props.data.user.id === userId || role >= 2)
 const rating = computed(() =>
   calcGalgameRating(
     { ...props.data },
@@ -33,7 +33,7 @@ const rating = computed(() =>
 const isEditOpen = ref(false)
 
 const handleDeleteRating = async () => {
-  if (!uid) {
+  if (!userId) {
     useMessage('请登陆后再操作', 'warn', 7000)
     return
   }

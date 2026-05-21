@@ -27,7 +27,7 @@ func NewWikiMessageService(
 }
 
 // MessagesMine proxies the user's notification feed from wiki. wiki resolves
-// the Bearer's JWT.uid and returns messages where target_user_id matches.
+// the Bearer's JWT.userID and returns messages where target_user_id matches.
 func (s *WikiMessageService) MessagesMine(
 	ctx context.Context,
 	token string,

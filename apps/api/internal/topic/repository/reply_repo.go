@@ -130,24 +130,24 @@ func (r *ReplyRepository) FindTargetsByReplyIDs(replyIDs []int) (map[int][]Targe
 // Interaction status (batch)
 // ──────────────────────────────────────────
 
-func (r *ReplyRepository) FindReplyLikeStatus(uid int, replyIDs []int) (map[int]bool, error) {
-	return findInteractionStatus(r.db, "topic_reply_like", "topic_reply_id", uid, replyIDs)
+func (r *ReplyRepository) FindReplyLikeStatus(userID int, replyIDs []int) (map[int]bool, error) {
+	return findInteractionStatus(r.db, "topic_reply_like", "topic_reply_id", userID, replyIDs)
 }
 
-func (r *ReplyRepository) FindReplyDislikeStatus(uid int, replyIDs []int) (map[int]bool, error) {
-	return findInteractionStatus(r.db, "topic_reply_dislike", "topic_reply_id", uid, replyIDs)
+func (r *ReplyRepository) FindReplyDislikeStatus(userID int, replyIDs []int) (map[int]bool, error) {
+	return findInteractionStatus(r.db, "topic_reply_dislike", "topic_reply_id", userID, replyIDs)
 }
 
 // findInteractionStatus is shared by both ReplyRepository and CommentRepository
 // (see comment_repo.go) to resolve a user's boolean interaction state across
 // an ID batch.
-func findInteractionStatus(db *gorm.DB, table, fkCol string, uid int, ids []int) (map[int]bool, error) {
-	if len(ids) == 0 || uid == 0 {
+func findInteractionStatus(db *gorm.DB, table, fkCol string, userID int, ids []int) (map[int]bool, error) {
+	if len(ids) == 0 || userID == 0 {
 		return make(map[int]bool), nil
 	}
 	var foundIDs []int
 	err := db.Table(table).
-		Where("user_id = ? AND "+fkCol+" IN ?", uid, ids).
+		Where("user_id = ? AND "+fkCol+" IN ?", userID, ids).
 		Pluck(fkCol, &foundIDs).Error
 	if err != nil {
 		return nil, err
@@ -235,15 +235,15 @@ func (r *ReplyRepository) FindByIDTx(tx *gorm.DB, replyID int) (*model.TopicRepl
 }
 
 // FindReplyLike returns an existing reply-like row (or ErrRecordNotFound).
-func (r *ReplyRepository) FindReplyLike(tx *gorm.DB, uid, replyID int) (*model.TopicReplyLike, error) {
+func (r *ReplyRepository) FindReplyLike(tx *gorm.DB, userID, replyID int) (*model.TopicReplyLike, error) {
 	var existing model.TopicReplyLike
-	err := tx.Where("user_id = ? AND topic_reply_id = ?", uid, replyID).First(&existing).Error
+	err := tx.Where("user_id = ? AND topic_reply_id = ?", userID, replyID).First(&existing).Error
 	return &existing, err
 }
 
 // CreateReplyLike inserts a new reply-like row.
-func (r *ReplyRepository) CreateReplyLike(tx *gorm.DB, uid, replyID int) error {
-	return tx.Create(&model.TopicReplyLike{UserID: uid, TopicReplyID: replyID}).Error
+func (r *ReplyRepository) CreateReplyLike(tx *gorm.DB, userID, replyID int) error {
+	return tx.Create(&model.TopicReplyLike{UserID: userID, TopicReplyID: replyID}).Error
 }
 
 // DeleteReplyLike removes a previously fetched reply-like row.
@@ -252,15 +252,15 @@ func (r *ReplyRepository) DeleteReplyLike(tx *gorm.DB, like *model.TopicReplyLik
 }
 
 // FindReplyDislike returns an existing reply-dislike row (or ErrRecordNotFound).
-func (r *ReplyRepository) FindReplyDislike(tx *gorm.DB, uid, replyID int) (*model.TopicReplyDislike, error) {
+func (r *ReplyRepository) FindReplyDislike(tx *gorm.DB, userID, replyID int) (*model.TopicReplyDislike, error) {
 	var existing model.TopicReplyDislike
-	err := tx.Where("user_id = ? AND topic_reply_id = ?", uid, replyID).First(&existing).Error
+	err := tx.Where("user_id = ? AND topic_reply_id = ?", userID, replyID).First(&existing).Error
 	return &existing, err
 }
 
 // CreateReplyDislike inserts a new reply-dislike row.
-func (r *ReplyRepository) CreateReplyDislike(tx *gorm.DB, uid, replyID int) error {
-	return tx.Create(&model.TopicReplyDislike{UserID: uid, TopicReplyID: replyID}).Error
+func (r *ReplyRepository) CreateReplyDislike(tx *gorm.DB, userID, replyID int) error {
+	return tx.Create(&model.TopicReplyDislike{UserID: userID, TopicReplyID: replyID}).Error
 }
 
 // DeleteReplyDislike removes a previously fetched reply-dislike row.

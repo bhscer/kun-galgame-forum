@@ -124,7 +124,7 @@ func (s *ReplyService) GetReplyDetail(
 
 func (s *ReplyService) CreateReply(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.CreateReplyRequest,
 ) (*dto.TopicReplyResponse, *errors.AppError) {
 	topic, err := s.topicRepo.FindByID(req.TopicID)
@@ -152,7 +152,7 @@ func (s *ReplyService) CreateReply(
 		}
 
 		newReply = &topicModel.TopicReply{
-			UserID:  uid,
+			UserID:  userID,
 			TopicID: req.TopicID,
 			Floor:   maxFloor + 1,
 			Content: req.Content,
@@ -178,24 +178,24 @@ func (s *ReplyService) CreateReply(
 		// Collect distinct target users (minus self)
 		targetUserSet := make(map[int]bool)
 		for _, t := range validTargets {
-			targetUID, err := s.replyRepo.FindTargetReplyUserID(tx, t.TargetReplyID)
-			if err == nil && targetUID != uid {
-				targetUserSet[targetUID] = true
+			targetUserID, err := s.replyRepo.FindTargetReplyUserID(tx, t.TargetReplyID)
+			if err == nil && targetUserID != userID {
+				targetUserSet[targetUserID] = true
 			}
 		}
 
 		preview := truncate(req.Content, constants.TextPreviewLength)
 
-		for targetUID := range targetUserSet {
-			s.helpers.AdjustMoemoepoint(tx, targetUID, constants.RewardReply)
-			s.helpers.CreateReplyMessage(tx, uid, targetUID, "replied", preview, req.TopicID)
+		for targetUserID := range targetUserSet {
+			s.helpers.AdjustMoemoepoint(tx, targetUserID, constants.RewardReply)
+			s.helpers.CreateReplyMessage(tx, userID, targetUserID, "replied", preview, req.TopicID)
 		}
 
 		// Reward topic owner (matches original: always creates an extra
 		// "replied" message even if owner is already a target recipient).
-		if strings.TrimSpace(req.Content) != "" && topic.UserID != uid {
+		if strings.TrimSpace(req.Content) != "" && topic.UserID != userID {
 			s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardReply)
-			s.helpers.CreateReplyMessage(tx, uid, topic.UserID, "replied", preview, req.TopicID)
+			s.helpers.CreateReplyMessage(tx, userID, topic.UserID, "replied", preview, req.TopicID)
 		}
 
 		return nil
@@ -219,14 +219,14 @@ func (s *ReplyService) CreateReply(
 
 func (s *ReplyService) UpdateReply(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.UpdateReplyRequest,
 ) *errors.AppError {
 	reply, err := s.replyRepo.FindByID(req.ReplyID)
 	if err != nil {
 		return errors.ErrNotFound("未找到该回复")
 	}
-	if reply.UserID != uid {
+	if reply.UserID != userID {
 		return errors.ErrForbidden("您没有权限编辑此回复")
 	}
 
@@ -271,20 +271,20 @@ func (s *ReplyService) UpdateReply(
 
 func (s *ReplyService) DeleteReply(
 	ctx context.Context,
-	uid, role, replyID int,
+	userID, role, replyID int,
 ) *errors.AppError {
 	reply, err := s.replyRepo.FindByID(replyID)
 	if err != nil {
 		return errors.ErrNotFound("未找到该回复")
 	}
-	if reply.UserID != uid && role < 2 {
+	if reply.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限删除此回复")
 	}
 
 	commentCount, likeCount, targetCount, targetByCount, _ := s.replyRepo.CountReplyRelated(replyID)
 
 	penalty := 3
-	if reply.UserID == uid && role < 2 {
+	if reply.UserID == userID && role < 2 {
 		penalty = 3 * int(commentCount+likeCount+targetCount+targetByCount+1)
 	}
 
@@ -322,20 +322,20 @@ func (s *ReplyService) DeleteReply(
 // Reply interactions
 // ──────────────────────────────────────────
 
-func (s *ReplyService) ToggleReplyLike(ctx context.Context, uid, replyID int) *errors.AppError {
+func (s *ReplyService) ToggleReplyLike(ctx context.Context, userID, replyID int) *errors.AppError {
 	err := s.replyRepo.DB().Transaction(func(tx *gorm.DB) error {
 		reply, err := s.replyRepo.FindByIDTx(tx, replyID)
 		if err != nil {
 			return err
 		}
-		if reply.UserID == uid {
+		if reply.UserID == userID {
 			return gorm.ErrInvalidData
 		}
 
-		existing, findErr := s.replyRepo.FindReplyLike(tx, uid, replyID)
+		existing, findErr := s.replyRepo.FindReplyLike(tx, userID, replyID)
 
 		if findErr == gorm.ErrRecordNotFound {
-			if err := s.replyRepo.CreateReplyLike(tx, uid, replyID); err != nil {
+			if err := s.replyRepo.CreateReplyLike(tx, userID, replyID); err != nil {
 				return err
 			}
 			if err := s.replyRepo.AdjustReplyLikeCount(tx, replyID, 1); err != nil {
@@ -345,7 +345,7 @@ func (s *ReplyService) ToggleReplyLike(ctx context.Context, uid, replyID int) *e
 
 			link := fmt.Sprintf("/topic/%d", reply.TopicID)
 			preview := truncate(reply.Content, constants.TextPreviewLength)
-			createDedupMessage(tx, uid, reply.UserID, "liked", preview, link)
+			createDedupMessage(tx, userID, reply.UserID, "liked", preview, link)
 		} else if findErr == nil {
 			if err := s.replyRepo.DeleteReplyLike(tx, existing); err != nil {
 				return err
@@ -369,20 +369,20 @@ func (s *ReplyService) ToggleReplyLike(ctx context.Context, uid, replyID int) *e
 	return nil
 }
 
-func (s *ReplyService) ToggleReplyDislike(ctx context.Context, uid, replyID int) *errors.AppError {
+func (s *ReplyService) ToggleReplyDislike(ctx context.Context, userID, replyID int) *errors.AppError {
 	err := s.replyRepo.DB().Transaction(func(tx *gorm.DB) error {
 		reply, err := s.replyRepo.FindByIDTx(tx, replyID)
 		if err != nil {
 			return err
 		}
-		if reply.UserID == uid {
+		if reply.UserID == userID {
 			return gorm.ErrInvalidData
 		}
 
-		existing, findErr := s.replyRepo.FindReplyDislike(tx, uid, replyID)
+		existing, findErr := s.replyRepo.FindReplyDislike(tx, userID, replyID)
 
 		if findErr == gorm.ErrRecordNotFound {
-			if err := s.replyRepo.CreateReplyDislike(tx, uid, replyID); err != nil {
+			if err := s.replyRepo.CreateReplyDislike(tx, userID, replyID); err != nil {
 				return err
 			}
 			return s.replyRepo.AdjustReplyDislikeCount(tx, replyID, 1)
@@ -404,12 +404,12 @@ func (s *ReplyService) ToggleReplyDislike(ctx context.Context, uid, replyID int)
 	return nil
 }
 
-func (s *ReplyService) PinReply(ctx context.Context, uid, role, topicID, replyID int) *errors.AppError {
+func (s *ReplyService) PinReply(ctx context.Context, userID, role, topicID, replyID int) *errors.AppError {
 	topic, err := s.topicRepo.FindByID(topicID)
 	if err != nil {
 		return errors.ErrNotFound("未找到该话题")
 	}
-	if topic.UserID != uid && role < 2 {
+	if topic.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限置顶回复")
 	}
 
@@ -429,9 +429,9 @@ func (s *ReplyService) PinReply(ctx context.Context, uid, role, topicID, replyID
 			Updates(map[string]any{"pinned_reply_id": newPinned}).Error; err != nil {
 			return err
 		}
-		if isPinning && uid != reply.UserID {
+		if isPinning && userID != reply.UserID {
 			s.helpers.CreateTopicMessageWithContent(
-				tx, uid, reply.UserID, "pin-reply",
+				tx, userID, reply.UserID, "pin-reply",
 				replyPlainPreview(s.replyRepo, *reply),
 				topicID,
 			)

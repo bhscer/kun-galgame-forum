@@ -28,7 +28,7 @@ export interface MessageRequestData {
 export interface Message {
   id: number
   sender: KunUser
-  receiverUid: number
+  receiverId: number
   link: string
   content: string
   status: MessageStatus

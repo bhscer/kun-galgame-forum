@@ -21,5 +21,5 @@ useKunDisableSeo(
 </script>
 
 <template>
-  <UserGalgame :uid="user.id" :type="galgameType" />
+  <UserGalgame :user-id="user.id" :type="galgameType" />
 </template>

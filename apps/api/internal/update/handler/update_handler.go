@@ -61,7 +61,7 @@ func (h *UpdateHandler) CreateHistory(c *fiber.Ctx) error {
 		Type: req.Type, Version: req.Version,
 		ContentEnUS: req.ContentEnUS, ContentJaJP: req.ContentJaJP,
 		ContentZhCN: req.ContentZhCN, ContentZhTW: req.ContentZhTW,
-		UserID: user.UID,
+		UserID: user.ID,
 	}
 	if err := h.repo.CreateHistory(&log); err != nil {
 		return response.Error(c, errors.ErrInternal("创建更新日志失败"))
@@ -146,7 +146,7 @@ func (h *UpdateHandler) CreateTodo(c *fiber.Ctx) error {
 		Type: req.Type, Status: req.Status,
 		ContentEnUS: req.ContentEnUS, ContentJaJP: req.ContentJaJP,
 		ContentZhCN: req.ContentZhCN, ContentZhTW: req.ContentZhTW,
-		UserID: user.UID,
+		UserID: user.ID,
 	}
 	if err := h.repo.CreateTodo(&todo); err != nil {
 		return response.Error(c, errors.ErrInternal("创建待办失败"))

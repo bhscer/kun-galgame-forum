@@ -54,7 +54,7 @@ func (h *ArticleHandler) CreateArticle(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	article, appErr := h.articleService.Create(user.UID, &req)
+	article, appErr := h.articleService.Create(user.ID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

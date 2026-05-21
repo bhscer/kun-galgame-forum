@@ -5,7 +5,7 @@ import {
 } from '~/constants/user'
 
 const props = defineProps<{
-  uid: number
+  userId: number
   type: (typeof KUN_USER_PAGE_GALGAME_TYPE)[number]
 }>()
 
@@ -14,13 +14,13 @@ const pageData = reactive({
   page: 1,
   limit: 24,
   type: props.type,
-  userId: props.uid
+  userId: props.userId
 })
 
 const { data, status } = await useKunFetch<{
   items: GalgameCard[]
   total: number
-}>(() => `/user/${props.uid}/galgames`, { query: pageData })
+}>(() => `/user/${props.userId}/galgames`, { query: pageData })
 </script>
 
 <template>
@@ -31,7 +31,7 @@ const { data, status } = await useKunFetch<{
     />
 
     <KunTab
-      :items="kunUserGalgameNavItem(uid)"
+      :items="kunUserGalgameNavItem(userId)"
       :model-value="activeTab"
       size="sm"
     />

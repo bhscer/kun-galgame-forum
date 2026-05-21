@@ -1,7 +1,7 @@
 package dto
 
-// FloatingCardRequest binds the query params for GET /api/user/:uid/floating.
-// NOTE: the URL path parameter :uid is historically ignored — the frontend
+// FloatingCardRequest binds the query params for GET /api/user/:userID/floating.
+// NOTE: the URL path parameter :userID is historically ignored — the frontend
 // passes the target user via ?userId=N. Preserve this quirk for compatibility.
 type FloatingCardRequest struct {
 	UserID int `query:"userId" validate:"required,min=1"`

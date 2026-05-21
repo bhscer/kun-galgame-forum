@@ -38,11 +38,11 @@ type UploadGalgameResult struct {
 
 // UploadGalgameImage proxies a single file to image_service under the
 // caller-chosen preset and adapts the response to UploadGalgameResult.
-// uid is taken from the kungal session (caller passes it for logging
+// userID is taken from the kungal session (caller passes it for logging
 // + future per-user quota mirroring).
 func (s *ImageService) UploadGalgameImage(
 	ctx context.Context,
-	uid int,
+	userID int,
 	r io.Reader,
 	filename, preset string,
 ) (*UploadGalgameResult, *errors.AppError) {

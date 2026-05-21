@@ -177,10 +177,10 @@ func (s *RatingService) GetRatingDetail(
 
 func (s *RatingService) CreateRating(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.CreateRatingRequest,
 ) (*dto.CreatedRating, *errors.AppError) {
-	if s.ratingRepo.ExistsByUserGalgame(req.GalgameID, uid) {
+	if s.ratingRepo.ExistsByUserGalgame(req.GalgameID, userID) {
 		return nil, errors.ErrBadRequest("您已经发布过该 Galgame 的评分了")
 	}
 
@@ -195,7 +195,7 @@ func (s *RatingService) CreateRating(
 		Art:          req.Art, Story: req.Story, Music: req.Music,
 		Character: req.Character, Route: req.Route, System: req.System,
 		Voice: req.Voice, ReplayValue: req.ReplayValue,
-		GalgameID: req.GalgameID, UserID: uid,
+		GalgameID: req.GalgameID, UserID: userID,
 	}
 	reward := ratingReward(len(req.ShortSummary))
 
@@ -203,14 +203,14 @@ func (s *RatingService) CreateRating(
 		if err := s.ratingRepo.Create(tx, rating); err != nil {
 			return err
 		}
-		s.helpers.AdjustMoemoepoint(tx, uid, reward)
+		s.helpers.AdjustMoemoepoint(tx, userID, reward)
 		return nil
 	})
 	if txErr != nil {
 		return nil, errors.ErrInternal("创建评分失败")
 	}
 
-	user, _, _ := s.userClient.User(ctx, uid)
+	user, _, _ := s.userClient.User(ctx, userID)
 	briefMap := s.fetchWikiBriefs(ctx, []int{req.GalgameID})
 
 	return &dto.CreatedRating{
@@ -251,14 +251,14 @@ func (s *RatingService) CreateRating(
 // ──────────────────────────────────────────
 
 func (s *RatingService) UpdateRating(
-	uid int,
+	userID int,
 	req *dto.UpdateRatingRequest,
 ) *errors.AppError {
 	rating, err := s.ratingRepo.FindRatingForWrite(req.GalgameRatingID)
 	if err != nil {
 		return errors.ErrNotFound("评分不存在")
 	}
-	if rating.UserID != uid {
+	if rating.UserID != userID {
 		return errors.ErrForbidden("您无权限修改他人评分")
 	}
 
@@ -280,7 +280,7 @@ func (s *RatingService) UpdateRating(
 		if err := s.ratingRepo.Update(tx, req.GalgameRatingID, fields); err != nil {
 			return err
 		}
-		s.helpers.AdjustMoemoepoint(tx, uid, pointDiff)
+		s.helpers.AdjustMoemoepoint(tx, userID, pointDiff)
 		return nil
 	})
 	if txErr != nil {
@@ -295,14 +295,14 @@ func (s *RatingService) UpdateRating(
 // ──────────────────────────────────────────
 
 func (s *RatingService) DeleteRating(
-	uid, role, ratingID int,
+	userID, role, ratingID int,
 ) *errors.AppError {
 	rating, err := s.ratingRepo.FindRatingForWrite(ratingID)
 	if err != nil {
 		return errors.ErrNotFound("未找到评分")
 	}
 	galgameOwner := s.ratingRepo.FindGalgameOwner(rating.GalgameID)
-	if rating.UserID != uid && galgameOwner != uid && role < 2 {
+	if rating.UserID != userID && galgameOwner != userID && role < 2 {
 		return errors.ErrForbidden("没有删除该评分的权限")
 	}
 
@@ -327,20 +327,20 @@ func (s *RatingService) DeleteRating(
 // ──────────────────────────────────────────
 
 func (s *RatingService) ToggleRatingLike(
-	uid int,
+	userID int,
 	req *dto.ToggleRatingLikeRequest,
 ) *errors.AppError {
 	rating, err := s.ratingRepo.FindRatingForWrite(req.GalgameRatingID)
 	if err != nil {
 		return errors.ErrNotFound("评分不存在")
 	}
-	if rating.UserID == uid {
+	if rating.UserID == userID {
 		return errors.ErrBadRequest("不能给自己的评分点赞")
 	}
 
 	preview := truncate(rating.ShortSummary, constants.TextPreviewLength)
 	txErr := s.ratingRepo.DB().Transaction(func(tx *gorm.DB) error {
-		existing, has := s.ratingRepo.FindLike(tx, req.GalgameRatingID, uid)
+		existing, has := s.ratingRepo.FindLike(tx, req.GalgameRatingID, userID)
 		var delta int
 		if has {
 			if err := s.ratingRepo.DeleteLike(tx, existing); err != nil {
@@ -348,7 +348,7 @@ func (s *RatingService) ToggleRatingLike(
 			}
 			delta = -1
 		} else {
-			if err := s.ratingRepo.CreateLike(tx, req.GalgameRatingID, uid); err != nil {
+			if err := s.ratingRepo.CreateLike(tx, req.GalgameRatingID, userID); err != nil {
 				return err
 			}
 			delta = 1
@@ -358,7 +358,7 @@ func (s *RatingService) ToggleRatingLike(
 		}
 		s.helpers.AdjustMoemoepoint(tx, rating.UserID, delta)
 		s.helpers.CreateGalgameMessageWithContent(
-			tx, uid, rating.UserID, "liked", preview, rating.GalgameID,
+			tx, userID, rating.UserID, "liked", preview, rating.GalgameID,
 		)
 		return nil
 	})
@@ -375,7 +375,7 @@ func (s *RatingService) ToggleRatingLike(
 
 func (s *RatingService) CreateRatingComment(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.CreateRatingCommentRequest,
 ) (*dto.CreatedRatingComment, *errors.AppError) {
 	galgameID := s.ratingRepo.FindRatingGalgameID(req.GalgameRatingID)
@@ -386,7 +386,7 @@ func (s *RatingService) CreateRatingComment(
 	target := req.TargetUserID
 	c := &model.GalgameRatingComment{
 		GalgameRatingID: req.GalgameRatingID,
-		UserID:          uid,
+		UserID:          userID,
 		TargetUserID:    &target,
 		Content:         req.Content,
 	}
@@ -395,9 +395,9 @@ func (s *RatingService) CreateRatingComment(
 		if err := s.ratingRepo.CreateComment(tx, c); err != nil {
 			return err
 		}
-		if uid != target {
+		if userID != target {
 			s.helpers.CreateGalgameMessageWithContent(
-				tx, uid, target, "commented",
+				tx, userID, target, "commented",
 				truncate(req.Content, constants.TextPreviewLength),
 				galgameID,
 			)
@@ -408,7 +408,7 @@ func (s *RatingService) CreateRatingComment(
 		return nil, errors.ErrInternal("评论失败")
 	}
 
-	user, _, _ := s.userClient.User(ctx, uid)
+	user, _, _ := s.userClient.User(ctx, userID)
 	targetUser, hasTarget, _ := s.userClient.User(ctx, target)
 	resp := &dto.CreatedRatingComment{
 		ID:      c.ID,
@@ -431,14 +431,14 @@ func (s *RatingService) CreateRatingComment(
 
 func (s *RatingService) UpdateRatingComment(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.UpdateRatingCommentRequest,
 ) (*dto.CreatedRatingComment, *errors.AppError) {
 	c, err := s.ratingRepo.FindCommentByID(req.GalgameRatingCommentID)
 	if err != nil {
 		return nil, errors.ErrNotFound("评论不存在")
 	}
-	if c.UserID != uid {
+	if c.UserID != userID {
 		return nil, errors.ErrForbidden("您无权限编辑该评论")
 	}
 	if err := s.ratingRepo.UpdateCommentContent(s.ratingRepo.DB(), c.ID, req.Content); err != nil {
@@ -467,7 +467,7 @@ func (s *RatingService) UpdateRatingComment(
 // ──────────────────────────────────────────
 
 func (s *RatingService) DeleteRatingComment(
-	uid, role, commentID int,
+	userID, role, commentID int,
 ) *errors.AppError {
 	c, err := s.ratingRepo.FindCommentByID(commentID)
 	if err != nil {
@@ -475,7 +475,7 @@ func (s *RatingService) DeleteRatingComment(
 	}
 	galgameID := s.ratingRepo.FindRatingGalgameID(c.GalgameRatingID)
 	galgameOwner := s.ratingRepo.FindGalgameOwner(galgameID)
-	if c.UserID != uid && galgameOwner != uid && role < 2 {
+	if c.UserID != userID && galgameOwner != userID && role < 2 {
 		return errors.ErrForbidden("您没有删除该评论的权限")
 	}
 	if err := s.ratingRepo.DeleteCommentByID(s.ratingRepo.DB(), commentID); err != nil {

@@ -109,14 +109,14 @@ func (r *MessageRepository) MarkAllSystemRead() error {
 // Nav summary
 // ──────────────────────────────────────────
 
-func (r *MessageRepository) GetNavSummary(uid int) ([]map[string]any, error) {
+func (r *MessageRepository) GetNavSummary(userID int) ([]map[string]any, error) {
 	// Notice messages
 	var noticeTotal, noticeUnread int64
-	r.db.Model(&model.Message{}).Where("receiver_id = ?", uid).Count(&noticeTotal)
-	r.db.Model(&model.Message{}).Where("receiver_id = ? AND status = 'unread'", uid).Count(&noticeUnread)
+	r.db.Model(&model.Message{}).Where("receiver_id = ?", userID).Count(&noticeTotal)
+	r.db.Model(&model.Message{}).Where("receiver_id = ? AND status = 'unread'", userID).Count(&noticeUnread)
 
 	var latestNotice model.Message
-	noticeResult := r.db.Where("receiver_id = ?", uid).Order("created DESC").First(&latestNotice)
+	noticeResult := r.db.Where("receiver_id = ?", userID).Order("created DESC").First(&latestNotice)
 
 	// System messages
 	var sysTotal, sysUnread int64

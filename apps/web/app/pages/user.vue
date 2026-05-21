@@ -1,13 +1,13 @@
 <script setup lang="ts">
 const route = useRoute()
 
-const uid = computed(() => {
-  return parseInt((route.params as { uid: string }).uid)
+const userId = computed(() => {
+  return parseInt((route.params as { id: string }).id)
 })
 
 const { data } = await useKunFetch<UserInfo | 'banned'>(
-  `/user/${uid.value}`,
-  { query: { userId: uid } }
+  `/user/${userId.value}`,
+  { query: { userId } }
 )
 
 if (data.value === 'banned') {

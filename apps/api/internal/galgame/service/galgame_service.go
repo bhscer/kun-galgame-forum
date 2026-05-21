@@ -123,7 +123,7 @@ func (s *GalgameService) Create(
 			// +3 reward is preferable to half-rolling-back wiki state.
 			// Surface as a soft error in logs but return the wiki response.
 			slog.Warn("galgame 创建本地副作用失败 (wiki 已成功)",
-				"gid", created.ID, "uid", userID, "error", txErr)
+				"gid", created.ID, "userID", userID, "error", txErr)
 		}
 	}
 	return data, nil

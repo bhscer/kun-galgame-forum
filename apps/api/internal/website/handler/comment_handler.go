@@ -41,7 +41,7 @@ func (h *CommentHandler) CreateComment(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	comment, appErr := h.commentService.CreateComment(user.UID, &req)
+	comment, appErr := h.commentService.CreateComment(user.ID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -61,7 +61,7 @@ func (h *CommentHandler) DeleteComment(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.commentService.DeleteComment(user.UID, user.Role, req.CommentID); appErr != nil {
+	if appErr := h.commentService.DeleteComment(user.ID, user.Role, req.CommentID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "评论已删除")

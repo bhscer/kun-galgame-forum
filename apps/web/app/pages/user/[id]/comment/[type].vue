@@ -21,5 +21,5 @@ useKunDisableSeo(
 </script>
 
 <template>
-  <UserComment :uid="user.id" :type="commentType" />
+  <UserComment :user-id="user.id" :type="commentType" />
 </template>

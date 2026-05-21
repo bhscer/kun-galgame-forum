@@ -72,7 +72,7 @@ func (h *ImageHandler) UploadGalgameImage(c *fiber.Ctx) error {
 	defer f.Close()
 
 	res, sErr := h.imageService.UploadGalgameImage(
-		c.Context(), user.UID, f, file.Filename, preset,
+		c.Context(), user.ID, f, file.Filename, preset,
 	)
 	if sErr != nil {
 		return response.Error(c, sErr)
@@ -102,7 +102,7 @@ func (h *ImageHandler) UploadTopicImage(c *fiber.Ctx) error {
 	}
 	defer f.Close()
 
-	key, sErr := h.imageService.UploadTopicImage(c.Context(), user.UID, f, file.Filename)
+	key, sErr := h.imageService.UploadTopicImage(c.Context(), user.ID, f, file.Filename)
 	if sErr != nil {
 		return response.Error(c, sErr)
 	}

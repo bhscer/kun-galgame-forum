@@ -63,7 +63,7 @@ export interface UserReply {
 }
 
 export interface UserGetUserReplyRequestData {
-  uid: number
+  id: number
   ridArray: number[]
 }
 
@@ -74,7 +74,7 @@ export interface UserComment {
 }
 
 export interface UserGetUserCommentRequestData {
-  uid: number
+  id: number
   cidArray: number[]
 }
 

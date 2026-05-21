@@ -42,7 +42,7 @@ func newTestApp(t *testing.T) *fiber.App {
 	// stores a *UserInfo (pointer) — see middleware.MustGetUser's type
 	// assertion — so we match that here.
 	app.Use(func(c *fiber.Ctx) error {
-		c.Locals(string(middleware.UserInfoKey), &middleware.UserInfo{UID: 1})
+		c.Locals(string(middleware.UserInfoKey), &middleware.UserInfo{ID: 1})
 		return c.Next()
 	})
 	svc := service.NewImageService(&repository.ImageRepository{}, nil, nil)

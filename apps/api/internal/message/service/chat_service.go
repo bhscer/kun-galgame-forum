@@ -32,8 +32,8 @@ func NewChatService(
 // For private rooms, the display title/avatar/route are resolved to the
 // OTHER participant (not the current user). Identity is hydrated via
 // userclient since the repo no longer joins on the user table.
-func (s *ChatService) GetNavContact(ctx context.Context, uid int) ([]dto.NavContactItem, *errors.AppError) {
-	rooms, err := s.chatRepo.FindRoomsForUser(uid)
+func (s *ChatService) GetNavContact(ctx context.Context, userID int) ([]dto.NavContactItem, *errors.AppError) {
+	rooms, err := s.chatRepo.FindRoomsForUser(userID)
 	if err != nil {
 		return nil, errors.ErrInternal("查询聊天室失败")
 	}
@@ -59,7 +59,7 @@ func (s *ChatService) GetNavContact(ctx context.Context, uid int) ([]dto.NavCont
 
 	// Unread + total counts per room.
 	unreadMap := make(map[int]int)
-	for _, u := range s.chatRepo.CountUnreadByRoomIDs(roomIDs, uid) {
+	for _, u := range s.chatRepo.CountUnreadByRoomIDs(roomIDs, userID) {
 		unreadMap[u.ChatRoomID] = u.Count
 	}
 	totalMap := make(map[int]int)
@@ -72,7 +72,7 @@ func (s *ChatService) GetNavContact(ctx context.Context, uid int) ([]dto.NavCont
 		title, avatar, route := r.Name, r.Avatar, r.Name
 		if r.Type == "private" {
 			for _, p := range roomParts[r.ID] {
-				if p.UserID != uid {
+				if p.UserID != userID {
 					u := userMap[p.UserID]
 					title = u.Name
 					avatar = u.Avatar
@@ -104,14 +104,14 @@ func (s *ChatService) GetNavContact(ctx context.Context, uid int) ([]dto.NavCont
 // fetched message not sent by the current user as read.
 func (s *ChatService) GetChatHistory(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.GetChatHistoryRequest,
 ) ([]dto.ChatMessageItem, *errors.AppError) {
-	if req.ReceiverUID == uid {
+	if req.ReceiverID == userID {
 		return nil, errors.ErrBadRequest("不能给自己发送消息")
 	}
 
-	roomID, roomName := s.findOrCreatePrivateRoom(uid, req.ReceiverUID)
+	roomID, roomName := s.findOrCreatePrivateRoom(userID, req.ReceiverID)
 	if roomID == 0 {
 		return []dto.ChatMessageItem{}, nil
 	}
@@ -122,11 +122,11 @@ func (s *ChatService) GetChatHistory(
 	if len(rows) > 0 {
 		msgIDs := make([]int, 0, len(rows))
 		for _, m := range rows {
-			if m.SenderID != uid {
+			if m.SenderID != userID {
 				msgIDs = append(msgIDs, m.ID)
 			}
 		}
-		s.chatRepo.MarkMessagesRead(msgIDs, uid)
+		s.chatRepo.MarkMessagesRead(msgIDs, userID)
 	}
 
 	// Hydrate sender identity in one batch.
@@ -141,7 +141,7 @@ func (s *ChatService) GetChatHistory(
 			ID:           m.ID,
 			ChatroomName: m.ChatroomName,
 			Sender:       dto.ChatSender{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
-			ReceiverUID:  m.ReceiverID,
+			ReceiverID:  m.ReceiverID,
 			Content:      m.Content,
 			IsRecall:     m.IsRecall,
 			Created:      m.Created,
@@ -162,22 +162,22 @@ func (s *ChatService) GetChatHistory(
 // the contacts list; it's passed in because the service doesn't have a user repo.
 func (s *ChatService) SendChatMessage(
 	ctx context.Context,
-	senderUID int,
+	senderUserID int,
 	senderName string,
 	req *dto.SendChatMessageRequest,
 ) *errors.AppError {
-	if req.ReceiverUID == senderUID {
+	if req.ReceiverID == senderUserID {
 		return errors.ErrBadRequest("不能给自己发送消息")
 	}
 
-	roomID, roomName := s.findOrCreatePrivateRoom(senderUID, req.ReceiverUID)
+	roomID, roomName := s.findOrCreatePrivateRoom(senderUserID, req.ReceiverID)
 	if roomID == 0 {
 		return errors.ErrInternal("创建聊天室失败")
 	}
 
 	now := time.Now()
-	s.chatRepo.InsertChatMessage(roomID, roomName, senderUID, req.ReceiverUID, req.Content, now)
-	s.chatRepo.UpdateRoomLastMessage(roomID, req.Content, senderUID, senderName, now)
+	s.chatRepo.InsertChatMessage(roomID, roomName, senderUserID, req.ReceiverID, req.Content, now)
+	s.chatRepo.UpdateRoomLastMessage(roomID, req.Content, senderUserID, senderName, now)
 	return nil
 }
 
@@ -192,14 +192,14 @@ func (s *ChatService) SendChatMessage(
 // chat history view.
 func (s *ChatService) RecallMessage(
 	ctx context.Context,
-	uid int,
+	userID int,
 	messageID int,
 ) *errors.AppError {
 	header, ok := s.chatRepo.FindMessageHeader(messageID)
 	if !ok {
 		return errors.ErrNotFound("消息不存在或已被删除")
 	}
-	if header.SenderID != uid {
+	if header.SenderID != userID {
 		return errors.ErrForbidden("您只能撤回自己发送的消息")
 	}
 	if header.IsRecall {
@@ -220,7 +220,7 @@ func (s *ChatService) RecallMessage(
 			senderName = u.Name
 		}
 		preview := fmt.Sprintf("%s撤回了一条消息", senderName)
-		s.chatRepo.UpdateRoomLastMessage(header.ChatRoomID, preview, uid, senderName, now)
+		s.chatRepo.UpdateRoomLastMessage(header.ChatRoomID, preview, userID, senderName, now)
 	}
 	return nil
 }

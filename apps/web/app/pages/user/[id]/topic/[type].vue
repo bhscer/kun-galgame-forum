@@ -21,5 +21,5 @@ useKunDisableSeo(
 </script>
 
 <template>
-  <UserTopic :uid="user.id" :type="topicType" />
+  <UserTopic :user-id="user.id" :type="topicType" />
 </template>

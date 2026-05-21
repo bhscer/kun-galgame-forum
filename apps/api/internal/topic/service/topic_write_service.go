@@ -50,7 +50,7 @@ func NewTopicWriteService(
 
 func (s *TopicWriteService) Create(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.CreateTopicRequest,
 ) (int, *errors.AppError) {
 	hasConsumeSection := false
@@ -64,12 +64,12 @@ func (s *TopicWriteService) Create(
 	var newTopicID int
 
 	err := s.topicRepo.DB().Transaction(func(tx *gorm.DB) error {
-		state, err := s.stateRepo.LockForUpdate(tx, uid)
+		state, err := s.stateRepo.LockForUpdate(tx, userID)
 		if err != nil {
 			return err
 		}
 
-		todayCount, err := s.topicRepo.CountTodayTopicsByUser(tx, uid)
+		todayCount, err := s.topicRepo.CountTodayTopicsByUser(tx, userID)
 		if err != nil {
 			return err
 		}
@@ -87,7 +87,7 @@ func (s *TopicWriteService) Create(
 			Content:  req.Content,
 			Category: req.Category,
 			IsNSFW:   req.IsNSFW,
-			UserID:   uid,
+			UserID:   userID,
 		}
 		if err := s.topicRepo.CreateTopic(tx, topic); err != nil {
 			return err
@@ -118,7 +118,7 @@ func (s *TopicWriteService) Create(
 		if hasConsumeSection {
 			pointsDelta = -constants.CostConsumeSection
 		}
-		s.helpers.AdjustMoemoepoint(tx, uid, pointsDelta)
+		s.helpers.AdjustMoemoepoint(tx, userID, pointsDelta)
 		return nil
 	})
 
@@ -141,7 +141,7 @@ func (s *TopicWriteService) Create(
 
 func (s *TopicWriteService) Update(
 	ctx context.Context,
-	uid, role int,
+	userID, role int,
 	topicID int,
 	req *dto.UpdateTopicRequest,
 ) *errors.AppError {
@@ -149,7 +149,7 @@ func (s *TopicWriteService) Update(
 	if err != nil {
 		return errors.ErrNotFound("未找到该话题")
 	}
-	if topic.UserID != uid && role < 2 {
+	if topic.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限编辑此话题")
 	}
 
@@ -199,7 +199,7 @@ func (s *TopicWriteService) Update(
 // Interactions — all checks inside transaction
 // ──────────────────────────────────────────
 
-func (s *TopicWriteService) ToggleLike(ctx context.Context, uid, topicID int) *errors.AppError {
+func (s *TopicWriteService) ToggleLike(ctx context.Context, userID, topicID int) *errors.AppError {
 	err := s.topicRepo.DB().Transaction(func(tx *gorm.DB) error {
 		topic, err := s.topicRepo.FindByIDTx(tx, topicID)
 		if err != nil {
@@ -208,21 +208,21 @@ func (s *TopicWriteService) ToggleLike(ctx context.Context, uid, topicID int) *e
 		if topic.Status == 1 {
 			return gorm.ErrRecordNotFound
 		}
-		if topic.UserID == uid {
+		if topic.UserID == userID {
 			return gorm.ErrInvalidData
 		}
 
-		existing, findErr := s.topicRepo.FindTopicLike(tx, uid, topicID)
+		existing, findErr := s.topicRepo.FindTopicLike(tx, userID, topicID)
 
 		if findErr == gorm.ErrRecordNotFound {
-			if err := s.topicRepo.CreateTopicLike(tx, uid, topicID); err != nil {
+			if err := s.topicRepo.CreateTopicLike(tx, userID, topicID); err != nil {
 				return err
 			}
 			if err := s.topicRepo.AdjustLikeCount(tx, topicID, 1); err != nil {
 				return err
 			}
 			s.helpers.AdjustMoemoepoint(tx, topic.UserID, 1)
-			s.helpers.CreateTopicMessage(tx, uid, topic.UserID, "liked", topicID)
+			s.helpers.CreateTopicMessage(tx, userID, topic.UserID, "liked", topicID)
 		} else if findErr == nil {
 			if err := s.topicRepo.DeleteTopicLike(tx, existing); err != nil {
 				return err
@@ -249,7 +249,7 @@ func (s *TopicWriteService) ToggleLike(ctx context.Context, uid, topicID int) *e
 	return nil
 }
 
-func (s *TopicWriteService) ToggleDislike(ctx context.Context, uid, topicID int) *errors.AppError {
+func (s *TopicWriteService) ToggleDislike(ctx context.Context, userID, topicID int) *errors.AppError {
 	err := s.topicRepo.DB().Transaction(func(tx *gorm.DB) error {
 		topic, err := s.topicRepo.FindByIDTx(tx, topicID)
 		if err != nil {
@@ -259,10 +259,10 @@ func (s *TopicWriteService) ToggleDislike(ctx context.Context, uid, topicID int)
 			return gorm.ErrRecordNotFound
 		}
 
-		existing, findErr := s.topicRepo.FindTopicDislike(tx, uid, topicID)
+		existing, findErr := s.topicRepo.FindTopicDislike(tx, userID, topicID)
 
 		if findErr == gorm.ErrRecordNotFound {
-			if err := s.topicRepo.CreateTopicDislike(tx, uid, topicID); err != nil {
+			if err := s.topicRepo.CreateTopicDislike(tx, userID, topicID); err != nil {
 				return err
 			}
 			return s.topicRepo.AdjustDislikeCount(tx, topicID, 1)
@@ -284,7 +284,7 @@ func (s *TopicWriteService) ToggleDislike(ctx context.Context, uid, topicID int)
 	return nil
 }
 
-func (s *TopicWriteService) Upvote(ctx context.Context, uid, topicID int) *errors.AppError {
+func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int) *errors.AppError {
 	err := s.topicRepo.DB().Transaction(func(tx *gorm.DB) error {
 		topic, err := s.topicRepo.FindByIDTx(tx, topicID)
 		if err != nil {
@@ -293,11 +293,11 @@ func (s *TopicWriteService) Upvote(ctx context.Context, uid, topicID int) *error
 		if topic.Status == 1 {
 			return gorm.ErrRecordNotFound
 		}
-		if topic.UserID == uid {
+		if topic.UserID == userID {
 			return gorm.ErrInvalidData
 		}
 
-		state, err := s.stateRepo.LockForUpdate(tx, uid)
+		state, err := s.stateRepo.LockForUpdate(tx, userID)
 		if err != nil {
 			return err
 		}
@@ -307,16 +307,16 @@ func (s *TopicWriteService) Upvote(ctx context.Context, uid, topicID int) *error
 
 		now := time.Now()
 
-		if err := s.topicRepo.CreateTopicUpvote(tx, uid, topicID); err != nil {
+		if err := s.topicRepo.CreateTopicUpvote(tx, userID, topicID); err != nil {
 			return err
 		}
 		if err := s.topicRepo.ApplyUpvoteCountAndTime(tx, topicID, now); err != nil {
 			return err
 		}
 
-		s.helpers.AdjustMoemoepoint(tx, uid, -constants.CostUpvoteSender)
+		s.helpers.AdjustMoemoepoint(tx, userID, -constants.CostUpvoteSender)
 		s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardUpvoteOwner)
-		s.helpers.CreateTopicMessage(tx, uid, topic.UserID, "upvoted", topicID)
+		s.helpers.CreateTopicMessage(tx, userID, topic.UserID, "upvoted", topicID)
 		return nil
 	})
 
@@ -335,7 +335,7 @@ func (s *TopicWriteService) Upvote(ctx context.Context, uid, topicID int) *error
 	return nil
 }
 
-func (s *TopicWriteService) ToggleFavorite(ctx context.Context, uid, topicID int) *errors.AppError {
+func (s *TopicWriteService) ToggleFavorite(ctx context.Context, userID, topicID int) *errors.AppError {
 	err := s.topicRepo.DB().Transaction(func(tx *gorm.DB) error {
 		topic, err := s.topicRepo.FindByIDTx(tx, topicID)
 		if err != nil {
@@ -345,18 +345,18 @@ func (s *TopicWriteService) ToggleFavorite(ctx context.Context, uid, topicID int
 			return gorm.ErrRecordNotFound
 		}
 
-		existing, findErr := s.topicRepo.FindTopicFavorite(tx, uid, topicID)
+		existing, findErr := s.topicRepo.FindTopicFavorite(tx, userID, topicID)
 
 		if findErr == gorm.ErrRecordNotFound {
-			if err := s.topicRepo.CreateTopicFavorite(tx, uid, topicID); err != nil {
+			if err := s.topicRepo.CreateTopicFavorite(tx, userID, topicID); err != nil {
 				return err
 			}
 			if err := s.topicRepo.AdjustFavoriteCount(tx, topicID, 1); err != nil {
 				return err
 			}
-			if uid != topic.UserID {
+			if userID != topic.UserID {
 				s.helpers.AdjustMoemoepoint(tx, topic.UserID, 1)
-				s.helpers.CreateTopicMessage(tx, uid, topic.UserID, "favorite", topicID)
+				s.helpers.CreateTopicMessage(tx, userID, topic.UserID, "favorite", topicID)
 			}
 		} else if findErr == nil {
 			if err := s.topicRepo.DeleteTopicFavorite(tx, existing); err != nil {
@@ -365,7 +365,7 @@ func (s *TopicWriteService) ToggleFavorite(ctx context.Context, uid, topicID int
 			if err := s.topicRepo.AdjustFavoriteCount(tx, topicID, -1); err != nil {
 				return err
 			}
-			if uid != topic.UserID {
+			if userID != topic.UserID {
 				s.helpers.AdjustMoemoepoint(tx, topic.UserID, -1)
 			}
 		} else {
@@ -383,12 +383,12 @@ func (s *TopicWriteService) ToggleFavorite(ctx context.Context, uid, topicID int
 	return nil
 }
 
-func (s *TopicWriteService) ToggleHide(ctx context.Context, uid, role, topicID int) *errors.AppError {
+func (s *TopicWriteService) ToggleHide(ctx context.Context, userID, role, topicID int) *errors.AppError {
 	topic, err := s.topicRepo.FindByID(topicID)
 	if err != nil {
 		return errors.ErrNotFound("未找到该话题")
 	}
-	if topic.UserID != uid && role < 2 {
+	if topic.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限操作此话题")
 	}
 
@@ -406,12 +406,12 @@ func (s *TopicWriteService) ToggleHide(ctx context.Context, uid, role, topicID i
 // already the current best answer it is cleared, otherwise it becomes the
 // best answer. The reply author's moemoepoint is adjusted by ±7 to match
 // the legacy Nitro behavior.
-func (s *TopicWriteService) SetBestAnswer(ctx context.Context, uid, role, topicID, replyID int) *errors.AppError {
+func (s *TopicWriteService) SetBestAnswer(ctx context.Context, userID, role, topicID, replyID int) *errors.AppError {
 	topic, err := s.topicRepo.FindByID(topicID)
 	if err != nil {
 		return errors.ErrNotFound("未找到该话题")
 	}
-	if topic.UserID != uid && role < 2 {
+	if topic.UserID != userID && role < 2 {
 		return errors.ErrForbidden("只有话题作者或管理员可以设置最佳回答")
 	}
 
@@ -453,7 +453,7 @@ func (s *TopicWriteService) SetBestAnswer(ctx context.Context, uid, role, topicI
 		// Only notify on set (not on clear) — matches legacy Nitro.
 		if !isCurrentBest {
 			return s.notifier.Emit(tx, msgService.Spec{
-				SenderID:   uid,
+				SenderID:   userID,
 				ReceiverID: reply.UserID,
 				Kind:       msgService.NotifySolution,
 				Content:    replyPlainPreview(s.replyRepo, reply),

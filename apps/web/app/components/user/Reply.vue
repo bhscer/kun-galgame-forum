@@ -5,7 +5,7 @@ import {
 } from '~/constants/user'
 
 const props = defineProps<{
-  uid: number
+  userId: number
   type: (typeof KUN_USER_PAGE_REPLY_TYPE)[number]
 }>()
 
@@ -13,14 +13,14 @@ const activeTab = ref(props.type)
 const pageData = reactive({
   page: 1,
   limit: 50,
-  userId: props.uid,
+  userId: props.userId,
   type: props.type
 })
 
 const { data, status } = await useKunFetch<{
   replies: UserReply[]
   total: number
-}>(`/user/${props.uid}/replies`, { query: pageData })
+}>(`/user/${props.userId}/replies`, { query: pageData })
 </script>
 
 <template>
@@ -31,7 +31,7 @@ const { data, status } = await useKunFetch<{
     />
 
     <KunTab
-      :items="kunUserReplyNavItem(uid)"
+      :items="kunUserReplyNavItem(userId)"
       :model-value="activeTab"
       size="sm"
     />

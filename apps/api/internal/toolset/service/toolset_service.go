@@ -174,8 +174,8 @@ func (s *ToolsetService) GetDetail(ctx context.Context, id int) (*dto.ToolsetDet
 	userMap := s.userClient.Hydrate(ctx, allUIDs)
 	user := userBriefFromClient(userMap[toolset.UserID])
 	contributors := make([]userModel.UserBrief, 0, len(contributorIDs))
-	for _, uid := range contributorIDs {
-		contributors = append(contributors, userBriefFromClient(userMap[uid]))
+	for _, userID := range contributorIDs {
+		contributors = append(contributors, userBriefFromClient(userMap[userID]))
 	}
 
 	// homepage is jsonb (RawMessage) on the model; flatten to []string for the

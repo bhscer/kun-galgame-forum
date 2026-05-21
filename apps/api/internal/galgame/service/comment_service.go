@@ -63,7 +63,7 @@ func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit
 	total := s.commentRepo.CountByGalgame(galgameID)
 	rows := s.commentRepo.FindPaginated(galgameID, page, limit)
 
-	// Collect every uid we need to render (authors + targets).
+	// Collect every userID we need to render (authors + targets).
 	uidSet := make(map[int]struct{})
 	for _, r := range rows {
 		uidSet[r.UserID] = struct{}{}
@@ -106,14 +106,14 @@ func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit
 
 func (s *CommentService) CreateComment(
 	ctx context.Context,
-	uid, galgameID int,
+	userID, galgameID int,
 	content string,
 	targetUserID *int,
 ) (*CommentItem, *errors.AppError) {
 	comment := model.GalgameComment{
 		Content:      content,
 		GalgameID:    galgameID,
-		UserID:       uid,
+		UserID:       userID,
 		TargetUserID: targetUserID,
 	}
 
@@ -128,14 +128,14 @@ func (s *CommentService) CreateComment(
 		tx.Model(&model.GalgameLocal{}).Where("id = ?", galgameID).
 			Update("comment_count", gorm.Expr("comment_count + 1"))
 
-		if targetUserID != nil && *targetUserID != uid {
+		if targetUserID != nil && *targetUserID != userID {
 			if err := s.stateRepo.AdjustMoemoepointTx(tx, *targetUserID, 1); err != nil {
 				return err
 			}
 
 			link := fmt.Sprintf("/galgame/%d", galgameID)
 			tx.Create(&msgModel.Message{
-				SenderID: uid, ReceiverID: *targetUserID,
+				SenderID: userID, ReceiverID: *targetUserID,
 				Type: "commented", Content: truncate(content, 233),
 				Link: link, Status: "unread",
 			})
@@ -147,7 +147,7 @@ func (s *CommentService) CreateComment(
 	}
 
 	// Build response — identity from OAuth.
-	creator, _, _ := s.userClient.User(ctx, uid)
+	creator, _, _ := s.userClient.User(ctx, userID)
 	resp := &CommentItem{
 		ID: comment.ID, Content: comment.Content, GalgameID: comment.GalgameID,
 		User:      UserObj{ID: creator.ID, Name: creator.Name, Avatar: creator.Avatar},
@@ -165,12 +165,12 @@ func (s *CommentService) CreateComment(
 // DeleteComment
 // ──────────────────────────────────────────
 
-func (s *CommentService) DeleteComment(uid, role, commentID int) *errors.AppError {
+func (s *CommentService) DeleteComment(userID, role, commentID int) *errors.AppError {
 	comment, err := s.commentRepo.FindByID(commentID)
 	if err != nil {
 		return errors.ErrNotFound("未找到该评论")
 	}
-	if comment.UserID != uid && role < 2 {
+	if comment.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限删除此评论")
 	}
 
@@ -192,24 +192,24 @@ func (s *CommentService) DeleteComment(uid, role, commentID int) *errors.AppErro
 // ToggleCommentLike
 // ──────────────────────────────────────────
 
-func (s *CommentService) ToggleCommentLike(uid, commentID int) *errors.AppError {
+func (s *CommentService) ToggleCommentLike(userID, commentID int) *errors.AppError {
 	txErr := s.commentRepo.DB().Transaction(func(tx *gorm.DB) error {
 		var comment model.GalgameComment
 		tx.First(&comment, commentID)
 
 		var existing model.GalgameCommentLike
-		result := tx.Where("user_id = ? AND galgame_comment_id = ?", uid, commentID).First(&existing)
+		result := tx.Where("user_id = ? AND galgame_comment_id = ?", userID, commentID).First(&existing)
 
 		if result.Error == gorm.ErrRecordNotFound {
-			tx.Create(&model.GalgameCommentLike{UserID: uid, CommentID: commentID})
+			tx.Create(&model.GalgameCommentLike{UserID: userID, CommentID: commentID})
 			tx.Model(&model.GalgameComment{}).Where("id = ?", commentID).
 				Update("like_count", gorm.Expr("like_count + 1"))
-			if comment.UserID != uid {
+			if comment.UserID != userID {
 				if err := s.stateRepo.AdjustMoemoepointTx(tx, comment.UserID, 1); err != nil {
 					return err
 				}
 				s.helpers.CreateGalgameMessageWithContent(
-					tx, uid, comment.UserID, "liked",
+					tx, userID, comment.UserID, "liked",
 					truncate(comment.Content, 233),
 					comment.GalgameID,
 				)
@@ -218,7 +218,7 @@ func (s *CommentService) ToggleCommentLike(uid, commentID int) *errors.AppError 
 			tx.Delete(&existing)
 			tx.Model(&model.GalgameComment{}).Where("id = ?", commentID).
 				Update("like_count", gorm.Expr("like_count - 1"))
-			if comment.UserID != uid {
+			if comment.UserID != userID {
 				if err := s.stateRepo.AdjustMoemoepointTx(tx, comment.UserID, -1); err != nil {
 					return err
 				}

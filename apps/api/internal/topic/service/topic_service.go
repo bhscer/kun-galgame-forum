@@ -168,21 +168,21 @@ func (s *TopicService) GetDetail(
 	})
 
 	if userInfo != nil {
-		uid := userInfo.UID
+		userID := userInfo.ID
 		g.Go(func() error {
-			isLiked, _ = s.topicRepo.HasUserLiked(uid, topicID)
+			isLiked, _ = s.topicRepo.HasUserLiked(userID, topicID)
 			return nil
 		})
 		g.Go(func() error {
-			isDisliked, _ = s.topicRepo.HasUserDisliked(uid, topicID)
+			isDisliked, _ = s.topicRepo.HasUserDisliked(userID, topicID)
 			return nil
 		})
 		g.Go(func() error {
-			isFavorited, _ = s.topicRepo.HasUserFavorited(uid, topicID)
+			isFavorited, _ = s.topicRepo.HasUserFavorited(userID, topicID)
 			return nil
 		})
 		g.Go(func() error {
-			isUpvoted, _ = s.topicRepo.HasUserUpvoted(uid, topicID)
+			isUpvoted, _ = s.topicRepo.HasUserUpvoted(userID, topicID)
 			return nil
 		})
 	}

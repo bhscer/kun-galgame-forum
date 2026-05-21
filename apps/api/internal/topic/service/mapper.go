@@ -18,16 +18,16 @@ import (
 
 // buildPollResponse assembles a TopicPollResponse from a poll model and the
 // associated option/voter data loaded via the repository. It does not perform
-// any DB writes; callers pass in the logged-in user context via uid/role.
+// any DB writes; callers pass in the logged-in user context via userID/role.
 // Identity for voters/creator is hydrated from OAuth via userclient.
-func (s *PollService) buildPollResponse(ctx context.Context, poll *topicModel.TopicPoll, uid, role int) dto.TopicPollResponse {
+func (s *PollService) buildPollResponse(ctx context.Context, poll *topicModel.TopicPoll, userID, role int) dto.TopicPollResponse {
 	options, _ := s.pollRepo.FindOptionsByPollID(poll.ID)
-	hasVoted, _ := s.pollRepo.HasUserVoted(poll.ID, uid)
-	canView := canViewResults(poll, uid, role, hasVoted)
+	hasVoted, _ := s.pollRepo.HasUserVoted(poll.ID, userID)
+	canView := canViewResults(poll, userID, role, hasVoted)
 
 	var userVotedOptionIDs map[int]bool
-	if uid > 0 {
-		votedIDs, _ := s.pollRepo.FindUserVoteOptionIDs(poll.ID, uid)
+	if userID > 0 {
+		votedIDs, _ := s.pollRepo.FindUserVoteOptionIDs(poll.ID, userID)
 		userVotedOptionIDs = make(map[int]bool, len(votedIDs))
 		for _, id := range votedIDs {
 			userVotedOptionIDs[id] = true
@@ -95,8 +95,8 @@ func (s *PollService) buildPollResponse(ctx context.Context, poll *topicModel.To
 
 // canViewResults returns true if the caller is allowed to see vote counts /
 // voter identities according to the poll's result_visibility setting.
-func canViewResults(poll *topicModel.TopicPoll, uid, role int, hasVoted bool) bool {
-	if uid == poll.UserID || role > 1 {
+func canViewResults(poll *topicModel.TopicPoll, userID, role int, hasVoted bool) bool {
+	if userID == poll.UserID || role > 1 {
 		return true
 	}
 	isPollFinished := poll.Status == "closed" ||
@@ -143,8 +143,8 @@ func (s *ReplyService) buildReplyResponses(
 	var likeMap, dislikeMap map[int]bool
 	var commentLikeMap map[int]bool
 	if userInfo != nil {
-		likeMap, _ = s.replyRepo.FindReplyLikeStatus(userInfo.UID, replyIDs)
-		dislikeMap, _ = s.replyRepo.FindReplyDislikeStatus(userInfo.UID, replyIDs)
+		likeMap, _ = s.replyRepo.FindReplyLikeStatus(userInfo.ID, replyIDs)
+		dislikeMap, _ = s.replyRepo.FindReplyDislikeStatus(userInfo.ID, replyIDs)
 
 		var commentIDs []int
 		for _, comments := range commentMap {
@@ -152,10 +152,10 @@ func (s *ReplyService) buildReplyResponses(
 				commentIDs = append(commentIDs, c.ID)
 			}
 		}
-		commentLikeMap, _ = s.commentRepo.FindCommentLikeStatus(userInfo.UID, commentIDs)
+		commentLikeMap, _ = s.commentRepo.FindCommentLikeStatus(userInfo.ID, commentIDs)
 	}
 
-	// Collect every uid we'll render: reply authors + target authors + comment
+	// Collect every userID we'll render: reply authors + target authors + comment
 	// authors + comment target authors. Hydrate in one batch.
 	uidSet := make(map[int]struct{})
 	for _, r := range rows {

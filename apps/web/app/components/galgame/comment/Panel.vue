@@ -7,7 +7,7 @@ const emits = defineEmits<{
   close: []
 }>()
 
-const { commentToUid } = storeToRefs(useTempGalgameResourceStore())
+const { commentToUserId } = storeToRefs(useTempGalgameResourceStore())
 const route = useRoute()
 
 const content = ref('')
@@ -31,7 +31,7 @@ const handlePublishComment = async () => {
     method: 'POST',
     body: {
       galgameId: galgameId.value,
-      targetUserId: commentToUid.value,
+      targetUserId: commentToUserId.value,
       content: content.value
     }
   })

@@ -23,7 +23,7 @@ func (r *UserContentRepository) DB() *gorm.DB { return r.db }
 // Galgame IDs
 // ──────────────────────────────────────────
 
-func (r *UserContentRepository) FindUserGalgameIDs(uid int, queryType string, page, limit int) ([]int, int64, error) {
+func (r *UserContentRepository) FindUserGalgameIDs(userID int, queryType string, page, limit int) ([]int, int64, error) {
 	offset := (page - 1) * limit
 	var total int64
 
@@ -33,27 +33,27 @@ func (r *UserContentRepository) FindUserGalgameIDs(uid int, queryType string, pa
 	case "galgame_like":
 		baseQuery = baseQuery.
 			Joins("JOIN galgame_like ON galgame_like.galgame_id = galgame.id").
-			Where("galgame_like.user_id = ?", uid)
+			Where("galgame_like.user_id = ?", userID)
 	case "galgame_favorite":
 		baseQuery = baseQuery.
 			Joins("JOIN galgame_favorite ON galgame_favorite.galgame_id = galgame.id").
-			Where("galgame_favorite.user_id = ?", uid)
+			Where("galgame_favorite.user_id = ?", userID)
 	case "galgame_comment":
 		baseQuery = baseQuery.
 			Joins("JOIN galgame_comment ON galgame_comment.galgame_id = galgame.id").
-			Where("galgame_comment.user_id = ?", uid).
+			Where("galgame_comment.user_id = ?", userID).
 			Group("galgame.id")
 	case "galgame_comment_target":
 		// Comments targeting this user's galgame comments
 		baseQuery = baseQuery.
 			Joins("JOIN galgame_comment ON galgame_comment.galgame_id = galgame.id").
-			Where("galgame_comment.target_user_id = ? AND galgame_comment.user_id != ?", uid, uid).
+			Where("galgame_comment.target_user_id = ? AND galgame_comment.user_id != ?", userID, userID).
 			Group("galgame.id")
 	case "galgame_comment_like":
 		baseQuery = baseQuery.
 			Joins("JOIN galgame_comment ON galgame_comment.galgame_id = galgame.id").
 			Joins("JOIN galgame_comment_like ON galgame_comment_like.galgame_comment_id = galgame_comment.id").
-			Where("galgame_comment_like.user_id = ?", uid).
+			Where("galgame_comment_like.user_id = ?", userID).
 			Group("galgame.id")
 	default:
 		return []int{}, 0, nil
@@ -82,7 +82,7 @@ func (r *UserContentRepository) FindUserGalgameIDs(uid int, queryType string, pa
 // Topics
 // ──────────────────────────────────────────
 
-func (r *UserContentRepository) FindUserTopics(uid int, queryType string, page, limit int) ([]dto.UserTopic, int64, error) {
+func (r *UserContentRepository) FindUserTopics(userID int, queryType string, page, limit int) ([]dto.UserTopic, int64, error) {
 	offset := (page - 1) * limit
 	var results []dto.UserTopic
 	var total int64
@@ -92,23 +92,23 @@ func (r *UserContentRepository) FindUserTopics(uid int, queryType string, page, 
 
 	switch queryType {
 	case "topic":
-		baseQuery = baseQuery.Where("topic.user_id = ?", uid)
+		baseQuery = baseQuery.Where("topic.user_id = ?", userID)
 	case "topic_like":
 		baseQuery = baseQuery.
 			Joins("JOIN topic_like ON topic_like.topic_id = topic.id").
-			Where("topic_like.user_id = ?", uid)
+			Where("topic_like.user_id = ?", userID)
 	case "topic_upvote":
 		baseQuery = baseQuery.
 			Joins("JOIN topic_upvote ON topic_upvote.topic_id = topic.id").
-			Where("topic_upvote.user_id = ?", uid)
+			Where("topic_upvote.user_id = ?", userID)
 	case "topic_favorite":
 		baseQuery = baseQuery.
 			Joins("JOIN topic_favorite ON topic_favorite.topic_id = topic.id").
-			Where("topic_favorite.user_id = ?", uid)
+			Where("topic_favorite.user_id = ?", userID)
 	case "topic_hide":
-		baseQuery = baseQuery.Where("topic.user_id = ? AND topic.status = 1", uid)
+		baseQuery = baseQuery.Where("topic.user_id = ? AND topic.status = 1", userID)
 	default:
-		baseQuery = baseQuery.Where("topic.user_id = ?", uid)
+		baseQuery = baseQuery.Where("topic.user_id = ?", userID)
 	}
 
 	baseQuery.Count(&total)
@@ -126,7 +126,7 @@ type UserReply struct {
 	Created string `gorm:"column:created" json:"created"`
 }
 
-func (r *UserContentRepository) FindUserReplies(uid int, queryType string, page, limit int) ([]UserReply, int64, error) {
+func (r *UserContentRepository) FindUserReplies(userID int, queryType string, page, limit int) ([]UserReply, int64, error) {
 	offset := (page - 1) * limit
 	var results []UserReply
 	var total int64
@@ -137,13 +137,13 @@ func (r *UserContentRepository) FindUserReplies(uid int, queryType string, page,
 	switch queryType {
 	case "reply_target":
 		baseQuery = baseQuery.
-			Where("topic_reply.topic_id IN (SELECT id FROM topic WHERE user_id = ?) AND topic_reply.user_id != ?", uid, uid)
+			Where("topic_reply.topic_id IN (SELECT id FROM topic WHERE user_id = ?) AND topic_reply.user_id != ?", userID, userID)
 	case "reply_like":
 		baseQuery = baseQuery.
 			Joins("JOIN topic_reply_like ON topic_reply_like.topic_reply_id = topic_reply.id").
-			Where("topic_reply_like.user_id = ?", uid)
+			Where("topic_reply_like.user_id = ?", userID)
 	default: // reply_created
-		baseQuery = baseQuery.Where("topic_reply.user_id = ?", uid)
+		baseQuery = baseQuery.Where("topic_reply.user_id = ?", userID)
 	}
 
 	baseQuery.Count(&total)
@@ -161,7 +161,7 @@ type UserComment struct {
 	Created string `gorm:"column:created" json:"created"`
 }
 
-func (r *UserContentRepository) FindUserComments(uid int, queryType string, page, limit int) ([]UserComment, int64, error) {
+func (r *UserContentRepository) FindUserComments(userID int, queryType string, page, limit int) ([]UserComment, int64, error) {
 	offset := (page - 1) * limit
 	var results []UserComment
 	var total int64
@@ -172,13 +172,13 @@ func (r *UserContentRepository) FindUserComments(uid int, queryType string, page
 	switch queryType {
 	case "comment_target":
 		baseQuery = baseQuery.
-			Where("topic_comment.target_user_id = ? AND topic_comment.user_id != ?", uid, uid)
+			Where("topic_comment.target_user_id = ? AND topic_comment.user_id != ?", userID, userID)
 	case "comment_like":
 		baseQuery = baseQuery.
 			Joins("JOIN topic_comment_like ON topic_comment_like.topic_comment_id = topic_comment.id").
-			Where("topic_comment_like.user_id = ?", uid)
+			Where("topic_comment_like.user_id = ?", userID)
 	default: // comment_created
-		baseQuery = baseQuery.Where("topic_comment.user_id = ?", uid)
+		baseQuery = baseQuery.Where("topic_comment.user_id = ?", userID)
 	}
 
 	baseQuery.Count(&total)
@@ -209,7 +209,7 @@ type ResourceLink struct {
 	URL        string `gorm:"column:url"`
 }
 
-func (r *UserContentRepository) FindUserResources(uid int, queryType string, page, limit int) ([]UserResource, int64, error) {
+func (r *UserContentRepository) FindUserResources(userID int, queryType string, page, limit int) ([]UserResource, int64, error) {
 	offset := (page - 1) * limit
 	var results []UserResource
 	var total int64
@@ -219,13 +219,13 @@ func (r *UserContentRepository) FindUserResources(uid int, queryType string, pag
 
 	switch queryType {
 	case "expire":
-		baseQuery = baseQuery.Where("galgame_resource.user_id = ? AND galgame_resource.status = 1", uid)
+		baseQuery = baseQuery.Where("galgame_resource.user_id = ? AND galgame_resource.status = 1", userID)
 	case "galgame_resource_like":
 		baseQuery = baseQuery.
 			Joins("JOIN galgame_resource_like ON galgame_resource_like.galgame_resource_id = galgame_resource.id").
-			Where("galgame_resource_like.user_id = ?", uid)
+			Where("galgame_resource_like.user_id = ?", userID)
 	default: // valid
-		baseQuery = baseQuery.Where("galgame_resource.user_id = ? AND galgame_resource.status = 0", uid)
+		baseQuery = baseQuery.Where("galgame_resource.user_id = ? AND galgame_resource.status = 0", userID)
 	}
 
 	baseQuery.Count(&total)
@@ -279,12 +279,12 @@ type UserRating struct {
 	Updated      string `gorm:"column:updated" json:"updated"`
 }
 
-func (r *UserContentRepository) FindUserRatings(uid int, page, limit int) ([]UserRating, int64, error) {
+func (r *UserContentRepository) FindUserRatings(userID int, page, limit int) ([]UserRating, int64, error) {
 	offset := (page - 1) * limit
 	var results []UserRating
 	var total int64
 
-	r.db.Table("galgame_rating").Where("user_id = ?", uid).Count(&total)
+	r.db.Table("galgame_rating").Where("user_id = ?", userID).Count(&total)
 
 	err := r.db.Table("galgame_rating").
 		Select(`galgame_rating.id, galgame_rating.galgame_id, galgame_rating.recommend, galgame_rating.overall, galgame_rating.view,
@@ -292,7 +292,7 @@ func (r *UserContentRepository) FindUserRatings(uid int, page, limit int) ([]Use
 			galgame_rating.galgame_type, galgame_rating.play_status, galgame_rating.spoiler_level, galgame_rating.like_count,
 			galgame_rating.user_id,
 			galgame_rating.created, galgame_rating.updated`).
-		Where("galgame_rating.user_id = ?", uid).
+		Where("galgame_rating.user_id = ?", userID).
 		Order("galgame_rating.created DESC").Offset(offset).Limit(limit).
 		Scan(&results).Error
 	return results, total, err

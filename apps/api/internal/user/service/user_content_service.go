@@ -30,17 +30,17 @@ func NewUserContentService(
 }
 
 // ──────────────────────────────────────────
-// User galgame list — GET /user/:uid/galgames
+// User galgame list — GET /user/:userID/galgames
 // ──────────────────────────────────────────
 
 // GetUserGalgameCards returns enriched galgame cards for the user's list
 // (created / liked / favorited / commented depending on req.Type).
 func (s *UserContentService) GetUserGalgameCards(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.UserGalgamesRequest,
 ) ([]dto.UserGalgameCard, int64, *errors.AppError) {
-	ids, total, err := s.userContentRepo.FindUserGalgameIDs(uid, req.Type, req.Page, req.Limit)
+	ids, total, err := s.userContentRepo.FindUserGalgameIDs(userID, req.Type, req.Page, req.Limit)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户 Galgame 列表失败")
 	}
@@ -98,24 +98,24 @@ func values[K comparable, V any](m map[K]V) []V {
 // Topics / replies / comments (already thin)
 // ──────────────────────────────────────────
 
-func (s *UserContentService) GetUserTopics(ctx context.Context, uid int, req *dto.UserTopicsRequest) ([]dto.UserTopic, int64, *errors.AppError) {
-	items, total, err := s.userContentRepo.FindUserTopics(uid, req.Type, req.Page, req.Limit)
+func (s *UserContentService) GetUserTopics(ctx context.Context, userID int, req *dto.UserTopicsRequest) ([]dto.UserTopic, int64, *errors.AppError) {
+	items, total, err := s.userContentRepo.FindUserTopics(userID, req.Type, req.Page, req.Limit)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户话题列表失败")
 	}
 	return items, total, nil
 }
 
-func (s *UserContentService) GetUserReplies(ctx context.Context, uid int, req *dto.UserRepliesRequest) ([]repository.UserReply, int64, *errors.AppError) {
-	items, total, err := s.userContentRepo.FindUserReplies(uid, req.Type, req.Page, req.Limit)
+func (s *UserContentService) GetUserReplies(ctx context.Context, userID int, req *dto.UserRepliesRequest) ([]repository.UserReply, int64, *errors.AppError) {
+	items, total, err := s.userContentRepo.FindUserReplies(userID, req.Type, req.Page, req.Limit)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户回复列表失败")
 	}
 	return items, total, nil
 }
 
-func (s *UserContentService) GetUserComments(ctx context.Context, uid int, req *dto.UserCommentsRequest) ([]repository.UserComment, int64, *errors.AppError) {
-	items, total, err := s.userContentRepo.FindUserComments(uid, req.Type, req.Page, req.Limit)
+func (s *UserContentService) GetUserComments(ctx context.Context, userID int, req *dto.UserCommentsRequest) ([]repository.UserComment, int64, *errors.AppError) {
+	items, total, err := s.userContentRepo.FindUserComments(userID, req.Type, req.Page, req.Limit)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户评论列表失败")
 	}
@@ -123,15 +123,15 @@ func (s *UserContentService) GetUserComments(ctx context.Context, uid int, req *
 }
 
 // ──────────────────────────────────────────
-// Resources — GET /user/:uid/resources
+// Resources — GET /user/:userID/resources
 // ──────────────────────────────────────────
 
 func (s *UserContentService) GetUserResources(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.UserResourcesRequest,
 ) (*dto.UserResourcesResponse, *errors.AppError) {
-	rows, total, err := s.userContentRepo.FindUserResources(uid, req.Type, req.Page, req.Limit)
+	rows, total, err := s.userContentRepo.FindUserResources(userID, req.Type, req.Page, req.Limit)
 	if err != nil {
 		return nil, errors.ErrInternal("获取用户资源列表失败")
 	}
@@ -185,15 +185,15 @@ func (s *UserContentService) GetUserResources(
 }
 
 // ──────────────────────────────────────────
-// Ratings — GET /user/:uid/ratings
+// Ratings — GET /user/:userID/ratings
 // ──────────────────────────────────────────
 
 func (s *UserContentService) GetUserRatings(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.UserRatingsRequest,
 ) (*dto.UserRatingsResponse, *errors.AppError) {
-	rows, total, err := s.userContentRepo.FindUserRatings(uid, req.Page, req.Limit)
+	rows, total, err := s.userContentRepo.FindUserRatings(userID, req.Page, req.Limit)
 	if err != nil {
 		return nil, errors.ErrInternal("获取用户评分列表失败")
 	}

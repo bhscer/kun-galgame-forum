@@ -41,7 +41,7 @@ func SessionKey(token string) string { return SessionPrefix + token }
 
 // UserInfo represents the authenticated user extracted from session.
 type UserInfo struct {
-	UID   int    `json:"uid"`
+	ID    int    `json:"id"`
 	Sub   string `json:"sub"` // OAuth UUID
 	Name  string `json:"name"`
 	Email string `json:"email"`

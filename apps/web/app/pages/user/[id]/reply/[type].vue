@@ -19,5 +19,5 @@ useKunDisableSeo(`${props.user.name}${REPLY_NAV_CONFIG[replyType.value].text}`)
 </script>
 
 <template>
-  <UserReply :uid="user.id" :type="replyType" />
+  <UserReply :user-id="user.id" :type="replyType" />
 </template>

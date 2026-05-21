@@ -71,13 +71,13 @@ type ChatMessageRow struct {
 
 // FindRoomsForUser returns every chat room the user participates in that has
 // at least one message, ordered by last message time DESC.
-func (r *ChatRepository) FindRoomsForUser(uid int) ([]RoomListRow, error) {
+func (r *ChatRepository) FindRoomsForUser(userID int) ([]RoomListRow, error) {
 	var rooms []RoomListRow
 	err := r.db.Table("chat_room cr").
 		Select(`cr.id, cr.name, cr.avatar, cr.type,
 			cr.last_message_content, cr.last_message_time`).
 		Joins("JOIN chat_room_participant crp ON crp.chat_room_id = cr.id").
-		Where("crp.user_id = ? AND cr.last_message_sender_id != 0 AND cr.last_message_time IS NOT NULL", uid).
+		Where("crp.user_id = ? AND cr.last_message_sender_id != 0 AND cr.last_message_time IS NOT NULL", userID).
 		Order("cr.last_message_time DESC").
 		Scan(&rooms).Error
 	return rooms, err
@@ -96,12 +96,12 @@ func (r *ChatRepository) FindParticipantsByRoomIDs(roomIDs []int) []ParticipantR
 
 // CountUnreadByRoomIDs returns unread-message counts (per room) for the given user:
 // messages in the room NOT sent by the user AND not present in chat_message_read_by.
-func (r *ChatRepository) CountUnreadByRoomIDs(roomIDs []int, uid int) []CountRow {
+func (r *ChatRepository) CountUnreadByRoomIDs(roomIDs []int, userID int) []CountRow {
 	var rows []CountRow
 	r.db.Table("chat_message cm").
 		Select("cm.chat_room_id, COUNT(*) AS count").
-		Where("cm.chat_room_id IN ? AND cm.sender_id != ?", roomIDs, uid).
-		Where("cm.id NOT IN (SELECT chat_message_id FROM chat_message_read_by WHERE user_id = ?)", uid).
+		Where("cm.chat_room_id IN ? AND cm.sender_id != ?", roomIDs, userID).
+		Where("cm.id NOT IN (SELECT chat_message_id FROM chat_message_read_by WHERE user_id = ?)", userID).
 		Group("cm.chat_room_id").
 		Scan(&rows)
 	return rows
@@ -225,11 +225,11 @@ func (r *ChatRepository) IsLatestMessageInRoom(roomID, msgID int) bool {
 
 // MarkMessagesRead inserts (chat_message_id, user_id) rows into
 // chat_message_read_by, ignoring duplicates. A no-op if msgIDs is empty.
-func (r *ChatRepository) MarkMessagesRead(msgIDs []int, uid int) {
+func (r *ChatRepository) MarkMessagesRead(msgIDs []int, userID int) {
 	for _, mid := range msgIDs {
 		r.db.Exec(
 			`INSERT INTO chat_message_read_by (chat_message_id, user_id, created, updated) VALUES (?, ?, NOW(), NOW()) ON CONFLICT DO NOTHING`,
-			mid, uid,
+			mid, userID,
 		)
 	}
 }

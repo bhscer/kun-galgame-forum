@@ -5,7 +5,7 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
-const { commentToUid } = storeToRefs(useTempGalgameResourceStore())
+const { commentToUserId } = storeToRefs(useTempGalgameResourceStore())
 
 const username = ref(props.targetUser.name)
 const gid = parseInt((route.params as { gid: string }).gid)
@@ -28,11 +28,11 @@ const { data, status, refresh } = await useKunFetch(
 
 const handleSetUserInfo = (name: string) => {
   username.value = name
-  commentToUid.value =
+  commentToUserId.value =
     props.userData.find((user) => user.name === name)?.id || props.targetUser.id
 }
 
-onMounted(() => (commentToUid.value = props.targetUser.id))
+onMounted(() => (commentToUserId.value = props.targetUser.id))
 </script>
 
 <template>

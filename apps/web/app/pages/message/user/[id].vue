@@ -5,7 +5,7 @@ definePageMeta({
 
 const route = useRoute()
 
-const uid = parseInt((route.params as { uid: string }).uid)
+const userId = parseInt((route.params as { id: string }).id)
 
 useKunSeoMeta({
   title: '私信'
@@ -15,9 +15,9 @@ useKunSeoMeta({
 <template>
   <div class="h-full min-w-0 flex-1 pl-3">
     <ClientOnly>
-      <MessagePmHeader :id="uid" />
+      <MessagePmHeader :id="userId" />
     </ClientOnly>
 
-    <MessagePmContainer :user-id="uid" />
+    <MessagePmContainer :user-id="userId" />
   </div>
 </template>

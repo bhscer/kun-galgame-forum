@@ -29,7 +29,7 @@ type UserProfile struct {
 }
 
 // ──────────────────────────────────────────
-// User profile detail (GET /api/user/:uid)
+// User profile detail (GET /api/user/:userID)
 // ──────────────────────────────────────────
 
 type UserProfileDetail struct {

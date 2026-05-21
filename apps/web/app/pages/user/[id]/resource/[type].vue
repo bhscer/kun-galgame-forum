@@ -21,5 +21,5 @@ useKunDisableSeo(
 </script>
 
 <template>
-  <UserResource :uid="user.id" :type="resourceType" />
+  <UserResource :user-id="user.id" :type="resourceType" />
 </template>

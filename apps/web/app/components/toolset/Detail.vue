@@ -12,13 +12,13 @@ const props = defineProps<{
   toolset: ToolsetDetail
 }>()
 
-const { id: uid, role } = usePersistUserStore()
+const { id: userId, role } = usePersistUserStore()
 const data = computed(() => props.toolset)
-const canManageToolset = computed(() => data.value.user.id === uid || role >= 2)
+const canManageToolset = computed(() => data.value.user.id === userId || role >= 2)
 
 const isDeleting = ref(false)
 const handleDeleteToolset = async () => {
-  if (!uid) {
+  if (!userId) {
     useMessage('请登陆后再删除', 'warn', 7000)
     return
   }
@@ -82,7 +82,7 @@ const loadPracticalityMine = async () => {
 onMounted(loadPracticalityMine)
 
 const handleSetStar = async (val: number) => {
-  if (!uid) {
+  if (!userId) {
     useMessage('请登陆后再评分, 否则我们无法统计数据', 'warn', 7000)
     return
   }

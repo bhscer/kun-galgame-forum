@@ -45,14 +45,14 @@ func NewPollService(
 
 func (s *PollService) CreatePoll(
 	ctx context.Context,
-	uid, role int,
+	userID, role int,
 	req *dto.CreatePollRequest,
 ) *errors.AppError {
 	topic, err := s.topicRepo.FindByID(req.TopicID)
 	if err != nil {
 		return errors.ErrNotFound("未找到该话题")
 	}
-	if topic.UserID != uid && role < 2 {
+	if topic.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限创建投票")
 	}
 
@@ -80,7 +80,7 @@ func (s *PollService) CreatePoll(
 			IsAnonymous:      req.IsAnonymous,
 			CanChangeVote:    req.CanChangeVote,
 			TopicID:          req.TopicID,
-			UserID:           uid,
+			UserID:           userID,
 		}
 		if err := s.pollRepo.CreatePoll(tx, poll); err != nil {
 			return err
@@ -118,15 +118,15 @@ func (s *PollService) GetPollsByTopic(
 		return nil, errors.ErrInternal("获取投票失败")
 	}
 
-	uid, role := 0, 0
+	userID, role := 0, 0
 	if userInfo != nil {
-		uid = userInfo.UID
+		userID = userInfo.ID
 		role = userInfo.Role
 	}
 
 	responses := make([]dto.TopicPollResponse, 0, len(polls))
 	for _, poll := range polls {
-		responses = append(responses, s.buildPollResponse(ctx, &poll, uid, role))
+		responses = append(responses, s.buildPollResponse(ctx, &poll, userID, role))
 	}
 	return responses, nil
 }
@@ -137,7 +137,7 @@ func (s *PollService) GetPollsByTopic(
 
 func (s *PollService) Vote(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.VoteRequest,
 ) *errors.AppError {
 	poll, err := s.pollRepo.FindByID(req.PollID)
@@ -164,15 +164,15 @@ func (s *PollService) Vote(
 		}
 	}
 
-	hasVoted, _ := s.pollRepo.HasUserVoted(req.PollID, uid)
+	hasVoted, _ := s.pollRepo.HasUserVoted(req.PollID, userID)
 	if hasVoted && !poll.CanChangeVote {
 		return errors.ErrBadRequest("该投票不允许修改投票结果")
 	}
 
 	txErr := s.pollRepo.DB().Transaction(func(tx *gorm.DB) error {
 		if hasVoted {
-			oldOptionIDs, _ := s.pollRepo.FindUserVoteOptionIDs(req.PollID, uid)
-			if err := s.pollRepo.DeleteUserVotes(tx, req.PollID, uid); err != nil {
+			oldOptionIDs, _ := s.pollRepo.FindUserVoteOptionIDs(req.PollID, userID)
+			if err := s.pollRepo.DeleteUserVotes(tx, req.PollID, userID); err != nil {
 				return err
 			}
 			for _, oid := range oldOptionIDs {
@@ -183,7 +183,7 @@ func (s *PollService) Vote(
 		}
 
 		for _, optionID := range req.OptionIDArray {
-			if err := s.pollRepo.CreateVote(tx, req.PollID, optionID, uid); err != nil {
+			if err := s.pollRepo.CreateVote(tx, req.PollID, optionID, userID); err != nil {
 				return err
 			}
 			if err := s.pollRepo.AdjustOptionVoteCount(tx, optionID, 1); err != nil {
@@ -208,7 +208,7 @@ func (s *PollService) Vote(
 
 func (s *PollService) UpdatePoll(
 	ctx context.Context,
-	uid, role int,
+	userID, role int,
 	req *dto.UpdatePollRequest,
 ) *errors.AppError {
 	poll, err := s.pollRepo.FindByID(req.PollID)
@@ -220,7 +220,7 @@ func (s *PollService) UpdatePoll(
 	if err != nil {
 		return errors.ErrNotFound("未找到该话题")
 	}
-	if topic.UserID != uid && role <= 2 {
+	if topic.UserID != userID && role <= 2 {
 		return errors.ErrForbidden("您没有权限修改此投票")
 	}
 
@@ -327,13 +327,13 @@ func collectOptionIDs(ops dto.PollOptionsUpdate) []int {
 
 func (s *PollService) DeletePoll(
 	ctx context.Context,
-	uid, role, pollID int,
+	userID, role, pollID int,
 ) *errors.AppError {
 	poll, err := s.pollRepo.FindByID(pollID)
 	if err != nil {
 		return errors.ErrNotFound("未找到该投票")
 	}
-	if poll.UserID != uid && role < 2 {
+	if poll.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限删除此投票")
 	}
 
@@ -361,14 +361,14 @@ func (s *PollService) GetVoteLog(
 		return nil, 0, errors.ErrNotFound("未找到该投票")
 	}
 
-	uid, role := 0, 0
+	userID, role := 0, 0
 	if userInfo != nil {
-		uid = userInfo.UID
+		userID = userInfo.ID
 		role = userInfo.Role
 	}
 
-	hasVoted, _ := s.pollRepo.HasUserVoted(pollID, uid)
-	if !canViewResults(poll, uid, role, hasVoted) || poll.IsAnonymous {
+	hasVoted, _ := s.pollRepo.HasUserVoted(pollID, userID)
+	if !canViewResults(poll, userID, role, hasVoted) || poll.IsAnonymous {
 		return []dto.PollVoteLogEntry{}, 0, nil
 	}
 

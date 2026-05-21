@@ -14,23 +14,23 @@ import {
 } from '~/constants/user'
 
 const props = defineProps<{
-  uid: number
+  userId: number
   type: (typeof KUN_USER_PAGE_GALGAME_RESOURCE_TYPE)[number]
 }>()
 
-const isCurrentUser = computed(() => usePersistUserStore().id === props.uid)
+const isCurrentUser = computed(() => usePersistUserStore().id === props.userId)
 const activeTab = ref(props.type)
 const pageData = reactive({
   page: 1,
   limit: 50,
   type: props.type,
-  userId: props.uid
+  userId: props.userId
 })
 
 const { data, status, refresh } = await useKunFetch<{
   resources: UserGalgameResource[]
   total: number
-}>(`/user/${props.uid}/resources`, { query: pageData })
+}>(`/user/${props.userId}/resources`, { query: pageData })
 
 const draftLinks = ref<string[]>([])
 
@@ -92,7 +92,7 @@ const submitFix = async (index: number) => {
     <KunHeader name="Galgame 资源" description="管理你发布的 Galgame 资源" />
 
     <KunTab
-      :items="kunUserGalgameResourceNavItem(uid)"
+      :items="kunUserGalgameResourceNavItem(userId)"
       :model-value="activeTab"
       size="sm"
     />

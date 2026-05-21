@@ -16,5 +16,5 @@ useHead({
 </script>
 
 <template>
-  <UserRating :uid="user.id" />
+  <UserRating :user-id="user.id" />
 </template>

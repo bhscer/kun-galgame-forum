@@ -28,12 +28,12 @@ const isEditing = ref(false)
 const isDeleting = ref(false)
 const isSaving = ref(false)
 
-const { id: uid, role } = usePersistUserStore()
+const { id: userId, role } = usePersistUserStore()
 const canManage = computed(() => {
   if (role >= 2) {
     return true
   }
-  return detail.value ? detail.value.user.id === uid : false
+  return detail.value ? detail.value.user.id === userId : false
 })
 
 const s3DisplaySize = computed(() => {

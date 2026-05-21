@@ -5,7 +5,7 @@ export const deleteMessageSchema = z.object({
 })
 
 export const getChatMessageHistorySchema = z.object({
-  receiverUid: z.coerce.number<number>().min(1).max(9999999),
+  receiverId: z.coerce.number<number>().min(1).max(9999999),
   page: z.coerce.number<number>().min(1).max(9999999),
   limit: z.coerce.number<number>().min(1).max(30)
 })

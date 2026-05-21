@@ -5,13 +5,13 @@ import type { Nav } from '../utils/routeName'
 const { id: storeUid, role } = storeToRefs(usePersistUserStore())
 
 const props = defineProps<{
-  uid: number
+  userId: number
   nav: Nav[]
 }>()
 
 const route = useRoute()
 
-const currentPageUid = computed(() => props.uid)
+const currentPageUid = computed(() => props.userId)
 const activeRouteName = computed(() => {
   // third part
   const match = route.fullPath.match(/^\/user\/\d+\/([^/]+)/)
@@ -36,7 +36,7 @@ const currentPageUserRoles = computed(() => {
     return 1
   }
 
-  if (props.uid === storeUid.value) {
+  if (props.userId === storeUid.value) {
     return 4
   } else {
     return role.value

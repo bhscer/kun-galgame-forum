@@ -1,5 +1,5 @@
 export interface ChatMessageHistoryRequest {
-  receiverUid: string
+  receiverId: string
   page: string
   limit: string
 }
@@ -20,7 +20,7 @@ export interface ChatMessage {
   chatroomName: string
   sender: KunUser
   readBy: KunUser[]
-  receiverUid: number | null
+  receiverId: number | null
   content: string
   isRecall: boolean
   created: Date | string

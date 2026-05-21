@@ -40,7 +40,7 @@ func (h *GalgameHandler) Create(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrAuthExpired())
 	}
 
-	data, appErr := h.galgameService.Create(c.Context(), user.UID, token, c.Body(), c.Get("Content-Type"))
+	data, appErr := h.galgameService.Create(c.Context(), user.ID, token, c.Body(), c.Get("Content-Type"))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -60,7 +60,7 @@ func (h *GalgameHandler) MergePR(c *fiber.Ctx) error {
 	}
 
 	data, appErr := h.galgameService.MergePR(
-		c.Context(), user.UID, c.Params("gid"), c.Params("id"), token,
+		c.Context(), user.ID, c.Params("gid"), c.Params("id"), token,
 	)
 	if appErr != nil {
 		return response.Error(c, appErr)
@@ -128,7 +128,7 @@ func (h *GalgameHandler) ToggleLike(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrBadRequest("无效的 Galgame ID"))
 	}
 
-	if appErr := h.galgameService.ToggleLike(c.Context(), user.UID, gid); appErr != nil {
+	if appErr := h.galgameService.ToggleLike(c.Context(), user.ID, gid); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "操作成功")
@@ -146,7 +146,7 @@ func (h *GalgameHandler) ToggleFavorite(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrBadRequest("无效的 Galgame ID"))
 	}
 
-	if appErr := h.galgameService.ToggleFavorite(c.Context(), user.UID, gid); appErr != nil {
+	if appErr := h.galgameService.ToggleFavorite(c.Context(), user.ID, gid); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "操作成功")

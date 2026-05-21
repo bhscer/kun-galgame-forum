@@ -53,7 +53,7 @@ func (h *ToolsetHandler) Create(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	toolset, appErr := h.toolsetService.Create(user.UID, &req)
+	toolset, appErr := h.toolsetService.Create(user.ID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -93,7 +93,7 @@ func (h *ToolsetHandler) Update(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.toolsetService.Update(user.UID, user.Role, id, &req); appErr != nil {
+	if appErr := h.toolsetService.Update(user.ID, user.Role, id, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "工具更新成功")
@@ -112,7 +112,7 @@ func (h *ToolsetHandler) Delete(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrBadRequest("无效的工具 ID"))
 	}
 
-	if appErr := h.toolsetService.Delete(user.UID, user.Role, id); appErr != nil {
+	if appErr := h.toolsetService.Delete(user.ID, user.Role, id); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "工具已删除")

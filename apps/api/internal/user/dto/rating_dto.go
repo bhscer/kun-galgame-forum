@@ -33,7 +33,7 @@ type UserRatingItem struct {
 	Galgame      UserRatingGalgame `json:"galgame"`
 }
 
-// UserRatingsResponse is the payload for GET /api/user/:uid/ratings.
+// UserRatingsResponse is the payload for GET /api/user/:userID/ratings.
 type UserRatingsResponse struct {
 	RatingData []UserRatingItem `json:"ratingData"`
 	Total      int64            `json:"total"`

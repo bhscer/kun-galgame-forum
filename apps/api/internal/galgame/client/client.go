@@ -168,8 +168,8 @@ type WikiUserStats struct {
 }
 
 // GetUserStats fetches galgame-related stats for a user from wiki.
-func (c *GalgameClient) GetUserStats(ctx context.Context, uid int) (*WikiUserStats, error) {
-	path := fmt.Sprintf("/galgame/user/%d/stats", uid)
+func (c *GalgameClient) GetUserStats(ctx context.Context, userID int) (*WikiUserStats, error) {
+	path := fmt.Sprintf("/galgame/user/%d/stats", userID)
 	data, appErr := c.Get(ctx, path, nil)
 	if appErr != nil {
 		return nil, appErr
@@ -252,7 +252,7 @@ func (c *GalgameClient) GetBatch(ctx context.Context, ids []int) (map[int]Galgam
 
 // GetBatchWithViewer is the Bearer-aware batch fetch. With a non-empty token
 // the wiki additionally returns any status=3/4 row whose user_id matches
-// the JWT's uid claim — used by the "我的提交"/"发布向导" UX.
+// the JWT's userID claim — used by the "我的提交"/"发布向导" UX.
 //
 // token="" reduces to the anonymous form.
 func (c *GalgameClient) GetBatchWithViewer(ctx context.Context, ids []int, token string) (map[int]GalgameBrief, *errors.AppError) {

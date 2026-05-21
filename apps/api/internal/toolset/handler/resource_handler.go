@@ -52,7 +52,7 @@ func (h *ResourceHandler) CreateResource(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	resource, appErr := h.resourceService.CreateResource(user.UID, id, &req)
+	resource, appErr := h.resourceService.CreateResource(user.ID, id, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -72,7 +72,7 @@ func (h *ResourceHandler) UpdateResource(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.resourceService.UpdateResource(user.UID, user.Role, &req); appErr != nil {
+	if appErr := h.resourceService.UpdateResource(user.ID, user.Role, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "资源更新成功")
@@ -91,7 +91,7 @@ func (h *ResourceHandler) DeleteResource(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.resourceService.DeleteResource(user.UID, user.Role, &req); appErr != nil {
+	if appErr := h.resourceService.DeleteResource(user.ID, user.Role, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "资源已删除")

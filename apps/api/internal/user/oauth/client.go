@@ -176,7 +176,7 @@ type TokenResponse struct {
 // IMPORTANT: kungal post-migration relies on the integer `id` (= OAuth
 // users.id) and the `roles` array. The OIDC userinfo standard only
 // requires `sub` (UUID). The OAuth team must extend /oauth/userinfo to
-// include `id` and `roles` so kungal can derive its uid + admin role
+// include `id` and `roles` so kungal can derive its userID + admin role
 // without a second round-trip.
 type UserInfo struct {
 	ID        int      `json:"id"`

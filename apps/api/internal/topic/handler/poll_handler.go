@@ -31,7 +31,7 @@ func (h *PollHandler) CreatePoll(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.pollService.CreatePoll(c.Context(), user.UID, user.Role, &req); appErr != nil {
+	if appErr := h.pollService.CreatePoll(c.Context(), user.ID, user.Role, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
@@ -51,7 +51,7 @@ func (h *PollHandler) UpdatePoll(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.pollService.UpdatePoll(c.Context(), user.UID, user.Role, &req); appErr != nil {
+	if appErr := h.pollService.UpdatePoll(c.Context(), user.ID, user.Role, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
@@ -90,7 +90,7 @@ func (h *PollHandler) Vote(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.pollService.Vote(c.Context(), user.UID, &req); appErr != nil {
+	if appErr := h.pollService.Vote(c.Context(), user.ID, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
@@ -112,7 +112,7 @@ func (h *PollHandler) DeletePoll(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.pollService.DeletePoll(c.Context(), user.UID, user.Role, req.PollID); appErr != nil {
+	if appErr := h.pollService.DeletePoll(c.Context(), user.ID, user.Role, req.PollID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 

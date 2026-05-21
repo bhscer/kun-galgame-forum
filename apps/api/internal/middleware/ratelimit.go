@@ -20,7 +20,7 @@ func RateLimit(rdb *redis.Client, prefix string, maxRequests int, window time.Du
 			return response.Error(c, errors.ErrAuthExpired())
 		}
 
-		key := fmt.Sprintf("ratelimit:%s:%d", prefix, user.UID)
+		key := fmt.Sprintf("ratelimit:%s:%d", prefix, user.ID)
 		ctx := c.Context()
 
 		count, err := rdb.Incr(ctx, key).Result()

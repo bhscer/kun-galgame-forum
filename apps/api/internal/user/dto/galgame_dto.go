@@ -16,7 +16,7 @@ type UserBrief struct {
 	Avatar string `json:"avatar"`
 }
 
-// UserGalgameCard is an item in GET /api/user/:uid/galgames.
+// UserGalgameCard is an item in GET /api/user/:userID/galgames.
 type UserGalgameCard struct {
 	ID                 int         `json:"id"`
 	Name               KunLanguage `json:"name"`

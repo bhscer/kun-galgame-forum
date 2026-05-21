@@ -2,7 +2,7 @@
 // Contributor management. Replaces the old read-only KunAvatarGroup:
 // lists GET /galgame/:gid/contributors (richer than the detail payload's
 // flat contributor[]) and lets the creator / admin remove one via
-// DELETE /galgame/:gid/contributors/:uid. Backend verified: ProxyGet
+// DELETE /galgame/:gid/contributors/:userId. Backend verified: ProxyGet
 // (router 124) + ProxyWriteWithToken DELETE (306); wiki gates
 // creator/admin, we also gate the UI. See docs 03-relations.md.
 const route = useRoute()

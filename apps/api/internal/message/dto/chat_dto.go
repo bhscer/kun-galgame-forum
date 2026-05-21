@@ -6,14 +6,14 @@ package dto
 
 // GetChatHistoryRequest is the query for GET /api/message/chat/history.
 type GetChatHistoryRequest struct {
-	ReceiverUID int `query:"receiverUid" validate:"required,min=1"`
+	ReceiverID int `query:"receiverId" validate:"required,min=1"`
 	Page        int `query:"page" validate:"min=1"`
 	Limit       int `query:"limit" validate:"min=1,max=50"`
 }
 
 // SendChatMessageRequest is the body for POST /api/message/chat/send.
 type SendChatMessageRequest struct {
-	ReceiverUID int    `json:"receiverUid" validate:"required,min=1"`
+	ReceiverID int    `json:"receiverId" validate:"required,min=1"`
 	Content     string `json:"content" validate:"required,min=1,max=1007"`
 }
 
@@ -39,7 +39,7 @@ type ChatMessageItem struct {
 	ID           int         `json:"id"`
 	ChatroomName string      `json:"chatroomName"`
 	Sender       ChatSender  `json:"sender"`
-	ReceiverUID  int         `json:"receiverUid"`
+	ReceiverID  int         `json:"receiverId"`
 	Content      string      `json:"content"`
 	IsRecall     bool        `json:"isRecall"`
 	Created      string      `json:"created"`

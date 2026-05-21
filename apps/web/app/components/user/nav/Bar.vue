@@ -24,6 +24,6 @@ defineProps<{
       :disable-floating="true"
     />
 
-    <UserNavItem :uid="user.id" :nav="navBarRoute" />
+    <UserNavItem :user-id="user.id" :nav="navBarRoute" />
   </div>
 </template>

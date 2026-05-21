@@ -1,18 +1,18 @@
 <script setup lang="ts">
 const props = defineProps<{
-  uid: number
+  userId: number
 }>()
 
 const pageData = reactive({
   page: 1,
   limit: 24,
-  userId: props.uid
+  userId: props.userId
 })
 
 const { data, status } = await useKunFetch<{
   ratingData: GalgameRatingCard[]
   total: number
-}>(`/user/${props.uid}/ratings`, { query: pageData })
+}>(`/user/${props.userId}/ratings`, { query: pageData })
 </script>
 
 <template>

@@ -94,7 +94,7 @@ func (h *ResourceHandler) GetGalgameResources(c *fiber.Ctx) error {
 // or 0 if not authenticated.
 func optionalUID(c *fiber.Ctx) int {
 	if user := middleware.GetUser(c); user != nil {
-		return user.UID
+		return user.ID
 	}
 	return 0
 }
@@ -109,7 +109,7 @@ func (h *ResourceHandler) CreateResource(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.resourceService.CreateResource(user.UID, &req); appErr != nil {
+	if appErr := h.resourceService.CreateResource(user.ID, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "资源创建成功")
@@ -125,7 +125,7 @@ func (h *ResourceHandler) UpdateResource(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.resourceService.UpdateResource(user.UID, user.Role, &req); appErr != nil {
+	if appErr := h.resourceService.UpdateResource(user.ID, user.Role, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "资源更新成功")
@@ -141,7 +141,7 @@ func (h *ResourceHandler) DeleteResource(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.resourceService.DeleteResource(user.UID, user.Role, req.GalgameResourceID); appErr != nil {
+	if appErr := h.resourceService.DeleteResource(user.ID, user.Role, req.GalgameResourceID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "资源已删除")
@@ -157,7 +157,7 @@ func (h *ResourceHandler) ToggleLike(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.resourceService.ToggleLike(user.UID, &req); appErr != nil {
+	if appErr := h.resourceService.ToggleLike(user.ID, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "操作成功")
@@ -173,7 +173,7 @@ func (h *ResourceHandler) MarkValid(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.resourceService.MarkValid(user.UID, req.GalgameResourceID); appErr != nil {
+	if appErr := h.resourceService.MarkValid(user.ID, req.GalgameResourceID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "资源已标记为有效")
@@ -189,7 +189,7 @@ func (h *ResourceHandler) MarkExpired(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.resourceService.MarkExpired(user.UID, req.GalgameResourceID); appErr != nil {
+	if appErr := h.resourceService.MarkExpired(user.ID, req.GalgameResourceID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "资源已标记为失效")

@@ -72,9 +72,9 @@ func (h *WikiMessageHandler) GetReadState(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	last, err := h.svc.GetReadState(user.UID)
+	last, err := h.svc.GetReadState(user.ID)
 	if err != nil {
-		slog.Warn("查询 wiki 消息已读游标失败", "uid", user.UID, "error", err)
+		slog.Warn("查询 wiki 消息已读游标失败", "userID", user.ID, "error", err)
 		return response.Error(c, errors.ErrInternal("查询失败"))
 	}
 	return response.OK(c, fiber.Map{"last_read_message_id": last})
@@ -95,9 +95,9 @@ func (h *WikiMessageHandler) SetReadState(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrBadRequest("last_read_message_id 不能为负"))
 	}
 
-	if err := h.svc.SetReadState(user.UID, req.LastReadMessageID); err != nil {
+	if err := h.svc.SetReadState(user.ID, req.LastReadMessageID); err != nil {
 		slog.Warn("更新 wiki 消息已读游标失败",
-			"uid", user.UID, "last_id", req.LastReadMessageID, "error", err)
+			"userID", user.ID, "last_id", req.LastReadMessageID, "error", err)
 		return response.Error(c, errors.ErrInternal("更新失败"))
 	}
 	return response.OKMessage(c, "已读状态已更新")

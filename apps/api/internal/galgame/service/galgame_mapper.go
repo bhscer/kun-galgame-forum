@@ -91,11 +91,11 @@ func galgameDetailFromWiki(g dto.WikiGalgameDetailFull, users map[string]dto.Wik
 	}
 }
 
-func lookupWikiUser(users map[string]dto.WikiUser, uid int) dto.UserBrief {
-	if u, ok := users[fmt.Sprintf("%d", uid)]; ok {
+func lookupWikiUser(users map[string]dto.WikiUser, userID int) dto.UserBrief {
+	if u, ok := users[fmt.Sprintf("%d", userID)]; ok {
 		return dto.UserBrief{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
 	}
-	return dto.UserBrief{ID: uid}
+	return dto.UserBrief{ID: userID}
 }
 
 // U2: cover/screenshot row mappers. Plain field-by-field copy — wire

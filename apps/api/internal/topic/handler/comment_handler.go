@@ -35,7 +35,7 @@ func (h *CommentHandler) CreateComment(c *fiber.Ctx) error {
 	}
 
 	created, appErr := h.commentService.CreateComment(
-		c.Context(), user.UID,
+		c.Context(), user.ID,
 		req.TopicID, req.ReplyID, req.TargetUserID, req.Content,
 	)
 	if appErr != nil {
@@ -61,7 +61,7 @@ func (h *CommentHandler) ToggleCommentLike(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.commentService.ToggleCommentLike(c.Context(), user.UID, req.CommentID); appErr != nil {
+	if appErr := h.commentService.ToggleCommentLike(c.Context(), user.ID, req.CommentID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
@@ -81,7 +81,7 @@ func (h *CommentHandler) DeleteComment(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrBadRequest("无效的评论 ID"))
 	}
 
-	if appErr := h.commentService.DeleteComment(c.Context(), user.UID, user.Role, commentID); appErr != nil {
+	if appErr := h.commentService.DeleteComment(c.Context(), user.ID, user.Role, commentID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 

@@ -18,20 +18,20 @@ export const useTempGalgameResourceStore = defineStore(
     const resource = ref<GalgameResourceStoreTemp>(initResource)
     const isShowPublish = ref(false)
     const rewriteResourceId = ref(0)
-    const commentToUid = ref(0)
+    const commentToUserId = ref(0)
 
     const resetGalgameResource = () => {
       resource.value = initResource
       isShowPublish.value = false
       rewriteResourceId.value = 0
-      commentToUid.value = 0
+      commentToUserId.value = 0
     }
 
     return {
       resource,
       isShowPublish,
       rewriteResourceId,
-      commentToUid,
+      commentToUserId,
       resetGalgameResource
     }
   },

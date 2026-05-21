@@ -26,7 +26,7 @@ type KunUser struct {
 type MessageResponse struct {
 	ID          int       `json:"id"`
 	Sender      KunUser   `json:"sender"`
-	ReceiverUID int       `json:"receiverUid"`
+	ReceiverID int       `json:"receiverId"`
 	Link        string    `json:"link"`
 	Content     string    `json:"content"`
 	Status      string    `json:"status"`

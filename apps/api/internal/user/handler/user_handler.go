@@ -36,13 +36,13 @@ func NewUserHandler(
 
 // GetProfile returns a user's public profile (identity from OAuth, stats
 // from kungal local).
-// GET /api/user/:uid
+// GET /api/user/:userID
 func (h *UserHandler) GetProfile(c *fiber.Ctx) error {
-	uid, err := strconv.Atoi(c.Params("uid"))
+	userID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return response.Error(c, errors.ErrBadRequest("无效的用户 ID"))
 	}
-	profile, appErr := h.userService.GetUserProfile(c.Context(), uid)
+	profile, appErr := h.userService.GetUserProfile(c.Context(), userID)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -56,7 +56,7 @@ func (h *UserHandler) CheckIn(c *fiber.Ctx) error {
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
-	points, appErr := h.userService.CheckIn(c.Context(), user.UID)
+	points, appErr := h.userService.CheckIn(c.Context(), user.ID)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -70,7 +70,7 @@ func (h *UserHandler) GetStatus(c *fiber.Ctx) error {
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
-	status, appErr := h.userService.GetUserStatus(c.Context(), user.UID)
+	status, appErr := h.userService.GetUserStatus(c.Context(), user.ID)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -78,7 +78,7 @@ func (h *UserHandler) GetStatus(c *fiber.Ctx) error {
 }
 
 // GetFloatingCard returns lightweight user info for hover card.
-// GET /api/user/:uid/floating — target user is read from ?userId=N (legacy).
+// GET /api/user/:userID/floating — target user is read from ?userId=N (legacy).
 func (h *UserHandler) GetFloatingCard(c *fiber.Ctx) error {
 	var req dto.FloatingCardRequest
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
@@ -92,9 +92,9 @@ func (h *UserHandler) GetFloatingCard(c *fiber.Ctx) error {
 }
 
 // GetUserGalgames returns a user's galgame list.
-// GET /api/user/:uid/galgames
+// GET /api/user/:userID/galgames
 func (h *UserHandler) GetUserGalgames(c *fiber.Ctx) error {
-	uid, err := strconv.Atoi(c.Params("uid"))
+	userID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return response.Error(c, errors.ErrBadRequest("无效的用户 ID"))
 	}
@@ -102,7 +102,7 @@ func (h *UserHandler) GetUserGalgames(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	cards, total, appErr := h.userContentService.GetUserGalgameCards(c.Context(), uid, &req)
+	cards, total, appErr := h.userContentService.GetUserGalgameCards(c.Context(), userID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -110,9 +110,9 @@ func (h *UserHandler) GetUserGalgames(c *fiber.Ctx) error {
 }
 
 // GetUserTopics returns a user's topic list.
-// GET /api/user/:uid/topics
+// GET /api/user/:userID/topics
 func (h *UserHandler) GetUserTopics(c *fiber.Ctx) error {
-	uid, err := strconv.Atoi(c.Params("uid"))
+	userID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return response.Error(c, errors.ErrBadRequest("无效的用户 ID"))
 	}
@@ -120,7 +120,7 @@ func (h *UserHandler) GetUserTopics(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	items, total, appErr := h.userContentService.GetUserTopics(c.Context(), uid, &req)
+	items, total, appErr := h.userContentService.GetUserTopics(c.Context(), userID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -128,9 +128,9 @@ func (h *UserHandler) GetUserTopics(c *fiber.Ctx) error {
 }
 
 // GetUserReplies returns a user's reply list.
-// GET /api/user/:uid/replies
+// GET /api/user/:userID/replies
 func (h *UserHandler) GetUserReplies(c *fiber.Ctx) error {
-	uid, err := strconv.Atoi(c.Params("uid"))
+	userID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return response.Error(c, errors.ErrBadRequest("无效的用户 ID"))
 	}
@@ -138,7 +138,7 @@ func (h *UserHandler) GetUserReplies(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	items, total, appErr := h.userContentService.GetUserReplies(c.Context(), uid, &req)
+	items, total, appErr := h.userContentService.GetUserReplies(c.Context(), userID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -146,9 +146,9 @@ func (h *UserHandler) GetUserReplies(c *fiber.Ctx) error {
 }
 
 // GetUserComments returns a user's comment list.
-// GET /api/user/:uid/comments
+// GET /api/user/:userID/comments
 func (h *UserHandler) GetUserComments(c *fiber.Ctx) error {
-	uid, err := strconv.Atoi(c.Params("uid"))
+	userID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return response.Error(c, errors.ErrBadRequest("无效的用户 ID"))
 	}
@@ -156,7 +156,7 @@ func (h *UserHandler) GetUserComments(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	items, total, appErr := h.userContentService.GetUserComments(c.Context(), uid, &req)
+	items, total, appErr := h.userContentService.GetUserComments(c.Context(), userID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -164,9 +164,9 @@ func (h *UserHandler) GetUserComments(c *fiber.Ctx) error {
 }
 
 // GetUserResources returns a user's galgame resource list.
-// GET /api/user/:uid/resources
+// GET /api/user/:userID/resources
 func (h *UserHandler) GetUserResources(c *fiber.Ctx) error {
-	uid, err := strconv.Atoi(c.Params("uid"))
+	userID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return response.Error(c, errors.ErrBadRequest("无效的用户 ID"))
 	}
@@ -174,7 +174,7 @@ func (h *UserHandler) GetUserResources(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	page, appErr := h.userContentService.GetUserResources(c.Context(), uid, &req)
+	page, appErr := h.userContentService.GetUserResources(c.Context(), userID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -182,9 +182,9 @@ func (h *UserHandler) GetUserResources(c *fiber.Ctx) error {
 }
 
 // GetUserRatings returns a user's galgame rating list.
-// GET /api/user/:uid/ratings
+// GET /api/user/:userID/ratings
 func (h *UserHandler) GetUserRatings(c *fiber.Ctx) error {
-	uid, err := strconv.Atoi(c.Params("uid"))
+	userID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return response.Error(c, errors.ErrBadRequest("无效的用户 ID"))
 	}
@@ -192,7 +192,7 @@ func (h *UserHandler) GetUserRatings(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	page, appErr := h.userContentService.GetUserRatings(c.Context(), uid, &req)
+	page, appErr := h.userContentService.GetUserRatings(c.Context(), userID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

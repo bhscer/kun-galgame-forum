@@ -1,7 +1,7 @@
 export interface KUNGalgamePayload {
   iss: string
   aud: string
-  uid: number
+  id: number
   name: string
   role: number
 }

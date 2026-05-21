@@ -68,8 +68,8 @@ func (r *CommentRepository) FindCommentsByReplyIDs(replyIDs []int) (map[int][]Co
 }
 
 // FindCommentLikeStatus reports which of the given comment IDs the user has liked.
-func (r *CommentRepository) FindCommentLikeStatus(uid int, commentIDs []int) (map[int]bool, error) {
-	return findInteractionStatus(r.db, "topic_comment_like", "topic_comment_id", uid, commentIDs)
+func (r *CommentRepository) FindCommentLikeStatus(userID int, commentIDs []int) (map[int]bool, error) {
+	return findInteractionStatus(r.db, "topic_comment_like", "topic_comment_id", userID, commentIDs)
 }
 
 // ──────────────────────────────────────────
@@ -101,15 +101,15 @@ func (r *CommentRepository) FindCommentByIDTx(tx *gorm.DB, commentID int) (*mode
 }
 
 // FindCommentLike looks up an existing comment like row.
-func (r *CommentRepository) FindCommentLike(tx *gorm.DB, uid, commentID int) (*model.TopicCommentLike, error) {
+func (r *CommentRepository) FindCommentLike(tx *gorm.DB, userID, commentID int) (*model.TopicCommentLike, error) {
 	var existing model.TopicCommentLike
-	err := tx.Where("user_id = ? AND topic_comment_id = ?", uid, commentID).First(&existing).Error
+	err := tx.Where("user_id = ? AND topic_comment_id = ?", userID, commentID).First(&existing).Error
 	return &existing, err
 }
 
 // CreateCommentLike inserts a comment like row.
-func (r *CommentRepository) CreateCommentLike(tx *gorm.DB, uid, commentID int) error {
-	return tx.Create(&model.TopicCommentLike{UserID: uid, TopicCommentID: commentID}).Error
+func (r *CommentRepository) CreateCommentLike(tx *gorm.DB, userID, commentID int) error {
+	return tx.Create(&model.TopicCommentLike{UserID: userID, TopicCommentID: commentID}).Error
 }
 
 // DeleteCommentLike removes a previously fetched comment like row.

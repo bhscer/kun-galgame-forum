@@ -28,7 +28,7 @@ func (a *App) setupRoutes() {
 	auth.Post("/oauth/callback", a.OAuthHandler.Callback)
 	auth.Post("/logout", a.OAuthHandler.Logout)
 
-	// User (authenticated, fixed paths — registered before :uid to avoid conflicts).
+	// User (authenticated, fixed paths — registered before :id to avoid conflicts).
 	// Bio / username / email / ban / delete were here pre-OAuth; all moved to OAuth.
 	userAuth := middleware.Auth(a.Redis, a.OAuthClient)
 	checkInRL := middleware.RateLimit(a.Redis, "checkin", 1, 24*time.Hour)
@@ -36,14 +36,14 @@ func (a *App) setupRoutes() {
 	api.Get("/user/status", userAuth, a.UserHandler.GetStatus)
 
 	// User (public, parameterized — AFTER fixed paths)
-	api.Get("/user/:uid/floating", a.UserHandler.GetFloatingCard)
-	api.Get("/user/:uid", a.UserHandler.GetProfile)
-	api.Get("/user/:uid/galgames", a.UserHandler.GetUserGalgames)
-	api.Get("/user/:uid/topics", a.UserHandler.GetUserTopics)
-	api.Get("/user/:uid/replies", a.UserHandler.GetUserReplies)
-	api.Get("/user/:uid/comments", a.UserHandler.GetUserComments)
-	api.Get("/user/:uid/resources", a.UserHandler.GetUserResources)
-	api.Get("/user/:uid/ratings", a.UserHandler.GetUserRatings)
+	api.Get("/user/:id/floating", a.UserHandler.GetFloatingCard)
+	api.Get("/user/:id", a.UserHandler.GetProfile)
+	api.Get("/user/:id/galgames", a.UserHandler.GetUserGalgames)
+	api.Get("/user/:id/topics", a.UserHandler.GetUserTopics)
+	api.Get("/user/:id/replies", a.UserHandler.GetUserReplies)
+	api.Get("/user/:id/comments", a.UserHandler.GetUserComments)
+	api.Get("/user/:id/resources", a.UserHandler.GetUserResources)
+	api.Get("/user/:id/ratings", a.UserHandler.GetUserRatings)
 
 	// Ranking (public)
 	api.Get("/ranking/galgame", a.RankingHandler.GetGalgameRanking)
@@ -308,7 +308,7 @@ func (a *App) setupRoutes() {
 	authed.Delete("/galgame/:gid/links", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
 	authed.Post("/galgame/:gid/aliases", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
 	authed.Delete("/galgame/:gid/aliases", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
-	authed.Delete("/galgame/:gid/contributors/:uid", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
+	authed.Delete("/galgame/:gid/contributors/:id", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
 	authed.Put("/galgame-tag", a.GalgameWikiHandler.ProxyWriteWithToken("PUT"))
 	authed.Put("/galgame-official", a.GalgameWikiHandler.ProxyWriteWithToken("PUT"))
 	authed.Put("/galgame-engine", a.GalgameWikiHandler.ProxyWriteWithToken("PUT"))

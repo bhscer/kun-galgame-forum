@@ -23,11 +23,11 @@ func NewMessageService(
 
 func (s *MessageService) GetMessages(
 	ctx context.Context,
-	uid int,
+	userID int,
 	req *dto.ListMessagesRequest,
 ) (*dto.MessageListResponse, *errors.AppError) {
 	rows, total, err := s.messageRepo.FindMessages(
-		uid, req.Type, req.SortOrder, req.Page, req.Limit,
+		userID, req.Type, req.SortOrder, req.Page, req.Limit,
 	)
 	if err != nil {
 		return nil, errors.ErrInternal("获取消息列表失败")
@@ -46,7 +46,7 @@ func (s *MessageService) GetMessages(
 		messages = append(messages, dto.MessageResponse{
 			ID:          r.ID,
 			Sender:      dto.KunUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
-			ReceiverUID: r.ReceiverID,
+			ReceiverID: r.ReceiverID,
 			Link:        r.Link,
 			Content:     r.Content,
 			Status:      r.Status,
@@ -57,15 +57,15 @@ func (s *MessageService) GetMessages(
 	return &dto.MessageListResponse{Messages: messages, TotalCount: total}, nil
 }
 
-func (s *MessageService) DeleteMessage(ctx context.Context, uid, messageID int) *errors.AppError {
-	if err := s.messageRepo.DeleteByIDAndReceiver(messageID, uid); err != nil {
+func (s *MessageService) DeleteMessage(ctx context.Context, userID, messageID int) *errors.AppError {
+	if err := s.messageRepo.DeleteByIDAndReceiver(messageID, userID); err != nil {
 		return errors.ErrInternal("删除消息失败")
 	}
 	return nil
 }
 
-func (s *MessageService) MarkAllRead(ctx context.Context, uid int) *errors.AppError {
-	if err := s.messageRepo.MarkAllRead(uid); err != nil {
+func (s *MessageService) MarkAllRead(ctx context.Context, userID int) *errors.AppError {
+	if err := s.messageRepo.MarkAllRead(userID); err != nil {
 		return errors.ErrInternal("标记已读失败")
 	}
 	return nil
@@ -105,8 +105,8 @@ func (s *MessageService) MarkAllSystemRead(ctx context.Context) *errors.AppError
 	return nil
 }
 
-func (s *MessageService) GetNavSummary(ctx context.Context, uid int) ([]map[string]any, *errors.AppError) {
-	result, err := s.messageRepo.GetNavSummary(uid)
+func (s *MessageService) GetNavSummary(ctx context.Context, userID int) ([]map[string]any, *errors.AppError) {
+	result, err := s.messageRepo.GetNavSummary(userID)
 	if err != nil {
 		return nil, errors.ErrInternal("获取消息概要失败")
 	}

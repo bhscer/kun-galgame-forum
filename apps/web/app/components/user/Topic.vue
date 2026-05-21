@@ -5,7 +5,7 @@ import {
 } from '~/constants/user'
 
 const props = defineProps<{
-  uid: number
+  userId: number
   type: (typeof KUN_USER_PAGE_TOPIC_TYPE)[number]
 }>()
 
@@ -14,13 +14,13 @@ const pageData = reactive({
   page: 1,
   limit: 50,
   type: props.type,
-  userId: props.uid
+  userId: props.userId
 })
 
 const { data, status } = await useKunFetch<{
   topics: UserTopic[]
   total: number
-}>(`/user/${props.uid}/topics`, { query: pageData })
+}>(`/user/${props.userId}/topics`, { query: pageData })
 
 const handleUpdateTopicHideStatus = async (topicId: number) => {
   const res = await useComponentMessageStore().alert(
@@ -50,7 +50,7 @@ const handleUpdateTopicHideStatus = async (topicId: number) => {
     />
 
     <KunTab
-      :items="kunUserTopicNavItem(uid)"
+      :items="kunUserTopicNavItem(userId)"
       :model-value="activeTab"
       size="sm"
     />

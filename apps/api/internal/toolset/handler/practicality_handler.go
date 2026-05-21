@@ -49,7 +49,7 @@ func (h *PracticalityHandler) UpsertPracticality(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.practicalityService.UpsertPracticality(id, user.UID, &req); appErr != nil {
+	if appErr := h.practicalityService.UpsertPracticality(id, user.ID, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
@@ -60,7 +60,7 @@ func (h *PracticalityHandler) UpsertPracticality(c *fiber.Ctx) error {
 // or 0 if not authenticated.
 func optionalUID(c *fiber.Ctx) int {
 	if user := middleware.GetUser(c); user != nil {
-		return user.UID
+		return user.ID
 	}
 	return 0
 }

@@ -45,7 +45,7 @@ func NewAuthService(
 
 // OAuthCallback exchanges the authorization code for tokens, fetches user
 // info from OAuth (which is the single source of truth for identity), and
-// creates a kungal session. Idempotently ensures kungal_user_state(uid)
+// creates a kungal session. Idempotently ensures kungal_user_state(userID)
 // exists so the new user starts with the default 7 moemoepoint balance.
 func (s *AuthService) OAuthCallback(
 	ctx context.Context,
@@ -103,7 +103,7 @@ func (s *AuthService) OAuthCallback(
 
 	sessionData := middleware.SessionData{
 		UserInfo: middleware.UserInfo{
-			UID:   oauthUser.ID,
+			ID:   oauthUser.ID,
 			Sub:   oauthUser.Sub,
 			Name:  oauthUser.Name,
 			Email: oauthUser.Email,

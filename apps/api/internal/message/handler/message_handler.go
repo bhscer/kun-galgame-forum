@@ -34,7 +34,7 @@ func (h *MessageHandler) GetMessages(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	result, appErr := h.messageService.GetMessages(c.Context(), user.UID, &req)
+	result, appErr := h.messageService.GetMessages(c.Context(), user.ID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -54,7 +54,7 @@ func (h *MessageHandler) DeleteMessage(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrBadRequest("无效的消息 ID"))
 	}
 
-	if appErr := h.messageService.DeleteMessage(c.Context(), user.UID, id); appErr != nil {
+	if appErr := h.messageService.DeleteMessage(c.Context(), user.ID, id); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "消息已删除")
@@ -91,7 +91,7 @@ func (h *MessageHandler) GetNavSummary(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	result, appErr := h.messageService.GetNavSummary(c.Context(), user.UID)
+	result, appErr := h.messageService.GetNavSummary(c.Context(), user.ID)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -106,7 +106,7 @@ func (h *MessageHandler) MarkAllRead(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.messageService.MarkAllRead(c.Context(), user.UID); appErr != nil {
+	if appErr := h.messageService.MarkAllRead(c.Context(), user.ID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "已标记全部已读")

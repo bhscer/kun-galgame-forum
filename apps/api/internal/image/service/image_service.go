@@ -45,9 +45,9 @@ func NewImageService(
 // UploadTopicImage validates the user's daily quota, decodes + re-encodes
 // the image as PNG, uploads it to S3, then increments the daily counter.
 // Returns the S3 key (to be prefixed by CDN base URL on the frontend).
-func (s *ImageService) UploadTopicImage(ctx context.Context, uid int, r io.Reader, filename string) (string, *errors.AppError) {
+func (s *ImageService) UploadTopicImage(ctx context.Context, userID int, r io.Reader, filename string) (string, *errors.AppError) {
 	// Check daily limit
-	count, err := s.repo.GetDailyCount(uid)
+	count, err := s.repo.GetDailyCount(userID)
 	if err != nil {
 		return "", errors.ErrInternal("查询用户失败")
 	}
@@ -73,14 +73,14 @@ func (s *ImageService) UploadTopicImage(ctx context.Context, uid int, r io.Reade
 	if ext == "" {
 		ext = ".png"
 	}
-	key := fmt.Sprintf("%s/user_%d/%d%s", imageBedBucket, uid, uid*1000+count, ext)
+	key := fmt.Sprintf("%s/user_%d/%d%s", imageBedBucket, userID, userID*1000+count, ext)
 
 	if err := s.s3.Upload(ctx, key, "image/png", bytes.NewReader(buf.Bytes())); err != nil {
 		return "", errors.ErrInternal("上传图片失败")
 	}
 
 	// Increment daily count
-	s.repo.IncrementDailyCount(uid)
+	s.repo.IncrementDailyCount(userID)
 
 	return key, nil
 }

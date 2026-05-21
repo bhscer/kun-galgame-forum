@@ -38,7 +38,7 @@ func (h *WebsiteHandler) CreateWebsite(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.websiteService.Create(user.UID, &req); appErr != nil {
+	if appErr := h.websiteService.Create(user.ID, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "网站创建成功")
@@ -51,7 +51,7 @@ func (h *WebsiteHandler) GetWebsiteDetail(c *fiber.Ctx) error {
 
 	currentUserID := 0
 	if u := middleware.GetUser(c); u != nil {
-		currentUserID = u.UID
+		currentUserID = u.ID
 	}
 
 	detail, appErr := h.websiteService.GetDetail(c.Context(), domain, currentUserID)
@@ -107,7 +107,7 @@ func (h *WebsiteHandler) ToggleLike(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.websiteService.ToggleLike(user.UID, req.WebsiteID); appErr != nil {
+	if appErr := h.websiteService.ToggleLike(user.ID, req.WebsiteID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "操作成功")
@@ -125,7 +125,7 @@ func (h *WebsiteHandler) ToggleFavorite(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.websiteService.ToggleFavorite(user.UID, req.WebsiteID); appErr != nil {
+	if appErr := h.websiteService.ToggleFavorite(user.ID, req.WebsiteID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "操作成功")

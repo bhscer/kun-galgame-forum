@@ -8,7 +8,7 @@ const props = defineProps<{
 
 const galgame = inject<GalgameDetail>('galgame')
 
-const { commentToUid } = storeToRefs(useTempGalgameResourceStore())
+const { commentToUserId } = storeToRefs(useTempGalgameResourceStore())
 const { id, role } = usePersistUserStore()
 
 const isShowComment = ref(false)
@@ -16,9 +16,9 @@ const isShowDelete = computed(
   () => props.comment.user?.id === id || galgame?.user.id === id || role >= 2
 )
 
-const handleClickComment = (uid: number) => {
+const handleClickComment = (userId: number) => {
   isShowComment.value = !isShowComment.value
-  commentToUid.value = uid
+  commentToUserId.value = userId
 }
 
 const handleDeleteComment = async (

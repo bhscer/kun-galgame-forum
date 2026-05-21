@@ -149,7 +149,7 @@ func (s *ArticleService) GetBySlug(slug string) (*dto.ArticleDetailResponse, *er
 // Create — POST /doc/article
 // ──────────────────────────────────────────
 
-func (s *ArticleService) Create(uid int, req *dto.CreateArticleRequest) (*model.DocArticle, *errors.AppError) {
+func (s *ArticleService) Create(userID int, req *dto.CreateArticleRequest) (*model.DocArticle, *errors.AppError) {
 	now := time.Now()
 	article := model.DocArticle{
 		Title:           req.Title,
@@ -161,7 +161,7 @@ func (s *ArticleService) Create(uid int, req *dto.CreateArticleRequest) (*model.
 		IsPin:           req.IsPin,
 		ContentMarkdown: req.ContentMarkdown,
 		CategoryID:      req.CategoryID,
-		AuthorID:        uid,
+		AuthorID:        userID,
 		PublishedTime:   now,
 	}
 

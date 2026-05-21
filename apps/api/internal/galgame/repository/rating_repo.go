@@ -155,9 +155,9 @@ func (r *RatingRepository) DeleteByID(tx *gorm.DB, ratingID int) error {
 
 // FindGalgameOwner reads galgame.user_id used for delete permission checks.
 func (r *RatingRepository) FindGalgameOwner(galgameID int) int {
-	var uid int
-	r.db.Table("galgame").Select("user_id").Where("id = ?", galgameID).Scan(&uid)
-	return uid
+	var userID int
+	r.db.Table("galgame").Select("user_id").Where("id = ?", galgameID).Scan(&userID)
+	return userID
 }
 
 // ──────────────────────────────────────────

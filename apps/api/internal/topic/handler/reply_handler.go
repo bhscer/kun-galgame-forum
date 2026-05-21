@@ -70,7 +70,7 @@ func (h *ReplyHandler) CreateReply(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	reply, appErr := h.replyService.CreateReply(c.Context(), user.UID, &req)
+	reply, appErr := h.replyService.CreateReply(c.Context(), user.ID, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -92,7 +92,7 @@ func (h *ReplyHandler) UpdateReply(c *fiber.Ctx) error {
 	}
 	_ = user
 
-	if appErr := h.replyService.UpdateReply(c.Context(), user.UID, &req); appErr != nil {
+	if appErr := h.replyService.UpdateReply(c.Context(), user.ID, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
@@ -112,7 +112,7 @@ func (h *ReplyHandler) DeleteReply(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrBadRequest("无效的回复 ID"))
 	}
 
-	if appErr := h.replyService.DeleteReply(c.Context(), user.UID, user.Role, replyID); appErr != nil {
+	if appErr := h.replyService.DeleteReply(c.Context(), user.ID, user.Role, replyID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
@@ -132,7 +132,7 @@ func (h *ReplyHandler) ToggleReplyLike(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.replyService.ToggleReplyLike(c.Context(), user.UID, req.ReplyID); appErr != nil {
+	if appErr := h.replyService.ToggleReplyLike(c.Context(), user.ID, req.ReplyID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
@@ -152,7 +152,7 @@ func (h *ReplyHandler) ToggleReplyDislike(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.replyService.ToggleReplyDislike(c.Context(), user.UID, req.ReplyID); appErr != nil {
+	if appErr := h.replyService.ToggleReplyDislike(c.Context(), user.ID, req.ReplyID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
@@ -177,7 +177,7 @@ func (h *ReplyHandler) PinReply(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.replyService.PinReply(c.Context(), user.UID, user.Role, tid, req.ReplyID); appErr != nil {
+	if appErr := h.replyService.PinReply(c.Context(), user.ID, user.Role, tid, req.ReplyID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 

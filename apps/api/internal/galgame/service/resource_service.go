@@ -182,7 +182,7 @@ func (s *ResourceService) GetRecommendations(
 // ──────────────────────────────────────────
 
 func (s *ResourceService) CreateResource(
-	uid int,
+	userID int,
 	req *dto.CreateGalgameResourceRequest,
 ) *errors.AppError {
 	providers := utils.DetectProvidersFromURLs(req.Link)
@@ -196,7 +196,7 @@ func (s *ResourceService) CreateResource(
 		Password:  req.Password,
 		Note:      req.Note,
 		GalgameID: req.GalgameID,
-		UserID:    uid,
+		UserID:    userID,
 	}
 
 	txErr := s.resourceRepo.DB().Transaction(func(tx *gorm.DB) error {
@@ -220,7 +220,7 @@ func (s *ResourceService) CreateResource(
 		if err := s.resourceRepo.AdjustLocalResourceCount(tx, req.GalgameID, 1); err != nil {
 			return err
 		}
-		s.helpers.AdjustMoemoepoint(tx, uid, constants.RewardCreateResource)
+		s.helpers.AdjustMoemoepoint(tx, userID, constants.RewardCreateResource)
 		return nil
 	})
 	if txErr != nil {
@@ -235,14 +235,14 @@ func (s *ResourceService) CreateResource(
 // ──────────────────────────────────────────
 
 func (s *ResourceService) UpdateResource(
-	uid, role int,
+	userID, role int,
 	req *dto.UpdateGalgameResourceRequest,
 ) *errors.AppError {
 	row, ok := s.resourceRepo.FindByID(req.GalgameResourceID)
 	if !ok {
 		return errors.ErrNotFound("未找到这个 Galgame 资源")
 	}
-	if row.UserID != uid && role < 2 {
+	if row.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限更新这个 Galgame 资源")
 	}
 
@@ -286,13 +286,13 @@ func (s *ResourceService) UpdateResource(
 // ──────────────────────────────────────────
 
 func (s *ResourceService) DeleteResource(
-	uid, role, resourceID int,
+	userID, role, resourceID int,
 ) *errors.AppError {
 	row, ok := s.resourceRepo.FindByID(resourceID)
 	if !ok {
 		return errors.ErrNotFound("未找到该 Galgame 资源")
 	}
-	if row.UserID != uid && role < 2 {
+	if row.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限删除这个 Galgame 资源")
 	}
 
@@ -316,14 +316,14 @@ func (s *ResourceService) DeleteResource(
 // ──────────────────────────────────────────
 
 func (s *ResourceService) ToggleLike(
-	uid int,
+	userID int,
 	req *dto.ToggleResourceLikeRequest,
 ) *errors.AppError {
 	row, ok := s.resourceRepo.FindByID(req.GalgameResourceID)
 	if !ok {
 		return errors.ErrNotFound("未找到该资源")
 	}
-	if row.UserID == uid {
+	if row.UserID == userID {
 		return errors.ErrBadRequest("您不能给自己的资源点赞")
 	}
 
@@ -334,7 +334,7 @@ func (s *ResourceService) ToggleLike(
 	}
 
 	txErr := s.resourceRepo.DB().Transaction(func(tx *gorm.DB) error {
-		existing, has := s.resourceRepo.FindLike(tx, req.GalgameResourceID, uid)
+		existing, has := s.resourceRepo.FindLike(tx, req.GalgameResourceID, userID)
 		var delta int
 		if has {
 			if err := s.resourceRepo.DeleteLike(tx, existing); err != nil {
@@ -342,7 +342,7 @@ func (s *ResourceService) ToggleLike(
 			}
 			delta = -1
 		} else {
-			if err := s.resourceRepo.CreateLike(tx, req.GalgameResourceID, uid); err != nil {
+			if err := s.resourceRepo.CreateLike(tx, req.GalgameResourceID, userID); err != nil {
 				return err
 			}
 			delta = 1
@@ -350,9 +350,9 @@ func (s *ResourceService) ToggleLike(
 		if err := s.resourceRepo.AdjustLikeCount(tx, req.GalgameResourceID, delta); err != nil {
 			return err
 		}
-		s.helpers.AdjustMoemoepoint(tx, uid, delta)
+		s.helpers.AdjustMoemoepoint(tx, userID, delta)
 		s.helpers.CreateGalgameMessageWithContent(
-			tx, uid, row.UserID, "liked", preview, row.GalgameID,
+			tx, userID, row.UserID, "liked", preview, row.GalgameID,
 		)
 		return nil
 	})
@@ -368,9 +368,9 @@ func (s *ResourceService) ToggleLike(
 // MarkExpired sends a non-deduped notification to the uploader.
 // ──────────────────────────────────────────
 
-func (s *ResourceService) MarkValid(uid int, resourceID int) *errors.AppError {
+func (s *ResourceService) MarkValid(userID int, resourceID int) *errors.AppError {
 	row, ok := s.resourceRepo.FindByID(resourceID)
-	if !ok || row.UserID != uid {
+	if !ok || row.UserID != userID {
 		return errors.ErrNotFound("未找到这个 Galgame 资源")
 	}
 	if err := s.resourceRepo.UpdateStatus(s.resourceRepo.DB(), resourceID, 0); err != nil {
@@ -379,7 +379,7 @@ func (s *ResourceService) MarkValid(uid int, resourceID int) *errors.AppError {
 	return nil
 }
 
-func (s *ResourceService) MarkExpired(uid int, resourceID int) *errors.AppError {
+func (s *ResourceService) MarkExpired(userID int, resourceID int) *errors.AppError {
 	row, ok := s.resourceRepo.FindByID(resourceID)
 	if !ok {
 		return errors.ErrNotFound("未找到该 Galgame 资源")
@@ -399,7 +399,7 @@ func (s *ResourceService) MarkExpired(uid int, resourceID int) *errors.AppError 
 			return err
 		}
 		s.helpers.CreateGalgameMessageWithContent(
-			tx, uid, row.UserID, "expired", preview, row.GalgameID,
+			tx, userID, row.UserID, "expired", preview, row.GalgameID,
 		)
 		return nil
 	})

@@ -6,7 +6,7 @@ import type {
   CreativeWorkSeries
 } from 'schema-dts'
 
-const uid = storeToRefs(usePersistUserStore()).id.value
+const userId = storeToRefs(usePersistUserStore()).id.value
 const route = useRoute()
 
 const gid = computed(() => {
@@ -37,9 +37,9 @@ if (galgame) {
     })
   } else if (galgame.contentLimit === 'nsfw') {
     const title = getPreferredLanguageText(galgame.name)
-    useKunDisableSeo(uid ? title : '')
+    useKunDisableSeo(userId ? title : '')
 
-    if (!uid) {
+    if (!userId) {
       isShowGalgame.value = false
     }
   } else {

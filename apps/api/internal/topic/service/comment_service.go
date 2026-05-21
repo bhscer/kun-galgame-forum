@@ -48,14 +48,14 @@ func NewCommentService(
 // `comment.user.name`.
 func (s *CommentService) CreateComment(
 	ctx context.Context,
-	uid int,
+	userID int,
 	topicID, replyID, targetUserID int,
 	content string,
 ) (*dto.TopicCommentResponse, *errors.AppError) {
 	comment := &topicModel.TopicComment{
 		TopicID:      topicID,
 		TopicReplyID: replyID,
-		UserID:       uid,
+		UserID:       userID,
 		TargetUserID: targetUserID,
 		Content:      content,
 	}
@@ -65,11 +65,11 @@ func (s *CommentService) CreateComment(
 			return err
 		}
 
-		if uid != targetUserID {
+		if userID != targetUserID {
 			s.helpers.AdjustMoemoepoint(tx, targetUserID, constants.RewardReply)
 
 			preview := truncate(content, constants.TextPreviewLength)
-			s.helpers.CreateReplyMessage(tx, uid, targetUserID, "commented", preview, topicID)
+			s.helpers.CreateReplyMessage(tx, userID, targetUserID, "commented", preview, topicID)
 		}
 		return nil
 	})
@@ -80,8 +80,8 @@ func (s *CommentService) CreateComment(
 
 	// Resolve author + target in one batch via OAuth so the response carries
 	// the fields the frontend TopicComment type declares.
-	userMap := s.userClient.Hydrate(ctx, []int{uid, targetUserID})
-	author := userMap[uid]
+	userMap := s.userClient.Hydrate(ctx, []int{userID, targetUserID})
+	author := userMap[userID]
 	target := userMap[targetUserID]
 
 	return &dto.TopicCommentResponse{
@@ -101,27 +101,27 @@ func (s *CommentService) CreateComment(
 // Toggle comment like
 // ──────────────────────────────────────────
 
-func (s *CommentService) ToggleCommentLike(ctx context.Context, uid, commentID int) *errors.AppError {
+func (s *CommentService) ToggleCommentLike(ctx context.Context, userID, commentID int) *errors.AppError {
 	err := s.replyRepo.DB().Transaction(func(tx *gorm.DB) error {
 		comment, err := s.commentRepo.FindCommentByIDTx(tx, commentID)
 		if err != nil {
 			return err
 		}
-		if comment.UserID == uid {
+		if comment.UserID == userID {
 			return gorm.ErrInvalidData
 		}
 
-		existing, findErr := s.commentRepo.FindCommentLike(tx, uid, commentID)
+		existing, findErr := s.commentRepo.FindCommentLike(tx, userID, commentID)
 
 		if findErr == gorm.ErrRecordNotFound {
-			if err := s.commentRepo.CreateCommentLike(tx, uid, commentID); err != nil {
+			if err := s.commentRepo.CreateCommentLike(tx, userID, commentID); err != nil {
 				return err
 			}
 			s.helpers.AdjustMoemoepoint(tx, comment.UserID, 1)
 
 			link := fmt.Sprintf("/topic/%d", comment.TopicID)
 			preview := truncate(comment.Content, constants.TextPreviewLength)
-			createDedupMessage(tx, uid, comment.UserID, "liked", preview, link)
+			createDedupMessage(tx, userID, comment.UserID, "liked", preview, link)
 		} else if findErr == nil {
 			if err := s.commentRepo.DeleteCommentLike(tx, existing); err != nil {
 				return err
@@ -146,18 +146,18 @@ func (s *CommentService) ToggleCommentLike(ctx context.Context, uid, commentID i
 // Delete comment
 // ──────────────────────────────────────────
 
-func (s *CommentService) DeleteComment(ctx context.Context, uid, role, commentID int) *errors.AppError {
+func (s *CommentService) DeleteComment(ctx context.Context, userID, role, commentID int) *errors.AppError {
 	comment, err := s.commentRepo.FindCommentByID(commentID)
 	if err != nil {
 		return errors.ErrNotFound("未找到该评论")
 	}
-	if comment.UserID != uid && role < 2 {
+	if comment.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限删除此评论")
 	}
 
 	likeCount, _ := s.commentRepo.CountCommentLikes(commentID)
 	penalty := 3
-	if comment.UserID == uid && role < 2 {
+	if comment.UserID == userID && role < 2 {
 		penalty = 3 * int(likeCount+1)
 	}
 

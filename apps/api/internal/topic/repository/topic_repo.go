@@ -55,27 +55,27 @@ func (r *TopicRepository) IncrementView(id int) error {
 // Interaction checks
 // ──────────────────────────────────────────
 
-func (r *TopicRepository) HasUserLiked(uid, topicID int) (bool, error) {
+func (r *TopicRepository) HasUserLiked(userID, topicID int) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.TopicLike{}).Where("user_id = ? AND topic_id = ?", uid, topicID).Count(&count).Error
+	err := r.db.Model(&model.TopicLike{}).Where("user_id = ? AND topic_id = ?", userID, topicID).Count(&count).Error
 	return count > 0, err
 }
 
-func (r *TopicRepository) HasUserDisliked(uid, topicID int) (bool, error) {
+func (r *TopicRepository) HasUserDisliked(userID, topicID int) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.TopicDislike{}).Where("user_id = ? AND topic_id = ?", uid, topicID).Count(&count).Error
+	err := r.db.Model(&model.TopicDislike{}).Where("user_id = ? AND topic_id = ?", userID, topicID).Count(&count).Error
 	return count > 0, err
 }
 
-func (r *TopicRepository) HasUserFavorited(uid, topicID int) (bool, error) {
+func (r *TopicRepository) HasUserFavorited(userID, topicID int) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.TopicFavorite{}).Where("user_id = ? AND topic_id = ?", uid, topicID).Count(&count).Error
+	err := r.db.Model(&model.TopicFavorite{}).Where("user_id = ? AND topic_id = ?", userID, topicID).Count(&count).Error
 	return count > 0, err
 }
 
-func (r *TopicRepository) HasUserUpvoted(uid, topicID int) (bool, error) {
+func (r *TopicRepository) HasUserUpvoted(userID, topicID int) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.TopicUpvote{}).Where("user_id = ? AND topic_id = ?", uid, topicID).Count(&count).Error
+	err := r.db.Model(&model.TopicUpvote{}).Where("user_id = ? AND topic_id = ?", userID, topicID).Count(&count).Error
 	return count > 0, err
 }
 
@@ -83,11 +83,11 @@ func (r *TopicRepository) HasUserUpvoted(uid, topicID int) (bool, error) {
 // Daily limit
 // ──────────────────────────────────────────
 
-func (r *TopicRepository) CountTodayTopicsByUser(tx *gorm.DB, uid int) (int64, error) {
+func (r *TopicRepository) CountTodayTopicsByUser(tx *gorm.DB, userID int) (int64, error) {
 	var count int64
 	oneDayAgo := time.Now().Add(-24 * time.Hour)
 	err := tx.Model(&model.Topic{}).
-		Where("user_id = ? AND created >= ?", uid, oneDayAgo).
+		Where("user_id = ? AND created >= ?", userID, oneDayAgo).
 		Count(&count).Error
 	return count, err
 }
@@ -134,15 +134,15 @@ func (r *TopicRepository) TouchStatusUpdateTime(tx *gorm.DB, topicID int, t time
 // ──────────────────────────────────────────
 
 // FindTopicLike returns an existing TopicLike row (or gorm.ErrRecordNotFound).
-func (r *TopicRepository) FindTopicLike(tx *gorm.DB, uid, topicID int) (*model.TopicLike, error) {
+func (r *TopicRepository) FindTopicLike(tx *gorm.DB, userID, topicID int) (*model.TopicLike, error) {
 	var existing model.TopicLike
-	err := tx.Where("user_id = ? AND topic_id = ?", uid, topicID).First(&existing).Error
+	err := tx.Where("user_id = ? AND topic_id = ?", userID, topicID).First(&existing).Error
 	return &existing, err
 }
 
 // CreateTopicLike inserts a TopicLike row.
-func (r *TopicRepository) CreateTopicLike(tx *gorm.DB, uid, topicID int) error {
-	return tx.Create(&model.TopicLike{UserID: uid, TopicID: topicID}).Error
+func (r *TopicRepository) CreateTopicLike(tx *gorm.DB, userID, topicID int) error {
+	return tx.Create(&model.TopicLike{UserID: userID, TopicID: topicID}).Error
 }
 
 // DeleteTopicLike removes a previously fetched TopicLike row.
@@ -151,15 +151,15 @@ func (r *TopicRepository) DeleteTopicLike(tx *gorm.DB, like *model.TopicLike) er
 }
 
 // FindTopicDislike returns an existing TopicDislike row.
-func (r *TopicRepository) FindTopicDislike(tx *gorm.DB, uid, topicID int) (*model.TopicDislike, error) {
+func (r *TopicRepository) FindTopicDislike(tx *gorm.DB, userID, topicID int) (*model.TopicDislike, error) {
 	var existing model.TopicDislike
-	err := tx.Where("user_id = ? AND topic_id = ?", uid, topicID).First(&existing).Error
+	err := tx.Where("user_id = ? AND topic_id = ?", userID, topicID).First(&existing).Error
 	return &existing, err
 }
 
 // CreateTopicDislike inserts a TopicDislike row.
-func (r *TopicRepository) CreateTopicDislike(tx *gorm.DB, uid, topicID int) error {
-	return tx.Create(&model.TopicDislike{UserID: uid, TopicID: topicID}).Error
+func (r *TopicRepository) CreateTopicDislike(tx *gorm.DB, userID, topicID int) error {
+	return tx.Create(&model.TopicDislike{UserID: userID, TopicID: topicID}).Error
 }
 
 // DeleteTopicDislike removes a previously fetched TopicDislike row.
@@ -168,15 +168,15 @@ func (r *TopicRepository) DeleteTopicDislike(tx *gorm.DB, dislike *model.TopicDi
 }
 
 // FindTopicFavorite returns an existing TopicFavorite row.
-func (r *TopicRepository) FindTopicFavorite(tx *gorm.DB, uid, topicID int) (*model.TopicFavorite, error) {
+func (r *TopicRepository) FindTopicFavorite(tx *gorm.DB, userID, topicID int) (*model.TopicFavorite, error) {
 	var existing model.TopicFavorite
-	err := tx.Where("user_id = ? AND topic_id = ?", uid, topicID).First(&existing).Error
+	err := tx.Where("user_id = ? AND topic_id = ?", userID, topicID).First(&existing).Error
 	return &existing, err
 }
 
 // CreateTopicFavorite inserts a TopicFavorite row.
-func (r *TopicRepository) CreateTopicFavorite(tx *gorm.DB, uid, topicID int) error {
-	return tx.Create(&model.TopicFavorite{UserID: uid, TopicID: topicID}).Error
+func (r *TopicRepository) CreateTopicFavorite(tx *gorm.DB, userID, topicID int) error {
+	return tx.Create(&model.TopicFavorite{UserID: userID, TopicID: topicID}).Error
 }
 
 // DeleteTopicFavorite removes a previously fetched TopicFavorite row.
@@ -185,8 +185,8 @@ func (r *TopicRepository) DeleteTopicFavorite(tx *gorm.DB, fav *model.TopicFavor
 }
 
 // CreateTopicUpvote inserts a TopicUpvote row (duplicates allowed).
-func (r *TopicRepository) CreateTopicUpvote(tx *gorm.DB, uid, topicID int) error {
-	return tx.Create(&model.TopicUpvote{UserID: uid, TopicID: topicID}).Error
+func (r *TopicRepository) CreateTopicUpvote(tx *gorm.DB, userID, topicID int) error {
+	return tx.Create(&model.TopicUpvote{UserID: userID, TopicID: topicID}).Error
 }
 
 // AdjustLikeCount adjusts topic.like_count by delta.

@@ -54,7 +54,7 @@ func (h *CommentHandler) CreateComment(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	resp, appErr := h.commentService.CreateComment(c.Context(), user.UID, gid, req.Content, req.TargetUserID)
+	resp, appErr := h.commentService.CreateComment(c.Context(), user.ID, gid, req.Content, req.TargetUserID)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -77,7 +77,7 @@ func (h *CommentHandler) DeleteComment(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.commentService.DeleteComment(user.UID, user.Role, req.CommentID); appErr != nil {
+	if appErr := h.commentService.DeleteComment(user.ID, user.Role, req.CommentID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
@@ -99,7 +99,7 @@ func (h *CommentHandler) ToggleCommentLike(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.commentService.ToggleCommentLike(user.UID, req.CommentID); appErr != nil {
+	if appErr := h.commentService.ToggleCommentLike(user.ID, req.CommentID); appErr != nil {
 		return response.Error(c, appErr)
 	}
 

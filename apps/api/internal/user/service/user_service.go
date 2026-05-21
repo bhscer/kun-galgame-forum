@@ -47,8 +47,8 @@ func NewUserService(
 // Profile
 // ──────────────────────────────────────────
 
-func (s *UserService) GetUserProfile(ctx context.Context, uid int) (*dto.UserProfileDetail, *errors.AppError) {
-	u, ok, err := s.userClient.User(ctx, uid)
+func (s *UserService) GetUserProfile(ctx context.Context, userID int) (*dto.UserProfileDetail, *errors.AppError) {
+	u, ok, err := s.userClient.User(ctx, userID)
 	if err != nil {
 		return nil, errors.ErrInternal("查询用户信息失败")
 	}
@@ -61,11 +61,11 @@ func (s *UserService) GetUserProfile(ctx context.Context, uid int) (*dto.UserPro
 		return &dto.UserProfileDetail{ID: u.ID, Name: u.Name, Status: u.Status}, nil
 	}
 
-	stats, err := s.userStatsRepo.GetUserStats(uid)
+	stats, err := s.userStatsRepo.GetUserStats(userID)
 	if err != nil {
 		return nil, errors.ErrInternal("获取用户统计失败")
 	}
-	state, _ := s.stateRepo.FindByID(uid)
+	state, _ := s.stateRepo.FindByID(userID)
 	moe := 0
 	if state != nil {
 		moe = state.Moemoepoint
@@ -100,7 +100,7 @@ func (s *UserService) GetUserProfile(ctx context.Context, uid int) (*dto.UserPro
 	profile.Dislike = stats.Dislike
 	profile.DailyTopicCount = stats.DailyTopicCount
 
-	if wikiStats, err := s.wikiClient.GetUserStats(ctx, uid); err == nil && wikiStats != nil {
+	if wikiStats, err := s.wikiClient.GetUserStats(ctx, userID); err == nil && wikiStats != nil {
 		profile.Galgame = wikiStats.GalgameCreated
 		profile.DailyGalgameCount = wikiStats.GalgameCreatedToday
 		profile.ContributeGalgame = wikiStats.GalgameContributed
@@ -113,8 +113,8 @@ func (s *UserService) GetUserProfile(ctx context.Context, uid int) (*dto.UserPro
 // Check-in / status
 // ──────────────────────────────────────────
 
-func (s *UserService) CheckIn(ctx context.Context, uid int) (int, *errors.AppError) {
-	state, err := s.stateRepo.FindByID(uid)
+func (s *UserService) CheckIn(ctx context.Context, userID int) (int, *errors.AppError) {
+	state, err := s.stateRepo.FindByID(userID)
 	if err != nil {
 		return 0, errors.ErrNotFound("未找到用户")
 	}
@@ -123,21 +123,21 @@ func (s *UserService) CheckIn(ctx context.Context, uid int) (int, *errors.AppErr
 	}
 
 	points := rand.IntN(8) // 0-7
-	if err := s.stateRepo.CheckIn(uid, points); err != nil {
+	if err := s.stateRepo.CheckIn(userID, points); err != nil {
 		return 0, errors.ErrInternal("签到失败")
 	}
 	return points, nil
 }
 
-func (s *UserService) GetUserStatus(ctx context.Context, uid int) (*dto.UserStatusResponse, *errors.AppError) {
-	state, err := s.stateRepo.FindByID(uid)
+func (s *UserService) GetUserStatus(ctx context.Context, userID int) (*dto.UserStatusResponse, *errors.AppError) {
+	state, err := s.stateRepo.FindByID(userID)
 	if err != nil {
 		return nil, errors.ErrNotFound("未找到该用户")
 	}
 
-	unreadMessage, _ := s.userStatsRepo.CountUnreadMessages(uid)
+	unreadMessage, _ := s.userStatsRepo.CountUnreadMessages(userID)
 	unreadSystem, _ := s.userStatsRepo.CountUnreadSystemMessages()
-	unreadChat, _ := s.userStatsRepo.CountUnreadChatMessages(uid)
+	unreadChat, _ := s.userStatsRepo.CountUnreadChatMessages(userID)
 
 	return &dto.UserStatusResponse{
 		Moemoepoints:  state.Moemoepoint,
@@ -150,8 +150,8 @@ func (s *UserService) GetUserStatus(ctx context.Context, uid int) (*dto.UserStat
 // Floating hover card
 // ──────────────────────────────────────────
 
-func (s *UserService) GetFloatingCard(ctx context.Context, uid int) (*dto.FloatingCardResponse, *errors.AppError) {
-	u, ok, err := s.userClient.User(ctx, uid)
+func (s *UserService) GetFloatingCard(ctx context.Context, userID int) (*dto.FloatingCardResponse, *errors.AppError) {
+	u, ok, err := s.userClient.User(ctx, userID)
 	if err != nil {
 		return nil, errors.ErrInternal("查询用户信息失败")
 	}
@@ -160,13 +160,13 @@ func (s *UserService) GetFloatingCard(ctx context.Context, uid int) (*dto.Floati
 		return nil, errors.ErrNotFound("未找到该用户")
 	}
 
-	state, _ := s.stateRepo.FindByID(uid)
+	state, _ := s.stateRepo.FindByID(userID)
 	moe := 0
 	if state != nil {
 		moe = state.Moemoepoint
 	}
 
-	stats := s.userStatsRepo.FindFloatingStats(uid)
+	stats := s.userStatsRepo.FindFloatingStats(userID)
 	return &dto.FloatingCardResponse{
 		ID:                   u.ID,
 		Name:                 u.Name,
