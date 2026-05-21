@@ -1422,3 +1422,138 @@ pnpm -F your-app exec nuxt build
 - 不论在 KunModal 内还是页面 root，KunSelect / KunPopover / KunDatePicker / KunTooltip 都在最上层
 
 **风险等级**：低 —— token 数值升档不改相对层级，Select 选项溢出修复零 API 变化。建议作为独立 PR 合并。
+
+---
+
+## 19. v0.4.8 hotfix 🔴🔴 — z-index utility 真的生效（之前三轮没生效）
+
+**重要**：v0.4.5 / v0.4.6 / v0.4.7 三轮的 z-index "修复"**实际上从未生效**。我把 `--z-kun-*` token 加到 `@theme`，假设 Tailwind v4 会像 `--radius-kun-*` 那样自动生成 utility —— **错了**。Tailwind v4 只对特定命名空间（`--color` / `--radius` / `--spacing` / `--font` 等）自动生成 utility，`--z-*` 不在白名单。所以组件里写的 `class="z-kun-popover"` 是空 class，元素拿默认 `z-auto`。
+
+之前看着"popover 在上方了" 完全是 DOM order 偶然，不是 z-index 生效。
+
+详细诊断 + 真修复见 `improvement-plan.md` §20。
+
+### 同步 — 1 个文件
+
+```bash
+KUN_OAUTH=/path/to/kun-oauth-admin
+cp $KUN_OAUTH/packages/ui/app/styles/tailwindcss.css ./styles/tailwindcss.css
+```
+
+或者只加我新增的 5 个 `@utility` 块（放在 `@theme` 关闭花括号外、`@layer base` 之前）：
+
+```css
+@utility z-kun-sticky {
+  z-index: var(--z-kun-sticky);
+}
+@utility z-kun-modal {
+  z-index: var(--z-kun-modal);
+}
+@utility z-kun-popover {
+  z-index: var(--z-kun-popover);
+}
+@utility z-kun-alert {
+  z-index: var(--z-kun-alert);
+}
+@utility z-kun-message {
+  z-index: var(--z-kun-message);
+}
+```
+
+### 同步后必须 rebuild + grep 验证
+
+```bash
+# 重新 build
+pnpm -F your-app exec nuxt build
+
+# 必须验证 utility 真的进了输出 CSS
+grep -ho '\.z-kun-[a-z]*\s*{[^}]*}' .output/public/_nuxt/*.css | sort -u
+
+# 期望看到 4 个（z-kun-sticky 没用到的话不出现是预期）：
+# .z-kun-alert{z-index:var(--z-kun-alert)}
+# .z-kun-message{z-index:var(--z-kun-message)}
+# .z-kun-modal{z-index:var(--z-kun-modal)}
+# .z-kun-popover{z-index:var(--z-kun-popover)}
+
+# 如果输出空 → @utility 块没写对，再核查
+```
+
+### 视觉手测（同步 + rebuild 后）
+
+| 场景 | 期望 |
+|---|---|
+| Hover topbar 元素 → tooltip 出现 | tooltip **在所有页面元素之上**，包括 sticky topbar 自己 |
+| 点击触发 popover | popover 同上 |
+| Modal 内打开 Select / DatePicker | 浮层在 Modal **之上**（不被 Modal 内容盖住） |
+| useKunMessage 触发 toast | toast 在最高层，永远可见 |
+| 长 label 的 Select option | label 被 ellipsis 截断（v0.4.7 已修，本次会一并奏效） |
+
+### 关于 moyu 报的"Select 还溢出"
+
+很可能是同一个 z-index bug 的视觉副作用：dropdown 没拿到正确 z-index 时，被某个 z-index 更高的元素切掉一部分，看起来像选项"溢出"到了别的地方。**z-index 修好后这个症状大概率自动消失**。如果同步 v0.4.8 + rebuild 后 Select 仍有视觉异常，请截图或具体描述（哪个 Select、什么 viewport 宽度、option 内容），我再深挖。
+
+### 反思 — 给所有下游的诚实警告
+
+我之前三轮 handoff（§15 / §16 / §18）都说"z-index 升档了，浮层会在上面"。**实际效果是 0**。这不是把数值改大没改大的事 —— 是整套 utility 根本没生成。
+
+这个错误暴露了一个我（和 KunUI maintain）必须强化的流程：
+
+> **修改 Tailwind theme / utility / 任何系统级 CSS 之后，必须 grep 编译产物确认 utility 真的生成了。不要止于"源码里写得对"或者"build 通过"。**
+
+具体 grep 命令：
+
+```bash
+grep -ho '\.YOUR-PREFIX-[a-z]*\s*{[^}]*}' .output/public/_nuxt/*.css | sort -u
+```
+
+如果空 → 你的 utility 没被 Tailwind 生成 → 视觉上什么都没发生。这条流程规则比任何具体 bug 修复都更基础，**KunUI 工程规则 §20 把它立成了铁律**。
+
+**风险等级**：低 —— 加 5 个 `@utility` 块，无破坏。**但优先级最高**：不同步这次，前面三轮所有 z-index "fix" 都是空头支票。建议立即合并。
+
+---
+
+## 20. v0.4.9 — KunSelect dropdown 真·溢出修复（height 维度同款 flex 坑）
+
+v0.4.7 修了 "Select 长 label 横向溢出"，但 **height 维度的同款 bug** 一直在没人发现：dropdown 选项内容超过 maxHeight (240px) 时，**视觉上叠在下层 UI 之上**，看起来像 "Select 溢出容器"。
+
+### 真根因
+
+`floating-ui` 的 `size()` middleware 把 `max-height: 240px` 写在 **outer floating div** 上，但 outer div 默认 `overflow: visible`。`<ul>` 按自然 content height (~360px) 渲染，溢出 outer 边界 → 画在 outer 之外。同时 `<ul>` 自己 height 是 auto (= content)，所以 `<ul>` 的 `overflow-y-auto` **scroll 永远不触发**。
+
+### 修复 — outer flex column + ul `min-h-0 flex-1`
+
+详细原理见 `improvement-plan.md` §21。机制跟 v0.4.7 的 `min-w-0` 完全对称，只是从 width 维度搬到 height 维度。
+
+### 同步 — 1 个文件
+
+```bash
+KUN_OAUTH=/path/to/kun-oauth-admin
+cp $KUN_OAUTH/packages/ui/app/components/kun/select/Select.vue ./components/kun/select/Select.vue
+```
+
+### 验证（Playwright DOM probe，已在 moyu 本地 dev server 验过）
+
+```
+修复前：outer.height=240, overflow:visible, ul.height=360 (溢出 120px), 滚动失败
+修复后：outer.height=240, overflow:hidden, ul.height=230 (受约束), 滚动: scrollTop 0→100 OK
+```
+
+视觉验证：dropdown 高度 cap 在 240px，超过 6 选项需要内部滚动；卡片网格完全可见、不被 dropdown 覆盖。
+
+### KunUI 工程规则 6 修订（合并 v0.4.7 + v0.4.9 的同源 bug）
+
+| 旧 (v0.4.7) | 新 (v0.4.9) |
+|---|---|
+| flex 容器里的 truncate 必须搭配 `min-w-0` | flex 容器里**任何要受父级尺寸约束的子元素**都要搭配对应的 `min-w-0` / `min-h-0`。truncate / overflow-auto / max-height 等约束都隐含这个前提 |
+
+更通用的版本，覆盖 width 和 height 两个轴。
+
+### 关于"用户报告环境一致性"的元教训
+
+这次第一轮我跑去 moyu.moe 生产部署测，发现是 HeroUI 后写了一大段"不是 KunSelect"的报告 —— 全是误诊。生产部署是旧 Next.js 项目，moyu 测试是 `127.0.0.1:6969` 本地 Nuxt dev。
+
+之后规则更明确：
+
+> **用户报视觉 bug，第一步永远先 Playwright 看一下 DOM 是不是 KunUI 渲染的**（grep `react-aria` / `data-slot` / `kun-` prefix）。不是的话直接 short-circuit "这不在 KunUI scope"，不要浪费时间。
+
+**风险等级**：低 —— 4 个 class 加在 Select.vue，无 API 变化。建议合并。
