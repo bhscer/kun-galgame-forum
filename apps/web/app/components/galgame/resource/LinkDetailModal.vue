@@ -51,7 +51,9 @@ const canManage = computed(() => isOwner.value || currentUserRole > 1)
 
 const providerName = computed(() => {
   const names = props.resource.providerNames
-  return names && names.length > 0 ? names.join(' / ') : props.resource.linkDomain
+  return names && names.length > 0
+    ? names.join(' / ')
+    : props.resource.linkDomain
 })
 
 const fetchDetail = async () => {
@@ -77,6 +79,12 @@ const fetchDetail = async () => {
 // to drive the button loading state directly off the returned promise.
 defineExpose({ prefetch: fetchDetail })
 
+// IMPORTANT: every kunFetch call below runs AFTER an `await` on the
+// confirm alert (the user might sit on the dialog for many seconds),
+// which loses the active Nuxt app context. Without runWithContext the
+// `useRuntimeConfig` at the top of kunFetch hits `$nuxt of null`,
+// kunFetch's catch returns null, the `if (result)` branch is skipped,
+// and the button silently does nothing — exactly the "似乎失效" symptom.
 const handleReportExpire = async () => {
   if (!currentUserId) {
     useMessage(10546, 'warn')
@@ -89,12 +97,11 @@ const handleReportExpire = async () => {
   if (!res) return
 
   isFetching.value = true
-  const result = await kunFetch(
-    `/galgame/${props.resource.galgameId}/resource/expired`,
-    {
+  const result = await nuxtApp.runWithContext(() =>
+    kunFetch(`/galgame/${props.resource.galgameId}/resource/expired`, {
       method: 'PUT',
       body: { galgameResourceId: props.resource.id }
-    }
+    })
   )
   isFetching.value = false
 
@@ -115,12 +122,11 @@ const handleDelete = async () => {
   if (!res) return
 
   isFetching.value = true
-  const result = await kunFetch(
-    `/galgame/${props.resource.galgameId}/resource`,
-    {
+  const result = await nuxtApp.runWithContext(() =>
+    kunFetch(`/galgame/${props.resource.galgameId}/resource`, {
       method: 'DELETE',
       query: { galgameResourceId: props.resource.id }
-    }
+    })
   )
   isFetching.value = false
 
@@ -169,9 +175,7 @@ const handleEditDone = () => {
       >
         <div class="flex items-center gap-2">
           <KunIcon
-            :name="
-              isExpired ? 'lucide:triangle-alert' : 'lucide:circle-check'
-            "
+            :name="isExpired ? 'lucide:triangle-alert' : 'lucide:circle-check'"
             class="text-xl"
           />
           <span class="text-base font-medium">
@@ -308,8 +312,8 @@ const handleEditDone = () => {
 
           <KunInfo color="danger" variant="bordered" title="补票提示">
             <p class="text-sm">
-              Galgame 厂商制作游戏不易, 很多厂商如今都在炒冷饭, 可见经济并不宽裕。
-              如果条件允许, 请尽可能前往
+              Galgame 厂商制作游戏不易, 很多厂商如今都在炒冷饭,
+              可见经济并不宽裕。 如果条件允许, 请尽可能前往
               <KunLink
                 size="sm"
                 :to="`/galgame/${resource.galgameId}`"

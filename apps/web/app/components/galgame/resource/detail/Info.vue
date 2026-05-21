@@ -14,6 +14,13 @@ const props = defineProps<{
 // comment for the full diagnosis).
 const isEditOpen = ref(false)
 
+// All async paths below cross at least one user-awaited boundary
+// (confirm alert) which drops the Nuxt app context. Capture once so
+// the post-alert kunFetch / useMessage / refresh calls can re-enter
+// it via runWithContext — otherwise kunFetch's useRuntimeConfig hits
+// `$nuxt of null` and the request silently fails.
+const nuxtApp = useNuxtApp()
+
 // Backend-computed labels (e.g. "百度网盘 / OneDrive"). Falls back to the
 // raw domain when the resource pre-dates the backfill or matches no rule.
 const providerName = computed(() => {
@@ -33,9 +40,7 @@ const handleDeleteResource = async () => {
     '您确定删除 Galgame 资源链接吗？',
     '这将会扣除您发布 Galgame 资源获得的 5 萌萌点，并且扣除其它人对资源链接的点赞影响（萌萌点和点赞数减一），此操作不可撤销。'
   )
-  if (!res) {
-    return
-  }
+  if (!res) return
 
   const result = await kunFetch(
     `/galgame/${props.resource.galgameId}/resource`,
@@ -61,23 +66,22 @@ const handleReportExpire = async () => {
     '您确定报告资源链接失效吗？',
     '这将会通知资源发布者链接失效, 并将该链接标记为失效。若 17 天内资源发布者没有更换有效链接，该资源链接将会被删除。若恶意报告失效, 将会被处罚。'
   )
-  if (!res) {
-    return
-  }
+  if (!res) return
 
   isFetching.value = true
-  const result = await kunFetch(
-    `/galgame/${props.resource.galgameId}/resource/expired`,
-    {
+  const result = await nuxtApp.runWithContext(() =>
+    kunFetch(`/galgame/${props.resource.galgameId}/resource/expired`, {
       method: 'PUT',
       body: { galgameResourceId: props.resource.id }
-    }
+    })
   )
   isFetching.value = false
 
   if (result) {
-    useMessage(10547, 'success')
-    props.refresh()
+    nuxtApp.runWithContext(() => {
+      useMessage(10547, 'success')
+      props.refresh()
+    })
   }
 }
 
@@ -117,7 +121,6 @@ const handleEditDone = () => {
   props.refresh()
   isEditOpen.value = false
 }
-
 </script>
 
 <template>
