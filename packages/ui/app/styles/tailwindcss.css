@@ -140,6 +140,36 @@
   --radius-kun-lg: 0.75rem;
   --radius-kun-full: 9999px;
 
+  /* z-index layering — global floating UI must stack predictably so
+   * popovers opened from inside a modal (or from a sticky topbar) are
+   * always visible.
+   *
+   * v0.4.5 first introduced these tokens with values in the 1000-9000
+   * range, assuming app-side code stays below z-1000. v0.4.7 raised
+   * the entire band to the 9000-9999 region after moyu reported the
+   * topbar covering tooltips/popovers — app-side sticky/fixed
+   * headers in real-world legacy code often use z-50 / z-100 / even
+   * z-9999. To win that fight defensively, KunUI floating layers
+   * sit very high in the stack.
+   *
+   * Tier rule (preserved through the bump): a floating element always
+   * sits above the layer that triggered it.
+   *   modal (9000) < popover (9300) < alert (9700) < message (9999)
+   *
+   * Tailwind v4 @theme auto-generates utility classes:
+   *   z-kun-sticky / z-kun-modal / z-kun-popover / z-kun-alert /
+   *   z-kun-message
+   *
+   * Override per-app by re-declaring the variable in :root if you
+   * need to interoperate with third-party widgets that use specific
+   * z-index values.
+   */
+  --z-kun-sticky: 30;
+  --z-kun-modal: 9000;
+  --z-kun-popover: 9300;
+  --z-kun-alert: 9700;
+  --z-kun-message: 9999;
+
   /* Animations */
   --animate-shake: shake 1s ease-in-out;
   --animate-bounceInDown: bounceInDown 1s ease-in-out;

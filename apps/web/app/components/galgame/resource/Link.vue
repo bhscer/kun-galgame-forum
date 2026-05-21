@@ -84,7 +84,6 @@ const handleMarkValid = async () => {
     :color="isExpired ? 'warning' : 'success'"
     content-class="space-y-3"
   >
-    <!-- Header: publisher + status -->
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <KunAvatar :user="resource.user" size="md" />
@@ -113,7 +112,6 @@ const handleMarkValid = async () => {
       </KunTooltip>
     </div>
 
-    <!-- Meta chips -->
     <div class="flex flex-wrap items-center gap-1.5">
       <KunChip color="primary" variant="flat">
         <KunIcon :name="GALGAME_RESOURCE_TYPE_ICON_MAP[resource.type]" />
@@ -133,7 +131,6 @@ const handleMarkValid = async () => {
       </KunChip>
     </div>
 
-    <!-- Note (optional) -->
     <p
       v-if="resource.note"
       class="text-default-700 bg-default-100/60 rounded-md px-3 py-2 text-sm whitespace-pre-line"
@@ -141,7 +138,6 @@ const handleMarkValid = async () => {
       {{ resource.note }}
     </p>
 
-    <!-- Footer: provider name + action cluster -->
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="text-default-500 flex items-center gap-1.5 text-sm">
         <KunIcon name="lucide:hard-drive" />

@@ -154,11 +154,6 @@ const platformOptions = computed(() =>
         <p class="text-default-500 text-sm">{{ modalSubtitle }}</p>
       </div>
 
-      <!--
-        Policy / reward / cautions surface — same content the legacy
-        publish modal carried. Lives at the top so anyone editing or
-        publishing sees the rules without scrolling past the form.
-      -->
       <GalgameResourceHelp />
 
       <KunTextarea

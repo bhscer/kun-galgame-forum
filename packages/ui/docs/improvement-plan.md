@@ -1274,4 +1274,962 @@ const { floatingStyles } = useFloating(triggerRef, popoverRef, {
 
 ---
 
+## §13 v0.4.2 — KunFileInput：补齐文件交互三层（2026-05-21）
+
+moyu 反馈了 7 处仍在用 native `<input type="file">` 的场景（banner / 截图 / patch hash 校验 / 头像 cropper bridge）。原本提案 "加一个 KunFileInput 组件"，但若不与 v0.4.0 已铺好的 `useFilePicker` 协同就会造重复实现，所以本节按**分层架构**收口。
+
+### 文件交互的三层 API（终态）
+
+| 层 | 名字 | 用途 | 起源 |
+|---|---|---|---|
+| 高层 | `KunUpload` | 图片上传 + 裁剪 + 拖拽预览（重型） | v0.0.1 |
+| **中层** | **`KunFileInput`** | **声明式按钮 + v-model 文件选择（轻量）** | **v0.4.2 ⭐** |
+| 低层 | `useFilePicker` | 程序化选择，触发器自由 | v0.4.0 |
+
+三者明确分工：
+
+- **要做图片裁剪 / 拖放 / 预览** → KunUpload
+- **要简单的"按钮 + 选文件 + v-model"** → KunFileInput
+- **触发器是任意自定义元素 / 不需要 DOM 节点** → useFilePicker
+
+KunFileInput 内部**直接复用 useFilePicker**，零重复实现 —— 这点很重要：未来扩展（mime 校验、size formatter、多文件 dedup 等）只改 composable 一处。
+
+### 设计要点
+
+#### 1. 双命名 v-model 区分单 / 多文件
+
+```vue
+<!-- 单文件：v-model = File | null -->
+<KunFileInput v-model="bannerFile" accept="image/*" />
+
+<!-- 多文件：v-model:files = File[]，加 `multiple` 启用 -->
+<KunFileInput v-model:files="screenshots" multiple accept="image/*" />
+```
+
+为什么不用 union `File | File[] | null`：消费者每次都要 narrow，TS 表达力损失大。两个命名 model（Vue 3.4+ 原生支持）让单 / 多场景的类型各自干净，约定"用 `multiple` 时只用 `v-model:files`"即可。
+
+#### 2. 默认 trigger 是 KunButton；slot 完全自定义
+
+```vue
+<!-- 80% 用例：默认按钮 -->
+<KunFileInput
+  v-model="bannerFile"
+  accept="image/*"
+  :max-size="10 * 1024 * 1024"
+  trigger-text="选择 banner"
+  trigger-icon="lucide:image-up"
+  hint="JPEG / PNG / WebP，最大 10 MB"
+/>
+
+<!-- 20% 用例：卡片 / 头像 / 任意元素当触发器 -->
+<KunFileInput v-model="patchFile" accept=".zip" v-slot="{ pick, fileName }">
+  <KunCard clickable @click="pick">
+    <Icon name="lucide:file-archive" />
+    <p>{{ fileName ?? '点击选择 patch 包' }}</p>
+  </KunCard>
+</KunFileInput>
+```
+
+slot 暴露 `pick / fileName / disabled` 三个状态，让自定义触发器无需 ref 或 expose 就能完整控制。这是 Vue 的标准 "render-prop / scoped slot" 模式。
+
+#### 3. `@change` 始终发数组
+
+```ts
+@change="(files: File[]) => { /* files[0] 单文件场景 / files.forEach 多文件 */ }"
+```
+
+单文件模式发 `[file]`、多文件发 `[f1, f2, ...]`。统一数组让消费者无需 `isArray` 分支，逻辑同构。
+
+#### 4. 用户取消保留旧选择
+
+`useFilePicker` 在取消时不清空 `files`，KunFileInput 的 watch 里 `if (next.length === 0) return` 保留 v-model 旧值。与 native `<input type="file">` 的取消语义对齐 —— 取消不丢之前的选择。
+
+#### 5. 默认按钮 vs slot 触发器的视觉一致性
+
+默认按钮直接长成 KunButton 的样子（继承 KunUI 全套 variant / color / size / rounded 系统）。slot 触发器完全由消费者决定。两条路径下，"已选文件名"行（`showFileName` prop 控制）始终在统一位置展示。
+
+### 实施
+
+#### 新增文件
+
+```
+packages/ui/app/components/kun/file-input/FileInput.vue   ← 新组件
+packages/ui/app/components/kun/file-input/type.d.ts       ← 类型
+```
+
+#### 本仓采用情况
+
+galgame/Create.vue 和 galgame/EditModal.vue 之前用 `useFilePicker` 写得有点啰嗦（手写 `pickedBannerFiles` watch + 状态同步），改用 KunFileInput 后**单文件场景减少 8 行代码**：
+
+```vue
+<!-- 之前：useFilePicker（v0.4.0） -->
+<script setup>
+const { pickFiles: pickBanner, files: pickedBannerFiles } = useFilePicker({
+  accept: 'image/jpeg,image/png,image/webp',
+  maxSize: 10 * 1024 * 1024,
+  onError: (msg) => useKunMessage(msg, 'warn')
+})
+watch(pickedBannerFiles, ([f]) => {
+  if (!f) return
+  bannerFile.value = f
+  bannerObjectUrl.value = URL.createObjectURL(f)
+})
+</script>
+<template>
+  <KunButton size="sm" variant="flat" @click="pickBanner">
+    <Icon name="lucide:image-up" class="mr-1 size-4" />
+    选择 banner
+  </KunButton>
+</template>
+
+<!-- 之后：KunFileInput（v0.4.2） -->
+<script setup>
+watch(bannerFile, (f) => {
+  bannerObjectUrl.value = f ? URL.createObjectURL(f) : ''
+})
+</script>
+<template>
+  <KunFileInput
+    v-model="bannerFile"
+    accept="image/jpeg,image/png,image/webp"
+    :max-size="10 * 1024 * 1024"
+    trigger-text="选择 banner"
+    trigger-icon="lucide:image-up"
+    trigger-size="sm"
+    @error-pick="(msg) => useKunMessage(msg, 'warn')"
+  />
+</template>
+```
+
+### 兼容性
+
+完全非破坏性。`useFilePicker` 接口不变，老代码继续工作；想要更简洁的写法时切到 KunFileInput。
+
+### 验证
+
+- `pnpm -F web exec nuxt build` ✅
+- `pnpm -F wiki exec nuxt build` ✅
+- 本仓 2 处 banner 上传跑通：选文件 → 预览 → 清空，三态切换正常
+
+### 这一步封口了什么
+
+KunUI 至此对"文件交互"主题给出完整三层方案，**没有任何 native `<input type="file">` 是合理的留存**（除非是 KunUI 内部实现细节，比如 KunUpload 自己的实现）。下游消费方仓库（kungal / moyu / wiki / oauth）的每一个 file input 都应该对应到三层之一。
+
+---
+
+## §14 v0.4.3 — `getRandomSticker` 双层修复：useState + 客户端 Map 缓存（2026-05-21）🔴
+
+moyu 上报的运行时崩溃 bug，**严重度 critical**。任何下游 app 只要在 computed / watcher 重算路径上渲染 `<KunAvatar :user>` 或 `<KunNull description>` 就会撞上。
+
+> **本节双层教训**：第一层是 moyu 抓到的原始 bug，第二层是**我修复时引入的新 bug**（SSR 模块级缓存跨请求泄漏）。两层都已经修，但保留中间过程作为反面教材 —— 改 SSR 代码时如果不同时想清楚 server / client / setup / reactive effect 四个执行上下文，很容易"修一个 bug 引一个新 bug"。
+
+### 症状
+
+页面正常加载 → 调用任何会刷新数据的 action（resource refresh / list reload / 任何 `refresh()` 调用）→ 整个页面崩，控制台 `Cannot read properties of null (reading '$nuxt')`。
+
+### 第一层根因（moyu 诊断）
+
+`packages/ui/app/utils/getRandomSticker.ts` 用了 **Nuxt 的 `useState`**：
+
+```ts
+// 最初版（炸）
+export const getRandomSticker = (id: string) => {
+  const stickerUrl = useState<string>(`random-sticker-${id}`, () => { /* pick random */ })
+  return stickerUrl
+}
+```
+
+调用栈：
+
+```
+tryUseNuxtApp → useNuxtApp → useState → getRandomSticker (line 6:22)
+  ← Avatar.vue::userAvatarSrc (computed)
+    ← <KunAvatar :user> 在父组件 refresh 后的 microtask 重算
+```
+
+Vue 的 reactivity scheduler 在 microtask 里跑 computed 重算时，**`tryUseNuxtApp()` 拿不到 Nuxt 实例**（实例只在 setup / lifecycle hook 同步路径上可访问），返回 `null` → 取 `null.$nuxt` 崩。
+
+这是 **Nuxt 3 的已知陷阱**：`useState` 必须在 setup / lifecycle hook 同步路径调用，不能从重入式 reactive effect 里调。同族表现还有 `LinkDetailModal.vue::watch(open)` 里 `useRuntimeConfig` / `kunFetch` 必须 `nuxtApp.runWithContext(...)` 包一下 —— 都是 Nuxt context 在 microtask 边界不自动激活造成的。
+
+### 第二层根因（我修复时引入的新 bug）
+
+我第一版修复用"**模块级 `Map<string, Ref<string>>` 缓存 + 纯 `ref()`**"，看似避开了 Nuxt context 依赖。但**这个 Map 在 SSR 进程里跨请求泄漏**，触发新一类水合不一致：
+
+| | F5 #1 | F5 #2（同进程下一个请求） |
+|---|---|---|
+| Server module cache | 空 | **已有 F5 #1 留下的 ref** ← 泄漏点 |
+| Server 是否调 `useState` | ✅ 调 → 选 URL X → 入 payload | ❌ cache hit 直接返，**`useState` 没调，payload 没 X** |
+| Server 渲染 HTML | X | X（从 stale ref） |
+| Client 水合：payload 里有 X？ | ✅ 有 → 渲 X | ❌ 没有 → `useState` 调 initFn → 选 Y → **渲 Y ✗** |
+
+Server 进程是长驻的（Node 的 `process.on('request', ...)` 一直跑），`const cache = new Map()` 模块作用域变量在两次请求间继续活着。但 **`NUXT.payload` 是按请求重新构造的**。两个寿命不对齐时，module cache 把 `useState` 短路掉，server 渲了 X，client 不知道是 X，自己算了 Y → 水合 mismatch。**只在 F5 #2+ 出现**，#1 永远正常 —— 比第一层 bug 更隐蔽。
+
+### 最终修复（双层都覆盖）
+
+**关键洞察**：cache **只在 client 端**存在；server 端永远走 `useState` 的 per-request 路径。
+
+```ts
+import { ref, type Ref } from 'vue'
+import { randomNum } from '../../shared/utils/random'
+
+const KUN_STICKER_DOMAIN = 'https://sticker.kungal.com'
+
+const makeUrl = (): string => {
+  const randomPackIndex = randomNum(1, 5)
+  const randomStickerIndex = randomNum(1, 80)
+  return `${KUN_STICKER_DOMAIN}/stickers/KUNgal${randomPackIndex}/${randomStickerIndex}.webp`
+}
+
+// Client-only cache. Server-side stays null → every request goes
+// through useState's per-request payload path → hydration stays
+// consistent across F5s.
+const clientCache = import.meta.client
+  ? new Map<string, Ref<string>>()
+  : null
+
+export const getRandomSticker = (id: string): Ref<string> => {
+  const key = `random-sticker-${id}`
+
+  if (clientCache) {
+    const existing = clientCache.get(key)
+    if (existing) return existing
+  }
+
+  const nuxtApp = tryUseNuxtApp()
+  let stickerUrl: Ref<string>
+  if (nuxtApp) {
+    // setup / lifecycle / SSR path — useState wires the URL into
+    // NUXT.payload so server-picked value is what client hydrates with.
+    stickerUrl = useState<string>(key, makeUrl)
+  } else {
+    // Reactive recompute path on client — tryUseNuxtApp returns null
+    // here. The id is by definition post-hydration (SSR never saw it),
+    // so no hydration parity exists to preserve; plain ref is safe.
+    stickerUrl = ref(makeUrl())
+  }
+
+  if (clientCache) clientCache.set(key, stickerUrl)
+  return stickerUrl
+}
+```
+
+四条路径覆盖矩阵：
+
+| 路径 | 行为 | 为什么对 |
+|---|---|---|
+| SSR pass | `clientCache=null` → 跳过 → 走 `useState` → 入 payload | per-request 序列化正确，无跨请求泄漏 |
+| Client 首次挂载（cache miss + 有 nuxtApp） | 走 `useState` → 读 NUXT.payload | 拿到 server 选的 URL，水合一致 |
+| Client reactive 重算（cache hit） | 直接返 cached ref | 不调任何 Nuxt composable，不崩 |
+| Client 首见 refresh 后才出现的新 id（cache miss + 无 nuxtApp） | fallback `ref(makeUrl())` + 入 cache | 这个 id 从未参与 SSR，没水合配对要保护，任意 URL 都可 |
+
+### 接受的退化（更精确的描述）
+
+只剩**一种**残留：client reactive 路径上第一次见某个全新 id 时，`tryUseNuxtApp()` 返 null → 走 fallback `ref()` 路径 → 选的 URL 与"如果 server 看到这个 id 会选的 URL"可能不同。**但这个 id 根本没经过 SSR**（refresh 后才出现），所以没有"参照真值"可对比，不存在 hydration mismatch。
+
+### 给 KunUI 立两条工程规则（在 v0.4.3 加上）
+
+#### 规则 1：layer utils 调 Nuxt composable 必须 `tryUseNuxtApp()` 守门
+
+> 任何依赖 Nuxt context 的 composable（`useState` / `useFetch` / `useAsyncData` / `useRoute` / `useRuntimeConfig` 等）调用前，要主动审视"是否可能从 reactive effect 重入路径触发"。如果可能，**必须 `tryUseNuxtApp()` 守门 + 准备 plain Vue 原语 fallback**。
+
+#### 规则 2：layer utils 里**永远不要加模块级 mutable 缓存而不区分 server / client**
+
+> Nuxt SSR 进程长驻，模块作用域变量跨请求泄漏，会把 `useState` / `useFetch` 这种 per-request scoped 机制短路，导致**只在首次 F5 后才出现的水合 / payload 不一致 bug** —— 难诊断、产线很常见。
+>
+> 安全模式：
+> ```ts
+> const cache = import.meta.client ? new Map() : null
+> ```
+> 或者干脆挂到 `nuxtApp.payload._xxxCache` 之类的请求作用域里。
+>
+> **静态只读常量（如 `KEY_OWNING_ROLES = new Set([...])` 这种 lookup table）不在此约束内** —— 不写入就没有泄漏。
+
+### 为什么 v0.1.x silent-failure-hunter 没抓到第一层
+
+v0.1.1 复审时 agent 跑过 `getRandomSticker.ts`，但当时关注的是"`useState` 是否被正确序列化到 payload"，**没有模拟"从重入式 reactive effect 调用"的场景**。Nuxt context 依赖的运行时检测在 SSR pass / CSR 第一次挂载时都能拿到实例 —— bug 只在数据 refresh 触发 computed 重算时出现，这个场景不在静态 review 的常规检查面里。
+
+### 为什么第二层 bug 我自己也没第一时间看出
+
+修复第一层时，我满足于"避开 `useState` → 用 `ref()`" 的局部对症，**没把"模块级 Map 在 Node SSR 长驻进程里的寿命"作为独立维度审视**。这种"修一个 bug 引一个新 bug"在 SSR 代码里很常见：每次改 layer util 都该同时拿这四个轴过一遍：
+
+```
+1. 在 setup 顶层调用    → OK?
+2. 在 reactive effect 重入路径调用 → OK?
+3. 在 SSR 进程的 N 个请求间共享状态 → OK?
+4. 在 CSR hydration 时 server / client 状态对得上 → OK?
+```
+
+只通过 1+2 是不够的。这次的反思让 KunUI 的 silent-failure-hunter agent 下次跑 review 时也应该把 (3) (4) 显式加入检查清单。
+
+### 验证
+
+- `pnpm -F web exec nuxt build` ✅
+- `pnpm -F wiki exec nuxt build` ✅
+- moyu 上报：`nuxt prepare` 无 dup warning、`tsc + vue-tsc` 通过、`vitest 12/12 spec 85/85 case` 通过 ✅
+- 运行时验证：moyu 编辑提交 → 资源 refresh → 不再炸 ✅
+- F5 多次刷新水合警告消失 ✅
+
+### 给 kungal 的 patch notes
+
+> ▎ **v0.4.3 patch — `getRandomSticker` 修复 reactive effect 崩溃 + SSR 水合不一致**
+> ▎ 1) 避开 `useState` 在 microtask 重算里调用导致的 null context 崩溃；2) cache 只在 client 端启用，避免 SSR 模块级缓存跨请求泄漏破坏 payload 序列化。
+> ▎ 下游消费方零迁移成本（API 不变）。如果你 fork 了 `getRandomSticker.ts`，请覆盖到 v0.4.3 版本。
+
+---
+
+## §15 v0.4.4 — `useKunMessage` 裸 `render()` 漏 appContext 才是一连串崩溃的真根因（2026-05-21）🔴🔴
+
+moyu 在多轮调试后揪到的"**统一根因**"，**严重度 critical**，且**意外解释了 §14 之前那一连串看似不相关的 `$nuxt null` 崩溃报告**。这一节是 KunUI 自 v0.1.0 起最关键的一个 hotfix。
+
+> **本节是一个完整侦探故事**：表象 A、B、C、D 看起来是四个独立的 Nuxt context bug，调试者（先是我，再是 moyu）顺着每个表象局部对症，结果只是把崩溃点推迟。最终发现**全是同一个 root cause** —— `useKunMessage` 第一次被调用时挂载 MessageContainer 的 `render(vNode, container)` 没带 appContext，**整个 Nuxt 实例从此被腐化**，后续任何 Nuxt composable 调用都可能拿到 null。
+
+### 真正的 bug — 一行代码
+
+`packages/ui/app/composables/useKunMessage.ts:42`：
+
+```ts
+// 之前（炸）
+const vNode = h(MessageContainer)
+render(vNode, containerRef)   // ❌ 裸 render，vNode 处在孤立 app context
+```
+
+Vue 3 的 `render(vNode, container)` API 创建的 vNode 默认**处在一个孤立的 app context**：没有 Nuxt 实例、没有 `@nuxt/icon` 插件、没有 pinia、什么都没有。
+
+`<MessageContainer>` 被这样裸 render → 内部 `<KunAlertMessageItem>` → 渲染 `<KunIcon>`（`@nuxt/icon` 的包装）→ `<NuxtIcon>` 的 `setup()` 第一行 `useNuxtApp()` → `tryUseNuxtApp()` 返 null → **崩**。
+
+Stack trace 一目了然：
+
+```
+at setup (index.js:32:21)       ← NuxtIcon 的 setup
+at <NuxtIcon name="...">
+at <KunIcon name="...">
+at <KunAlertMessageItem>
+at <KunAlertMessageContainer>   ← 被 bare render() 挂载的
+```
+
+### 一行修复
+
+```ts
+const vNode = h(MessageContainer)
+
+const nuxtApp = tryUseNuxtApp()
+if (nuxtApp?.vueApp) {
+  vNode.appContext = nuxtApp.vueApp._context
+}
+
+render(vNode, containerRef)
+```
+
+`vNode.appContext = nuxtApp.vueApp._context` 是 **Vue 3 文档化的 "render 独立 vNode 但保留 app context" 模式**。这一行让 MessageContainer 子树里所有 Nuxt composable（NuxtIcon 的 `useNuxtApp`、`useKunMessageState` 等）都能拿到原 Nuxt 实例。
+
+### 之前那一连串错误的统一解释
+
+| 表象 | 我（和 moyu）以为的根因 | **真实根因** |
+|---|---|---|
+| A. `getRandomSticker $nuxt null` | computed 重算路径 useState 失败 | 大部分是真，但部分是 B 引起的腐化 |
+| B. `kunFetch useRuntimeConfig $nuxt null` (在 `LinkDetailModal.vue::watch(open)` 里) | watch 调度从 microtask 跑，丢了 Nuxt context | **`useKunMessage` 之前已经把 Nuxt 实例搞坏了**，watch 拿到的本来就是腐化态 |
+| C. 编辑 modal 关闭报 `$nuxt` | 关闭流程里某个 composable 调度问题 | **关闭时 `useKunMessage(10550, 'success')` 触发首次挂载 MessageContainer → NuxtIcon 炸** |
+| D. 后续任意操作都开始报 `$nuxt` | 多个独立 bug | **C 把 Vue 内部状态弄坏后，后续所有 useNuxtApp 一片 null** |
+
+A 确实是独立的 reactive recompute 问题（§14 修过），但 B、C、D **不是独立 bug**，是 useKunMessage 首次挂载失败的连锁反应。**之前所有 `runWithContext` / `nextTick` / refactor 的修复都在错误的地方修**，只是把崩溃点推迟，没解决真正的源头。
+
+### 为什么"首次崩溃会腐化整个 Nuxt 实例"
+
+Vue 3 `render(vnode, container)` 失败时，Vue 内部的渲染器状态可能进入半挂载态。如果失败的子树有 effect / setup 已经注册到全局 reactive system 但没成功绑到 component instance 上，**这些 dangling effects 会污染后续 `useNuxtApp()` 的查找路径**。具体机制要看 Vue 源码细节，但实测表现是：useKunMessage 首次失败 → 后续任意 setup 调用 `useNuxtApp()` 也开始返 null。
+
+**这就是为什么我之前用 `runWithContext` 包 LinkDetailModal 的 watch 一度看似有效但又不稳定** —— `runWithContext` 把 Nuxt 实例显式注入到回调里，绕过了 `useNuxtApp()` 的查找，所以**在被腐化的实例还能用时**修复有效；一旦腐化更深，连显式注入的实例本身都不健康。
+
+### 修复后的连锁效应
+
+| 表象 | 修复 v0.4.4 后 |
+|---|---|
+| A. `getRandomSticker` | §14 的双层修复已经独立解决了 |
+| B. `kunFetch` in watch | **自动消失** —— 真正的根因是 C 引起的腐化，C 修了 B 自然好 |
+| C. 编辑 modal 关闭 `$nuxt` | **自动消失** —— MessageContainer 现在带着正确 appContext 挂载，NuxtIcon 拿得到 Nuxt 实例 |
+| D. 后续任意操作崩溃 | **自动消失** —— 没有 C 的连锁腐化就不存在 |
+
+### 验证
+
+- `pnpm -F web exec nuxt build` ✅
+- `pnpm -F wiki exec nuxt build` ✅
+- moyu 上报：`nuxt prepare` / `tsc + vue-tsc` / `vitest 85/85` 全过 ✅
+- 运行时验证：编辑提交触发 success message → 正常显示 + 后续操作不再炸 ✅
+
+### 给 KunUI 立第三条工程规则（v0.4.4 起生效，与 §14 那两条合并成 KunUI 三铁律）
+
+#### 规则 3：用 Vue 原生 `render(vnode, container)` 命令式挂载组件时，**必须**显式 graft Nuxt appContext
+
+> ```ts
+> const vNode = h(SomeComponent)
+> const nuxtApp = tryUseNuxtApp()
+> if (nuxtApp?.vueApp) {
+>   vNode.appContext = nuxtApp.vueApp._context
+> }
+> render(vNode, container)
+> ```
+>
+> **不这样做的后果**：被 render 的子树处于孤立 app context，任何调用 Nuxt composable 的子组件（`<NuxtIcon>` / `<NuxtLink>` / `<NuxtImg>` 之类）都会在 setup 期崩，而且**首次崩溃可能腐化整个 Vue / Nuxt 实例**，后续 `useNuxtApp()` 一片 null。
+>
+> 涉及面：任何用 `render()` / `createVNode()` / `createApp().mount()` 命令式挂载 UI 的 KunUI 代码（弹窗、toast、command palette、context menu）。审查时主动 grep `\brender\(` 看是否都带了 appContext graft。
+>
+> **Vue 文档参考**：https://vuejs.org/api/render-function.html#h —— "createVNode() also accepts a third argument context to specify which app context to use"。
+
+### KunUI v0.1.x → v0.4.x 三铁律总结
+
+把 §14 + §15 的反思合并成 KunUI layer / composable / util 的三条强制规则：
+
+| # | 规则 | 反面教材 |
+|---|---|---|
+| 1 | layer utils 调 Nuxt composable 必须 `tryUseNuxtApp()` 守门 + plain Vue 原语 fallback | `getRandomSticker` v0.1.x（§14） |
+| 2 | layer utils 里 module-level mutable cache 必须 `import.meta.client`-gated；读写都禁止跨请求泄漏 | `getRandomSticker` 我修第一版（§14） |
+| 3 | 命令式 `render(vnode, container)` 必须 graft `nuxtApp.vueApp._context` 到 vNode.appContext | `useKunMessage` v0.1.x（§15） |
+
+### 反思 — 调试 SSR / Nuxt context bug 的元教训
+
+这一轮调试有三层教训叠加：
+
+**层 1 — 局部对症 vs 根因**：我和 moyu 都犯过"看到 stack trace 直接修 stack trace 顶部"的错。`getRandomSticker` 是真 bug（§14），但 `kunFetch in watch` / `editModal close` / `subsequent useNuxtApp null` 这三个"看起来是 watch 调度 / async timing / cleanup 的问题" **统统是 useKunMessage 一次性挂载失败的连锁反应**。
+
+**层 2 — Nuxt 实例的"腐化"是真存在的**：以前我以为 Nuxt context 失败只是"局部拿不到"，不会"污染整个 app"。这次实测发现 `render()` 失败会让后续 `useNuxtApp()` 全军覆没 —— 一旦某个表象出现，赶紧问自己"**这是不是某个早一点的 render / mount 失败的余波**？"
+
+**层 3 — 多 bug 同时报告时，先找"最早触发的那个"**：调试时按时间顺序排查事件，不要按当前报错位置排查。如果 useKunMessage 在 t=0 失败，但你的注意力被 t=5 的 LinkDetailModal watch 报错吸走，就会一直跟着 t=5 的红鲱鱼跑。
+
+### 给 kungal 的 patch notes
+
+> ▎ **v0.4.4 patch — `useKunMessage` 修复整个 KunUI 调试链最深处的真根因** 🔴🔴
+> ▎ 原因：`useKunMessage` 内部用 Vue 的 `render(vnode, container)` 裸挂载 MessageContainer，没设 `vNode.appContext`，导致 MessageContainer 子树里任何调用 Nuxt
+> ▎ composable 的组件（首当其冲是 `<NuxtIcon>`）都崩，**且首次崩溃会腐化整个 Nuxt 实例**，后续看似不相关的 `useState` / `useFetch` / `useNuxtApp` 一片 null。
+> ▎
+> ▎ 修复（packages/ui/app/composables/useKunMessage.ts）：
+> ▎ ```ts
+> ▎ const vNode = h(MessageContainer)
+> ▎ const nuxtApp = tryUseNuxtApp()
+> ▎ if (nuxtApp?.vueApp) vNode.appContext = nuxtApp.vueApp._context
+> ▎ render(vNode, containerRef)
+> ▎ ```
+> ▎
+> ▎ 下游消费方零迁移成本（API 不变）。**强烈建议立即覆盖 v0.4.4 版本**。如果你之前为绕这个 bug 加过 `nuxtApp.runWithContext(() => useKunMessage(...))` 或类似 wrap，**可以删掉了**（修复后不再需要），但留着也无害。
+
+---
+
+## §16 v0.4.5 — z-index 设计系统：浮层不再被 Modal 压住（2026-05-21）
+
+**症状**：KunModal 里打开 KunSelect / KunPopover / KunDatePicker / KunTooltip，下拉 / 浮层**视觉上沉到 Modal 下面**，看不见。
+
+### 根因 — 散乱 magic number z-index 缺乏统一秩序
+
+v0.1.x 起 z-index 一直是各组件自己拍脑袋写的硬编码值，没有统一秩序。审计后实际是：
+
+| 组件 | 旧 z-index | 是哪种浮层 |
+|---|---|---|
+| Popover / Select dropdown / DatePicker dropdown / Tooltip | **z-50** | 全局浮层（Teleport to body） |
+| Modal | z-1007 | 全局阻塞容器 |
+| ContextMenu | z-[1100] | 右键菜单 |
+| Alert（确认对话框） | z-2000 | 阻塞 modal |
+| Loli toast | z-2000 | 通知 |
+| MessageContainer | z-[7777] | toast 容器 |
+
+Modal 在 z-1007，四个 popover 类组件在 z-50。**Teleport 让 popover 离开 Modal 的 DOM 子树**，但**没改变 z-index 排序** —— body 下两个并列子树 z-50 vs z-1007，Modal 视觉上完全压住 popover。这是 v0.1.x 以来的隐藏 bug。
+
+### 修复 — 仿 rounded 系统的 token 化
+
+`packages/ui/app/styles/tailwindcss.css` 的 `@theme` 块加 5 个 token：
+
+```css
+@theme {
+  /* ... 既有 color / radius tokens ... */
+  --z-kun-sticky: 30;
+  --z-kun-modal: 1000;
+  --z-kun-popover: 1500;
+  --z-kun-alert: 2000;
+  --z-kun-message: 9000;
+}
+```
+
+Tailwind v4 自动生成对应 utility：`z-kun-sticky` / `z-kun-modal` / `z-kun-popover` / `z-kun-alert` / `z-kun-message`。
+
+**核心层级规则**：
+
+> 一个浮层永远在"触发它的层"之上。
+
+```
+sticky (30) < modal (1000) < popover (1500) < alert (2000) < message (9000)
+```
+
+- popover 高于 modal → 在 Modal 内打开 Select 时下拉在 Modal **之上** ✓
+- alert 高于 popover → KunAlert 确认对话框打开时永远盖住普通 popover ✓
+- message 最高 → toast 总能被看见，即便在 alert / modal 之上 ✓
+
+### 9 个组件全部迁移
+
+| 组件 | 旧 | 新 | 备注 |
+|---|---|---|---|
+| `Modal.vue` | `z-1007` | `z-kun-modal` | |
+| `Popover.vue` | `z-50` 🔴 | `z-kun-popover` | **bug fix** |
+| `select/Select.vue` | `z-50` 🔴 | `z-kun-popover` | **bug fix** |
+| `date-picker/Picker.vue` | `z-50` 🔴 | `z-kun-popover` | **bug fix** |
+| `tooltip/Tooltip.vue` | `z-50` 🔴 | `z-kun-popover` | **bug fix** |
+| `context-menu/ContextMenu.vue` | `z-[1100]` | `z-kun-popover` | 语义对齐 |
+| `alert/Alert.vue` | `z-2000` | `z-kun-alert` | |
+| `alert/Loli.vue` | `z-2000` | `z-kun-message` | toast 性质，应在 message 层 |
+| `alert/MessageContainer.vue` | `z-[7777]` | `z-kun-message` | |
+
+### 故意不动的 z-index
+
+这些是**局部 stacking context 内的相对层级**，不是全局浮层 —— 保持原样：
+
+| 组件 | z-index | 说明 |
+|---|---|---|
+| `Badge.vue` | `z-10` | 在 avatar 内的角标 |
+| `Tab.vue` | `z-10` | tab 内 indicator 之上 |
+| `scroll/Shadow.vue` | `z-10` | 容器内滚动阴影 |
+| `content/Content.vue` | `z-1` / `z-5` | markdown 内部排序 |
+| `Loading.vue` | `z-50` | 卡片内 overlay |
+| `lightbox/Lightbox.vue` 内按钮 | `z-50` | lightbox 内导航按钮 |
+
+判定标准：**只要不是 `fixed` / `absolute` 跨出父容器、不参与全局浮层栈的，相对 z-index 是合理的 —— 它们生活在各自父级的 stacking context 里，不会与 Modal / Popover 在全局栈竞争**。
+
+### 消费侧覆盖
+
+下游 app 如果需要与第三方 widget z-index 对接（比如某个 vendor 库的 modal 写死 z-9999），可以在自己的 `:root` 里覆盖：
+
+```css
+:root {
+  --z-kun-modal: 9998;     /* 让 KunModal 比那个 vendor modal 低 1 */
+  --z-kun-popover: 10500;  /* KunSelect 仍然高于 vendor modal */
+}
+```
+
+整套 token 化的本质是**让全局浮层栈成为可配置的 design system，而不是 9 个文件里 9 个 magic number**。
+
+### 验证
+
+- `pnpm -F web exec nuxt build` ✅
+- `pnpm -F wiki exec nuxt build` ✅
+- 视觉手测：Modal 里打开 Select / Popover / DatePicker / Tooltip，浮层全部**正确出现在 Modal 之上**
+- 全仓 grep `z-50\|z-1007\|z-2000\|z-\[7777\]\|z-\[1100\]` 在 9 个 global float 组件里 0 命中
+
+### 反思 —— §1.9 的 TODO 终于还了
+
+v0.1.0 §1.9 "其他小型一致性问题"里早就列过这条：
+
+> z-index 散落硬编码（z-10 / z-50 / z-1007 / z-1100 / z-2000 / z-[7777]） — Select, Modal, ContextMenu, Alert, MessageContainer
+
+当时标"低优"留到后面。这次因为用户报告"Select 在 Modal 内被压住"才被强制推上日程 —— 一个早就识别但被低估优先级的 latent bug。**视觉层级 bug 在没人实际把 Select 放进 Modal 之前是看不见的，但放进去那天就是 critical**。
+
+教训：design system 类的一致性 issue 即使当前没有可见报错，也应该作为"在产线之前先做完"的功课。比"等到用户报 bug 才动"省事。
+
+---
+
+## §17 v0.4.6 — KunImage 5 个 prop 透传 + KunUI layer 注册 `none` provider（2026-05-21）
+
+moyu 报告 `/about` 页卡顿，调查过程值得整体记录 —— **一开始的假设错了**，但调查方法对，且终态修复发现的根因揭示了 KunImage 一个真实 API 缺口。
+
+### moyu 调查的精彩之处
+
+**错误假设**：用户报告"sharp 在前端运行所以页面卡"。
+
+**moyu 反驳**：
+
+> Sharp 是 Node.js 原生绑定（libvips C 库），物理上不可能在浏览器里运行。浏览器没有 N-API 也没有 native binding 加载能力。我也跑了 build 验证：
+>
+> ```
+> .output/server/node_modules/sharp      ← server bundle 里有
+> .output/public/_nuxt/*.js              ← client bundle 里 0 sharp
+> ```
+
+直接证伪用户假设，没顺着错的方向修。这是 senior 调试的标志。
+
+**真正根因**：
+
+| 症状 | 成因 |
+|---|---|
+| 首次加载慢 | 4 张 card banner 并行触发 IPX 冷启动（每张几百 ms server-side sharp transcode） |
+| 滚动卡顿 | 没 width/height → 每张图加载时 layout shift → 浏览器反复 reflow |
+| 流量浪费 | banner 已经是 author 时压好的 AVIF (30-100KB)，IPX 再过一遍 sharp 0 收益 |
+| 缓存抖动 | IPX 默认 FS 缓存 5 分钟过期，冷启动反复 |
+
+**moyu 在他们仓的修复**：
+
+```vue
+<NuxtImg
+  :src="banner"
+  provider="none"           ← 不走 IPX
+  loading="lazy"
+  :width="512" :height="288" ← 预留空间，0 layout shift
+  fetchpriority="high"       ← LCP 元素加 hint
+/>
+```
+
+但**这里他们卡住了** —— KunImage 没有 `provider` / `fetchpriority` 这些 prop，他们被迫放弃 `<KunImage>` 改用裸 `<NuxtImg>`。**这是 KunImage 一个真实的 API 缺口**。
+
+### 修复 1 — KunImage 加 5 个 prop 透传
+
+`packages/ui/app/components/kun/image/Image.vue` 加：
+
+| prop | 类型 | 用途 |
+|---|---|---|
+| `provider` | `string` | 切换图片 provider（`"none"` 跳过 IPX） |
+| `densities` | `string` | retina srcset 提示，如 `"1x 2x"` |
+| `sizes` | `string` | 响应式 sizes，如 `"sm:100vw md:50vw"` |
+| `fetchpriority` | `'high' \| 'low' \| 'auto'` | HTML fetchpriority 属性，LCP 元素用 `"high"` |
+| `decoding` | `'sync' \| 'async' \| 'auto'` | HTML decoding 属性，非 LCP 用 `"async"` |
+
+所有 5 个都是可选透传，不影响现有调用。
+
+### 修复 2 — KunUI layer 注册 `none` provider
+
+`packages/ui/nuxt.config.ts` 加：
+
+```ts
+image: {
+  providers: {
+    none: { name: 'none', provider: '@nuxt/image/runtime/providers/none' }
+  }
+}
+```
+
+**为什么放在 layer 而不是让每个 app 自己加**：moyu 之前自己 fork 加这一条，三个下游（kungal / moyu / wiki / oauth）各加一次重复 = code drift。**放进 KunUI layer 一次定义，所有 downstream 免费获得** —— 这是 layer 系统的本意。
+
+### moyu 的 `/about` 优化报告作为最佳实践 cheat sheet
+
+下游用 `<KunImage>` 时按以下规则选 prop 组合，照抄即可：
+
+#### 静态预优化图（已 AVIF / 已 WebP，author 时压过的）
+
+```vue
+<KunImage
+  :src="post.banner"
+  provider="none"            ← 跳过 IPX
+  loading="lazy"             ← 视口外不下载
+  :width="512" :height="288" ← 强制留空间，0 layout shift
+  class-name="..."
+/>
+```
+
+#### LCP 元素（首屏最大图片，比如博文详情页 banner）
+
+```vue
+<KunImage
+  :src="banner"
+  provider="none"
+  loading="eager"            ← 立即加载
+  fetchpriority="high"       ← 提示浏览器优先抓
+  :width="1200" :height="400"
+  class-name="..."
+/>
+```
+
+#### 用户头像 / galgame banner（需要 runtime resize）
+
+```vue
+<KunImage
+  :src="user.avatar"
+  loading="lazy"
+  :width="64" :height="64"
+  densities="1x 2x"          ← retina 屏自动选 2x
+/>
+```
+
+不传 `provider` → 默认走 IPX，符合 runtime resize 需求。
+
+### 验证
+
+- `pnpm -F web exec nuxt build` ✅
+- `pnpm -F wiki exec nuxt build` ✅
+- moyu 那边的 vue-tsc + build 都过 ✅
+- moyu 那边 `/about` 卡顿消失 ✅
+
+### 反思 — sharp 假设给我们的元教训
+
+用户报告"sharp 在前端运行"是错的，但他们能感知到"卡"是真的。**这种"症状真，假设错"的报告是最常见也最难处理的**：
+
+- 顺着错假设修 → 修不到根因，用户继续抱怨
+- 直接反驳 → 用户觉得你在踢皮球
+- moyu 的做法：**用证据反驳假设 + 重新定义问题 + 找真根因** —— 这才是建设性回应
+
+对应 KunUI 维护策略：用户报告卡 / 崩 / 闪烁时，**先问"我看到的物理证据是什么"**（build artifact 检查、network panel、devtools performance），再问"那真正的瓶颈是什么"，最后才修。不要被"用户给出的假设"牵着走。
+
+### 给 KunUI 的可选未来 prop
+
+moyu 这次只要 5 个，但 NuxtImg 还有这些常用 prop 未透传，下次有人提就再加：
+
+| 未来 prop | 用途 |
+|---|---|
+| `fit` | cover / contain / fill / inside / outside |
+| `modifiers` | 额外 IPX modifier 字典 |
+| `preset` | nuxt.config.image.presets 里定义的命名预设 |
+| `background` | 透明图片 fallback 背景色 |
+
+不在 v0.4.6 范围内，等有真实需求时再补。
+
+---
+
+## §18 v0.4.4 / v0.4.5 反思修正 — `runWithContext` 没那么万能，外加"孤儿 store"陷阱（2026-05-21）
+
+moyu 在他们 fork 调试一个"点删除按钮无反应"的 bug 时，发现自己之前为了绕 §14 / §15 那一批 `$nuxt null` 问题、在好几条 click 路径上加的 `nuxtApp.runWithContext(...)` 包装**根本没起作用** —— 真根因是另一个完全独立的"老 store 没迁，promise 永不 resolve"的孤儿 bug。这次复盘让我们也得修正之前在 §14 / §15 给出的工程规则，免得规则被泛化成"任何 await 都包 runWithContext"。
+
+> 本节是**文档修正 + 反思**，不是新代码改动。kun-oauth-admin 本仓没有同款孤儿 store 残留（grep 验证过），但教训对所有 fork 都适用。
+
+### 修正 1 — `runWithContext` 真正必须的两个场景
+
+之前 §14 / §15 末尾给出的"layer util 调 Nuxt composable 必须 `tryUseNuxtApp` 守门"规则**仍然正确**，但常被误读为"凡是 await / 跨 tick 都该 `runWithContext`"。准确的边界是：
+
+```
+✓ 必须用 runWithContext:
+  1. Vue watch / watchEffect 回调内调 Nuxt composable
+     （脱离当前组件 instance 的微任务）
+  2. render(vNode, container) 裸 mount 的 vNode 子树
+     （没有任何 instance binding —— v0.4.4 §15 已修过）
+
+✗ 不需要用 runWithContext:
+  3. @click / @input / @submit 等 Vue 事件处理器
+     （Vue 3 的 withCtx 包装让 getCurrentInstance() 不为 null）
+  4. setup() 同步路径
+  5. onMounted / onUnmounted / 其他生命周期 hook
+     （Vue 在 hook 内已保住 instance）
+  6. 大多数 await kunFetch(...) 之后的代码
+     （Nuxt 3 对常见 await 路径有内部 context patch）
+```
+
+### 修正 2 — `tryUseNuxtApp()` 的查找路径解释为什么 (3-6) 不需要
+
+`tryUseNuxtApp()` 内部查找顺序大致是：
+
+```
+1. nuxtAppCtx.tryUse()                            ← Nuxt 自维护的 AsyncLocalStorage
+2. getCurrentInstance().appContext.app.$nuxt      ← Vue 当前实例的 app context
+```
+
+Vue 3 的事件处理器 / lifecycle hook **执行期都有 `getCurrentInstance()` 不为 null** —— 路径 2 直接命中，根本走不到路径 1 需要 `runWithContext` 强制注入的情况。
+
+### 修正 3 — "孤儿 store"陷阱（新加入排查清单）
+
+下游 app 从老 alert / dialog / message store 迁到 KunUI 的 `useKunAlert` / `useKunMessage` 时，如果**只迁了 UI 组件**（把老的 `<MyAlert>` 删了换 `<KunAlert>`），但**老 store 的 `alert(...)` 方法还在被旧调用点使用**，会触发"孤儿 store"bug：
+
+```ts
+// 老 store（迁移后变孤儿）
+const useOldAlertStore = defineStore('alert', () => {
+  const showAlert = ref(false)   // ← 没人 watch 这个 ref 了
+  const alert = (...) => {
+    showAlert.value = true       // ← 改 ref，但没有组件渲染弹窗
+    return new Promise(...)      // ← 没人调 resolve → 永远 pending
+  }
+  return { alert, /* ... */ }
+})
+
+// 残留调用点（看起来在工作）
+const store = useOldAlertStore()
+const ok = await store.alert(...)   // ← 死锁在这一行
+if (ok) doDelete()                  // ← 永远不到这里
+```
+
+**症状特征**：
+- 点击按钮后**完全静默** —— 没报错、没 network 请求、没 console output
+- 跟 `$nuxt null` 不同，**完全无报错**（promise 死锁不是 error）
+- DevTools Performance 看到点击事件触发但没后续
+
+**修复模板** —— 桥接老 store：
+
+```ts
+const useOldAlertStore = defineStore('alert', () => {
+  // 其他字段保留不动（不破坏依赖它们的其他流程）
+
+  // alert 改成 useKunAlert 的薄包装
+  const alert = (
+    title?: string,
+    message?: string,
+    showCancel?: boolean
+  ): Promise<boolean> =>
+    useKunAlert({
+      title,
+      message,
+      showCancel: showCancel ?? true
+    })
+
+  return { alert, /* ...其他字段... */ }
+})
+```
+
+零修改所有调用点，UI 由 KunAlert 渲染，promise 由 useKunAlertState 正常 resolve。
+
+### 修正后的 $nuxt-null / 按钮静默故障 排查清单
+
+按这个顺序，省时间：
+
+| 步 | 检查 | 命中怎么修 |
+|---|---|---|
+| 1 | 点击**完全静默**？(没报错没请求) | 怀疑**孤儿 store**，grep 老 alert / message store 是否还有人调 |
+| 2 | 报 `$nuxt null` 且**屏幕崩**？ | 怀疑 §15 的 render() 裸 mount 漏 graft appContext |
+| 3 | 报 `$nuxt null` 在 watch / watchEffect 里？ | 用 `nuxtApp.runWithContext(() => …)` 包回调体 |
+| 4 | 报 `$nuxt null` 在 @click handler 里？ | **99% 不需要 runWithContext**，先找别的原因（更可能是 §1 或 §2） |
+
+### KunUI 工程规则更新（v0.4.4 三铁律 → v0.4.5 + 本节后变成五条）
+
+| # | 规则 | 来源 |
+|---|---|---|
+| 1 | layer util 调 Nuxt composable 必须 `tryUseNuxtApp()` 守门 + plain Vue 原语 fallback | §14 |
+| 2 | layer util module-level mutable cache 必须 `import.meta.client ? new Map() : null` | §14 |
+| 3 | 命令式 `render(vnode, container)` 必须 graft `nuxtApp.vueApp._context` | §15 |
+| 4 | Teleport-to-body 的 fixed/absolute 浮层必须用 `z-kun-*` token | §16 |
+| 5 | 下游迁 KunUI 状态 composable（`useKunAlert` 等）时，老 store 接口要**桥接 delegate**而不是删，避免孤儿 hang | §18（本节） |
+
+同时**修正**之前规则 1 / 3 隐含的"runWithContext 是万能护身符"印象 —— 它只在规则 1 / 3 列出的两个场景必须用，撒在 @click handler 上是过度防御（不致命但污染代码）。
+
+### 反思 — 这次"过度防御"被纠错的元教训
+
+moyu 之前一连串撞 $nuxt null 时，我（们）总结的工程规则**没错**，但**容易被泛化滥用**。"任何依赖 Nuxt context 的代码都该用 runWithContext 守门" 听起来合理，实际只在两个特定场景必须，剩下场景撒了：
+
+- ✗ 不会修 bug（路径 2 已经 work，不缺路径 1）
+- ✗ 增加心智负担（每个 await 都问"要不要包"）
+- ✗ 让真正必须用的场景反而**藏在噪声里**
+
+这次 moyu 找到孤儿 store 才意识到：**之前那些 runWithContext 包装其实并没有解决任何 bug，只是恰好与 $nuxt-null 报告同时出现，被我误归因**。这是个经典的"相关 ≠ 因果"工程教训：观察到"加了 X 之后 bug A 消失了"不代表 X 修了 A，可能只是 A 本来就和 X 无关、由别的修复（v0.4.4 真根因 useKunMessage appContext graft）解决了。
+
+下次给规则归因前，**严格分离"哪些 commit 改了哪些行为"**，不要把一连串改动打包归因到某个最显眼的那一条。
+
+---
+
+## §19 v0.4.7 — z-index 升档 + Select dropdown 选项溢出修复（2026-05-21）
+
+moyu 又报了两个 UI bug：
+
+1. **主页 hover topbar 元素 → tooltip / popover 出现在其他元素下方**
+2. **KunSelect 弹出的选项溢出容器**
+
+第 1 个是上一轮 v0.4.5 没考虑到 legacy app 的 sticky header 用 `z-9999` 这种 nuclear z-index，1500 还是不够竞争。第 2 个是 flex + truncate 一个经典坑，CSS 老问题但容易漏。
+
+### 问题 1 — z-token 升档
+
+#### 复盘 v0.4.5 的判断失误
+
+v0.4.5 §16 把 popover token 设成 1500，假设是"app 侧 sticky header 顶多用 z-50 / z-100"。实际产线中：
+
+- 老项目里的 navbar / topbar 不少用 `z-9999` 或 `z-[9999]`（来自不知道哪个旧 boilerplate）
+- 第三方组件库（部分 admin template）默认 header 用 `z-1000` 或更高
+- 我们 v0.4.5 的 popover @ 1500 在这些场景**仍然被压**
+
+#### 修复 —— 整体抬到 9000-9999 区间
+
+`packages/ui/app/styles/tailwindcss.css` 的 token 值升档：
+
+```diff
+- --z-kun-sticky: 30;
+- --z-kun-modal: 1000;
+- --z-kun-popover: 1500;
+- --z-kun-alert: 2000;
+- --z-kun-message: 9000;
+
++ --z-kun-sticky: 30;
++ --z-kun-modal: 9000;     /* was 1000 */
++ --z-kun-popover: 9300;   /* was 1500 */
++ --z-kun-alert: 9700;     /* was 2000 */
++ --z-kun-message: 9999;   /* was 9000 */
+```
+
+相对层级**保持不变**（modal < popover < alert < message），整体抬到 9000+ 区间，确保 KunUI 浮层在 99% 实际场景下能赢过 app 侧的 sticky / fixed 容器。
+
+#### 为什么不直接所有都 z-99999
+
+更高的值看着安全，但有真实成本：
+
+- 跟 vendor 库的 toast / modal 协作变难（很多 vendor 写死 z-9999，你 z-99999 会盖住他们的）
+- 调试时数值太大不直观
+- 浏览器对 z-index 整数大小没有上限，但视觉上"9999 与 99999"用户无法区分
+
+9000-9999 是"足够大到赢过 99% legacy 代码，但不至于把 vendor 库也碾过去"的平衡点。
+
+#### 这个改动的语义边界
+
+> **本节抬升 z-index 不是"用魔法数字硬刚"，是承认 KunUI 浮层在视觉栈中天然属于"最高优先级 UI"。**
+
+弹出层之所以叫弹出层，就是因为**用户主动触发**它们时，期望它们盖住一切。这种语义在 v0.4.5 我用 1000-2000 区间表达得不够强，本轮纠正。
+
+### 问题 2 — Select dropdown 选项溢出
+
+#### 症状
+
+`<KunSelect>` 的选项里如果有比 trigger button 宽的 label（典型的：长 URL / 长中文标题 / 长 SHA hash），下拉里这些 label **横向溢出 dropdown 边界**，可能盖住相邻 UI，也可能产生横向滚动条。
+
+#### 根因 — flex + truncate 的经典坑
+
+Select.vue 的 option `<li>`：
+
+```vue
+<!-- 之前（溢出） -->
+<li class="... flex items-center justify-between ...">
+  <span class="block truncate">{{ option.label }}</span>
+  <KunIcon ... class="ml-2 shrink-0" />
+</li>
+```
+
+`<span>` 是 `<li>` 的 flex item。**CSS 规定 flex item 的 `min-width` 默认为 `auto`，等价于 `min-content`**。对一段不可断行的长文本（特别是 CJK 之外的长 URL / hash），min-content 就是整段文本宽度 —— 等于 span 不会缩。
+
+`truncate` shorthand 包含 `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`。但 truncate 的前提是**容器宽度小于内容宽度时才裁切**。如果容器（span）自身因为 `min-width: auto` 被撑到内容宽度，**truncate 永远不触发**，文本完整渲染并撑爆父级。
+
+#### 修复 — `min-w-0 flex-1` 标准修法
+
+```vue
+<!-- 之后 -->
+<li class="... flex items-center justify-between ...">
+  <span class="block min-w-0 flex-1 truncate">{{ option.label }}</span>
+  <KunIcon ... class="ml-2 shrink-0" />
+</li>
+```
+
+- `min-w-0`：把 span 的 min-width 从 `min-content` 改成 0，**允许 flex 真的把它压缩到任意小**
+- `flex-1`：告诉 flex 布局 span 占用所有剩余空间（基础 width:0, grow:1, shrink:1）
+- `truncate`：此时容器宽度可能小于内容宽度，**ellipsis 真正生效**
+
+trigger button 的 selected label 也有同款问题（长 selectedLabel 会撑爆 button 自身），一并修了。
+
+#### 同时收紧 `<ul>` overflow
+
+```diff
+- class="scrollbar-hide overflow-auto rounded-md text-sm focus:outline-none"
++ class="scrollbar-hide overflow-x-hidden overflow-y-auto rounded-md text-sm focus:outline-none"
+```
+
+`overflow-auto` 是双轴 = 横向也可以滚动 = 如果有什么东西 truncate 没拦住，会出现横向滚动条。改成 `overflow-y-auto overflow-x-hidden` 保证**纵向可滚（多选项时）、横向永远裁切**。这是浮层下拉的标准 hardening。
+
+### 这次"flex + truncate 不生效"的元教训
+
+`truncate` 在非 flex 上下文（普通 block）工作得很自然，导致大家形成"truncate 是一个原子级 utility，写了就能用"的错觉。但 **flex 上下文里 `min-width: auto` 默认值是 flex item 的隐藏地雷**：
+
+- truncate 不生效
+- `width: X` 在 flex item 上也不生效（被 min-content 顶起来）
+- `flex-shrink: 1` 写了也不收缩
+- 直到加 `min-w-0` 才解锁
+
+这是 CSS 历史上一个有争议的默认（CSS WG 在 2017 年讨论过改默认但因为兼容性放弃）。**对所有"在 flex 容器里要做 truncate / 自适应宽度"的 span / div**，先加 `min-w-0` 是安全网。
+
+### 全仓审计 —— 还有哪里可能踩同款坑
+
+```bash
+# 这种组合是潜在 bug 点
+grep -rn "flex.*truncate\|truncate.*flex" packages/ui/app/components --include="*.vue"
+```
+
+跑了一遍。结果只有 Select.vue 这一处有真实问题（其他出现 flex + truncate 组合的，要么 truncate 在正确层级，要么宽度由父级显式约束）。这次修就够了。
+
+下次新增组件如果用到 truncate，**默认加 `min-w-0`**，纳入 KunUI lint 检查清单。
+
+### KunUI 工程规则更新（第 6 条）
+
+| # | 规则 |
+|---|---|
+| 1-5 | 略（见 §14 / §15 / §16 / §18） |
+| 6 | **flex 容器里的 truncate 必须搭配 `min-w-0`**，否则不生效。视为"truncate 在 flex 里"的标配。 |
+
+### 验证
+
+- `pnpm -F web exec nuxt build` ✅
+- `pnpm -F wiki exec nuxt build` ✅
+- 视觉手测：
+  - 长 label option → 显示 ellipsis，不再溢出 dropdown
+  - tooltip / popover 在 hover topbar / sticky header 时，正确显示在最上层
+  - Modal 内打开 Select 仍然正常（popover > modal 关系保持）
+
+---
+
 *文档维护：每次完成批次后更新对应章节的 checkbox。新增组件评审进 §2 表 + §3 新章节。*

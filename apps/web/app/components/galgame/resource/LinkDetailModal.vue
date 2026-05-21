@@ -162,7 +162,6 @@ const handleEditDone = () => {
 <template>
   <KunModal v-model="open" inner-class-name="max-w-2xl w-[92vw] !p-0">
     <div class="flex flex-col">
-      <!-- Header strip — colored by validity for at-a-glance signal -->
       <div
         :class="
           cn(
@@ -192,7 +191,6 @@ const handleEditDone = () => {
       </div>
 
       <div class="space-y-5 p-5">
-        <!-- Publisher row -->
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-3">
             <KunAvatar :user="resource.user" size="lg" />
@@ -209,7 +207,6 @@ const handleEditDone = () => {
           </KunChip>
         </div>
 
-        <!-- Meta chips -->
         <div class="flex flex-wrap items-center gap-2">
           <KunChip color="primary" variant="flat">
             <KunIcon :name="GALGAME_RESOURCE_TYPE_ICON_MAP[resource.type]" />
@@ -231,13 +228,6 @@ const handleEditDone = () => {
           </KunChip>
         </div>
 
-        <!--
-          Note from publisher — info-colored (cyan) to stand apart from
-          the download block below. Many users skip notes by reflex; the
-          color shift + leading "请先阅读" makes it harder to miss when
-          scanning. Sits ABOVE the download links so the reader hits it
-          on the way down.
-        -->
         <KunInfo
           v-if="resource.note"
           color="info"
@@ -249,18 +239,11 @@ const handleEditDone = () => {
           </p>
         </KunInfo>
 
-        <!-- Loading -->
         <div v-if="isFetching" class="flex justify-center py-8">
           <KunLoading />
         </div>
 
-        <!-- Detail block — links + codes -->
         <template v-else-if="detail">
-          <!--
-            Download links — primary-colored (blue) so the visual flow
-            reads "yellow → blue → status-colored copy buttons", with
-            three distinct color buckets the eye can lock onto.
-          -->
           <KunInfo color="primary" variant="flat" title="下载链接">
             <div class="space-y-1.5">
               <div
@@ -285,11 +268,6 @@ const handleEditDone = () => {
             </div>
           </KunInfo>
 
-          <!--
-            Codes — separate block, status-colored. Different shape
-            (clickable copy buttons) reinforces "these are action chips,
-            not text blocks".
-          -->
           <div
             v-if="detail.code || detail.password"
             class="flex flex-wrap items-center gap-2"
@@ -326,18 +304,6 @@ const handleEditDone = () => {
           </KunInfo>
         </template>
 
-        <!--
-          Footer hierarchy:
-            • One anchor button (关闭, solid) — the only filled button
-              so the eye has exactly ONE thing to land on as "main exit".
-            • Everything else is variant="light" — ghost-button look with
-              colored text + hover bg. Color carries semantic only
-              (danger=destructive, warning=report) instead of competing
-              for visual weight.
-            • Left cluster = resource-level actions (auth-gated).
-            • Right cluster = navigation; the divider keeps the close
-              button isolated as the visual destination.
-        -->
         <div class="flex flex-wrap items-center justify-between gap-1">
           <div class="flex flex-wrap items-center gap-1">
             <KunButton
@@ -388,13 +354,6 @@ const handleEditDone = () => {
       </div>
     </div>
 
-    <!--
-      Inline edit modal. detail is guaranteed to exist here (handleEdit
-      guards on it). After a successful save the modal closes itself
-      and runs handleEditDone — which both refreshes the parent list
-      and dismisses THIS detail modal so the user lands back on a
-      fresh list.
-    -->
     <GalgameResourceLinkEditModal
       v-if="detail"
       v-model="isEditOpen"

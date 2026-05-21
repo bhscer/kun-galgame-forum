@@ -170,12 +170,6 @@ const activeBucket = computed(() =>
       description="这个 Galgame 还没有资源链接, 快添加一个吧!"
     />
 
-    <!--
-      Create flow: no `resource` prop = LinkEditModal renders in
-      publish mode (POST, "发布资源" CTA, 10549 success message).
-      Same component handles the edit path elsewhere — see
-      LinkEditModal.vue's header for the unification rationale.
-    -->
     <GalgameResourceLinkEditModal
       v-model="isShowPublish"
       :galgame-id="gid"
