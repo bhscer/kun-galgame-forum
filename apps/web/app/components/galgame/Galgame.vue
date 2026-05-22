@@ -32,7 +32,10 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
       @on-rating-created="handleRatingCreated"
     />
 
-    <div v-if="sortedRatings.length" class="grid grid-cols-1 gap-3">
+    <div
+      v-if="sortedRatings.length && sortedRatings.length >= 3"
+      class="grid grid-cols-1 gap-3"
+    >
       <GalgameRatingRadarCard :ratings="sortedRatings" />
     </div>
 
@@ -45,6 +48,18 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
         >
           <div class="space-y-3">
             <GalgameIntroduction :introduction="galgame.introduction" />
+
+            <div
+              v-if="sortedRatings.length && sortedRatings.length < 3"
+              class="space-y-1"
+            >
+              <GalgameRatingRow
+                v-for="rating in sortedRatings"
+                :key="rating.id"
+                :rating="rating"
+              />
+            </div>
+
             <GalgameLink />
           </div>
 

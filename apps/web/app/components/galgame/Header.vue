@@ -177,11 +177,17 @@ onMounted(async () => {
       </div>
 
       <div class="space-y-3">
-        <div class="flex flex-wrap gap-2">
-          <template v-for="(alias, index) in galgameAliasArray" :key="index">
-            <KunChip v-if="alias">{{ alias }}</KunChip>
-          </template>
-        </div>
+        <KunScrollShadow
+          axis="vertical"
+          shadow-size="2rem"
+          class-name="max-h-[100px]"
+        >
+          <div class="flex flex-wrap gap-2">
+            <template v-for="(alias, index) in galgameAliasArray" :key="index">
+              <KunChip v-if="alias">{{ alias }}</KunChip>
+            </template>
+          </div>
+        </KunScrollShadow>
 
         <KunDivider />
 
