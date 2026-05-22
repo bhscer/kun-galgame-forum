@@ -15,6 +15,33 @@ const CODE_AUTH_EXPIRED = 205
 // surface the message prominently and stop there.
 const CODE_BANNED = 234
 
+// Only forward the auth session cookie to the Go backend during SSR.
+//
+// pinia-plugin-persistedstate serializes every persisted Pinia store
+// into its own browser cookie (user profile, settings panel, sidebar
+// state, etc.). Accumulated, the full Cookie header easily exceeds
+// Fiber's default ReadBufferSize (4KB) — manifests as
+// `Request Header Fields Too Large` on Go and silently-empty SSR
+// renders (the data fetch fails, the page hydrates with no payload).
+//
+// The Go backend only authenticates against `kungal_session`; the
+// other cookies are pure client state and would be ignored anyway.
+// Forwarding only the one keeps SSR auth working without dragging
+// every persisted store across the wire.
+const SESSION_COOKIE_NAME = 'kungal_session'
+
+const extractSessionCookie = (
+  cookieHeader?: string
+): string | undefined => {
+  if (!cookieHeader) return undefined
+  const prefix = `${SESSION_COOKIE_NAME}=`
+  for (const part of cookieHeader.split(';')) {
+    const trimmed = part.trim()
+    if (trimmed.startsWith(prefix)) return trimmed
+  }
+  return undefined
+}
+
 const handleApiError = async (code: number, message: string) => {
   if (import.meta.server) return
 
@@ -79,18 +106,20 @@ export const useKunFetch = createUseFetch({
     return `${base}/api`
   }),
   credentials: 'include',
-  // SSR is cross-origin from Nuxt → Go API, so `credentials: 'include'` is a
-  // no-op on the server (there's no browser-side cookie store to pull from).
-  // Manually forward the incoming request's Cookie header so the Go backend
-  // sees the authenticated session during SSR. Without this, per-user flags
-  // like isLiked / isFavorited / isUpvoted come back false on the first
-  // render and stay un-highlighted until the user interacts.
+  // SSR is cross-origin from Nuxt → Go API, so `credentials: 'include'` is
+  // a no-op on the server. Manually forward the session cookie so per-user
+  // flags (isLiked / isFavorited / isUpvoted) render correctly on first
+  // paint. Filter to JUST the session cookie — see SESSION_COOKIE_NAME
+  // comment above for why bundling everything triggers
+  // "Request Header Fields Too Large".
   onRequest({ options }) {
     if (import.meta.server) {
-      const headers = useRequestHeaders(['cookie'])
-      if (headers.cookie) {
+      const session = extractSessionCookie(
+        useRequestHeaders(['cookie']).cookie
+      )
+      if (session) {
         const merged = new Headers(options.headers as HeadersInit | undefined)
-        merged.set('cookie', headers.cookie)
+        merged.set('cookie', session)
         options.headers = merged
       }
     }
@@ -137,16 +166,19 @@ export const kunFetch = async <T>(
     ? `${config.apiBaseUrl}/api`
     : `${config.public.apiBaseUrl}/api`
 
-  // Cookie forwarding (SSR): same rationale as useKunFetch above — without
-  // this, server-side callers (e.g. loadInitialReplies awaited in setup())
-  // are unauthenticated and the reply list comes back with isLiked=false.
+  // Cookie forwarding (SSR): forward only the session cookie. Bundling
+  // the whole cookie header (Pinia persisted stores, color-mode, etc.)
+  // can blow past Fiber's 4KB header limit — same rationale as
+  // useKunFetch above.
   const headers = new Headers(
     (options as { headers?: HeadersInit } | undefined)?.headers
   )
   if (import.meta.server) {
-    const requestHeaders = useRequestHeaders(['cookie'])
-    if (requestHeaders.cookie) {
-      headers.set('cookie', requestHeaders.cookie)
+    const session = extractSessionCookie(
+      useRequestHeaders(['cookie']).cookie
+    )
+    if (session) {
+      headers.set('cookie', session)
     }
   }
 

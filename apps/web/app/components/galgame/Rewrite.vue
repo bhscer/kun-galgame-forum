@@ -50,8 +50,11 @@ const handleRewriteGalgame = async (galgame: GalgameDetail) => {
     links: (linkRes ?? []).map((l) => ({ name: l.name, link: l.link })),
     note: '',
     // U1: hydrate from detail; nil → empty (treated as "unknown" by the
-    // schema's `"" | YYYY-MM-DD` refinement).
-    releaseDate: galgame.releaseDate ?? '',
+    // schema's `"" | YYYY-MM-DD` refinement). The wire ships ISO
+    // datetimes ("2016-11-25T00:00:00Z") so `toYMD` strips down to the
+    // calendar date the schema actually accepts — without this the
+    // submit immediately fails validation on the user's first edit.
+    releaseDate: toYMD(galgame.releaseDate),
     releaseDateTBA: galgame.releaseDateTBA ?? false,
     // U2: deep-clone each row — covers/screenshots are presence-replace,
     // and a shallow ...spread would let the editor mutate the original

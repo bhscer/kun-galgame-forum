@@ -329,9 +329,23 @@ func New(cfg *config.Config) *App {
 	}
 
 	// Fiber
+	//
+	// ReadBufferSize bumped to 16KB. Fiber's default is 4KB which is too
+	// tight for our SSR request flow: the Nuxt server forwards the
+	// authenticated user's cookies to /api, and once
+	// pinia-plugin-persistedstate has spread several stores (user,
+	// settings, sidebar, etc.) plus the OAuth session cookie across a
+	// long-lived session, the Cookie header alone can creep past 4KB and
+	// surface as the rather uninformative
+	// "Request Header Fields Too Large" (which silently empties pages
+	// because the SSR fetch fails). The frontend kunFetch only forwards
+	// the session cookie now to keep things tight, but the bump here is
+	// defense in depth for real-world browsers that accumulate
+	// third-party cookies.
 	fiberApp := fiber.New(fiber.Config{
-		ErrorHandler: globalErrorHandler,
-		BodyLimit:    10 * 1024 * 1024,
+		ErrorHandler:   globalErrorHandler,
+		BodyLimit:      10 * 1024 * 1024,
+		ReadBufferSize: 16 * 1024,
 	})
 	fiberApp.Use(recover.New())
 	app.Fiber = fiberApp

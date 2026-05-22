@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { formatTimeDifference, hourDiff, formatDate } from './time'
+import {
+  formatTimeDifference,
+  hourDiff,
+  formatDate,
+  toYMD,
+  getReleaseDateText
+} from './time'
 
 // formatTimeDifference reads `new Date()` for "now"; fake timers pin
 // it to a fixed point so the boundary thresholds (10s / 60s / 60m /
@@ -104,5 +110,63 @@ describe('formatDate', () => {
     expect(formatDate(d.getTime(), { isShowYear: true })).toMatch(
       /^\d{4}-\d{2}-\d{2}$/
     )
+  })
+})
+
+describe('toYMD', () => {
+  it('passes "" / null / undefined through as ""', () => {
+    expect(toYMD('')).toBe('')
+    expect(toYMD(null)).toBe('')
+    expect(toYMD(undefined)).toBe('')
+    expect(toYMD('   ')).toBe('')
+  })
+
+  it('passes bare YYYY-MM-DD verbatim', () => {
+    expect(toYMD('2024-06-15')).toBe('2024-06-15')
+  })
+
+  it('slices the date portion off an ISO datetime (no TZ shift)', () => {
+    expect(toYMD('2016-11-25T00:00:00Z')).toBe('2016-11-25')
+    expect(toYMD('2024-12-31T23:59:59+09:00')).toBe('2024-12-31')
+  })
+
+  it('keeps partial dates verbatim instead of inventing a day', () => {
+    expect(toYMD('2024-06')).toBe('2024-06')
+    expect(toYMD('未公布')).toBe('未公布')
+  })
+})
+
+describe('getReleaseDateText', () => {
+  it('未公布 when no date and not TBA', () => {
+    expect(getReleaseDateText(null, false)).toBe('未公布')
+    expect(getReleaseDateText('', false)).toBe('未公布')
+    expect(getReleaseDateText(undefined, undefined)).toBe('未公布')
+  })
+
+  it('未定 (TBA) when no date but TBA flagged', () => {
+    expect(getReleaseDateText(null, true)).toBe('未定 (TBA)')
+    expect(getReleaseDateText('', true)).toBe('未定 (TBA)')
+  })
+
+  it('returns the date when present and not TBA', () => {
+    expect(getReleaseDateText('2024-06-15', false)).toBe('2024-06-15')
+    expect(getReleaseDateText('2024-06-15')).toBe('2024-06-15')
+  })
+
+  it('predicted prefix when date present + TBA flagged', () => {
+    expect(getReleaseDateText('2024-06', true)).toBe('预计 2024-06')
+    expect(getReleaseDateText('2024-06-15', true)).toBe('预计 2024-06-15')
+  })
+
+  it('normalizes ISO datetime to YYYY-MM-DD before rendering', () => {
+    expect(getReleaseDateText('2016-11-25T00:00:00Z', false)).toBe('2016-11-25')
+    expect(getReleaseDateText('2016-11-25T00:00:00Z', true)).toBe(
+      '预计 2016-11-25'
+    )
+  })
+
+  it('trims whitespace-only date strings', () => {
+    expect(getReleaseDateText('   ', false)).toBe('未公布')
+    expect(getReleaseDateText('   ', true)).toBe('未定 (TBA)')
   })
 })
