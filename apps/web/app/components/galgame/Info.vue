@@ -12,6 +12,10 @@ defineProps<{
   releaseDateTBA?: boolean
 }>()
 
+// Merged "编辑历史 + 更新请求" launcher — replaces two persistent
+// sidebar cards that used to sit below this info card.
+const isActivityOpen = ref(false)
+
 const getLanguageName = (langCode: string) => {
   // TODO: support more language names
   const map: Record<string, string> = {
@@ -98,5 +102,18 @@ const getLanguageName = (langCode: string) => {
         </dd>
       </div>
     </dl>
+
+    <KunButton
+      variant="flat"
+      color="primary"
+      size="sm"
+      full-width
+      @click="isActivityOpen = true"
+    >
+      <KunIcon name="lucide:history" />
+      查看编辑历史与更新请求
+    </KunButton>
+
+    <GalgameActivityModal v-model="isActivityOpen" />
   </KunCard>
 </template>

@@ -90,7 +90,7 @@ onMounted(() => (commentToUserId.value = props.targetUser.id))
 
       <div class="space-y-3" v-if="status !== 'pending' && data.total">
         <GalgameComment
-          v-for="comment in data.commentData"
+          v-for="comment in data.items"
           :key="comment.id"
           :comment="comment"
           :refresh="refresh"

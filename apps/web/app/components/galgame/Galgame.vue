@@ -45,7 +45,10 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
           :is-transparent="false"
           content-class="space-y-12 relative"
         >
-          <GalgameIntroduction :introduction="galgame.introduction" />
+          <div class="space-y-3">
+            <GalgameIntroduction :introduction="galgame.introduction" />
+            <GalgameLink />
+          </div>
 
           <GalgameGallery :screenshots="galgame.screenshots" />
 
@@ -78,18 +81,6 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
           :release-date="galgame.releaseDate"
           :release-date-tba="galgame.releaseDateTBA"
         />
-
-        <KunCard :is-hoverable="false" :is-transparent="false">
-          <GalgameLink />
-        </KunCard>
-
-        <KunCard :is-hoverable="false" :is-transparent="false">
-          <GalgameHistory />
-        </KunCard>
-
-        <KunCard :is-hoverable="false" :is-transparent="false">
-          <GalgamePrContainer />
-        </KunCard>
 
         <KunCard
           content-class="space-y-3"
