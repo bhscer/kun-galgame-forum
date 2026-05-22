@@ -150,7 +150,10 @@ func enginesFromWiki(engines []dto.WikiEngineWithAlias) []dto.GalgameDetailEngin
 			alias = []string{}
 		}
 		out[i] = dto.GalgameDetailEngine{
-			ID: e.Engine.ID, Name: e.Engine.Name, Alias: alias,
+			ID:           e.Engine.ID,
+			Name:         e.Engine.Name,
+			Alias:        alias,
+			GalgameCount: e.Engine.GalgameCount,
 		}
 	}
 	return out
@@ -160,12 +163,13 @@ func officialsFromWiki(rels []dto.WikiOfficialRel) []dto.GalgameDetailOfficial {
 	out := make([]dto.GalgameDetailOfficial, len(rels))
 	for i, rel := range rels {
 		out[i] = dto.GalgameDetailOfficial{
-			ID:       rel.Official.ID,
-			Name:     rel.Official.Name,
-			Link:     rel.Official.Link,
-			Category: rel.Official.Category,
-			Lang:     rel.Official.Lang,
-			Alias:    wikiAliasesToNames(rel.Official.Alias),
+			ID:           rel.Official.ID,
+			Name:         rel.Official.Name,
+			Link:         rel.Official.Link,
+			Category:     rel.Official.Category,
+			Lang:         rel.Official.Lang,
+			Alias:        wikiAliasesToNames(rel.Official.Alias),
+			GalgameCount: rel.Official.GalgameCount,
 		}
 	}
 	return out
@@ -179,6 +183,7 @@ func tagsFromWiki(tags []dto.WikiTagWithSpoiler) []dto.GalgameDetailTag {
 			Name:         t.Tag.Name,
 			Category:     t.Tag.Category,
 			SpoilerLevel: t.SpoilerLevel,
+			GalgameCount: t.Tag.GalgameCount,
 		}
 	}
 	return out

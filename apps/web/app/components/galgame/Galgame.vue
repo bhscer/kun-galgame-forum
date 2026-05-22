@@ -32,8 +32,6 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
       @on-rating-created="handleRatingCreated"
     />
 
-    <GalgameTag :tags="galgame.tag" />
-
     <div v-if="sortedRatings.length" class="grid grid-cols-1 gap-3">
       <GalgameRatingRadarCard :ratings="sortedRatings" />
     </div>
@@ -73,6 +71,8 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
       </div>
 
       <div class="space-y-3 md:col-span-1">
+        <GalgameTag :tags="galgame.tag" />
+
         <GalgameInfo
           :official="galgame.official"
           :engine="galgame.engine"

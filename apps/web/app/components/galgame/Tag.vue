@@ -45,6 +45,18 @@ const filteredTags = computed(() => {
   )
   return filtered.sort((a, b) => a.id - b.id)
 })
+
+// Color of the trailing "+N" badge encodes the tag's category. Same
+// mapping the leading "#" used to carry before the redesign:
+//   content   → primary (blue)
+//   sexual    → danger  (red)
+//   technical → success (green)
+const countColorByCategory = (category: string): string => {
+  if (category === 'content') return 'text-primary'
+  if (category === 'sexual') return 'text-danger'
+  if (category === 'technical') return 'text-success'
+  return 'text-default-500'
+}
 </script>
 
 <template>
@@ -54,59 +66,25 @@ const filteredTags = computed(() => {
     class-name="overflow-visible"
     content-class="space-y-3"
   >
-    <KunScrollShadow shadow-size="5rem">
-      <div class="flex w-fit items-center gap-3 whitespace-nowrap">
-        <KunCheckBox
-          v-for="(name, key) in KUN_GALGAME_TAG_CATEGORY_MAP"
-          class-name="gap-2"
-          :key="key"
-          @click="toggleCategory(key)"
-          :model-value="selectedCategories.includes(key)"
-          color="primary"
-        >
-          {{ name }}
-        </KunCheckBox>
-
-        <KunCheckBox
-          v-for="(name, key) in KUN_GALGAME_TAG_SPOILER_MAP"
-          :key="key"
-          class-name="gap-2"
-          @click="toggleSpoilerLevel(Number(key) as KunGalgameTagSpoiler)"
-          :model-value="selectedSpoilerLevels.includes(Number(key) as 0)"
-          color="primary"
-        >
-          {{ name }}
-        </KunCheckBox>
-      </div>
-    </KunScrollShadow>
-
     <KunScrollShadow
       axis="vertical"
       shadow-size="3rem"
       class-name="max-h-[200px] md:max-h-[400px]"
     >
-      <TransitionGroup name="tag-list" tag="div" class="flex flex-wrap gap-3">
+      <TransitionGroup
+        name="tag-list"
+        tag="div"
+        class="flex flex-wrap gap-1.5"
+      >
         <KunLink
           v-for="tag in filteredTags"
           :key="tag.id"
           underline="none"
           :to="`/galgame-tag/${tag.id}`"
         >
-          <KunChip class-name="bg-default-500/10 cursor-pointer" size="md">
-            <span
-              :class="
-                cn(
-                  'mr-1.5',
-                  tag.category === 'content' && 'text-primary',
-                  tag.category === 'sexual' && 'text-danger',
-                  tag.category === 'technical' && 'text-success'
-                )
-              "
-            >
-              #
-            </span>
+          <KunChip class-name="bg-default-500/10 cursor-pointer" size="sm">
             {{ tag.name }}
-            <span class="text-default-500 text-xs">
+            <span :class="cn('text-xs', countColorByCategory(tag.category))">
               {{ `+${tag.galgameCount}` }}
             </span>
             <span v-if="tag.spoilerLevel > 0" class="text-warning-600 text-xs">
@@ -121,6 +99,54 @@ const filteredTags = computed(() => {
         description="请至少选择一个类别来查看标签，或调整剧透等级"
       />
     </KunScrollShadow>
+
+    <KunPopover position="top">
+      <template #trigger>
+        <KunButton
+          variant="flat"
+          color="primary"
+          size="sm"
+          full-width
+        >
+          <KunIcon name="lucide:filter" />
+          筛选标签
+        </KunButton>
+      </template>
+
+      <div class="min-w-[240px] space-y-4 p-4">
+        <div class="space-y-2">
+          <p class="text-default-500 text-xs font-medium">标签类型</p>
+          <div class="flex flex-wrap gap-3">
+            <KunCheckBox
+              v-for="(name, key) in KUN_GALGAME_TAG_CATEGORY_MAP"
+              :key="key"
+              class-name="gap-2"
+              :model-value="selectedCategories.includes(key)"
+              color="primary"
+              @click="toggleCategory(key)"
+            >
+              {{ name }}
+            </KunCheckBox>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <p class="text-default-500 text-xs font-medium">剧透等级</p>
+          <div class="flex flex-wrap gap-3">
+            <KunCheckBox
+              v-for="(name, key) in KUN_GALGAME_TAG_SPOILER_MAP"
+              :key="key"
+              class-name="gap-2"
+              :model-value="selectedSpoilerLevels.includes(Number(key) as 0)"
+              color="primary"
+              @click="toggleSpoilerLevel(Number(key) as KunGalgameTagSpoiler)"
+            >
+              {{ name }}
+            </KunCheckBox>
+          </div>
+        </div>
+      </div>
+    </KunPopover>
   </KunCard>
 </template>
 

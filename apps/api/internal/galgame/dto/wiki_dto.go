@@ -60,13 +60,22 @@ type WikiGalgameScreenshot struct {
 }
 
 // WikiOfficial is a company/publisher/developer entity from the wiki.
+//
+// `galgame_count` is published by wiki since K-PR (2026-05-22): the
+// detail endpoint's Preload now injects the same `COUNT(*) AS cnt`
+// subquery the list endpoint uses, so the "会社名 +N" chip on the
+// galgame detail page can be filled in a single round-trip. Field
+// defaults to 0 (omitempty intentionally not used — 0 is the correct
+// answer for an official that exists but currently has zero published
+// galgames).
 type WikiOfficial struct {
-	ID       int         `json:"id"`
-	Name     string      `json:"name"`
-	Link     string      `json:"link"`
-	Category string      `json:"category"`
-	Lang     string      `json:"lang"`
-	Alias    []WikiAlias `json:"alias"`
+	ID           int         `json:"id"`
+	Name         string      `json:"name"`
+	Link         string      `json:"link"`
+	Category     string      `json:"category"`
+	Lang         string      `json:"lang"`
+	Alias        []WikiAlias `json:"alias"`
+	GalgameCount int         `json:"galgame_count"`
 }
 
 // WikiOfficialRel is the wrapper used when an official is attached to a galgame.
@@ -88,11 +97,17 @@ type WikiEngineRel struct {
 }
 
 // WikiTag is a tag entity with optional aliases.
+//
+// `galgame_count` is published since K-PR (2026-05-22) — same source
+// as WikiOfficial.GalgameCount (wiki's detail Preload injects a COUNT
+// subquery filtered on galgame.status = 0). Used to render the
+// "+N" chip on tag bubbles in the galgame detail page.
 type WikiTag struct {
-	ID       int         `json:"id"`
-	Name     string      `json:"name"`
-	Category string      `json:"category"`
-	Alias    []WikiAlias `json:"alias"`
+	ID           int         `json:"id"`
+	Name         string      `json:"name"`
+	Category     string      `json:"category"`
+	Alias        []WikiAlias `json:"alias"`
+	GalgameCount int         `json:"galgame_count"`
 }
 
 // WikiTagRel wraps a tag attached to a galgame.
@@ -195,11 +210,16 @@ type WikiGalgameDetailFull struct {
 }
 
 // WikiEngineWithAlias matches the engine-embedded-in-galgame shape (alias is []string).
+//
+// `galgame_count` source matches WikiOfficial — wiki injects the count
+// subquery into the detail-time Preload so the "+N" chip can be filled
+// without a follow-up request.
 type WikiEngineWithAlias struct {
 	Engine struct {
-		ID    int      `json:"id"`
-		Name  string   `json:"name"`
-		Alias []string `json:"alias"`
+		ID           int      `json:"id"`
+		Name         string   `json:"name"`
+		Alias        []string `json:"alias"`
+		GalgameCount int      `json:"galgame_count"`
 	} `json:"engine"`
 }
 
