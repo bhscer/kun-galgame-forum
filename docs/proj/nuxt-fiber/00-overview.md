@@ -24,7 +24,7 @@ Nuxt 4 自带的 Nitro 服务端已无法支撑当前站点流量。后端将使
 | ORM | Prisma 7 | GORM |
 | 验证 | Zod | go-playground/validator |
 | 缓存 | unstorage + redis driver | go-redis/v9 |
-| 认证 | 自签 JWT 双 Token | KUN OAuth + Redis Session |
+| 认证 | 自签 JWT 双 Token | 鲲 Galgame OAuth + Redis Session |
 | WebSocket | Socket.IO | Fiber WebSocket / go-socket.io |
 | 定时任务 | Nitro scheduledTasks | robfig/cron |
 | Markdown | remark/rehype + 6 自定义插件 | goldmark + 自定义扩展 |

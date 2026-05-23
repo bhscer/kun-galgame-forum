@@ -4,12 +4,12 @@
 // 02-user-profile.md §身份操作 vs 展示操作). Like email, the in-app
 // change-password page is gone; users jump to OAuth account-center.
 //
-// Same OAuth-base resolution as Email.vue / legacy Avatar: strip
-// /api/vN/ off the configured OAuth server URL to land on /profile.
-const oauthProfileURL = computed(() => {
-  const apiBase = useRuntimeConfig().public.oauthServerUrl || ''
-  return apiBase.replace(/\/api\/v\d+\/?$/, '') + '/profile'
-})
+// Account-center web app root + /profile. Read DIRECTLY from
+// `oauthFrontendUrl` runtime config (same rationale as Email.vue —
+// dev runs FE + API on different ports so strip-suffix doesn't work).
+const oauthProfileURL = computed(
+  () => `${useRuntimeConfig().public.oauthFrontendUrl}/profile`
+)
 </script>
 
 <template>
@@ -17,14 +17,14 @@ const oauthProfileURL = computed(() => {
     <div class="space-y-2">
       <span class="text-xl">更改密码</span>
       <p class="text-default-500 text-sm">
-        密码由 OAuth 账户中心统一管理。修改密码需要验证旧密码,
-        请前往 OAuth 账户中心进行修改。忘记密码同样在那里处理。
+        密码由 鲲 Galgame OAuth 账户中心统一管理。修改密码需要验证旧密码,
+        请前往 鲲 Galgame OAuth 账户中心进行修改。忘记密码同样在那里处理。
       </p>
     </div>
 
     <div class="flex justify-end">
       <KunButton :href="oauthProfileURL" target="_blank">
-        前往 OAuth 账户中心
+        前往 鲲 Galgame OAuth 账户中心
       </KunButton>
     </div>
   </KunCard>

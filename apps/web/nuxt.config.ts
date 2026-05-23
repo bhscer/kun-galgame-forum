@@ -77,8 +77,15 @@ export default defineNuxtConfig({
       apiBaseUrl: process.env.API_BASE_URL || 'http://127.0.0.1:2334',
 
       // OAuth
+      // oauthServerUrl   : API base (e.g. .../api/v1) — used for HTTP calls.
+      // oauthFrontendUrl : web-app root — used for cross-app navigation
+      //                    (改邮箱 / 改密码 jumps to /profile). Kept
+      //                    distinct because dev runs them on separate
+      //                    ports; in prod they share a domain.
       oauthServerUrl:
         process.env.OAUTH_SERVER_URL || 'http://127.0.0.1:9277/api/v1',
+      oauthFrontendUrl:
+        process.env.OAUTH_FRONTEND_URL || 'https://oauth.kungal.com',
       oauthClientId: process.env.OAUTH_CLIENT_ID || '',
       oauthRedirectUri:
         process.env.OAUTH_REDIRECT_URI || 'http://127.0.0.1:2333/auth/callback',

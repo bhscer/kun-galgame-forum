@@ -55,7 +55,7 @@ const handleOAuthLogin = async () => {
           :disabled="isLoading"
           class="bg-primary w-full rounded-3xl text-base tracking-wider text-white uppercase"
         >
-          {{ isLoading ? '跳转中...' : '使用 KUN 账号登录' }}
+          {{ isLoading ? '跳转中...' : '使用 鲲 Galgame OAuth 登录' }}
         </KunButton>
 
         <p class="text-default-400 mt-4 text-center text-xs">

@@ -6,13 +6,14 @@
 // send-code + confirm pipeline. Once they finish there, the
 // usual session-refresh cycle picks up the new email at next sign-in.
 //
-// Resolved exactly like Avatar.vue does for the legacy avatar jump:
-// strip /api/vN/ off the configured OAuth server URL to land on the
-// account-center root, then append /profile.
-const oauthProfileURL = computed(() => {
-  const apiBase = useRuntimeConfig().public.oauthServerUrl || ''
-  return apiBase.replace(/\/api\/v\d+\/?$/, '') + '/profile'
-})
+// Account-center web app root + /profile. Read DIRECTLY from
+// `oauthFrontendUrl` runtime config — do NOT try to derive it from
+// `oauthServerUrl`. Dev runs the API on :9277 but the FE on :9420
+// (different ports), so the old "strip /api/vN/" derivation would
+// land the user on the wrong port.
+const oauthProfileURL = computed(
+  () => `${useRuntimeConfig().public.oauthFrontendUrl}/profile`
+)
 </script>
 
 <template>
@@ -20,15 +21,15 @@ const oauthProfileURL = computed(() => {
     <div class="space-y-2">
       <span class="text-xl">更改邮箱</span>
       <p class="text-default-500 text-sm">
-        邮箱由 OAuth 账户中心统一管理。修改邮箱需要二次验证 (邮箱验证码),
-        请前往 OAuth 账户中心进行修改。修改后下次刷新页面即会同步至
+        邮箱由 鲲 Galgame OAuth 账户中心统一管理。修改邮箱需要二次验证 (邮箱验证码),
+        请前往 鲲 Galgame OAuth 账户中心进行修改。修改后下次刷新页面即会同步至
         {{ kungal.titleShort }}。
       </p>
     </div>
 
     <div class="flex justify-end">
       <KunButton :href="oauthProfileURL" target="_blank">
-        前往 OAuth 账户中心
+        前往 鲲 Galgame OAuth 账户中心
       </KunButton>
     </div>
   </KunCard>

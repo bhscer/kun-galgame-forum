@@ -7,7 +7,7 @@
 **决定**：Go 端统一使用 `{code, message, data}` 包裹响应。
 
 **原因**：
-- 与 KUN OAuth 系统响应格式一致
+- 与 鲲 Galgame OAuth 系统响应格式一致
 - 错误码（205/233）通过 `code` 字段传递，不再依赖 HTTP status body 嵌套
 - 前端 `responseHandler.ts` 只需改一处解析逻辑
 
