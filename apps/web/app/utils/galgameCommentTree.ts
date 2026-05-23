@@ -39,6 +39,43 @@ export const prependReplyToRoot = (root: Node, newReply: Node): Node => {
 // be loaded). We decrement replyCount by that exact amount because
 // the count is authoritative for the WHOLE thread, not just what's
 // visible.
+// Patch a single comment node in the tree (root or one of its
+// flat-attached replies). Returns a fresh root with the matching
+// node replaced; the rest of the tree is untouched. Used for the
+// edit (PUT) path — the server response carries the freshly updated
+// node and we splice it in by id.
+export const replaceCommentInRoot = (
+  root: Node,
+  updated: Node
+): { node: Node; replaced: boolean } => {
+  // Did the root itself get edited?
+  if (root.id === updated.id) {
+    return {
+      // Keep the original replies + replyCount on the new root — the
+      // edit only touches the content+edited+target fields.
+      node: {
+        ...updated,
+        replies: root.replies,
+        replyCount: root.replyCount
+      },
+      replaced: true
+    }
+  }
+  const replies = root.replies ?? []
+  const idx = replies.findIndex((r) => r.id === updated.id)
+  if (idx < 0) {
+    return { node: root, replaced: false }
+  }
+  const nextReplies = [...replies]
+  // Replies are flat in our view model and don't carry their own
+  // replies/replyCount, so direct replacement is fine.
+  nextReplies[idx] = updated
+  return {
+    node: { ...root, replies: nextReplies },
+    replaced: true
+  }
+}
+
 export const removeReplyFromRoot = (
   root: Node,
   removedId: number,

@@ -24,9 +24,11 @@ const props = withDefaults(
 const emit = defineEmits<{
   openThread: [rootId: number]
   replyAdded: [reply: GalgameComment]
+  // Author-edit success carries the patched node so the controller
+  // can splice it in by id without re-fetching.
+  replyEdited: [updated: GalgameComment]
   // Carries rootId so the controller can locate the affected root
-  // even when the deleted comment isn't in the loaded slice (e.g. a
-  // hidden grandchild deleted via the drawer).
+  // even when the deleted comment isn't in the loaded slice.
   replyRemoved: [commentId: number, removedSubtreeSize: number, rootId: number]
 }>()
 
@@ -34,9 +36,18 @@ const galgame = inject<GalgameDetail>('galgame')
 const { id, role } = usePersistUserStore()
 
 const isShowReply = ref(false)
+const isEditing = ref(false)
+const editingContent = ref('')
+const isSavingEdit = ref(false)
+
 const isShowDelete = computed(
   () => props.comment.user?.id === id || galgame?.user.id === id || role >= 2
 )
+// Only the author can edit. Moderators can delete but not silently
+// rewrite — that's a deliberate authority boundary.
+const isShowEdit = computed(() => props.comment.user?.id === id)
+
+const isEdited = computed(() => props.comment.edited != null)
 
 // Only the root has visible children; replies render leaf-only.
 const visibleReplies = computed(() =>
@@ -44,9 +55,7 @@ const visibleReplies = computed(() =>
 )
 
 // "查看更多 N 条回复" — only ever appears under a root that has
-// more total descendants than what's been loaded into .replies. When
-// the drawer is mounted with the full thread, replies.length equals
-// replyCount, so the button vanishes naturally.
+// more total descendants than what's been loaded into .replies.
 const showLoadMore = computed(
   () =>
     props.depth === 0 &&
@@ -56,6 +65,48 @@ const showLoadMore = computed(
 const rootAnchorId = computed(
   () => props.comment.rootCommentId ?? props.comment.id
 )
+
+const handleStartEdit = () => {
+  editingContent.value = props.comment.content
+  isEditing.value = true
+}
+
+const handleCancelEdit = () => {
+  isEditing.value = false
+  editingContent.value = ''
+}
+
+const handleSubmitEdit = async () => {
+  const text = editingContent.value.trim()
+  if (!text) {
+    useMessage(10540, 'warn')
+    return
+  }
+  if (text.length > 5000) {
+    useMessage(10541, 'warn')
+    return
+  }
+  if (text === props.comment.content) {
+    handleCancelEdit()
+    return
+  }
+
+  isSavingEdit.value = true
+  const updated = await kunFetch<GalgameComment>(
+    `/galgame/${props.comment.galgameId}/comment`,
+    {
+      method: 'PUT',
+      body: { commentId: props.comment.id, content: text }
+    }
+  )
+  isSavingEdit.value = false
+
+  if (updated) {
+    useMessage('评论已更新', 'success')
+    emit('replyEdited', updated)
+    handleCancelEdit()
+  }
+}
 
 const handleDelete = async () => {
   const ok = await useComponentMessageStore().alert('您确定删除评论吗？')
@@ -99,13 +150,42 @@ const handleDelete = async () => {
         <span class="text-default-400 text-xs">
           {{ formatTimeDifference(comment.created) }}
         </span>
+        <span v-if="isEdited" class="text-default-400 text-xs italic">
+          (已编辑)
+        </span>
       </div>
 
-      <p class="text-default-700 text-sm break-all whitespace-pre-line">
-        {{ comment.content }}
-      </p>
+      <!-- View mode: server-rendered Markdown (KunContent sanitizes
+           via DOMPurify and applies project-wide kun-prose styling). -->
+      <KunContent
+        v-if="!isEditing"
+        :content="comment.contentHtml"
+        class-name="text-default-700 text-sm break-words"
+      />
 
-      <div class="-ml-2 flex items-center gap-1">
+      <!-- Edit mode: same Milkdown editor as the new-comment Panel,
+           pre-loaded with the existing markdown source. -->
+      <div v-else class="space-y-2">
+        <KunMilkdownDualEditorProvider
+          :value-markdown="editingContent"
+          @set-markdown="(val) => (editingContent = val)"
+        />
+        <div class="flex justify-end gap-2">
+          <KunButton
+            variant="light"
+            color="default"
+            size="sm"
+            @click="handleCancelEdit"
+          >
+            取消
+          </KunButton>
+          <KunButton size="sm" :loading="isSavingEdit" @click="handleSubmitEdit">
+            保存
+          </KunButton>
+        </div>
+      </div>
+
+      <div v-if="!isEditing" class="-ml-2 flex items-center gap-1">
         <KunButton
           variant="light"
           size="sm"
@@ -117,6 +197,18 @@ const handleDelete = async () => {
         </KunButton>
 
         <GalgameCommentLike :comment="comment" />
+
+        <KunTooltip v-if="isShowEdit" text="编辑">
+          <KunButton
+            :is-icon-only="true"
+            variant="light"
+            color="default"
+            size="sm"
+            @click="handleStartEdit"
+          >
+            <KunIcon name="lucide:pencil" />
+          </KunButton>
+        </KunTooltip>
 
         <KunTooltip v-if="isShowDelete" text="删除">
           <KunButton
@@ -151,6 +243,7 @@ const handleDelete = async () => {
           :comment="reply"
           :depth="1"
           @reply-added="(r) => emit('replyAdded', r)"
+          @reply-edited="(u) => emit('replyEdited', u)"
           @reply-removed="(id, size, rootId) => emit('replyRemoved', id, size, rootId)"
         />
       </div>
@@ -170,3 +263,4 @@ const handleDelete = async () => {
     </div>
   </div>
 </template>
+

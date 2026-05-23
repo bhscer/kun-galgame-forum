@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"kun-galgame-api/internal/galgame/model"
 	"kun-galgame-api/internal/galgame/repository"
+	"kun-galgame-api/internal/infrastructure/markdown"
 	msgModel "kun-galgame-api/internal/message/model"
 	userRepo "kun-galgame-api/internal/user/repository"
 	"kun-galgame-api/pkg/errors"
@@ -46,8 +48,16 @@ type UserObj struct {
 // only direct + transitive descendants of THIS node (not the whole
 // thread under the root), so a mid-tree "查看更多" button can use it.
 type CommentItem struct {
-	ID              int            `json:"id"`
-	Content         string         `json:"content"`
+	ID        int    `json:"id"`
+	Content   string `json:"content"`
+	// ContentHtml: server-rendered HTML via the project's goldmark
+	// pipeline (apps/api/internal/infrastructure/markdown). Same
+	// pipeline as topic / galgame intro / toolset / doc, so KunContent
+	// + DOMPurify on the frontend handles spoilers, code-blocks,
+	// MathJax, tables, and KaTeX consistently with the rest of the
+	// site. Keeps Content as the raw source for the edit-mode
+	// textarea to round-trip cleanly.
+	ContentHtml     string         `json:"contentHtml"`
 	GalgameID       int            `json:"galgameId"`
 	User            UserObj        `json:"user"`
 	TargetUser      *UserObj       `json:"targetUser"`
@@ -55,8 +65,11 @@ type CommentItem struct {
 	RootCommentID   *int           `json:"rootCommentId"`
 	LikeCount       int            `json:"likeCount"`
 	Created         string         `json:"created"`
-	Replies         []*CommentItem `json:"replies"`
-	ReplyCount      int            `json:"replyCount"`
+	// Edited: ISO timestamp when the author last rewrote this comment;
+	// null if untouched. Drives the "已编辑" badge in the UI.
+	Edited     *string        `json:"edited"`
+	Replies    []*CommentItem `json:"replies"`
+	ReplyCount int            `json:"replyCount"`
 }
 
 type CommentListResult struct {
@@ -194,6 +207,7 @@ func (s *CommentService) buildSingleItem(r repository.CommentRow, userMap map[in
 	item := &CommentItem{
 		ID:              r.ID,
 		Content:         r.Content,
+		ContentHtml:     markdown.Render(r.Content),
 		GalgameID:       r.GalgameID,
 		User:            UserObj{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
 		ParentCommentID: r.ParentCommentID,
@@ -201,6 +215,10 @@ func (s *CommentService) buildSingleItem(r repository.CommentRow, userMap map[in
 		LikeCount:       r.LikeCount,
 		Created:         r.CreatedAt,
 		Replies:         []*CommentItem{},
+	}
+	if r.Edited != nil {
+		s := r.Edited.Format("2006-01-02T15:04:05Z")
+		item.Edited = &s
 	}
 	if r.TargetUserID != nil {
 		if t, ok := userMap[*r.TargetUserID]; ok {
@@ -297,6 +315,7 @@ func (s *CommentService) CreateComment(
 	resp := &CommentItem{
 		ID:              comment.ID,
 		Content:         comment.Content,
+		ContentHtml:     markdown.Render(comment.Content),
 		GalgameID:       comment.GalgameID,
 		User:            UserObj{ID: creator.ID, Name: creator.Name, Avatar: creator.Avatar},
 		ParentCommentID: comment.ParentCommentID,
@@ -351,6 +370,63 @@ func (s *CommentService) DeleteComment(userID, role, commentID int) *errors.AppE
 	}
 
 	return nil
+}
+
+// ──────────────────────────────────────────
+// UpdateComment
+// ──────────────────────────────────────────
+
+// UpdateComment rewrites the content of an existing comment and stamps
+// the `edited` column. Author-only: moderators (role >= 2) can also
+// edit, matching the same authority used by DeleteComment.
+//
+// Returns the patched comment so the frontend can drop the response
+// straight into its tree without re-fetching.
+func (s *CommentService) UpdateComment(
+	ctx context.Context,
+	userID, role, commentID int,
+	content string,
+) (*CommentItem, *errors.AppError) {
+	comment, err := s.commentRepo.FindByID(commentID)
+	if err != nil {
+		return nil, errors.ErrNotFound("未找到该评论")
+	}
+	if comment.UserID != userID && role < 2 {
+		return nil, errors.ErrForbidden("您没有权限编辑此评论")
+	}
+
+	now := time.Now()
+	if err := s.commentRepo.UpdateContent(commentID, content, now); err != nil {
+		return nil, errors.ErrInternal("更新评论失败")
+	}
+
+	// Re-read so the response reflects the canonical row (covers the
+	// rare case where a concurrent write updated other fields).
+	updated, err := s.commentRepo.FindByID(commentID)
+	if err != nil {
+		return nil, errors.ErrInternal("更新评论失败")
+	}
+
+	creator, _, _ := s.userClient.User(ctx, updated.UserID)
+	editedStr := now.Format("2006-01-02T15:04:05Z")
+	resp := &CommentItem{
+		ID:              updated.ID,
+		Content:         updated.Content,
+		ContentHtml:     markdown.Render(updated.Content),
+		GalgameID:       updated.GalgameID,
+		User:            UserObj{ID: creator.ID, Name: creator.Name, Avatar: creator.Avatar},
+		ParentCommentID: updated.ParentCommentID,
+		RootCommentID:   updated.RootCommentID,
+		LikeCount:       updated.LikeCount,
+		Created:         updated.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		Edited:          &editedStr,
+		Replies:         []*CommentItem{},
+	}
+	if updated.TargetUserID != nil {
+		t, _, _ := s.userClient.User(ctx, *updated.TargetUserID)
+		resp.TargetUser = &UserObj{ID: t.ID, Name: t.Name, Avatar: t.Avatar}
+	}
+	return resp, nil
 }
 
 // ──────────────────────────────────────────

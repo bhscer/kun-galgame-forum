@@ -261,6 +261,7 @@ func (a *App) setupRoutes() {
 	authed.Put("/galgame/:gid/like", a.GalgameHandler.ToggleLike)
 	authed.Put("/galgame/:gid/favorite", a.GalgameHandler.ToggleFavorite)
 	authed.Post("/galgame/:gid/comment", a.GalgameCommentHandler.CreateComment)
+	authed.Put("/galgame/:gid/comment", a.GalgameCommentHandler.UpdateComment)
 	authed.Delete("/galgame/:gid/comment", a.GalgameCommentHandler.DeleteComment)
 	authed.Put("/galgame/:gid/comment/like", a.GalgameCommentHandler.ToggleCommentLike)
 

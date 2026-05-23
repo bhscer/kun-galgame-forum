@@ -9,7 +9,12 @@
 //     beneath the comment being replied to; targetUserId is that
 //     comment's author.
 //
-// The two modes share one component — only the wire payload diverges.
+// The editor is the project-wide KunMilkdownDualEditorProvider — same
+// component used for topic / galgame intro / toolset / doc, so the
+// authoring experience (toolbar, code-block tab, character counter,
+// upload pipeline) is identical across the site. The wire payload is
+// raw Markdown; the backend's goldmark renderer turns it into
+// contentHtml on response.
 const props = defineProps<{
   parentCommentId?: number | null
   targetUserId?: number
@@ -39,11 +44,12 @@ const effectiveTargetUserId = computed(
 )
 
 const handlePublishComment = async () => {
-  if (!content.value.trim()) {
+  const trimmed = content.value.trim()
+  if (!trimmed) {
     useMessage(10540, 'warn')
     return
   }
-  if (content.value.trim().length > 1007) {
+  if (trimmed.length > 5000) {
     useMessage(10541, 'warn')
     return
   }
@@ -74,18 +80,12 @@ const handlePublishComment = async () => {
 
 <template>
   <div class="space-y-3">
-    <KunTextarea
-      v-model="content"
-      :placeholder="
-        parentCommentId
-          ? '写下您的回复'
-          : '请注意您 “评论给” 的用户, 只有被评论的用户才会收到您的评论通知, 因此您需要在 “评论给” 的用户中选择一位资源发布者或贡献者'
-      "
-      name="comment"
-      :rows="parentCommentId ? 3 : 5"
+    <KunMilkdownDualEditorProvider
+      :value-markdown="content"
+      @set-markdown="(val) => (content = val)"
     />
 
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-2">
       <slot />
 
       <KunButton

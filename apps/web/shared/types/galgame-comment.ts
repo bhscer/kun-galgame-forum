@@ -2,7 +2,15 @@ export interface GalgameComment {
   id: number
   galgameId: number
   created: number
+  // Author-driven edit timestamp; null = never edited. Drives the
+  // "已编辑" badge on the rendered comment.
+  edited: number | null
+  // Raw markdown source — round-trips through the edit-mode textarea.
   content: string
+  // Server-rendered HTML via the project's goldmark pipeline (same as
+  // topic / galgame intro / toolset / doc). Drop into <KunContent>;
+  // DOMPurify there is the final XSS guard.
+  contentHtml: string
   likeCount: number
   isLiked: boolean
 

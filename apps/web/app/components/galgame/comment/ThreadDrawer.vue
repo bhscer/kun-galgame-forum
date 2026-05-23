@@ -22,6 +22,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:rootCommentId': [value: number | null]
   replyAdded: [reply: GalgameComment]
+  replyEdited: [updated: GalgameComment]
   replyRemoved: [commentId: number, removedSubtreeSize: number, rootId: number]
 }>()
 
@@ -66,6 +67,14 @@ const handleNewComment = (newComment: GalgameComment) => {
   if (reply.rootCommentId !== thread.value.id) return
 
   thread.value = prependReplyToRoot(thread.value, reply)
+}
+
+const handleReplyEdited = (updated: GalgameComment) => {
+  emit('replyEdited', updated)
+  if (!thread.value) return
+  const patch = updated as Node
+  const { node, replaced } = replaceCommentInRoot(thread.value, patch)
+  if (replaced) thread.value = node
 }
 
 const handleReplyRemoved = (
@@ -120,6 +129,7 @@ const handleReplyRemoved = (
       :comment="thread"
       :depth="0"
       @reply-added="handleNewComment"
+      @reply-edited="handleReplyEdited"
       @reply-removed="handleReplyRemoved"
     />
   </KunDrawer>

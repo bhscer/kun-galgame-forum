@@ -52,7 +52,7 @@ func (h *CommentHandler) CreateComment(c *fiber.Ctx) error {
 	gid, _ := strconv.Atoi(c.Params("gid"))
 
 	var req struct {
-		Content         string `json:"content" validate:"required,min=1,max=1007"`
+		Content         string `json:"content" validate:"required,min=1,max=5000"`
 		TargetUserID    *int   `json:"targetUserId"`
 		ParentCommentID *int   `json:"parentCommentId"`
 	}
@@ -83,6 +83,32 @@ func (h *CommentHandler) GetCommentThread(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 	return response.OK(c, root)
+}
+
+// UpdateComment rewrites the content of an existing comment.
+// PUT /api/galgame/:gid/comment
+//
+// Author or moderator only. Stamps `edited` so the UI can flag the
+// comment as having been changed.
+func (h *CommentHandler) UpdateComment(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	var req struct {
+		CommentID int    `json:"commentId" validate:"required,min=1"`
+		Content   string `json:"content" validate:"required,min=1,max=5000"`
+	}
+	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	resp, appErr := h.commentService.UpdateComment(c.Context(), user.ID, user.Role, req.CommentID, req.Content)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, resp)
 }
 
 // DeleteComment deletes a galgame comment.

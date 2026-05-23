@@ -60,7 +60,7 @@ func (GalgameFavorite) TableName() string { return "galgame_favorite" }
 
 type GalgameComment struct {
 	ID           int    `gorm:"primaryKey;autoIncrement" json:"id"`
-	Content      string `gorm:"type:varchar(1007);not null" json:"content"`
+	Content      string `gorm:"type:varchar(5000);not null" json:"content"`
 	GalgameID    int    `gorm:"column:galgame_id;not null" json:"galgame_id"`
 	UserID       int    `gorm:"column:user_id;not null" json:"user_id"`
 	TargetUserID *int   `gorm:"column:target_user_id" json:"target_user_id"`
@@ -73,6 +73,11 @@ type GalgameComment struct {
 	// with a single indexed WHERE root_comment_id = ?.
 	RootCommentID *int `gorm:"column:root_comment_id" json:"root_comment_id"`
 	LikeCount     int  `gorm:"column:like_count;default:0" json:"like_count"`
+
+	// Edited: set on every author-driven content rewrite via the PUT
+	// endpoint. Nil = never edited. Distinct from `updated`, which
+	// ticks on any row-level write (e.g. like_count bumps).
+	Edited *time.Time `gorm:"column:edited" json:"edited"`
 
 	CreatedAt time.Time `gorm:"column:created" json:"created"`
 	UpdatedAt time.Time `gorm:"column:updated" json:"updated"`

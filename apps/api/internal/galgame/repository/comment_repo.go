@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"kun-galgame-api/internal/galgame/model"
 
 	"gorm.io/gorm"
@@ -28,11 +30,12 @@ type CommentRow struct {
 	RootCommentID   *int
 	LikeCount       int
 	CreatedAt       string
+	Edited          *time.Time
 }
 
 const commentSelect = `gc.id, gc.content, gc.galgame_id, gc.user_id,
 	gc.target_user_id, gc.parent_comment_id, gc.root_comment_id,
-	gc.like_count, gc.created AS created_at`
+	gc.like_count, gc.created AS created_at, gc.edited`
 
 // CountByGalgame returns total comment count for a galgame (includes
 // every nested reply). Used for the "X 条评论" header label.
@@ -86,11 +89,11 @@ func (r *CommentRepository) FindLatestDescendantsByRoots(rootIDs []int, perRoot 
 	r.db.Raw(`
 		SELECT id, content, galgame_id, user_id,
 		       target_user_id, parent_comment_id, root_comment_id,
-		       like_count, created_at
+		       like_count, created_at, edited
 		FROM (
 			SELECT gc.id, gc.content, gc.galgame_id, gc.user_id,
 			       gc.target_user_id, gc.parent_comment_id, gc.root_comment_id,
-			       gc.like_count, gc.created AS created_at,
+			       gc.like_count, gc.created AS created_at, gc.edited,
 			       ROW_NUMBER() OVER (
 			           PARTITION BY gc.root_comment_id
 			           ORDER BY gc.created DESC
@@ -150,4 +153,16 @@ func (r *CommentRepository) FindByID(id int) (*model.GalgameComment, error) {
 	var comment model.GalgameComment
 	err := r.db.First(&comment, id).Error
 	return &comment, err
+}
+
+// UpdateContent sets content + edited timestamp on the row. Touches
+// only the author-visible fields; like_count / parent / root are
+// untouched.
+func (r *CommentRepository) UpdateContent(commentID int, content string, editedAt time.Time) error {
+	return r.db.Model(&model.GalgameComment{}).
+		Where("id = ?", commentID).
+		Updates(map[string]any{
+			"content": content,
+			"edited":  editedAt,
+		}).Error
 }

@@ -119,6 +119,23 @@ const handleReplyRemoved = (
   data.value = { items: nextItems, total: data.value.total }
 }
 
+const handleReplyEdited = (updated: GalgameComment) => {
+  if (!data.value) return
+  const patch = updated as CommentNode
+  const rootId = patch.rootCommentId ?? patch.id
+  const rootIdx = data.value.items.findIndex((c) => c.id === rootId)
+  if (rootIdx < 0) return
+
+  const { node, replaced } = replaceCommentInRoot(
+    data.value.items[rootIdx]!,
+    patch
+  )
+  if (!replaced) return
+  const nextItems = [...data.value.items]
+  nextItems[rootIdx] = node
+  data.value = { items: nextItems, total: data.value.total }
+}
+
 // ──────────────────────────────────────────
 // Drawer
 // ──────────────────────────────────────────
@@ -187,6 +204,7 @@ const openThreadRootId = ref<number | null>(null)
           :depth="0"
           @open-thread="(rootId) => (openThreadRootId = rootId)"
           @reply-added="handleNewComment"
+          @reply-edited="handleReplyEdited"
           @reply-removed="handleReplyRemoved"
         />
       </div>
@@ -203,6 +221,7 @@ const openThreadRootId = ref<number | null>(null)
       v-model:root-comment-id="openThreadRootId"
       :galgame-id="gid"
       @reply-added="handleNewComment"
+      @reply-edited="handleReplyEdited"
       @reply-removed="handleReplyRemoved"
     />
   </div>
