@@ -40,18 +40,27 @@ type UserObj struct {
 	Avatar string `json:"avatar"`
 }
 
+// CommentItem is the wire shape. Roots have Replies populated with the
+// full descendant subtree; the frontend visually caps recursion at
+// depth 3 and opens the drawer for deeper threads. ReplyCount counts
+// only direct + transitive descendants of THIS node (not the whole
+// thread under the root), so a mid-tree "查看更多" button can use it.
 type CommentItem struct {
-	ID         int      `json:"id"`
-	Content    string   `json:"content"`
-	GalgameID  int      `json:"galgameId"`
-	User       UserObj  `json:"user"`
-	TargetUser *UserObj `json:"targetUser"`
-	LikeCount  int      `json:"likeCount"`
-	Created    string   `json:"created"`
+	ID              int            `json:"id"`
+	Content         string         `json:"content"`
+	GalgameID       int            `json:"galgameId"`
+	User            UserObj        `json:"user"`
+	TargetUser      *UserObj       `json:"targetUser"`
+	ParentCommentID *int           `json:"parentCommentId"`
+	RootCommentID   *int           `json:"rootCommentId"`
+	LikeCount       int            `json:"likeCount"`
+	Created         string         `json:"created"`
+	Replies         []*CommentItem `json:"replies"`
+	ReplyCount      int            `json:"replyCount"`
 }
 
 type CommentListResult struct {
-	Items []CommentItem
+	Items []*CommentItem
 	Total int64
 }
 
@@ -59,12 +68,68 @@ type CommentListResult struct {
 // GetComments
 // ──────────────────────────────────────────
 
+// GetComments returns paginated ROOT comments with their full
+// descendant subtree attached. `total` is the root count (drives
+// pagination); display-side counts can use CommentItem.ReplyCount to
+// reason about nesting depth.
 func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit int) *CommentListResult {
-	total := s.commentRepo.CountByGalgame(galgameID)
-	rows := s.commentRepo.FindPaginated(galgameID, page, limit)
+	total := s.commentRepo.CountRootsByGalgame(galgameID)
+	roots := s.commentRepo.FindRootsPaginated(galgameID, page, limit)
+	if len(roots) == 0 {
+		return &CommentListResult{Items: []*CommentItem{}, Total: total}
+	}
 
-	// Collect every userID we need to render (authors + targets).
-	uidSet := make(map[int]struct{})
+	rootIDs := make([]int, 0, len(roots))
+	for _, r := range roots {
+		rootIDs = append(rootIDs, r.ID)
+	}
+	replies := s.commentRepo.FindRepliesByRoots(rootIDs)
+
+	all := make([]repository.CommentRow, 0, len(roots)+len(replies))
+	all = append(all, roots...)
+	all = append(all, replies...)
+
+	userMap := s.hydrateUsers(ctx, all)
+	items := s.buildItems(all, userMap)
+
+	// Roots are returned in DESC order; preserve that.
+	rootItems := make([]*CommentItem, 0, len(roots))
+	for _, r := range roots {
+		if it, ok := items[r.ID]; ok {
+			rootItems = append(rootItems, it)
+		}
+	}
+
+	return &CommentListResult{Items: rootItems, Total: total}
+}
+
+// ──────────────────────────────────────────
+// GetThread
+// ──────────────────────────────────────────
+
+// GetThread returns the full thread starting at rootID. Used by the
+// drawer; depth is unbounded. The returned CommentItem is the root
+// with all descendants nested inside Replies.
+func (s *CommentService) GetThread(ctx context.Context, rootID int) (*CommentItem, *errors.AppError) {
+	rows := s.commentRepo.FindThreadByRoot(rootID)
+	if len(rows) == 0 {
+		return nil, errors.ErrNotFound("评论线程不存在")
+	}
+	userMap := s.hydrateUsers(ctx, rows)
+	items := s.buildItems(rows, userMap)
+	root, ok := items[rootID]
+	if !ok {
+		return nil, errors.ErrNotFound("评论线程不存在")
+	}
+	return root, nil
+}
+
+// ──────────────────────────────────────────
+// Tree assembly
+// ──────────────────────────────────────────
+
+func (s *CommentService) hydrateUsers(ctx context.Context, rows []repository.CommentRow) map[int]userclient.User {
+	uidSet := make(map[int]struct{}, len(rows)*2)
 	for _, r := range rows {
 		uidSet[r.UserID] = struct{}{}
 		if r.TargetUserID != nil && *r.TargetUserID > 0 {
@@ -75,46 +140,122 @@ func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit
 	for id := range uidSet {
 		uids = append(uids, id)
 	}
-	userMap := s.userClient.Hydrate(ctx, uids)
+	return s.userClient.Hydrate(ctx, uids)
+}
 
-	items := make([]CommentItem, 0, len(rows))
+// buildItems converts flat rows to a parent→children tree. Returns a
+// map keyed by comment ID for direct lookup; each item's Replies slice
+// is populated, sorted by creation (already pre-sorted ASC by the
+// repo). ReplyCount is filled in via a post-order walk.
+//
+// Rows whose author is no longer renderable (deleted user) are dropped
+// silently; their replies are dropped with them — keeping orphans
+// would render as ghost branches.
+func (s *CommentService) buildItems(rows []repository.CommentRow, userMap map[int]userclient.User) map[int]*CommentItem {
+	items := make(map[int]*CommentItem, len(rows))
 	for _, r := range rows {
 		u := userMap[r.UserID]
 		if !userclient.IsRenderable(u) {
 			continue
 		}
-		item := CommentItem{
-			ID: r.ID, Content: r.Content, GalgameID: r.GalgameID,
-			User:      UserObj{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
-			LikeCount: r.LikeCount, Created: r.CreatedAt,
+		item := &CommentItem{
+			ID:              r.ID,
+			Content:         r.Content,
+			GalgameID:       r.GalgameID,
+			User:            UserObj{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
+			ParentCommentID: r.ParentCommentID,
+			RootCommentID:   r.RootCommentID,
+			LikeCount:       r.LikeCount,
+			Created:         r.CreatedAt,
+			Replies:         []*CommentItem{},
 		}
 		if r.TargetUserID != nil {
-			t := userMap[*r.TargetUserID]
-			item.TargetUser = &UserObj{
-				ID: t.ID, Name: t.Name, Avatar: t.Avatar,
+			if t, ok := userMap[*r.TargetUserID]; ok {
+				item.TargetUser = &UserObj{ID: t.ID, Name: t.Name, Avatar: t.Avatar}
 			}
 		}
-		items = append(items, item)
+		items[r.ID] = item
 	}
 
-	return &CommentListResult{Items: items, Total: total}
+	// Attach each non-root item to its parent. Skips items whose parent
+	// was filtered out above (e.g. parent author deleted).
+	for _, item := range items {
+		if item.ParentCommentID == nil {
+			continue
+		}
+		parent, ok := items[*item.ParentCommentID]
+		if !ok {
+			continue
+		}
+		parent.Replies = append(parent.Replies, item)
+	}
+
+	// Post-order: sum descendants. Iterate in dependency-safe order by
+	// walking from items with no replies first — but simpler is a
+	// recursive count starting from roots. Since the row set is small
+	// (one page or one thread) recursion depth is bounded.
+	var count func(it *CommentItem) int
+	count = func(it *CommentItem) int {
+		n := 0
+		for _, c := range it.Replies {
+			n += 1 + count(c)
+		}
+		it.ReplyCount = n
+		return n
+	}
+	for _, item := range items {
+		if item.ParentCommentID == nil {
+			count(item)
+		}
+	}
+
+	return items
 }
 
 // ──────────────────────────────────────────
 // CreateComment
 // ──────────────────────────────────────────
 
+// CreateComment creates a top-level or reply comment.
+//   - parentCommentID == nil → root comment.
+//   - parentCommentID != nil → reply; we look up the parent, verify
+//     it belongs to the same galgame, and derive root_comment_id as
+//     parent.RootCommentID (if parent is itself a reply) or parent.ID
+//     (if parent is a root).
 func (s *CommentService) CreateComment(
 	ctx context.Context,
 	userID, galgameID int,
 	content string,
 	targetUserID *int,
+	parentCommentID *int,
 ) (*CommentItem, *errors.AppError) {
+	var (
+		parentID *int
+		rootID   *int
+	)
+	if parentCommentID != nil {
+		parent, err := s.commentRepo.FindByID(*parentCommentID)
+		if err != nil || parent.GalgameID != galgameID {
+			return nil, errors.ErrBadRequest("回复的评论不存在")
+		}
+		pid := parent.ID
+		parentID = &pid
+		if parent.RootCommentID != nil {
+			rid := *parent.RootCommentID
+			rootID = &rid
+		} else {
+			rid := parent.ID
+			rootID = &rid
+		}
+	}
+
 	comment := model.GalgameComment{
-		Content:      content,
-		GalgameID:    galgameID,
-		UserID:       userID,
-		TargetUserID: targetUserID,
+		Content:         content,
+		GalgameID:       galgameID,
+		UserID:          userID,
+		TargetUserID:    targetUserID,
+		ParentCommentID: parentID,
+		RootCommentID:   rootID,
 	}
 
 	txErr := s.commentRepo.DB().Transaction(func(tx *gorm.DB) error {
@@ -122,11 +263,17 @@ func (s *CommentService) CreateComment(
 		// (decision 2 in the wiki integration plan), so the very first
 		// interaction must INSERT one or the comment_count UPDATE below
 		// silently affects 0 rows.
-		tx.Clauses(clause.OnConflict{DoNothing: true}).
-			Create(&model.GalgameLocal{ID: galgameID})
-		tx.Create(&comment)
-		tx.Model(&model.GalgameLocal{}).Where("id = ?", galgameID).
-			Update("comment_count", gorm.Expr("comment_count + 1"))
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).
+			Create(&model.GalgameLocal{ID: galgameID}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&comment).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.GalgameLocal{}).Where("id = ?", galgameID).
+			Update("comment_count", gorm.Expr("comment_count + 1")).Error; err != nil {
+			return err
+		}
 
 		if targetUserID != nil && *targetUserID != userID {
 			if err := s.stateRepo.AdjustMoemoepointTx(tx, *targetUserID, 1); err != nil {
@@ -134,11 +281,13 @@ func (s *CommentService) CreateComment(
 			}
 
 			link := fmt.Sprintf("/galgame/%d", galgameID)
-			tx.Create(&msgModel.Message{
+			if err := tx.Create(&msgModel.Message{
 				SenderID: userID, ReceiverID: *targetUserID,
 				Type: "commented", Content: truncate(content, 233),
 				Link: link, Status: "unread",
-			})
+			}).Error; err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -146,12 +295,17 @@ func (s *CommentService) CreateComment(
 		return nil, errors.ErrInternal("发表评论失败")
 	}
 
-	// Build response — identity from OAuth.
 	creator, _, _ := s.userClient.User(ctx, userID)
 	resp := &CommentItem{
-		ID: comment.ID, Content: comment.Content, GalgameID: comment.GalgameID,
-		User:      UserObj{ID: creator.ID, Name: creator.Name, Avatar: creator.Avatar},
-		LikeCount: 0, Created: comment.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:              comment.ID,
+		Content:         comment.Content,
+		GalgameID:       comment.GalgameID,
+		User:            UserObj{ID: creator.ID, Name: creator.Name, Avatar: creator.Avatar},
+		ParentCommentID: comment.ParentCommentID,
+		RootCommentID:   comment.RootCommentID,
+		LikeCount:       0,
+		Created:         comment.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		Replies:         []*CommentItem{},
 	}
 	if targetUserID != nil {
 		t, _, _ := s.userClient.User(ctx, *targetUserID)
@@ -165,6 +319,9 @@ func (s *CommentService) CreateComment(
 // DeleteComment
 // ──────────────────────────────────────────
 
+// DeleteComment removes a comment. Cascading FK deletes child rows in
+// galgame_comment (parent_comment_id ON DELETE CASCADE), so the
+// comment_count adjustment subtracts the size of the destroyed subtree.
 func (s *CommentService) DeleteComment(userID, role, commentID int) *errors.AppError {
 	comment, err := s.commentRepo.FindByID(commentID)
 	if err != nil {
@@ -174,11 +331,21 @@ func (s *CommentService) DeleteComment(userID, role, commentID int) *errors.AppE
 		return errors.ErrForbidden("您没有权限删除此评论")
 	}
 
+	// Count this comment + all descendants so we can decrement the
+	// galgame.comment_count by the full subtree size in one shot
+	// (Postgres cascades the actual row deletes).
+	var subtreeSize int64
+	s.commentRepo.DB().Model(&model.GalgameComment{}).
+		Where("id = ? OR root_comment_id = ?", commentID, commentID).
+		Count(&subtreeSize)
+
 	txErr := s.commentRepo.DB().Transaction(func(tx *gorm.DB) error {
+		// Likes on descendant comments are cleared by their cascade
+		// chain through galgame_comment → galgame_comment_like.
 		tx.Where("galgame_comment_id = ?", commentID).Delete(&model.GalgameCommentLike{})
 		tx.Delete(&comment)
 		tx.Model(&model.GalgameLocal{}).Where("id = ?", comment.GalgameID).
-			Update("comment_count", gorm.Expr("comment_count - 1"))
+			Update("comment_count", gorm.Expr("comment_count - ?", subtreeSize))
 		return nil
 	})
 	if txErr != nil {

@@ -17,6 +17,11 @@ const pageData = reactive({
   sortOrder: 'desc'
 })
 
+// data.items now holds ROOTS only — replies are nested inside each
+// root.replies (depth-unbounded subtree); the frontend caps visible
+// recursion at depth 3 in Comment.vue and routes deeper exploration to
+// ThreadDrawer. data.total counts roots so pagination math matches the
+// list of visible cards.
 const { data, status, refresh } = await useKunFetch(
   `/galgame/${gid}/comment/all`,
   {
@@ -29,10 +34,16 @@ const { data, status, refresh } = await useKunFetch(
 const handleSetUserInfo = (name: string) => {
   username.value = name
   commentToUserId.value =
-    props.userData.find((user) => user.name === name)?.id || props.targetUser.id
+    props.userData.find((user) => user.name === name)?.id ||
+    props.targetUser.id
 }
 
 onMounted(() => (commentToUserId.value = props.targetUser.id))
+
+// Drawer state: when a deep reply hits the recursion cap, the
+// corresponding Comment node bubbles up an open-thread event with the
+// thread's root id. Setting this back to null closes the drawer.
+const openThreadRootId = ref<number | null>(null)
 </script>
 
 <template>
@@ -45,7 +56,7 @@ onMounted(() => (commentToUserId.value = props.targetUser.id))
       </template>
     </KunHeader>
 
-    <div class="flex items-center gap-2" v-if="targetUser">
+    <div v-if="targetUser" class="flex items-center gap-2">
       <div class="whitespace-nowrap">评论给</div>
       <KunSelect
         :model-value="username"
@@ -58,8 +69,8 @@ onMounted(() => (commentToUserId.value = props.targetUser.id))
       </KunSelect>
     </div>
 
-    <div class="space-y-3" v-if="data">
-      <GalgameCommentPanel :to-user="targetUser" :refresh="refresh">
+    <div v-if="data" class="space-y-3">
+      <GalgameCommentPanel :refresh="refresh">
         <div v-if="data.total" class="flex items-center gap-2">
           <KunButton
             :is-icon-only="true"
@@ -88,12 +99,14 @@ onMounted(() => (commentToUserId.value = props.targetUser.id))
         description="没人评论, 是没人要这个 Galgame 的小只可爱软萌女孩子了吗, 呜呜呜呜呜呜！！"
       />
 
-      <div class="space-y-3" v-if="status !== 'pending' && data.total">
+      <div v-if="status !== 'pending' && data.total" class="space-y-6">
         <GalgameComment
           v-for="comment in data.items"
           :key="comment.id"
           :comment="comment"
           :refresh="refresh"
+          :depth="0"
+          @open-thread="(rootId) => (openThreadRootId = rootId)"
         />
       </div>
 
@@ -104,5 +117,11 @@ onMounted(() => (commentToUserId.value = props.targetUser.id))
         :is-loading="status === 'pending'"
       />
     </div>
+
+    <GalgameCommentThreadDrawer
+      v-model:root-comment-id="openThreadRootId"
+      :galgame-id="gid"
+      :refresh="refresh"
+    />
   </div>
 </template>

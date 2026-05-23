@@ -71,8 +71,14 @@ const overall = computed(() => props.rating.overall.toFixed(1))
       <KunAvatar :user="rating.user" size="sm" />
       <span class="text-default-800 font-medium">{{ rating.user.name }}</span>
       <span class="text-default-500">
-        <span class="text-default-700">{{ playStatusLabel }}</span>
-        了此游戏，表示
+        <template v-if="rating.play_status === 'not_started'">
+          还未开始游玩此游戏
+        </template>
+        <template v-else>
+          <span class="text-default-700">{{ playStatusLabel }}</span>
+          了此游戏
+        </template>
+        ，表示
         <span :class="cn('font-medium', recommendColor)">
           {{ recommendLabel }}
         </span>

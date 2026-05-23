@@ -21,19 +21,15 @@ withDefaults(
     badge: '',
     badgeColor: 'primary',
     to: '/',
-    nameClass: 'text-xl'
-  }
+    nameClass: 'text-xl',
+  },
 )
 </script>
 
 <template>
   <div class="flex cursor-pointer items-center gap-3" @click="navigateTo(to)">
-    <KunImage
-      :class="iconClass"
-      :src="iconSrc"
-      :alt="iconAlt"
-    />
+    <KunImage :class="iconClass" :src="iconSrc" :alt="iconAlt" />
     <span :class="nameClass">{{ name }}</span>
-    <KunChip v-if="badge" size="md" :color="badgeColor">{{ badge }}</KunChip>
+    <!-- <KunChip v-if="badge" size="md" :color="badgeColor">{{ badge }}</KunChip> -->
   </div>
 </template>

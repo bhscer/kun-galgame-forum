@@ -4,15 +4,26 @@ import "time"
 
 // GalgameLocal represents the stripped-down local galgame row.
 // After wiki migration, only interaction counts + view remain locally.
+//
+// CreatedAt / UpdatedAt are needed so the lazy-create stub
+// (`Create(&GalgameLocal{ID: ...}).OnConflict(DoNothing)`) emits valid
+// timestamps for a possibly-new row. The `galgame.updated` column is
+// NOT NULL with no DB-level default — left over from the Prisma
+// `@updatedAt` directive which Prisma fills application-side. PG
+// evaluates NOT NULL BEFORE resolving ON CONFLICT, so omitting the
+// column trips a constraint violation even when the row already
+// exists. GORM auto-populates these by field-name convention.
 type GalgameLocal struct {
-	ID               int `gorm:"primaryKey" json:"id"`
-	View             int `gorm:"default:0" json:"view"`
-	LikeCount        int `gorm:"column:like_count;default:0" json:"like_count"`
-	FavoriteCount    int `gorm:"column:favorite_count;default:0" json:"favorite_count"`
-	ResourceCount    int `gorm:"column:resource_count;default:0" json:"resource_count"`
-	CommentCount     int `gorm:"column:comment_count;default:0" json:"comment_count"`
-	ContributorCount int `gorm:"column:contributor_count;default:0" json:"contributor_count"`
-	RatingCount      int `gorm:"column:rating_count;default:0" json:"rating_count"`
+	ID               int       `gorm:"primaryKey" json:"id"`
+	View             int       `gorm:"default:0" json:"view"`
+	LikeCount        int       `gorm:"column:like_count;default:0" json:"like_count"`
+	FavoriteCount    int       `gorm:"column:favorite_count;default:0" json:"favorite_count"`
+	ResourceCount    int       `gorm:"column:resource_count;default:0" json:"resource_count"`
+	CommentCount     int       `gorm:"column:comment_count;default:0" json:"comment_count"`
+	ContributorCount int       `gorm:"column:contributor_count;default:0" json:"contributor_count"`
+	RatingCount      int       `gorm:"column:rating_count;default:0" json:"rating_count"`
+	CreatedAt        time.Time `gorm:"column:created" json:"created"`
+	UpdatedAt        time.Time `gorm:"column:updated" json:"updated"`
 }
 
 func (GalgameLocal) TableName() string { return "galgame" }
@@ -53,7 +64,15 @@ type GalgameComment struct {
 	GalgameID    int    `gorm:"column:galgame_id;not null" json:"galgame_id"`
 	UserID       int    `gorm:"column:user_id;not null" json:"user_id"`
 	TargetUserID *int   `gorm:"column:target_user_id" json:"target_user_id"`
-	LikeCount    int    `gorm:"column:like_count;default:0" json:"like_count"`
+	// ParentCommentID: direct reply parent. NULL = top-level (root)
+	// comment. Self-referencing FK with ON DELETE CASCADE; deleting a
+	// parent removes all descendants.
+	ParentCommentID *int `gorm:"column:parent_comment_id" json:"parent_comment_id"`
+	// RootCommentID: thread anchor. NULL for roots; for replies always
+	// equals the top-most ancestor's ID. Lets us fetch a full thread
+	// with a single indexed WHERE root_comment_id = ?.
+	RootCommentID *int `gorm:"column:root_comment_id" json:"root_comment_id"`
+	LikeCount     int  `gorm:"column:like_count;default:0" json:"like_count"`
 
 	CreatedAt time.Time `gorm:"column:created" json:"created"`
 	UpdatedAt time.Time `gorm:"column:updated" json:"updated"`

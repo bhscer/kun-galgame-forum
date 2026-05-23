@@ -159,6 +159,7 @@ func (a *App) setupRoutes() {
 	// Galgame detail sub-routes (MUST be before /:gid to avoid shadowing)
 	optAuth.Get("/galgame/:gid/resource/all", a.GalgameResourceHandler.GetGalgameResources)
 	optAuth.Get("/galgame/:gid/comment/all", a.GalgameCommentHandler.GetComments)
+	optAuth.Get("/galgame/:gid/comment/thread/:rootId", a.GalgameCommentHandler.GetCommentThread)
 	optAuth.Get("/galgame/:gid/pr/all", a.GalgameWikiHandler.GetGalgamePRs)
 	optAuth.Get("/galgame/:gid/link/all", a.GalgameWikiHandler.GetGalgameLinks)
 	optAuth.Get("/galgame/:gid/history/all", a.GalgameWikiHandler.GetGalgameHistory)

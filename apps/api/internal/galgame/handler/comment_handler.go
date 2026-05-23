@@ -5,6 +5,7 @@ import (
 
 	"kun-galgame-api/internal/galgame/service"
 	"kun-galgame-api/internal/middleware"
+	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/response"
 	"kun-galgame-api/pkg/utils"
 
@@ -38,6 +39,10 @@ func (h *CommentHandler) GetComments(c *fiber.Ctx) error {
 
 // CreateComment creates a galgame comment.
 // POST /api/galgame/:gid/comment
+//
+// parent_comment_id is optional: when present, the new comment becomes
+// a reply nested under that comment (and inherits its thread root). The
+// service validates the parent belongs to the same galgame.
 func (h *CommentHandler) CreateComment(c *fiber.Ctx) error {
 	user, appErr := middleware.MustGetUser(c)
 	if appErr != nil {
@@ -47,19 +52,37 @@ func (h *CommentHandler) CreateComment(c *fiber.Ctx) error {
 	gid, _ := strconv.Atoi(c.Params("gid"))
 
 	var req struct {
-		Content      string `json:"content" validate:"required,min=1,max=1007"`
-		TargetUserID *int   `json:"target_user_id"`
+		Content         string `json:"content" validate:"required,min=1,max=1007"`
+		TargetUserID    *int   `json:"target_user_id"`
+		ParentCommentID *int   `json:"parent_comment_id"`
 	}
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
-	resp, appErr := h.commentService.CreateComment(c.Context(), user.ID, gid, req.Content, req.TargetUserID)
+	resp, appErr := h.commentService.CreateComment(c.Context(), user.ID, gid, req.Content, req.TargetUserID, req.ParentCommentID)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
 
 	return response.OK(c, resp)
+}
+
+// GetCommentThread returns the full nested thread for a root comment.
+// GET /api/galgame/:gid/comment/thread/:rootId
+//
+// The drawer view uses this when the inline view caps recursion depth.
+func (h *CommentHandler) GetCommentThread(c *fiber.Ctx) error {
+	rootID, _ := strconv.Atoi(c.Params("rootId"))
+	if rootID <= 0 {
+		return response.Error(c, errors.ErrBadRequest("非法的评论 ID"))
+	}
+
+	root, appErr := h.commentService.GetThread(c.Context(), rootID)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, root)
 }
 
 // DeleteComment deletes a galgame comment.

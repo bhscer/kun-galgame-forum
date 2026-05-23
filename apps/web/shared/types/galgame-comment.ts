@@ -8,4 +8,20 @@ export interface GalgameComment {
 
   user: KunUser
   targetUser: KunUser | null
+
+  // Nesting fields — populated by the threaded /comment/all endpoint.
+  //
+  // parentCommentId / rootCommentId are NULL on top-level comments;
+  // a reply has parentCommentId set to its direct ancestor and
+  // rootCommentId set to the thread's root id. Posting a reply sends
+  // parentCommentId; the server derives rootCommentId.
+  parentCommentId: number | null
+  rootCommentId: number | null
+  // Direct + transitive descendant count. Drives the "查看更多 (N)"
+  // load-more button at the depth cap.
+  replyCount: number
+  // Children pre-built by the server. Roots receive the full subtree;
+  // the frontend caps visible recursion at depth 3 and routes deeper
+  // exploration to ThreadDrawer.
+  replies: GalgameComment[]
 }

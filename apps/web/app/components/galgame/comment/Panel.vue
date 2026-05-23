@@ -1,6 +1,19 @@
 <script setup lang="ts">
+// Compose-box for a new comment.
+//
+// Two modes:
+//   - Root mode: no parentCommentId. Container renders this above the
+//     thread list; targetUserId is the contributor selected from the
+//     "评论给" dropdown (commentToUserId in the temp store).
+//   - Reply mode: parentCommentId set. Comment.vue renders this inline
+//     beneath the comment being replied to; targetUserId is that
+//     comment's author.
+//
+// The two modes share one component — only the wire payload diverges.
 const props = defineProps<{
   refresh: () => void
+  parentCommentId?: number | null
+  targetUserId?: number
 }>()
 
 const emits = defineEmits<{
@@ -11,10 +24,16 @@ const { commentToUserId } = storeToRefs(useTempGalgameCommentStore())
 const route = useRoute()
 
 const content = ref('')
-const galgameId = computed(() => {
-  return parseInt((route.params as { gid: string }).gid)
-})
+const galgameId = computed(() =>
+  parseInt((route.params as { gid: string }).gid)
+)
 const isPublishing = ref(false)
+
+// Reply mode passes targetUserId explicitly; root mode falls back to
+// the dropdown-bound store value.
+const effectiveTargetUserId = computed(
+  () => props.targetUserId ?? commentToUserId.value
+)
 
 const handlePublishComment = async () => {
   if (!content.value.trim()) {
@@ -31,7 +50,8 @@ const handlePublishComment = async () => {
     method: 'POST',
     body: {
       galgameId: galgameId.value,
-      targetUserId: commentToUserId.value,
+      targetUserId: effectiveTargetUserId.value,
+      parentCommentId: props.parentCommentId ?? null,
       content: content.value
     }
   })
@@ -49,10 +69,14 @@ const handlePublishComment = async () => {
 <template>
   <div class="space-y-3">
     <KunTextarea
-      placeholder="请注意您 “评论给” 的用户, 只有被评论的用户才会收到您的评论通知, 因此您需要在 “评论给” 的用户中选择一位资源发布者或贡献者"
       v-model="content"
+      :placeholder="
+        parentCommentId
+          ? '写下您的回复'
+          : '请注意您 “评论给” 的用户, 只有被评论的用户才会收到您的评论通知, 因此您需要在 “评论给” 的用户中选择一位资源发布者或贡献者'
+      "
       name="comment"
-      :rows="5"
+      :rows="parentCommentId ? 3 : 5"
     />
 
     <div class="flex items-center justify-between">
@@ -60,10 +84,10 @@ const handlePublishComment = async () => {
 
       <KunButton
         class="ml-auto"
-        @click="handlePublishComment"
         :loading="isPublishing"
+        @click="handlePublishComment"
       >
-        发布评论
+        {{ parentCommentId ? '发布回复' : '发布评论' }}
       </KunButton>
     </div>
   </div>
