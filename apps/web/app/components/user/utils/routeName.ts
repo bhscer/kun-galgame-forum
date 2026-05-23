@@ -18,16 +18,10 @@ export const navBarRoute: Ref<Nav[]> = ref([
     router: 'setting',
     permission: [4]
   },
-  {
-    name: 'email',
-    router: 'email',
-    permission: [4]
-  },
-  {
-    name: 'password',
-    router: 'password',
-    permission: [4]
-  },
+  // Email + password edits moved to OAuth profile per the 2026-05-23
+  // policy (docs/oauth/README.md + 02-user-profile.md §身份层操作 vs
+  // 展示操作). The setting page surfaces redirect buttons — no kungal-
+  // side route for either.
   {
     name: 'topic',
     permission: [1, 2, 3, 4],

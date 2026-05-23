@@ -146,8 +146,6 @@ export const KUN_USER_PAGE_GALGAME_RESOURCE_TYPE = [
 export const KUN_USER_PAGE_NAV_MAP: Record<string, string> = {
   profile: '个人信息',
   setting: '信息设置',
-  email: '邮箱设置',
-  password: '密码设置',
   topic: '话题',
   galgame: 'Galgame',
   rating: 'Gal 评分',

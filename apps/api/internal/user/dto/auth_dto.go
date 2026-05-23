@@ -77,18 +77,6 @@ type UpdateUsernameRequest struct {
 	Username string `json:"username" validate:"required,min=1,max=17"`
 }
 
-type UpdateEmailRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Code     string `json:"code" validate:"required"`
-	CodeSalt string `json:"codeSalt" validate:"required"`
-}
-
-// SendResetCodeRequest is the body of POST /auth/email/code/reset — used by
-// the "change email" flow. Email must NOT already belong to another user.
-type SendResetCodeRequest struct {
-	Email string `json:"email" validate:"required,email"`
-}
-
 // ──────────────────────────────────────────
 // User queries
 // ──────────────────────────────────────────

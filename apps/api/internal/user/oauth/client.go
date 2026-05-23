@@ -284,6 +284,57 @@ func (c *Client) RefreshOAuthToken(refreshToken string) (*TokenResponse, error) 
 	return &tok, nil
 }
 
+// PatchAuthMe calls PATCH /auth/me to update the authenticated user's
+// profile. The body is any JSON-serialisable struct/map carrying the
+// fields the user wants to change — OAuth treats omitted fields as
+// "leave unchanged" so kungal can forward partial updates. Returns the
+// raw refreshed user payload so callers can pass it back to the
+// browser verbatim.
+//
+// docs/oauth/02-user-profile.md §PATCH /auth/me.
+func (c *Client) PatchAuthMe(accessToken string, body any) (json.RawMessage, error) {
+	payload, jerr := json.Marshal(body)
+	if jerr != nil {
+		return nil, &Error{Message: "序列化 PATCH /auth/me 请求失败: " + jerr.Error()}
+	}
+	req, rerr := http.NewRequest("PATCH", c.cfg.ServerURL+"/auth/me", bytes.NewReader(payload))
+	if rerr != nil {
+		return nil, &Error{Message: "创建 PATCH /auth/me 请求失败: " + rerr.Error()}
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	resp, derr := c.httpClient.Do(req)
+	if derr != nil {
+		return nil, &Error{Message: "请求 PATCH /auth/me 失败: " + derr.Error()}
+	}
+	defer resp.Body.Close()
+	return decodeEnvelope(resp)
+}
+
+// UploadAvatar calls POST /auth/me/avatar with a pre-built multipart
+// body. OAuth pipes the bytes to image_service, writes the resulting
+// hash to the user row, and returns the image_service upload result
+// (hash + variant URLs). kungal forwards the body unchanged.
+//
+// contentType is the value of the incoming request's Content-Type
+// header (must carry the multipart boundary).
+//
+// docs/oauth/02-user-profile.md §POST /auth/me/avatar.
+func (c *Client) UploadAvatar(accessToken string, body []byte, contentType string) (json.RawMessage, error) {
+	req, rerr := http.NewRequest("POST", c.cfg.ServerURL+"/auth/me/avatar", bytes.NewReader(body))
+	if rerr != nil {
+		return nil, &Error{Message: "创建 POST /auth/me/avatar 请求失败: " + rerr.Error()}
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	resp, derr := c.httpClient.Do(req)
+	if derr != nil {
+		return nil, &Error{Message: "请求 POST /auth/me/avatar 失败: " + derr.Error()}
+	}
+	defer resp.Body.Close()
+	return decodeEnvelope(resp)
+}
+
 // postEnvelope POSTs a JSON-serialized payload to OAuth and decodes the
 // standard envelope. Used by ExchangeCode and RefreshOAuthToken — both
 // hit /oauth/token with the same wire shape but different grant_type.

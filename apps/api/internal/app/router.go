@@ -35,6 +35,13 @@ func (a *App) setupRoutes() {
 	api.Post("/user/check-in", userAuth, checkInRL, a.UserHandler.CheckIn)
 	api.Get("/user/status", userAuth, a.UserHandler.GetStatus)
 
+	// Self-edit endpoints — proxy to OAuth /auth/me family, the session-
+	// stored bearer is attached inside each handler. See
+	// docs/oauth/02-user-profile.md.
+	api.Put("/user/bio", userAuth, a.UserProfileHandler.UpdateBio)
+	api.Put("/user/username", userAuth, a.UserProfileHandler.UpdateUsername)
+	api.Post("/user/avatar", userAuth, a.UserProfileHandler.UploadAvatar)
+
 	// User (public, parameterized — AFTER fixed paths)
 	api.Get("/user/:id/floating", a.UserHandler.GetFloatingCard)
 	api.Get("/user/:id", a.UserHandler.GetProfile)

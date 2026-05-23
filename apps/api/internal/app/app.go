@@ -86,6 +86,7 @@ type App struct {
 	// Handlers
 	OAuthHandler               *handler.OAuthHandler
 	UserHandler                *handler.UserHandler
+	UserProfileHandler         *handler.ProfileHandler
 	HomeHandler                *homeHandler.HomeHandler
 	TopicHandler               *topicHandler.TopicHandler
 	ReplyHandler               *topicHandler.ReplyHandler
@@ -285,6 +286,7 @@ func New(cfg *config.Config) *App {
 		UserClient: uc,
 		OAuthHandler:           handler.NewOAuthHandler(authService, cfg.Server.Mode == "prod"),
 		UserHandler:            handler.NewUserHandler(userService, userContentService),
+		UserProfileHandler:     handler.NewProfileHandler(oauthClient, uc),
 		HomeHandler:            homeHandler.NewHomeHandler(homeService.NewHomeService(homeRepo.NewHomeRepository(db), gc, uc)),
 		TopicHandler:           topicHandler.NewTopicHandler(topicSvc, topicWriteSvc),
 		ReplyHandler:           topicHandler.NewReplyHandler(replySvc),
