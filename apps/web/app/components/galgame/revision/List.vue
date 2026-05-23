@@ -141,6 +141,7 @@ const handleRevert = async (rev: number) => {
           :changed-keys="diffCache[rev.revision]!.changed_keys"
           :old-snap="diffCache[rev.revision]!.old"
           :new-snap="diffCache[rev.revision]!.new"
+          :names="diffCache[rev.revision]!.names"
         />
       </div>
     </div>

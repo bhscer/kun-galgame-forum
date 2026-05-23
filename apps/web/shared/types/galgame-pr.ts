@@ -10,6 +10,18 @@ export interface GalgamePR {
   created: Date | string
 }
 
+// id → displayName lookup dicts shipped alongside the wiki diff/PR
+// responses (K-PR 2026-Q2). Scoped to the ids referenced by THIS
+// specific diff so the frontend can render entity names inline
+// without an N+1 follow-up. Missing key ⇒ entity deleted ⇒ frontend
+// falls back to "已删除 #<id>".
+export interface WikiSnapshotNames {
+  tags?: Record<string, string>
+  officials?: Record<string, string>
+  engines?: Record<string, string>
+  series?: Record<string, string>
+}
+
 // Raw wiki PR detail response: GET /galgame/:gid/prs/:id (ProxyGet,
 // passed through verbatim — snake_case). See docs 02-revisions-and-prs.
 export interface WikiPRDetailResponse {
@@ -26,6 +38,7 @@ export interface WikiPRDetailResponse {
     created: string
   }
   changed_keys: Record<string, boolean>
+  names?: WikiSnapshotNames
 }
 
 // Normalized shape Info.vue builds and Details.vue renders: old =
@@ -38,4 +51,5 @@ export interface GalgamePRDiffView {
   changedKeys: Record<string, boolean>
   oldSnap: Record<string, unknown>
   newSnap: Record<string, unknown>
+  names?: WikiSnapshotNames
 }

@@ -78,6 +78,7 @@ const handleMergeRequest = async () => {
       :changed-keys="details.changedKeys"
       :old-snap="details.oldSnap"
       :new-snap="details.newSnap"
+      :names="details.names"
     />
 
     <div

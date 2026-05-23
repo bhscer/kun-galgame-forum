@@ -1,38 +1,62 @@
 <script setup lang="ts">
-// Shared field-by-field diff renderer for wiki galgame snapshots
-// (snake_case full-state objects). Fed by both:
-//   - PR review   : old = base-revision snapshot, new = pr.snapshot
-//   - revision diff: GET /revisions/:rev/diff → { changed_keys, old, new }
+// Side-by-side field diff renderer for wiki galgame snapshots.
 //
-// K-PR4: classify each changed field by value-shape and pick the right
-// renderer. Three regimes:
+// Each changed field renders as a 2-column row:
+//   ┌─ 字段名 ─────────────────────────────────┐
+//   │  原版 (左)              │  新版 (右)     │
+//   │  full OLD content       │  full NEW      │
+//   │  with <strong> on       │  with <b> on   │
+//   │  removed chars/items    │  added chars   │
+//   └────────────────────────────────────────┘
+//
+// Three regimes, picked by value shape:
 //
 //   1. SCALAR             — string / number / boolean.
-//      Render: old → new with character-level LCS (useDiff) for short
-//      strings; large bodies (intro_*) get the same LCS but in a
-//      pre-wrap block so multi-line diffs read naturally.
+//      LEFT  = old text with REMOVED chars highlighted in red+strike.
+//      RIGHT = new text with ADDED chars highlighted in green.
+//      Implemented by useSideBySideDiff (char-level LCS, same algo as
+//      the legacy interleaved useDiff but split into two parallel
+//      strings). LARGE_TEXT_FIELDS render in pre-wrap so multi-line
+//      intros keep their shape.
 //
 //   2. ARRAY OF OBJECTS   — covers / screenshots / links.
-//      Render: arrayDiffByKey ➕added / ➖removed / ✏️changed{fields}.
-//      Keys are field-specific (image_hash for cover/screenshot, name+
-//      link composite for links) so the renderer doesn't pretend that
-//      a sort_order shuffle is a wholesale replace.
+//      LEFT  = removed items + OLD version of changed items.
+//      RIGHT = added items + NEW version of changed items.
+//      Changed items appear in the same logical row on both sides so
+//      the user can compare attributes line-by-line.
 //
 //   3. ARRAY OF SCALARS   — tag_ids / official_ids / engine_ids / aliases.
-//      Render: arrayDiffScalar ➕added / ➖removed pills.
+//      LEFT  = removed values as ➖ chips.
+//      RIGHT = added values as ➕ chips.
 //
-// Why this is worth it: presence-replace semantics on the wire mean any
-// nontrivial relation edit returns the WHOLE new array; the old "JSON
-// stringify both sides + LCS" renderer made even a one-row change look
-// like a wall of garbled JSON. Structural diff turns it into a 3-line
-// summary the reviewer can act on.
+// On mobile (<md) the two columns stack vertically (old on top, new
+// below) since side-by-side at narrow viewports is unreadable.
 import DOMPurify from 'isomorphic-dompurify'
 import { KUN_GALGAME_RESOURCE_PULL_REQUEST_I18N_FIELD_MAP } from '~/constants/galgame'
+
+// Wiki ships a `names` map alongside the diff (K-PR, 2026-Q2):
+//   { tags, officials, engines, series } each a {id → displayName}
+// dict scoped to the IDs referenced by THIS particular diff. We use it
+// to swap raw numeric ids for human-readable names inline — no N+1
+// follow-up requests needed.
+//
+// If the dict is undefined (older wiki version not yet shipping names)
+// or the id is missing (entity was deleted between revisions), we fall
+// back to "已删除 #<id>" per the wiki integration callout.
+type NamesDict = {
+  tags?: Record<string, string>
+  officials?: Record<string, string>
+  engines?: Record<string, string>
+  series?: Record<string, string>
+}
 
 const props = defineProps<{
   changedKeys: Record<string, boolean>
   oldSnap: Record<string, unknown>
   newSnap: Record<string, unknown>
+  // Optional: when absent, raw ids render through unchanged. Keeps the
+  // component backward-compatible with older wiki responses.
+  names?: NamesDict
 }>()
 
 const label = (key: string): string => {
@@ -40,14 +64,31 @@ const label = (key: string): string => {
   return typeof m === 'string' ? m : key
 }
 
-// Per-field key/compare config for ARRAY OF OBJECTS regime. Field name
-// → identity & relevant scalar fields. Anything else falls back to
-// JSON.stringify-LCS so an unknown new wire field still renders
-// (degraded, but not broken).
-//
-// `cdn_url` is intentionally excluded from compareFields — it's a
-// server-injected preview URL derived from image_hash; if the hash is
-// the same, cdn_url is the same. Including it would inflate noise.
+// Field key → which dict under `names` we read. Anything not in this
+// map renders the raw value (e.g. aliases are scalar strings, not ids).
+const FIELD_NAMES_KEY: Record<string, keyof NamesDict> = {
+  tag_ids: 'tags',
+  official_ids: 'officials',
+  engine_ids: 'engines',
+  series_id: 'series'
+}
+
+const lookupName = (fieldKey: string, value: unknown): string => {
+  const dictKey = FIELD_NAMES_KEY[fieldKey]
+  if (!dictKey) return String(value ?? '')
+  if (value === undefined || value === null || value === '') return ''
+  // Two distinct "no name" cases that must NOT collapse:
+  //   1. `names` prop absent entirely (older wiki, or no resolver
+  //      shipped with the diff). Backward-compat: render the raw id.
+  //   2. `names` IS provided but the id is missing from it ⇒ entity
+  //      deleted between revisions. Render "已删除 #<id>".
+  if (!props.names) return String(value)
+  const dict = props.names[dictKey]
+  if (!dict) return String(value)
+  const name = dict[String(value)]
+  return name ?? `已删除 #${value}`
+}
+
 const arrayObjectConfig: Record<
   string,
   { keyFn: (item: Record<string, unknown>) => string; compareFields?: string[] }
@@ -61,16 +102,11 @@ const arrayObjectConfig: Record<
     compareFields: ['sort_order', 'caption', 'sexual', 'violence']
   },
   links: {
-    // composite key: same (name,link) pair = same link; reordering
-    // does not show as edit.
     keyFn: (l) => `${l['name']}|||${l['link']}`,
     compareFields: []
   }
 }
 
-// Field name → true when the value is expected to be an array of
-// scalars. Anything else falls into the ARRAY OF OBJECTS or SCALAR
-// regimes based on runtime shape.
 const SCALAR_ARRAY_FIELDS = new Set([
   'tag_ids',
   'official_ids',
@@ -78,8 +114,6 @@ const SCALAR_ARRAY_FIELDS = new Set([
   'aliases'
 ])
 
-// LARGE_TEXT_FIELDS render in a pre-wrap block so multi-line intro/
-// description diffs don't get squeezed onto one line.
 const LARGE_TEXT_FIELDS = new Set([
   'intro_en_us',
   'intro_ja_jp',
@@ -94,7 +128,9 @@ interface Row {
   key: string
   label: string
   kind: RowKind
-  scalar?: { html: string; preWrap: boolean }
+  // SCALAR: both sides rendered as sanitised HTML.
+  scalar?: { oldHtml: string; newHtml: string; preWrap: boolean }
+  // ARRAY OF OBJECTS — pre-built side breakdown.
   arrayObj?: {
     added: Record<string, unknown>[]
     removed: Record<string, unknown>[]
@@ -113,15 +149,23 @@ const renderScalar = (
   oldVal: unknown,
   newVal: unknown
 ): Row['scalar'] => {
-  const o = oldVal === undefined || oldVal === null ? '' : String(oldVal)
-  const n = newVal === undefined || newVal === null ? '' : String(newVal)
-  let html: string
-  if (!o && n) html = `<b>${n}</b>`
-  else if (o && !n) html = `<strong>${o}</strong>`
-  // useDiff convention: <b> = added, <strong> = removed
-  else html = useDiff(n, o)
+  // For id-bearing scalar fields (currently just series_id), display
+  // the resolved entity NAME on each side rather than the raw id —
+  // matches what we do for array-of-ids fields below.
+  const o = FIELD_NAMES_KEY[key]
+    ? lookupName(key, oldVal)
+    : oldVal === undefined || oldVal === null
+      ? ''
+      : String(oldVal)
+  const n = FIELD_NAMES_KEY[key]
+    ? lookupName(key, newVal)
+    : newVal === undefined || newVal === null
+      ? ''
+      : String(newVal)
+  const { oldHtml, newHtml } = useSideBySideDiff(o, n)
   return {
-    html: DOMPurify.sanitize(html),
+    oldHtml: DOMPurify.sanitize(oldHtml),
+    newHtml: DOMPurify.sanitize(newHtml),
     preWrap: LARGE_TEXT_FIELDS.has(key)
   }
 }
@@ -144,8 +188,6 @@ const rows = computed<Row[]>(() => {
         cfg.keyFn,
         cfg.compareFields as never
       )
-      // Skip emitting a row when arrays only differ in order (no add /
-      // remove / changed): keeps the diff focused on actual edits.
       if (d.added.length || d.removed.length || d.changed.length) {
         out.push({
           key,
@@ -173,9 +215,7 @@ const rows = computed<Row[]>(() => {
       continue
     }
 
-    // RUNTIME FALLBACK: a wire field we don't classify statically (e.g.
-    // a future new key). If both sides are arrays, use the appropriate
-    // shape-based renderer. Otherwise scalar LCS.
+    // RUNTIME FALLBACK
     if (Array.isArray(o) || Array.isArray(n)) {
       const oArr = Array.isArray(o) ? o : []
       const nArr = Array.isArray(n) ? n : []
@@ -197,103 +237,197 @@ const rows = computed<Row[]>(() => {
         }
         continue
       }
-      // unknown array-of-objects → degraded JSON-LCS scalar render
     }
 
     const scalar = renderScalar(key, o, n)
-    if (scalar.html.length > 0) {
+    if (scalar.oldHtml.length > 0 || scalar.newHtml.length > 0) {
       out.push({ key, label: label(key), kind: 'scalar', scalar })
     }
   }
   return out
 })
 
-// Compact JSON for an array-of-objects row body (used to show the
-// added / removed entries — small objects, single-line).
-const inlineRow = (item: Record<string, unknown>): string => {
-  return JSON.stringify(item)
-}
+const inlineRow = (item: Record<string, unknown>): string =>
+  JSON.stringify(item)
 </script>
 
 <template>
-  <div class="kun-diff space-y-4">
+  <div class="kun-diff space-y-5">
     <KunNull v-if="!rows.length" description="无字段变化" />
 
-    <div v-for="row in rows" :key="row.key" class="space-y-1">
-      <p class="text-default-500 text-sm font-medium">{{ row.label }}</p>
+    <div v-for="row in rows" :key="row.key" class="space-y-2">
+      <!-- Field label -->
+      <p class="text-default-700 text-sm font-semibold">{{ row.label }}</p>
 
-      <!-- SCALAR -->
-      <div
-        v-if="row.kind === 'scalar' && row.scalar"
-        class="bg-default-100 break-word rounded-md px-3 py-2 text-sm"
-        :class="{ 'whitespace-pre-wrap': row.scalar.preWrap }"
-        v-html="row.scalar.html"
-      />
-
-      <!-- ARRAY OF SCALARS (tag_ids / aliases / ...) -->
-      <div
-        v-else-if="row.kind === 'array_scalar' && row.arrayScalar"
-        class="bg-default-100 flex flex-wrap gap-2 rounded-md px-3 py-2 text-sm"
-      >
-        <KunChip
-          v-for="v in row.arrayScalar.added"
-          :key="`+${v}`"
-          color="success"
-          size="sm"
-          variant="flat"
-        >
-          ➕ {{ v }}
-        </KunChip>
-        <KunChip
-          v-for="v in row.arrayScalar.removed"
-          :key="`-${v}`"
-          color="danger"
-          size="sm"
-          variant="flat"
-        >
-          ➖ {{ v }}
-        </KunChip>
-      </div>
-
-      <!-- ARRAY OF OBJECTS (covers / screenshots / links) -->
-      <div
-        v-else-if="row.kind === 'array_obj' && row.arrayObj"
-        class="bg-default-100 space-y-2 rounded-md px-3 py-2 text-sm"
-      >
+      <!-- 2-col side-by-side -->
+      <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+        <!-- ─────── LEFT: 原版 ─────── -->
         <div
-          v-for="(item, i) in row.arrayObj.added"
-          :key="`add-${i}`"
-          class="flex items-start gap-2"
+          class="bg-danger-50/40 border-danger-200/60 dark:bg-danger-500/5 dark:border-danger-500/20 rounded-lg border"
         >
-          <KunChip color="success" size="sm" variant="flat">➕ 新增</KunChip>
-          <code class="break-all text-xs">{{ inlineRow(item) }}</code>
-        </div>
-        <div
-          v-for="(item, i) in row.arrayObj.removed"
-          :key="`rm-${i}`"
-          class="flex items-start gap-2"
-        >
-          <KunChip color="danger" size="sm" variant="flat">➖ 删除</KunChip>
-          <code class="break-all text-xs">{{ inlineRow(item) }}</code>
-        </div>
-        <div
-          v-for="(ch, i) in row.arrayObj.changed"
-          :key="`ch-${i}`"
-          class="space-y-1"
-        >
-          <div class="flex items-center gap-2">
-            <KunChip color="warning" size="sm" variant="flat">
-              ✏️ 修改
-            </KunChip>
-            <span class="text-default-400 text-xs">
-              {{ ch.fields.join(' / ') }}
-            </span>
+          <div
+            class="text-default-600 border-danger-200/60 dark:border-danger-500/20 flex items-center gap-1.5 border-b px-3 py-1.5 text-xs font-medium"
+          >
+            <KunIcon name="lucide:minus-circle" class="text-danger-500 h-3.5 w-3.5" />
+            原版
           </div>
-          <div class="text-default-500 ml-2 text-xs">
-            旧: <code class="break-all">{{ inlineRow(ch.old) }}</code>
+          <div class="px-3 py-2 text-sm">
+            <!-- SCALAR -->
+            <div
+              v-if="row.kind === 'scalar' && row.scalar"
+              class="text-default-700 break-words"
+              :class="{ 'whitespace-pre-wrap': row.scalar.preWrap }"
+              v-html="row.scalar.oldHtml || '<span class=\'text-default-400 italic\'>(空)</span>'"
+            />
+
+            <!-- ARRAY OF SCALARS — removed items.
+                 lookupName() swaps raw ids for display names when
+                 row.key is an id-bearing field (tag_ids etc.);
+                 returns raw value otherwise (aliases). -->
+            <div
+              v-else-if="row.kind === 'array_scalar' && row.arrayScalar"
+              class="flex flex-wrap gap-1.5"
+            >
+              <KunChip
+                v-for="v in row.arrayScalar.removed"
+                :key="`-${v}`"
+                color="danger"
+                size="sm"
+                variant="flat"
+              >
+                ➖ {{ lookupName(row.key, v) }}
+              </KunChip>
+              <span
+                v-if="!row.arrayScalar.removed.length"
+                class="text-default-400 text-xs italic"
+              >
+                无项移除
+              </span>
+            </div>
+
+            <!-- ARRAY OF OBJECTS — removed + old of changed -->
+            <div
+              v-else-if="row.kind === 'array_obj' && row.arrayObj"
+              class="space-y-2"
+            >
+              <div
+                v-for="(ch, i) in row.arrayObj.changed"
+                :key="`ch-old-${i}`"
+                class="space-y-1"
+              >
+                <div class="flex items-center gap-1.5">
+                  <KunChip color="warning" size="sm" variant="flat">✏️ 修改</KunChip>
+                  <span class="text-default-500 text-xs">
+                    {{ ch.fields.join(' / ') }}
+                  </span>
+                </div>
+                <code class="text-default-600 block break-all text-xs">
+                  {{ inlineRow(ch.old) }}
+                </code>
+              </div>
+              <div
+                v-for="(item, i) in row.arrayObj.removed"
+                :key="`rm-${i}`"
+                class="space-y-1"
+              >
+                <KunChip color="danger" size="sm" variant="flat">➖ 删除</KunChip>
+                <code class="text-default-600 block break-all text-xs">
+                  {{ inlineRow(item) }}
+                </code>
+              </div>
+              <span
+                v-if="
+                  !row.arrayObj.removed.length && !row.arrayObj.changed.length
+                "
+                class="text-default-400 text-xs italic"
+              >
+                无项移除
+              </span>
+            </div>
           </div>
-          <div class="text-default-700 ml-2 text-xs">
-            新: <code class="break-all">{{ inlineRow(ch.new) }}</code>
+        </div>
+
+        <!-- ─────── RIGHT: 新版 ─────── -->
+        <div
+          class="bg-success-50/40 border-success-200/60 dark:bg-success-500/5 dark:border-success-500/20 rounded-lg border"
+        >
+          <div
+            class="text-default-600 border-success-200/60 dark:border-success-500/20 flex items-center gap-1.5 border-b px-3 py-1.5 text-xs font-medium"
+          >
+            <KunIcon name="lucide:plus-circle" class="text-success-500 h-3.5 w-3.5" />
+            新版
+          </div>
+          <div class="px-3 py-2 text-sm">
+            <!-- SCALAR -->
+            <div
+              v-if="row.kind === 'scalar' && row.scalar"
+              class="text-default-700 break-words"
+              :class="{ 'whitespace-pre-wrap': row.scalar.preWrap }"
+              v-html="row.scalar.newHtml || '<span class=\'text-default-400 italic\'>(空)</span>'"
+            />
+
+            <!-- ARRAY OF SCALARS — added items.
+                 Same lookupName treatment as the LEFT column. -->
+            <div
+              v-else-if="row.kind === 'array_scalar' && row.arrayScalar"
+              class="flex flex-wrap gap-1.5"
+            >
+              <KunChip
+                v-for="v in row.arrayScalar.added"
+                :key="`+${v}`"
+                color="success"
+                size="sm"
+                variant="flat"
+              >
+                ➕ {{ lookupName(row.key, v) }}
+              </KunChip>
+              <span
+                v-if="!row.arrayScalar.added.length"
+                class="text-default-400 text-xs italic"
+              >
+                无项新增
+              </span>
+            </div>
+
+            <!-- ARRAY OF OBJECTS — added + new of changed -->
+            <div
+              v-else-if="row.kind === 'array_obj' && row.arrayObj"
+              class="space-y-2"
+            >
+              <div
+                v-for="(ch, i) in row.arrayObj.changed"
+                :key="`ch-new-${i}`"
+                class="space-y-1"
+              >
+                <div class="flex items-center gap-1.5">
+                  <KunChip color="warning" size="sm" variant="flat">✏️ 修改</KunChip>
+                  <span class="text-default-500 text-xs">
+                    {{ ch.fields.join(' / ') }}
+                  </span>
+                </div>
+                <code class="text-default-700 block break-all text-xs">
+                  {{ inlineRow(ch.new) }}
+                </code>
+              </div>
+              <div
+                v-for="(item, i) in row.arrayObj.added"
+                :key="`add-${i}`"
+                class="space-y-1"
+              >
+                <KunChip color="success" size="sm" variant="flat">➕ 新增</KunChip>
+                <code class="text-default-700 block break-all text-xs">
+                  {{ inlineRow(item) }}
+                </code>
+              </div>
+              <span
+                v-if="
+                  !row.arrayObj.added.length && !row.arrayObj.changed.length
+                "
+                class="text-default-400 text-xs italic"
+              >
+                无项新增
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -303,14 +437,20 @@ const inlineRow = (item: Record<string, unknown>): string => {
 
 <style scoped>
 .kun-diff {
-  :deep(b) {
-    color: var(--color-success);
-    background-color: color-mix(in oklab, var(--color-success) 20%, transparent);
-  }
+  /* <strong> = removed (lives on the LEFT/old column) */
   :deep(strong) {
     color: var(--color-danger);
-    background-color: color-mix(in oklab, var(--color-danger) 20%, transparent);
+    background-color: color-mix(in oklab, var(--color-danger) 22%, transparent);
     text-decoration: line-through;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+  /* <b> = added (lives on the RIGHT/new column) */
+  :deep(b) {
+    color: var(--color-success);
+    background-color: color-mix(in oklab, var(--color-success) 22%, transparent);
+    border-radius: 2px;
+    padding: 0 1px;
   }
 }
 </style>

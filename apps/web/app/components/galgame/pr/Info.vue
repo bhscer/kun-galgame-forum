@@ -52,7 +52,8 @@ const handleGetDetails = async (galgamePrId: number) => {
     note: detail.pr.note,
     changedKeys: detail.changed_keys ?? {},
     oldSnap: baseRev?.snapshot ?? {},
-    newSnap: detail.pr.snapshot ?? {}
+    newSnap: detail.pr.snapshot ?? {},
+    names: detail.names
   }
 }
 

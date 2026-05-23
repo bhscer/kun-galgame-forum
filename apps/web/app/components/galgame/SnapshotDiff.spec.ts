@@ -112,4 +112,73 @@ describe('SnapshotDiff', () => {
     expect(w.html()).toContain('➕')
     expect(w.html()).toContain('30')
   })
+
+  it('names dict resolves tag_ids to display names', async () => {
+    const w = await mountSuspended(SnapshotDiff, {
+      props: {
+        changedKeys: { tag_ids: true },
+        oldSnap: { tag_ids: [1, 2] },
+        newSnap: { tag_ids: [2, 3] },
+        names: {
+          tags: { '1': '校园', '2': '治愈', '3': 'RPG' }
+        }
+      }
+    })
+    const html = w.html()
+    // Removed chip should show the resolved name, not the raw id.
+    expect(html).toContain('校园')
+    // Added chip likewise.
+    expect(html).toContain('RPG')
+  })
+
+  it('missing key in names dict ⇒ "已删除 #<id>" fallback', async () => {
+    const w = await mountSuspended(SnapshotDiff, {
+      props: {
+        changedKeys: { tag_ids: true },
+        oldSnap: { tag_ids: [99] },
+        newSnap: { tag_ids: [] },
+        // 99 intentionally missing — entity was deleted.
+        names: { tags: {} }
+      }
+    })
+    expect(w.html()).toContain('已删除 #99')
+  })
+
+  it('undefined names ⇒ raw id rendered (backward compat)', async () => {
+    const w = await mountSuspended(SnapshotDiff, {
+      props: {
+        changedKeys: { tag_ids: true },
+        oldSnap: { tag_ids: [1] },
+        newSnap: { tag_ids: [2] }
+        // no names prop at all — older wiki / synthesised taxonomy diff
+      }
+    })
+    const html = w.html()
+    expect(html).toContain('➖')
+    expect(html).toContain('1')
+    expect(html).toContain('➕')
+    expect(html).toContain('2')
+    // No fallback string should appear when names is absent.
+    expect(html).not.toContain('已删除')
+  })
+
+  it('names dict resolves series_id scalar to display name', async () => {
+    const w = await mountSuspended(SnapshotDiff, {
+      props: {
+        changedKeys: { series_id: true },
+        oldSnap: { series_id: 1 },
+        newSnap: { series_id: 2 },
+        names: {
+          series: { '1': '蜂群系列', '2': '克莱托系列' }
+        }
+      }
+    })
+    // Side-by-side scalar diff wraps differing characters in <b>/<strong>
+    // for highlighting, so the rendered HTML interleaves tags between
+    // each char. Assert against `text()` (markup stripped) where the
+    // names should appear contiguously.
+    const text = w.text()
+    expect(text).toContain('蜂群系列')
+    expect(text).toContain('克莱托系列')
+  })
 })

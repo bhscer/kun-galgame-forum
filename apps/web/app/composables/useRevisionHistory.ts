@@ -147,10 +147,21 @@ export const useRevisionHistory = (
   // Diff: galgame has a server-side endpoint; taxonomy doesn't, so we
   // construct one from two snapshots (target vs current — which the
   // UI obtains by fetching the LATEST revision separately).
+  //
+  // `names` is the K-PR 2026-Q2 addition: a {id → displayName} dict
+  // per related entity kind, scoped to ids referenced in this diff.
+  // Optional — taxonomy diffs we synthesise locally don't have one,
+  // and the renderer treats absence as "render raw ids".
   interface SnapshotDiff {
     changed_keys: Record<string, boolean>
     old: Record<string, unknown>
     new: Record<string, unknown>
+    names?: {
+      tags?: Record<string, string>
+      officials?: Record<string, string>
+      engines?: Record<string, string>
+      series?: Record<string, string>
+    }
   }
 
   const diffCache = reactive<Record<number, SnapshotDiff>>({})
