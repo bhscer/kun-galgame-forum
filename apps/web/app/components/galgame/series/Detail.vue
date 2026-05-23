@@ -26,9 +26,17 @@ const openEditSeriesModal = () => {
 }
 
 const handleUpdateSeries = async (data: UpdateGalgameSeriesPayload) => {
+  // Wiki PUT /series/:id expects snake_case `galgame_ids` (docs
+  // 04-taxonomy.md). Same rationale as the create flow in
+  // series/Container.vue — kungal proxy passes the body verbatim, so
+  // the camelCase → snake_case translation lives at the call site.
   const result = await kunFetch(`/galgame-series/${props.data.id}`, {
     method: 'PUT',
-    body: data
+    body: {
+      name: data.name,
+      description: data.description,
+      galgame_ids: data.galgameIds
+    }
   })
 
   if (result) {

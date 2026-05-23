@@ -14,9 +14,18 @@ const { data, status } = await useKunFetch('/galgame-series', {
 const showSeriesModal = ref(false)
 
 const handleCreateSeries = async (data: UpdateGalgameSeriesPayload) => {
+  // Wiki POST /series expects snake_case keys (docs 04-taxonomy.md).
+  // The kungal proxy passes the body verbatim, so the translation
+  // has to happen here — submitting `galgameIds` would land at wiki
+  // as an unknown field, the validated `galgame_ids` array stays
+  // empty, and wiki returns code:10 / "操作失败".
   const result = await kunFetch(`/galgame-series`, {
     method: 'POST',
-    body: data
+    body: {
+      name: data.name,
+      description: data.description,
+      galgame_ids: data.galgameIds
+    }
   })
 
   if (result) {

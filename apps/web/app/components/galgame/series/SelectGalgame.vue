@@ -30,12 +30,16 @@ const handleSearch = useDebounceFn(async () => {
   }
   isLoading.value = true
 
-  const data = await kunFetch('/galgame-series/search', {
-    method: 'GET',
-    query: { keywords: searchTerm.value }
-  })
+  // Wiki returns an array of full galgame rows (snake_case multi-lang
+  // name columns). kunFetch unwraps the envelope; data is `null` on
+  // request failure (auth, network) — guard against the `.filter()`
+  // crash that would tear down the dropdown silently.
+  const data = await kunFetch<GalgameSeriesSearchItem[]>(
+    '/galgame-series/search',
+    { method: 'GET', query: { keywords: searchTerm.value } }
+  )
 
-  searchResults.value = data.filter(
+  searchResults.value = (data ?? []).filter(
     (result) => !internalIds.value.includes(result.id)
   )
   isDropdownOpen.value = true
@@ -69,11 +73,11 @@ const syncSelectedGalgames = async (ids: number[]) => {
 
   isLoading.value = true
 
-  const data = await kunFetch('/galgame-series/modal', {
-    method: 'POST',
-    body: { ids }
-  })
-  selectedGalgames.value = data
+  const data = await kunFetch<GalgameSeriesSearchItem[]>(
+    '/galgame-series/modal',
+    { method: 'POST', body: { ids } }
+  )
+  selectedGalgames.value = data ?? []
   isLoading.value = false
 }
 
@@ -101,7 +105,7 @@ const handleBlur = () => {
         :key="game.id"
         class="bg-primary-100 text-primary-800 flex items-center gap-1.5 rounded px-2 py-0.5 text-sm"
       >
-        {{ game.name }}
+        {{ galgameNameFromWire(game, `#${game.id}`) }}
         <button
           type="button"
           class="text-primary-600 hover:text-primary-900 font-bold"
@@ -134,7 +138,7 @@ const handleBlur = () => {
           class="hover:bg-default-100 cursor-pointer px-4 py-2"
           @mousedown.prevent="selectGame(result)"
         >
-          {{ result.name }}
+          {{ galgameNameFromWire(result, `#${result.id}`) }}
         </li>
       </ul>
     </div>
