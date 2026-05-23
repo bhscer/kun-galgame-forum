@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { SerializeObject } from 'nitropack'
+
 const props = defineProps<{
   userData: KunUser[]
   targetUser: KunUser
@@ -17,12 +19,15 @@ const pageData = reactive({
   sortOrder: 'desc'
 })
 
-// data.items now holds ROOTS only — replies are nested inside each
-// root.replies (depth-unbounded subtree); the frontend caps visible
-// recursion at depth 3 in Comment.vue and routes deeper exploration to
-// ThreadDrawer. data.total counts roots so pagination math matches the
-// list of visible cards.
-const { data, status, refresh } = await useKunFetch(
+// data.items holds ROOTS only; each root carries up to 3 of its most
+// recent descendants flattened into a single .replies list (any DB
+// depth, displayed as one visual tier). Everything older is reached
+// lazily through ThreadDrawer.
+//
+// Mutations after the initial load are applied OPTIMISTICALLY by
+// rewriting `data.value` to a fresh object — no `refresh()`, no
+// loading flash.
+const { data, status } = await useKunFetch(
   `/galgame/${gid}/comment/all`,
   {
     lazy: true,
@@ -30,6 +35,8 @@ const { data, status, refresh } = await useKunFetch(
     query: pageData
   }
 )
+
+type CommentNode = SerializeObject<GalgameComment>
 
 const handleSetUserInfo = (name: string) => {
   username.value = name
@@ -40,9 +47,82 @@ const handleSetUserInfo = (name: string) => {
 
 onMounted(() => (commentToUserId.value = props.targetUser.id))
 
-// Drawer state: when a deep reply hits the recursion cap, the
-// corresponding Comment node bubbles up an open-thread event with the
-// thread's root id. Setting this back to null closes the drawer.
+// ──────────────────────────────────────────
+// Optimistic update handlers
+// ──────────────────────────────────────────
+
+const handleNewComment = (newComment: GalgameComment) => {
+  if (!data.value) return
+  const reply = newComment as CommentNode
+
+  // Root: insert at the visible end of the current sort.
+  if (reply.parentCommentId == null) {
+    const nextItems =
+      pageData.sortOrder === 'desc'
+        ? [reply, ...data.value.items]
+        : [...data.value.items, reply]
+    data.value = { items: nextItems, total: (data.value.total ?? 0) + 1 }
+    return
+  }
+
+  // Reply (any DB depth): flat-append to its root's replies list.
+  const rootId = reply.rootCommentId
+  if (rootId == null) return
+  const rootIdx = data.value.items.findIndex((c) => c.id === rootId)
+  if (rootIdx < 0) return
+
+  const nextItems = [...data.value.items]
+  nextItems[rootIdx] = prependReplyToRoot(data.value.items[rootIdx]!, reply)
+  data.value = { items: nextItems, total: data.value.total }
+}
+
+const handleReplyRemoved = (
+  commentId: number,
+  removedSize: number,
+  rootId: number
+) => {
+  if (!data.value) return
+
+  // Root removal: drop from data.items, decrement total, close drawer
+  // if it was viewing the doomed root.
+  const rootIdx = data.value.items.findIndex((c) => c.id === commentId)
+  if (rootIdx >= 0) {
+    const nextItems = [...data.value.items]
+    nextItems.splice(rootIdx, 1)
+    data.value = {
+      items: nextItems,
+      total: Math.max(0, (data.value.total ?? 0) - 1)
+    }
+    if (openThreadRootId.value === commentId) {
+      openThreadRootId.value = null
+    }
+    return
+  }
+
+  // Reply removal: locate the owning root via rootId hint, then prune
+  // the reply (and any loaded descendants of it) from the flat list.
+  const ownerIdx = data.value.items.findIndex((c) => c.id === rootId)
+  if (ownerIdx < 0) return
+
+  const owner = data.value.items[ownerIdx]!
+  const { node, pruned } = removeReplyFromRoot(owner, commentId, removedSize)
+  const nextItems = [...data.value.items]
+  nextItems[ownerIdx] = pruned
+    ? node
+    : {
+        // Reply wasn't in the loaded slice (e.g. drawer deleted a
+        // grandchild that never made it into the inline 3). Still
+        // shrink the count so "查看更多 N" stays honest.
+        ...owner,
+        replyCount: Math.max(0, (owner.replyCount ?? 0) - removedSize)
+      }
+  data.value = { items: nextItems, total: data.value.total }
+}
+
+// ──────────────────────────────────────────
+// Drawer
+// ──────────────────────────────────────────
+
 const openThreadRootId = ref<number | null>(null)
 </script>
 
@@ -70,7 +150,7 @@ const openThreadRootId = ref<number | null>(null)
     </div>
 
     <div v-if="data" class="space-y-3">
-      <GalgameCommentPanel :refresh="refresh">
+      <GalgameCommentPanel @submitted="handleNewComment">
         <div v-if="data.total" class="flex items-center gap-2">
           <KunButton
             :is-icon-only="true"
@@ -104,9 +184,10 @@ const openThreadRootId = ref<number | null>(null)
           v-for="comment in data.items"
           :key="comment.id"
           :comment="comment"
-          :refresh="refresh"
           :depth="0"
           @open-thread="(rootId) => (openThreadRootId = rootId)"
+          @reply-added="handleNewComment"
+          @reply-removed="handleReplyRemoved"
         />
       </div>
 
@@ -121,7 +202,8 @@ const openThreadRootId = ref<number | null>(null)
     <GalgameCommentThreadDrawer
       v-model:root-comment-id="openThreadRootId"
       :galgame-id="gid"
-      :refresh="refresh"
+      @reply-added="handleNewComment"
+      @reply-removed="handleReplyRemoved"
     />
   </div>
 </template>

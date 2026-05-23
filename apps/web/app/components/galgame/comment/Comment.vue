@@ -1,29 +1,33 @@
 <script setup lang="ts">
 import type { SerializeObject } from 'nitropack'
 
-// Recursive node in the threaded comment tree.
+// One node in the comment view. The visual model is FLAT — two tiers:
 //
-// Visible recursion stops at MAX_DEPTH. At that depth, any further
-// children are not rendered inline — instead a "查看更多 N 条回复"
-// button bubbles an open-thread event up to the container, which opens
-// the ThreadDrawer with the entire root thread. This matches the spec:
-// readable depth inline, full exploration in a focused drawer.
+//   depth 0 = root (top-level comment)
+//   depth 1 = reply (anything in the root's flat replies list)
+//
+// We never render past depth 1. The DB still tracks the true parent
+// chain via parent_comment_id, but the inline list and the drawer
+// both render replies as one flat group beneath the root. The
+// "回复 @<user>" context survives via comment.targetUser ("A => B").
+//
+// Mutations bubble up as events; Container / ThreadDrawer own the
+// state and apply immutable updates.
 const props = withDefaults(
   defineProps<{
     comment: SerializeObject<GalgameComment>
-    refresh: () => void
     depth?: number
-    // Visible recursion cap. Inline list passes 2 (renders depth
-    // 0/1/2 = three layers, anything deeper hits the load-more
-    // button). ThreadDrawer passes Infinity so the focused view is
-    // depth-unbounded.
-    maxDepth?: number
   }>(),
-  { depth: 0, maxDepth: 2 }
+  { depth: 0 }
 )
 
 const emit = defineEmits<{
   openThread: [rootId: number]
+  replyAdded: [reply: GalgameComment]
+  // Carries rootId so the controller can locate the affected root
+  // even when the deleted comment isn't in the loaded slice (e.g. a
+  // hidden grandchild deleted via the drawer).
+  replyRemoved: [commentId: number, removedSubtreeSize: number, rootId: number]
 }>()
 
 const galgame = inject<GalgameDetail>('galgame')
@@ -34,19 +38,23 @@ const isShowDelete = computed(
   () => props.comment.user?.id === id || galgame?.user.id === id || role >= 2
 )
 
-const visibleReplies = computed(() => {
-  if (props.depth >= props.maxDepth) return []
-  return props.comment.replies ?? []
-})
+// Only the root has visible children; replies render leaf-only.
+const visibleReplies = computed(() =>
+  props.depth === 0 ? props.comment.replies ?? [] : []
+)
 
-// At max depth, surface a button if any descendants exist; the count
-// shown is the comment's transitive descendant count, computed server-
-// side so it stays accurate across reloads.
+// "查看更多 N 条回复" — only ever appears under a root that has
+// more total descendants than what's been loaded into .replies. When
+// the drawer is mounted with the full thread, replies.length equals
+// replyCount, so the button vanishes naturally.
 const showLoadMore = computed(
   () =>
-    props.depth >= props.maxDepth &&
-    (props.comment.replies?.length ?? 0) > 0 &&
-    props.comment.replyCount > 0
+    props.depth === 0 &&
+    (props.comment.replyCount ?? 0) > visibleReplies.value.length
+)
+
+const rootAnchorId = computed(
+  () => props.comment.rootCommentId ?? props.comment.id
 )
 
 const handleDelete = async () => {
@@ -60,20 +68,15 @@ const handleDelete = async () => {
 
   if (result) {
     useMessage(10538, 'success')
-    props.refresh()
+    const removed = 1 + (props.comment.replyCount ?? 0)
+    emit('replyRemoved', props.comment.id, removed, rootAnchorId.value)
   }
-}
-
-const handleOpenThread = () => {
-  // The root anchor: a reply's rootCommentId points to its thread root;
-  // a root comment (rootCommentId === null) IS the root.
-  emit('openThread', props.comment.rootCommentId ?? props.comment.id)
 }
 </script>
 
 <template>
   <div class="flex gap-3">
-    <KunAvatar :user="comment.user" size="sm" />
+    <KunAvatar :user="comment.user" :size="depth === 0 ? 'md' : 'sm'" />
 
     <div class="min-w-0 flex-1 space-y-1.5">
       <div class="flex flex-wrap items-baseline gap-1.5">
@@ -133,23 +136,22 @@ const handleOpenThread = () => {
           v-if="isShowReply"
           :parent-comment-id="comment.id"
           :target-user-id="comment.user.id"
-          :refresh="refresh"
           @close="isShowReply = false"
+          @submitted="(reply) => emit('replyAdded', reply)"
         />
       </KunAnimationFadeCard>
 
-      <div
-        v-if="visibleReplies.length"
-        class="border-default-200 mt-3 space-y-4 border-l pl-4"
-      >
+      <!-- Replies render flush — single visual tier, no indent or
+           border-l. Smaller avatar on the children is the only
+           hierarchy cue. -->
+      <div v-if="visibleReplies.length" class="mt-3 space-y-4">
         <GalgameComment
           v-for="reply in visibleReplies"
           :key="reply.id"
           :comment="reply"
-          :refresh="refresh"
-          :depth="depth + 1"
-          :max-depth="maxDepth"
-          @open-thread="(rootId) => emit('openThread', rootId)"
+          :depth="1"
+          @reply-added="(r) => emit('replyAdded', r)"
+          @reply-removed="(id, size, rootId) => emit('replyRemoved', id, size, rootId)"
         />
       </div>
 
@@ -160,7 +162,7 @@ const handleOpenThread = () => {
         size="sm"
         full-width
         class-name="mt-2"
-        @click="handleOpenThread"
+        @click="emit('openThread', rootAnchorId)"
       >
         <KunIcon name="lucide:messages-square" />
         查看更多 {{ comment.replyCount }} 条回复

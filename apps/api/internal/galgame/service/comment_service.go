@@ -68,10 +68,18 @@ type CommentListResult struct {
 // GetComments
 // ──────────────────────────────────────────
 
-// GetComments returns paginated ROOT comments with their full
-// descendant subtree attached. `total` is the root count (drives
-// pagination); display-side counts can use CommentItem.ReplyCount to
-// reason about nesting depth.
+// inlineRepliesPerRoot caps how many descendants are shipped inline
+// per root. The frontend's visual model has exactly TWO tiers (root +
+// "reply"); these N replies appear as a flat list under each root
+// regardless of their actual DB depth. Anything older surfaces via the
+// "查看更多 N 条回复" lazy-loaded drawer.
+const inlineRepliesPerRoot = 3
+
+// GetComments returns paginated ROOT comments. Each root carries up to
+// `inlineRepliesPerRoot` of its most recent descendants (any depth)
+// FLATTENED into a single list, plus a ReplyCount = total descendants.
+// The drawer (GET /comment/thread/:rootId) fetches the whole thread
+// on demand for the "查看更多" path.
 func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit int) *CommentListResult {
 	total := s.commentRepo.CountRootsByGalgame(galgameID)
 	roots := s.commentRepo.FindRootsPaginated(galgameID, page, limit)
@@ -83,20 +91,38 @@ func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit
 	for _, r := range roots {
 		rootIDs = append(rootIDs, r.ID)
 	}
-	replies := s.commentRepo.FindRepliesByRoots(rootIDs)
 
-	all := make([]repository.CommentRow, 0, len(roots)+len(replies))
-	all = append(all, roots...)
-	all = append(all, replies...)
+	descendants := s.commentRepo.FindLatestDescendantsByRoots(rootIDs, inlineRepliesPerRoot)
+	descendantCounts := s.commentRepo.CountDescendantsByRoots(rootIDs)
 
-	userMap := s.hydrateUsers(ctx, all)
-	items := s.buildItems(all, userMap)
+	allRows := make([]repository.CommentRow, 0, len(roots)+len(descendants))
+	allRows = append(allRows, roots...)
+	allRows = append(allRows, descendants...)
 
-	// Roots are returned in DESC order; preserve that.
+	userMap := s.hydrateUsers(ctx, allRows)
+
 	rootItems := make([]*CommentItem, 0, len(roots))
+	rootByID := make(map[int]*CommentItem, len(roots))
 	for _, r := range roots {
-		if it, ok := items[r.ID]; ok {
-			rootItems = append(rootItems, it)
+		item := s.buildSingleItem(r, userMap)
+		if item == nil {
+			continue
+		}
+		item.ReplyCount = descendantCounts[r.ID]
+		rootItems = append(rootItems, item)
+		rootByID[r.ID] = item
+	}
+
+	// Flat-attach each descendant directly to its root (skipping the
+	// intermediate parent chain). DB structure stays normalized; the
+	// view collapses to a single nested tier.
+	for _, d := range descendants {
+		item := s.buildSingleItem(d, userMap)
+		if item == nil || d.RootCommentID == nil {
+			continue
+		}
+		if root, ok := rootByID[*d.RootCommentID]; ok {
+			root.Replies = append(root.Replies, item)
 		}
 	}
 
@@ -107,25 +133,39 @@ func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit
 // GetThread
 // ──────────────────────────────────────────
 
-// GetThread returns the full thread starting at rootID. Used by the
-// drawer; depth is unbounded. The returned CommentItem is the root
-// with all descendants nested inside Replies.
+// GetThread returns root + all descendants flattened under root.Replies
+// (ASC by created). Mirrors the inline flat-tier shape, with no per-
+// root cap.
 func (s *CommentService) GetThread(ctx context.Context, rootID int) (*CommentItem, *errors.AppError) {
 	rows := s.commentRepo.FindThreadByRoot(rootID)
 	if len(rows) == 0 {
 		return nil, errors.ErrNotFound("评论线程不存在")
 	}
 	userMap := s.hydrateUsers(ctx, rows)
-	items := s.buildItems(rows, userMap)
-	root, ok := items[rootID]
-	if !ok {
+
+	var rootItem *CommentItem
+	descendants := make([]*CommentItem, 0, len(rows)-1)
+	for _, r := range rows {
+		item := s.buildSingleItem(r, userMap)
+		if item == nil {
+			continue
+		}
+		if r.ID == rootID {
+			rootItem = item
+		} else {
+			descendants = append(descendants, item)
+		}
+	}
+	if rootItem == nil {
 		return nil, errors.ErrNotFound("评论线程不存在")
 	}
-	return root, nil
+	rootItem.Replies = descendants
+	rootItem.ReplyCount = len(descendants)
+	return rootItem, nil
 }
 
 // ──────────────────────────────────────────
-// Tree assembly
+// Row → item assembly
 // ──────────────────────────────────────────
 
 func (s *CommentService) hydrateUsers(ctx context.Context, rows []repository.CommentRow) map[int]userclient.User {
@@ -143,73 +183,31 @@ func (s *CommentService) hydrateUsers(ctx context.Context, rows []repository.Com
 	return s.userClient.Hydrate(ctx, uids)
 }
 
-// buildItems converts flat rows to a parent→children tree. Returns a
-// map keyed by comment ID for direct lookup; each item's Replies slice
-// is populated, sorted by creation (already pre-sorted ASC by the
-// repo). ReplyCount is filled in via a post-order walk.
-//
-// Rows whose author is no longer renderable (deleted user) are dropped
-// silently; their replies are dropped with them — keeping orphans
-// would render as ghost branches.
-func (s *CommentService) buildItems(rows []repository.CommentRow, userMap map[int]userclient.User) map[int]*CommentItem {
-	items := make(map[int]*CommentItem, len(rows))
-	for _, r := range rows {
-		u := userMap[r.UserID]
-		if !userclient.IsRenderable(u) {
-			continue
-		}
-		item := &CommentItem{
-			ID:              r.ID,
-			Content:         r.Content,
-			GalgameID:       r.GalgameID,
-			User:            UserObj{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
-			ParentCommentID: r.ParentCommentID,
-			RootCommentID:   r.RootCommentID,
-			LikeCount:       r.LikeCount,
-			Created:         r.CreatedAt,
-			Replies:         []*CommentItem{},
-		}
-		if r.TargetUserID != nil {
-			if t, ok := userMap[*r.TargetUserID]; ok {
-				item.TargetUser = &UserObj{ID: t.ID, Name: t.Name, Avatar: t.Avatar}
-			}
-		}
-		items[r.ID] = item
+// buildSingleItem maps one row to a CommentItem with empty Replies.
+// Returns nil if the author is no longer renderable (deleted user),
+// letting callers skip the row.
+func (s *CommentService) buildSingleItem(r repository.CommentRow, userMap map[int]userclient.User) *CommentItem {
+	u := userMap[r.UserID]
+	if !userclient.IsRenderable(u) {
+		return nil
 	}
-
-	// Attach each non-root item to its parent. Skips items whose parent
-	// was filtered out above (e.g. parent author deleted).
-	for _, item := range items {
-		if item.ParentCommentID == nil {
-			continue
-		}
-		parent, ok := items[*item.ParentCommentID]
-		if !ok {
-			continue
-		}
-		parent.Replies = append(parent.Replies, item)
+	item := &CommentItem{
+		ID:              r.ID,
+		Content:         r.Content,
+		GalgameID:       r.GalgameID,
+		User:            UserObj{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
+		ParentCommentID: r.ParentCommentID,
+		RootCommentID:   r.RootCommentID,
+		LikeCount:       r.LikeCount,
+		Created:         r.CreatedAt,
+		Replies:         []*CommentItem{},
 	}
-
-	// Post-order: sum descendants. Iterate in dependency-safe order by
-	// walking from items with no replies first — but simpler is a
-	// recursive count starting from roots. Since the row set is small
-	// (one page or one thread) recursion depth is bounded.
-	var count func(it *CommentItem) int
-	count = func(it *CommentItem) int {
-		n := 0
-		for _, c := range it.Replies {
-			n += 1 + count(c)
-		}
-		it.ReplyCount = n
-		return n
-	}
-	for _, item := range items {
-		if item.ParentCommentID == nil {
-			count(item)
+	if r.TargetUserID != nil {
+		if t, ok := userMap[*r.TargetUserID]; ok {
+			item.TargetUser = &UserObj{ID: t.ID, Name: t.Name, Avatar: t.Avatar}
 		}
 	}
-
-	return items
+	return item
 }
 
 // ──────────────────────────────────────────

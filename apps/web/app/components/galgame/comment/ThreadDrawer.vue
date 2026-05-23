@@ -1,25 +1,28 @@
 <script setup lang="ts">
 import type { SerializeObject } from 'nitropack'
 
-// Side drawer that renders an entire comment thread from its root.
+// Side drawer that lazy-loads + renders an entire comment thread as a
+// flat list (same single-nesting model as the inline view).
 //
-// Triggered when a deep reply inside the inline list hits the visible-
-// depth cap. The inline list caps recursion at 3 layers for readability;
-// the drawer is depth-unbounded so the user can see the full
-// conversation in a focused side panel without the rest of the page
-// fighting for attention.
+// The inline list ships only the latest 3 replies per root; the rest
+// live behind "查看更多 N 条回复", which opens this drawer and
+// fetches `/api/galgame/:gid/comment/thread/:rootId`. The drawer's
+// response is the root with ALL descendants flattened into
+// root.replies (ASC by created).
 //
-// Re-fetches the thread on open (instead of consuming the already-
-// loaded subtree) so the drawer reflects new replies posted in another
-// tab / window between page load and click.
+// In-drawer mutations are applied locally AND forwarded to Container
+// so the inline list's replyCount + visible 3 stay in sync.
+type Node = SerializeObject<GalgameComment>
+
 const props = defineProps<{
   galgameId: number
   rootCommentId: number | null
-  refresh: () => void
 }>()
 
 const emit = defineEmits<{
   'update:rootCommentId': [value: number | null]
+  replyAdded: [reply: GalgameComment]
+  replyRemoved: [commentId: number, removedSubtreeSize: number, rootId: number]
 }>()
 
 const isOpen = computed({
@@ -29,14 +32,14 @@ const isOpen = computed({
   }
 })
 
-const thread = ref<SerializeObject<GalgameComment> | null>(null)
+const thread = ref<Node | null>(null)
 const isLoading = ref(false)
 
 const loadThread = async (rootId: number) => {
   isLoading.value = true
   thread.value = null
   try {
-    const data = await kunFetch<SerializeObject<GalgameComment>>(
+    const data = await kunFetch<Node>(
       `/galgame/${props.galgameId}/comment/thread/${rootId}`,
       { method: 'GET' }
     )
@@ -54,13 +57,39 @@ watch(
   }
 )
 
-// When the thread refreshes upstream (new reply posted via panel
-// inside the drawer), re-pull so the drawer stays in sync. We pass
-// down a wrapper that does both: refresh the page list and re-pull
-// the thread.
-const handleRefresh = () => {
-  props.refresh()
-  if (props.rootCommentId !== null) loadThread(props.rootCommentId)
+const handleNewComment = (newComment: GalgameComment) => {
+  emit('replyAdded', newComment)
+
+  if (!thread.value) return
+  const reply = newComment as Node
+  if (reply.parentCommentId == null) return
+  if (reply.rootCommentId !== thread.value.id) return
+
+  thread.value = prependReplyToRoot(thread.value, reply)
+}
+
+const handleReplyRemoved = (
+  commentId: number,
+  removedSize: number,
+  rootId: number
+) => {
+  emit('replyRemoved', commentId, removedSize, rootId)
+
+  if (!thread.value) return
+
+  // Root of the thread itself was deleted → close the drawer; the
+  // inline list's Container will splice it out of data.items.
+  if (commentId === thread.value.id) {
+    emit('update:rootCommentId', null)
+    return
+  }
+
+  const { node: updated, pruned } = removeReplyFromRoot(
+    thread.value,
+    commentId,
+    removedSize
+  )
+  if (pruned) thread.value = updated
 }
 </script>
 
@@ -69,8 +98,16 @@ const handleRefresh = () => {
     v-model="isOpen"
     placement="right"
     size="lg"
-    title="完整评论线程"
   >
+    <template #header>
+      <div class="flex flex-col">
+        <span class="text-default-800 text-base font-semibold">回复详情</span>
+        <span v-if="thread" class="text-default-500 text-xs">
+          共 {{ (thread.replyCount ?? 0) + 1 }} 条评论
+        </span>
+      </div>
+    </template>
+
     <KunLoading v-if="isLoading" />
 
     <KunNull
@@ -81,9 +118,9 @@ const handleRefresh = () => {
     <GalgameComment
       v-else
       :comment="thread"
-      :refresh="handleRefresh"
       :depth="0"
-      :max-depth="Infinity"
+      @reply-added="handleNewComment"
+      @reply-removed="handleReplyRemoved"
     />
   </KunDrawer>
 </template>

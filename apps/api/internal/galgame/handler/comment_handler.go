@@ -53,8 +53,8 @@ func (h *CommentHandler) CreateComment(c *fiber.Ctx) error {
 
 	var req struct {
 		Content         string `json:"content" validate:"required,min=1,max=1007"`
-		TargetUserID    *int   `json:"target_user_id"`
-		ParentCommentID *int   `json:"parent_comment_id"`
+		TargetUserID    *int   `json:"targetUserId"`
+		ParentCommentID *int   `json:"parentCommentId"`
 	}
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)

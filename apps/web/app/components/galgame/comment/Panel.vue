@@ -11,13 +11,16 @@
 //
 // The two modes share one component — only the wire payload diverges.
 const props = defineProps<{
-  refresh: () => void
   parentCommentId?: number | null
   targetUserId?: number
 }>()
 
 const emits = defineEmits<{
   close: []
+  // Optimistic update: emit the server-returned new comment so the
+  // parent (Container for roots, Comment for replies) can splice it
+  // into the tree in place without re-fetching the entire page.
+  submitted: [comment: GalgameComment]
 }>()
 
 const { commentToUserId } = storeToRefs(useTempGalgameCommentStore())
@@ -46,22 +49,25 @@ const handlePublishComment = async () => {
   }
 
   isPublishing.value = true
-  const result = await kunFetch(`/galgame/${galgameId.value}/comment`, {
-    method: 'POST',
-    body: {
-      galgameId: galgameId.value,
-      targetUserId: effectiveTargetUserId.value,
-      parentCommentId: props.parentCommentId ?? null,
-      content: content.value
+  const result = await kunFetch<GalgameComment>(
+    `/galgame/${galgameId.value}/comment`,
+    {
+      method: 'POST',
+      body: {
+        galgameId: galgameId.value,
+        targetUserId: effectiveTargetUserId.value,
+        parentCommentId: props.parentCommentId ?? null,
+        content: content.value
+      }
     }
-  })
+  )
   isPublishing.value = false
 
   if (result) {
     content.value = ''
     useMessage(10542, 'success')
+    emits('submitted', result)
     emits('close')
-    props.refresh()
   }
 }
 </script>
