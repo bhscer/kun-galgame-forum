@@ -4,6 +4,13 @@ const { showKUNGalgamePanel, messageStatus } = storeToRefs(
   useTempSettingStore()
 )
 
+// Single solid-primary "登录" button replaces the previous (登录 + 注册)
+// pair. Click opens KunAuthModal which offers both options as OAuth
+// jumps. Pre-L1 there were standalone /login + /register pages; both
+// were deleted in this refactor since the actual auth work is owned
+// by OAuth account-center anyway.
+const isAuthModalOpen = ref(false)
+
 const onKeydown = async (event: KeyboardEvent) => {
   if (event.ctrlKey && event.key.toLowerCase() === 'k') {
     event.preventDefault()
@@ -72,9 +79,16 @@ const statusClasses = computed(() => {
     </KunPopover>
 
     <template v-if="!id">
-      <KunButton size="lg" variant="light" href="/login">登录</KunButton>
-      <KunButton size="lg" href="/register">注册</KunButton>
+      <KunButton
+        size="lg"
+        color="primary"
+        @click="isAuthModalOpen = true"
+      >
+        登录
+      </KunButton>
     </template>
+
+    <KunAuthModal v-model="isAuthModalOpen" />
   </div>
 </template>
 

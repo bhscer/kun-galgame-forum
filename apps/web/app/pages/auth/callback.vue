@@ -68,8 +68,11 @@ onMounted(async () => {
   }
 })
 
+// After a failed callback, drop the user back at the homepage. The
+// top-bar 登录 button (KunAuthModal) is one click away — no point in
+// keeping a /login page that itself just shows the same modal.
 const redirectToLogin = () => {
-  setTimeout(() => navigateTo('/login'), 2000)
+  setTimeout(() => navigateTo('/'), 2000)
 }
 </script>
 

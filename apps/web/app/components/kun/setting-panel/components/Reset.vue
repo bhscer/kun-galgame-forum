@@ -11,7 +11,7 @@ const handleRecover = async () => {
   await usePersistSettingsStore().setKUNGalgameSettingsRecover()
 
   useMessage(10109, 'success')
-  await navigateTo('/login')
+  await navigateTo('/')
 }
 </script>
 

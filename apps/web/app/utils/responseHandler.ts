@@ -53,7 +53,7 @@ export const onResponse = async <R extends ResponseType>(
         expires: 1 / 1440
       })
 
-      await navigateTo('/login')
+      await navigateTo('/')
       return
     }
   }

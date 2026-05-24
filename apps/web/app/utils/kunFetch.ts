@@ -65,7 +65,7 @@ const handleApiError = async (code: number, message: string) => {
       Cookies.set('kun-is-navigate-to-login', 'navigated', {
         expires: 1 / 1440
       })
-      await navigateTo('/login')
+      await navigateTo('/')
     }
     return
   }

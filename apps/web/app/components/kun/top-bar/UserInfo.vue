@@ -33,7 +33,7 @@ const logOut = async () => {
   const res = await useComponentMessageStore().alert('您确定退出登录吗？')
   if (res) {
     useMessage(10110, 'success')
-    await navigateTo('/login')
+    await navigateTo('/')
     usePersistUserStore().resetUser()
   }
 }
