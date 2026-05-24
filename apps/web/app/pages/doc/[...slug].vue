@@ -23,7 +23,7 @@ useKunSeoMeta({
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-transparent="false"
+    :is-transparent="true"
     v-if="data"
     class-name="backdrop-blur-none pb-6 min-h-[calc(100dvh-6rem)]"
   >

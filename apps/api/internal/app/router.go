@@ -46,6 +46,7 @@ func (a *App) setupRoutes() {
 	api.Get("/user/:id/floating", a.UserHandler.GetFloatingCard)
 	api.Get("/user/:id", a.UserHandler.GetProfile)
 	api.Get("/user/:id/galgames", a.UserHandler.GetUserGalgames)
+	api.Get("/user/:id/galgame-comments", a.UserHandler.GetUserGalgameComments)
 	api.Get("/user/:id/topics", a.UserHandler.GetUserTopics)
 	api.Get("/user/:id/replies", a.UserHandler.GetUserReplies)
 	api.Get("/user/:id/comments", a.UserHandler.GetUserComments)

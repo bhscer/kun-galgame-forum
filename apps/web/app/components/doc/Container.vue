@@ -22,7 +22,7 @@ const articles = computed(() => articleResponse.value?.items || [])
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-transparent="false"
+    :is-transparent="true"
     class-name="min-h-[calc(100dvh-6rem)]"
     content-class="space-y-6"
   >

@@ -4,10 +4,33 @@ import {
   type KUN_USER_PAGE_GALGAME_TYPE
 } from '~/constants/user'
 
+// Single component, two rendering modes:
+//
+//   - galgame_like / galgame_favorite
+//     → GET /user/:id/galgames returns galgame cards (cover + name +
+//       counts). Same shape the rest of the site uses.
+//
+//   - galgame_comment / galgame_comment_target / galgame_comment_like
+//     → GET /user/:id/galgame-comments returns comment rows
+//       (content + author + created + parent galgame id). Rendered
+//       in a minimal comment-card style — same UX as
+//       /user/:id/comment/ for topic comments. Earlier this branch
+//       reused the galgame-card endpoint so you saw the parent
+//       galgame instead of the actual comment text.
 const props = defineProps<{
   userId: number
   type: (typeof KUN_USER_PAGE_GALGAME_TYPE)[number]
 }>()
+
+const COMMENT_TYPES = [
+  'galgame_comment',
+  'galgame_comment_target',
+  'galgame_comment_like'
+] as const
+
+const isCommentMode = computed(() =>
+  (COMMENT_TYPES as readonly string[]).includes(props.type)
+)
 
 const activeTab = ref(props.type)
 const pageData = reactive({
@@ -17,17 +40,44 @@ const pageData = reactive({
   userId: props.userId
 })
 
-const { data, status } = await useKunFetch<{
+interface UserGalgameCommentItem {
+  id: number
+  galgameId: number
+  content: string
+  contentHtml: string
+  user: { id: number; name: string; avatar: string }
+  created: string
+}
+
+// Two parallel fetches gated by `isCommentMode`. We swap the endpoint
+// (and the result shape) instead of branching client-side on a single
+// union response — keeps the wire payload tight and the typing clean.
+const { data: galgameData, status: galgameStatus } = await useKunFetch<{
   items: GalgameCard[]
   total: number
-}>(() => `/user/${props.userId}/galgames`, { query: pageData })
+}>(() => `/user/${props.userId}/galgames`, {
+  query: pageData,
+  watch: [() => pageData.page, () => pageData.type],
+  immediate: !isCommentMode.value,
+  server: !isCommentMode.value
+})
+
+const { data: commentData, status: commentStatus } = await useKunFetch<{
+  comments: UserGalgameCommentItem[]
+  total: number
+}>(() => `/user/${props.userId}/galgame-comments`, {
+  query: pageData,
+  watch: [() => pageData.page, () => pageData.type],
+  immediate: isCommentMode.value,
+  server: isCommentMode.value
+})
 </script>
 
 <template>
   <div class="space-y-3">
     <KunHeader
       name="Galgame 列表"
-      description="这是您的 Galgame 列表。什么你问我为什么评论还有历史都是 Galgame, 因为我还在咕咕咕! 八嘎!"
+      description="您与 Galgame 相关的互动：点赞 / 收藏的游戏, 以及在 Galgame 下的评论。"
     />
 
     <KunTab
@@ -36,20 +86,59 @@ const { data, status } = await useKunFetch<{
       size="sm"
     />
 
-    <div class="flex flex-col space-y-3" v-if="data && data.items.length">
-      <GalgameCard :is-transparent="true" :galgames="data.items" />
+    <!-- Galgame-card mode (galgame_like / galgame_favorite) -->
+    <template v-if="!isCommentMode">
+      <div
+        v-if="galgameData && galgameData.items.length"
+        class="flex flex-col space-y-3"
+      >
+        <GalgameCard :is-transparent="true" :galgames="galgameData.items" />
 
-      <KunPagination
-        v-if="data.total > pageData.limit"
-        v-model:current-page="pageData.page"
-        :total-page="Math.ceil(data.total / pageData.limit)"
-        :is-loading="status === 'pending'"
+        <KunPagination
+          v-if="galgameData.total > pageData.limit"
+          v-model:current-page="pageData.page"
+          :total-page="Math.ceil(galgameData.total / pageData.limit)"
+          :is-loading="galgameStatus === 'pending'"
+        />
+      </div>
+
+      <KunNull
+        v-if="galgameData && !galgameData.items.length"
+        description="这只笨蛋萝莉没有相关的 Galgame"
       />
-    </div>
+    </template>
 
-    <KunNull
-      v-if="data && !data.items.length"
-      description="这只笨蛋萝莉没有发布过任何 Galgame"
-    />
+    <!-- Comment-card mode (galgame_comment / galgame_comment_target / galgame_comment_like) -->
+    <template v-else>
+      <div
+        v-if="commentData && commentData.comments.length"
+        class="flex flex-col space-y-3"
+      >
+        <KunCard
+          v-for="c in commentData.comments"
+          :key="c.id"
+          :href="`/galgame/${c.galgameId}`"
+          content-class="space-y-2"
+        >
+          <KunContent :content="c.contentHtml" />
+          <div class="text-default-500 flex items-center justify-between text-sm">
+            <span>评论于 Galgame #{{ c.galgameId }}</span>
+            <span>{{ formatDate(c.created, { isShowYear: true }) }}</span>
+          </div>
+        </KunCard>
+
+        <KunPagination
+          v-if="commentData.total > pageData.limit"
+          v-model:current-page="pageData.page"
+          :total-page="Math.ceil(commentData.total / pageData.limit)"
+          :is-loading="commentStatus === 'pending'"
+        />
+      </div>
+
+      <KunNull
+        v-if="commentData && !commentData.comments.length"
+        description="这只笨蛋萝莉在 Galgame 下没有相关的评论"
+      />
+    </template>
   </div>
 </template>

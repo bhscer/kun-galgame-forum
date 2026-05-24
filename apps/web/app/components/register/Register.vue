@@ -1,72 +1,51 @@
 <script setup lang="ts">
-import { onKeyStroke } from '@vueuse/core'
-import { KUN_REGISTER_FORM_FIELD_MAP } from '~/constants/auth'
-import { registerFormItem } from './registerFormItem'
-import { checkForm, checkRegister } from './checkRegister'
-import { kungalgameResponseHandler } from '~/utils/responseHandler'
+// Per docs/integration/oauth/05-registration.md: registration is an
+// identity-tier operation and must go through OAuth's hosted register
+// page (oauth.kungal.com/auth/register). This component is the kungal-side
+// jump button. It mirrors components/login/Login.vue exactly — same PKCE
+// generation, same OAuth params, same sessionStorage keys — only the
+// destination differs: /auth/register?redirect=<authorize-url> instead of
+// /oauth/authorize. OAuth web registers + auto-logs-in the user, then
+// chains into /oauth/authorize (where auto_consent=true skips the consent
+// card for kungal), code lands on /auth/callback, kungal session created.
+//
+// The legacy in-app register form (own email-code flow → POST /api/user/register
+// → write to local prisma DB) was deleted as part of the unified-registration
+// migration.
+const config = useRuntimeConfig()
 
-const { isShowCapture, isCaptureSuccessful, codeSalt } = storeToRefs(
-  useComponentMessageStore()
-)
+const isLoading = ref(false)
 
-const isSendCode = ref(false)
-const isAgree = ref(false)
+const handleOAuthRegister = async () => {
+  isLoading.value = true
 
-const registerForm = reactive<Record<string, string>>({
-  name: '',
-  email: '',
-  password: '',
-  code: ''
-})
+  const codeVerifier = generateCodeVerifier()
+  const codeChallenge = await generateCodeChallenge(codeVerifier)
+  const state = generateState()
 
-const handleSendCode = () => {
-  const result = checkForm(
-    registerForm.name!,
-    registerForm.email!,
-    registerForm.password!
-  )
-  if (!result) {
-    return
-  }
+  sessionStorage.setItem('oauth_code_verifier', codeVerifier)
+  sessionStorage.setItem('oauth_state', state)
 
-  if (!isAgree.value) {
-    useMessage(10147, 'warn')
-    return
-  }
-
-  if (!isCaptureSuccessful.value) {
-    isShowCapture.value = true
-    return
-  }
-  isSendCode.value = true
-}
-
-const handleRegister = async () => {
-  if (!checkRegister(isSendCode.value, registerForm.code!)) {
-    return
-  }
-
-  const userInfo = await $fetch('/api/user/register', {
-    method: 'POST',
-    body: { codeSalt: codeSalt.value, ...registerForm },
-    watch: false,
-    ...kungalgameResponseHandler
+  const authorizeParams = new URLSearchParams({
+    client_id: config.public.oauthClientId as string,
+    redirect_uri: config.public.oauthRedirectUri as string,
+    response_type: 'code',
+    scope: 'openid profile',
+    state,
+    code_challenge: codeChallenge,
+    code_challenge_method: 'S256'
   })
 
-  if (userInfo) {
-    codeSalt.value = ''
-    useKunLoliInfo(`注册成功! 欢迎来到 ${kungal.name}`)
-    usePersistUserStore().setUserInfo(userInfo)
-    await navigateTo('/')
-  }
+  // After registration completes, OAuth web window.location.href's to this
+  // URL, which restarts the standard authorization-code flow on the now-
+  // authenticated session. For first-party kungal (auto_consent=true) the
+  // consent UI is silently skipped, code is issued, browser lands back on
+  // kungal/auth/callback.
+  const authorizeUrl = `${config.public.oauthServerUrl}/oauth/authorize?${authorizeParams}`
 
-  isCaptureSuccessful.value = false
+  const registerUrl = `${config.public.oauthFrontendUrl}/auth/register?redirect=${encodeURIComponent(authorizeUrl)}`
+  window.location.href = registerUrl
 }
-
-onKeyStroke('Enter', async (e) => {
-  e.preventDefault()
-  await handleRegister()
-})
 </script>
 
 <template>
@@ -78,7 +57,7 @@ onKeyStroke('Enter', async (e) => {
       :is-hoverable="false"
       class-name="w-88 p-8 select-none"
     >
-      <form class="flex h-full flex-col justify-center" @submit.prevent>
+      <div class="flex h-full flex-col justify-center">
         <div class="my-6">
           <h1 class="mb-6 flex items-center gap-2 text-2xl">
             <KunImage src="/favicon.webp" class-name="h-8 w-8 rounded-2xl" />
@@ -90,52 +69,25 @@ onKeyStroke('Enter', async (e) => {
           </p>
         </div>
 
-        <div v-for="item in registerFormItem" :key="item.index" class="w-full">
-          <label :for="item.value" class="text-sm">
-            {{ KUN_REGISTER_FORM_FIELD_MAP[item.placeholder] }}
-          </label>
-          <KunInput
-            :id="item.value"
-            v-model="registerForm[item.value]"
-            :autocomplete="item.autocomplete"
-            :type="item.type"
-            :class="cn('mt-2 mb-4 w-full', item.class)"
-          />
-        </div>
-
-        <KunVerificationCode
-          @click="handleSendCode"
-          class-name="absolute right-9 bottom-61.5"
-          :name="registerForm.name"
-          :email="registerForm.email!"
-          to="register"
-        />
-
-        <KunCheckBox
-          v-model="isAgree"
-          class-name="mb-4 flex items-center gap-2 text-sm"
-        >
-          <span>我同意</span>
-          <KunLink size="sm" to="/doc/agreement">用户协议</KunLink>
-          和
-          <KunLink size="sm" to="/doc/privacy">隐私政策</KunLink>
-        </KunCheckBox>
-
         <KunButton
-          @click="handleRegister"
-          class="bg-primary w-full rounded-[24px] text-base tracking-wider text-white uppercase"
+          @click="handleOAuthRegister"
+          :disabled="isLoading"
+          class="bg-primary w-full rounded-3xl text-base tracking-wider text-white uppercase"
         >
-          注册
+          {{ isLoading ? '跳转中...' : '使用 鲲 Galgame OAuth 注册' }}
         </KunButton>
-      </form>
 
-      <KunDivider class="my-4">
-        <span class="mx-2">或</span>
-      </KunDivider>
+        <p class="text-default-400 mt-4 text-center text-xs">
+          点击注册将跳转至鲲 Galgame OAuth 统一认证系统
+        </p>
 
-      <div class="flex flex-col gap-3">
-        <KunLink to="/login">登录</KunLink>
-        <KunLink to="/forgot">忘记密码</KunLink>
+        <KunDivider class="my-4">
+          <span class="mx-2">或</span>
+        </KunDivider>
+
+        <div class="flex flex-col gap-3 text-center">
+          <KunLink to="/login">已有账号？登录</KunLink>
+        </div>
       </div>
     </KunCard>
   </div>

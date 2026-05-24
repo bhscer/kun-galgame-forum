@@ -5,7 +5,7 @@ import { friendArray } from '~/config/friend'
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-transparent="false"
+    :is-transparent="true"
     content-class="space-y-6"
     class-name="pb-12"
   >
@@ -26,12 +26,20 @@ import { friendArray } from '~/config/friend'
       </h2>
 
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <!--
+          KunCard exposes the navigation target as `href` (renders the
+          card as a NuxtLink, which auto-detects external URLs). The
+          previous `:to` binding silently landed on the rendered <div>
+          as an unknown attr — that's why clicks did nothing. `target`
+          and `rel` pass through inheritAttrs onto the <a>.
+        -->
         <KunCard
           :dark-border="true"
           v-for="(friend, i) in friendGroup.value"
           :key="i"
-          :to="friend.link"
+          :href="friend.link"
           target="_blank"
+          rel="noopener noreferrer"
         >
           <div class="mb-2 flex items-center gap-2">
             <span class="text-lg font-bold">

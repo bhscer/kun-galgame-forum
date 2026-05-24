@@ -29,3 +29,23 @@ type UserGalgameCard struct {
 	Platform           []string    `json:"platform"`
 	Language           []string    `json:"language"`
 }
+
+// UserGalgameComment is an item in GET /api/user/:userID/galgame-comments —
+// the three "评论 / 被评论 / 点赞评论" sub-tabs on /user/:id/galgame/.
+// Mirrors the topic comment card shape: enough info to render content
+// + click-through to the parent galgame, no more.
+type UserGalgameComment struct {
+	ID          int       `json:"id"`
+	GalgameID   int       `json:"galgameId"`
+	Content     string    `json:"content"`
+	ContentHtml string    `json:"contentHtml"`
+	User        UserBrief `json:"user"`
+	Created     string    `json:"created"`
+}
+
+// UserGalgameCommentsRequest is the query for GET /api/user/:userID/galgame-comments.
+type UserGalgameCommentsRequest struct {
+	Type  string `query:"type" validate:"required"`
+	Page  int    `query:"page" validate:"min=1"`
+	Limit int    `query:"limit" validate:"min=1,max=50"`
+}

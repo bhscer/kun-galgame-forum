@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	galgameClient "kun-galgame-api/internal/galgame/client"
+	"kun-galgame-api/internal/infrastructure/markdown"
 	"kun-galgame-api/internal/user/dto"
 	"kun-galgame-api/internal/user/repository"
 	"kun-galgame-api/pkg/errors"
@@ -118,6 +119,49 @@ func (s *UserContentService) GetUserComments(ctx context.Context, userID int, re
 	items, total, err := s.userContentRepo.FindUserComments(userID, req.Type, req.Page, req.Limit)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户评论列表失败")
+	}
+	return items, total, nil
+}
+
+// GetUserGalgameComments returns the comment-card data for the
+// "评论 / 被评论 / 点赞评论" tabs under /user/:id/galgame/.
+// Author identity comes from userclient; content is rendered via the
+// project goldmark pipeline so the frontend can drop it into
+// <KunContent> consistently with the rest of the site.
+func (s *UserContentService) GetUserGalgameComments(
+	ctx context.Context,
+	userID int,
+	req *dto.UserGalgameCommentsRequest,
+) ([]dto.UserGalgameComment, int64, *errors.AppError) {
+	rows, total, err := s.userContentRepo.FindUserGalgameComments(userID, req.Type, req.Page, req.Limit)
+	if err != nil {
+		return nil, 0, errors.ErrInternal("获取用户 Galgame 评论列表失败")
+	}
+	if len(rows) == 0 {
+		return []dto.UserGalgameComment{}, total, nil
+	}
+
+	uidSet := make(map[int]struct{}, len(rows))
+	for _, r := range rows {
+		uidSet[r.UserID] = struct{}{}
+	}
+	uids := make([]int, 0, len(uidSet))
+	for id := range uidSet {
+		uids = append(uids, id)
+	}
+	userMap := s.userClient.Hydrate(ctx, uids)
+
+	items := make([]dto.UserGalgameComment, 0, len(rows))
+	for _, r := range rows {
+		u := userMap[r.UserID]
+		items = append(items, dto.UserGalgameComment{
+			ID:          r.ID,
+			GalgameID:   r.GalgameID,
+			Content:     r.Content,
+			ContentHtml: markdown.Render(r.Content),
+			User:        dto.UserBrief{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
+			Created:     r.CreatedAt,
+		})
 	}
 	return items, total, nil
 }

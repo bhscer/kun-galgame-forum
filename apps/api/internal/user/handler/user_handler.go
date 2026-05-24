@@ -181,6 +181,28 @@ func (h *UserHandler) GetUserResources(c *fiber.Ctx) error {
 	return response.OK(c, page)
 }
 
+// GetUserGalgameComments returns the "评论 / 被评论 / 点赞评论" comment
+// rows for the three sub-tabs under /user/:id/galgame/. Replaces the
+// old behaviour where these tabs surfaced the parent galgames as
+// galgame-cards — what the user actually wanted was the comment-card
+// view used by /user/:id/comment/.
+// GET /api/user/:userID/galgame-comments
+func (h *UserHandler) GetUserGalgameComments(c *fiber.Ctx) error {
+	userID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return response.Error(c, errors.ErrBadRequest("无效的用户 ID"))
+	}
+	var req dto.UserGalgameCommentsRequest
+	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
+		return response.Error(c, appErr)
+	}
+	items, total, appErr := h.userContentService.GetUserGalgameComments(c.Context(), userID, &req)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, fiber.Map{"comments": items, "total": total})
+}
+
 // GetUserRatings returns a user's galgame rating list.
 // GET /api/user/:userID/ratings
 func (h *UserHandler) GetUserRatings(c *fiber.Ctx) error {

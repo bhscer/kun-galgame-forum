@@ -79,6 +79,68 @@ func (r *UserContentRepository) FindUserGalgameIDs(userID int, queryType string,
 }
 
 // ──────────────────────────────────────────
+// Galgame comments (3 sub-tabs on /user/:id/galgame/)
+// ──────────────────────────────────────────
+
+// UserGalgameCommentRow is the flat shape returned by
+// FindUserGalgameComments. Identity (author display name / avatar) is
+// hydrated by the service layer via userclient — we keep just the
+// user_id here so the row can come back from a single Postgres query
+// without needing an OAuth round-trip per row.
+type UserGalgameCommentRow struct {
+	ID        int    `gorm:"column:id"`
+	GalgameID int    `gorm:"column:galgame_id"`
+	Content   string `gorm:"column:content"`
+	UserID    int    `gorm:"column:user_id"`
+	CreatedAt string `gorm:"column:created"`
+}
+
+// FindUserGalgameComments returns galgame_comment rows for the three
+// "评论 / 被评论 / 点赞评论" tabs on /user/:id/galgame/. Each branch
+// applies a different join to scope the comment set:
+//
+//   - galgame_comment        — comments the user themself authored
+//   - galgame_comment_target — comments by OTHER users whose
+//                              target_user_id is this user
+//   - galgame_comment_like   — comments this user has liked
+//
+// The result is paginated by galgame_comment.created DESC so the
+// freshest activity sits at the top of each tab.
+func (r *UserContentRepository) FindUserGalgameComments(
+	userID int, queryType string, page, limit int,
+) ([]UserGalgameCommentRow, int64, error) {
+	offset := (page - 1) * limit
+	var total int64
+
+	baseQuery := r.db.Table("galgame_comment").
+		Select("galgame_comment.id, galgame_comment.galgame_id, galgame_comment.content, galgame_comment.user_id, galgame_comment.created")
+
+	switch queryType {
+	case "galgame_comment":
+		baseQuery = baseQuery.Where("galgame_comment.user_id = ?", userID)
+	case "galgame_comment_target":
+		baseQuery = baseQuery.
+			Where("galgame_comment.target_user_id = ? AND galgame_comment.user_id != ?", userID, userID)
+	case "galgame_comment_like":
+		baseQuery = baseQuery.
+			Joins("JOIN galgame_comment_like ON galgame_comment_like.galgame_comment_id = galgame_comment.id").
+			Where("galgame_comment_like.user_id = ?", userID)
+	default:
+		return []UserGalgameCommentRow{}, 0, nil
+	}
+
+	baseQuery.Count(&total)
+
+	var rows []UserGalgameCommentRow
+	err := baseQuery.Order("galgame_comment.created DESC").
+		Offset(offset).Limit(limit).Scan(&rows).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return rows, total, nil
+}
+
+// ──────────────────────────────────────────
 // Topics
 // ──────────────────────────────────────────
 
