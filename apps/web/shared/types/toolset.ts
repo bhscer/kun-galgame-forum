@@ -53,24 +53,32 @@ export interface ToolsetLargeFileUploadResponse {
   key: string
   salt: string
   uploadId: string
-  partSize: number
-  urls: {
+  parts: {
     partNumber: number
-    url: string
+    presignedUrl: string
   }[]
 }
 
 export interface ToolsetSmallFileUploadResponse {
   key: string
   salt: string
-  url: string
+  presignedUrl: string
 }
 
 export interface ToolsetUploadCompleteResponse {
+  key: string
+  size: number
+}
+
+// Result emitted from the S3 upload widget once a full upload (init → PUT
+// → complete) succeeds. Combines the salt from the init step (the API only
+// returns it there) with the key+size from the complete step. Downstream
+// resource creation needs salt to bind the upload to a toolset_resource
+// row, and size to pre-fill the file size input.
+export interface ToolsetUploadResult {
   salt: string
   key: string
-  filesize: number
-  dailyToolsetUploadCount: number
+  size: number
 }
 
 export interface ToolsetResource {

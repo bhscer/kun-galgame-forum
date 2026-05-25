@@ -4,7 +4,7 @@ import { createToolsetResourceSchema } from '~/validations/toolset'
 const props = defineProps<{
   toolsetId: number
   type: 's3' | 'user'
-  uploadResult: ToolsetUploadCompleteResponse
+  uploadResult: ToolsetUploadResult
 }>()
 
 const emits = defineEmits<{
@@ -12,24 +12,74 @@ const emits = defineEmits<{
   onSuccess: [ToolsetResource]
 }>()
 
+// In s3 mode the file pointer is the S3 key returned by the upload
+// pipeline (resource.content gets stored as-is by the API and is treated
+// as immutable for s3-type rows). In user mode the user types a link
+// into the content textarea below.
+//
+// formData.size is stored as a raw byte-count string in s3 mode (e.g.
+// "1572864") and as a human-readable "1007MB" / "520KB" in user mode.
+// Why: Item.vue (the resource list) renders s3 rows by doing
+// `formatFileSize(Number(size))`, so persisting a pre-formatted string
+// would round-trip back through Number(...) as NaN. The display value
+// in this form is computed separately so users still see "1.5 MB"
+// rather than a raw byte integer.
 const formData = reactive({
   toolsetId: props.toolsetId,
-  salt: props.uploadResult.salt,
-  content: '',
-  size: props.uploadResult.filesize
-    ? formatFileSize(props.uploadResult.filesize)
-    : '',
+  type: props.type,
+  content: props.type === 's3' ? props.uploadResult.key : '',
+  size:
+    props.type === 's3' && props.uploadResult.size
+      ? String(props.uploadResult.size)
+      : '',
   code: '',
   password: '',
   note: ''
 })
 const isLoading = ref(false)
 
+const sizeDisplay = computed(() => {
+  if (props.type === 's3') {
+    const bytes = Number(formData.size)
+    return Number.isFinite(bytes) && bytes > 0 ? formatFileSize(bytes) : ''
+  }
+  return formData.size
+})
+
+const onSizeInput = (value: string) => {
+  // s3 mode field is disabled — only user mode writes back to formData.
+  if (props.type === 'user') {
+    formData.size = value
+  }
+}
+
+watch(
+  () => props.type,
+  () => {
+    formData.type = props.type
+    // Switching modes resets content + size — s3 rebinds to upload data,
+    // user mode clears so the inputs start empty for manual entry.
+    if (props.type === 's3') {
+      formData.content = props.uploadResult.key
+      formData.size = props.uploadResult.size
+        ? String(props.uploadResult.size)
+        : ''
+    } else {
+      formData.content = ''
+      formData.size = ''
+    }
+  }
+)
+
 watch(
   () => props.uploadResult,
   () => {
-    formData.salt = props.uploadResult.salt
-    formData.size = formatFileSize(props.uploadResult.filesize)
+    if (props.type === 's3') {
+      formData.content = props.uploadResult.key
+      formData.size = props.uploadResult.size
+        ? String(props.uploadResult.size)
+        : ''
+    }
   }
 )
 
@@ -66,7 +116,8 @@ const submitLink = async () => {
           : '确认上传完成后, 自动生成文件大小'
       "
       :disabled="props.type === 's3'"
-      v-model="formData.size"
+      :model-value="sizeDisplay"
+      @update:model-value="onSizeInput"
     />
     <KunInput
       v-if="props.type === 'user'"

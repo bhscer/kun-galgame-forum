@@ -79,17 +79,37 @@ export const getToolsetResourceDetailSchema = z.object({
   toolsetResourceId: z.coerce.number<number>().min(1).max(9999999)
 })
 
-export const createToolsetResourceSchema = z.object({
-  toolsetId: z.coerce.number<number>().min(1).max(9999999),
-  salt: z.string().max(7).optional().default(''),
-  content: z.string().max(1007).optional().default(''),
-  size: z.string().refine((s) => ResourceSizePattern.test(s), {
-    message: '大小格式不正确, 需要包含 KB, MB, GB'
-  }),
-  code: z.string().max(1007).optional().default(''),
-  password: z.string().max(1007).optional().default(''),
-  note: z.string().max(1007).optional().default('')
-})
+// In s3 mode the wire value of `size` is a raw byte-count string
+// ("1572864") — the resource list later parses it back via Number(...).
+// In user mode it must be a human-readable "1007MB" / "0721GB" because
+// the user types it themselves and Item.vue prints it verbatim.
+export const createToolsetResourceSchema = z
+  .object({
+    toolsetId: z.coerce.number<number>().min(1).max(9999999),
+    type: z.enum(['s3', 'user']),
+    content: z.string().max(1007).optional().default(''),
+    size: z.string(),
+    code: z.string().max(1007).optional().default(''),
+    password: z.string().max(1007).optional().default(''),
+    note: z.string().max(1007).optional().default('')
+  })
+  .superRefine((val, ctx) => {
+    if (val.type === 's3') {
+      if (!/^\d+$/.test(val.size)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['size'],
+          message: 's3 资源的大小必须是字节数'
+        })
+      }
+    } else if (!ResourceSizePattern.test(val.size)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['size'],
+        message: '大小格式不正确, 需要包含 KB, MB, GB'
+      })
+    }
+  })
 
 export const updateToolsetResourceSchema = z.object({
   toolsetResourceId: z.coerce.number<number>().min(1).max(9999999),
@@ -115,18 +135,17 @@ export const initToolsetUploadSchema = z.object({
     .regex(/\.(7z|zip|rar)$/i, {
       message: '文件名必须以 .7z, .zip 或 .rar 结尾'
     }),
-  filesize: z.coerce.number<number>().int().positive()
+  filesize: z.coerce.number<number>().int().positive(),
+  contentType: z.string().min(1).max(100)
 })
 
 export const completeToolsetUploadSchema = z.object({
   salt: z.string().min(7).max(7),
-  uploadId: z.string().optional(),
   parts: z
-    .array(z.object({ PartNumber: z.number().int().min(1), ETag: z.string() }))
+    .array(z.object({ partNumber: z.number().int().min(1), etag: z.string() }))
     .optional()
 })
 
 export const abortToolsetUploadSchema = z.object({
-  salt: z.string().min(7).max(7),
-  uploadId: z.string().min(1)
+  salt: z.string().min(7).max(7)
 })

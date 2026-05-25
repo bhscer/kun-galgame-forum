@@ -17,16 +17,18 @@ const { moemoepoint, dailyToolsetUploadCount } = storeToRefs(
 const MB = 1024 * 1024
 
 const mode = ref<'s3' | 'user'>('s3')
-const uploadResult = ref<ToolsetUploadCompleteResponse>({
+const uploadResult = ref<ToolsetUploadResult>({
   salt: '',
   key: '',
-  filesize: 0,
-  dailyToolsetUploadCount: 0
+  size: 0
 })
 
-const handleUploadSuccess = (value: ToolsetUploadCompleteResponse) => {
+// The API increments daily_toolset_upload_count by 1 (a count, not bytes)
+// on each successful complete — mirror that locally so the progress bar
+// reflects the new state without needing to refetch the user profile.
+const handleUploadSuccess = (value: ToolsetUploadResult) => {
   uploadResult.value = value
-  dailyToolsetUploadCount.value = value.dailyToolsetUploadCount
+  dailyToolsetUploadCount.value += 1
 }
 </script>
 

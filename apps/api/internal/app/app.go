@@ -132,7 +132,19 @@ func New(cfg *config.Config) *App {
 	// Infrastructure
 	db := database.NewPostgres(cfg.Database, cfg.Server.Mode)
 	rdb := cache.NewRedis(cfg.Redis)
+	// Two distinct buckets:
+	// - s3Client: image bed (R2). Stickers / inline images / image_service
+	//   fallbacks. Configured via S3_* env vars.
+	// - fileStorageClient: archive storage (B2). Toolset .7z/.zip/.rar
+	//   uploads via presigned URLs. Configured via FILE_STORAGE_* env
+	//   vars. B2 has different CORS rules from R2 (B2 supports browser
+	//   PUT preflight cleanly), so it must be a separate client even
+	//   though both implement the S3 API.
 	s3Client := storage.NewS3(cfg.S3)
+	fileStorageClient := storage.NewS3(cfg.FileStorage)
+	if fileStorageClient == nil {
+		slog.Warn("FILE_STORAGE_* 未配置, 工具集上传将不可用")
+	}
 	mailer := mail.NewMailer(cfg.Mail)
 
 	// Repositories
@@ -272,11 +284,11 @@ func New(cfg *config.Config) *App {
 	toolsetPracticalityRepo := toolsetRepo.NewPracticalityRepository(db)
 	toolsetPracticalitySvc := toolsetService.NewPracticalityService(toolsetPracticalityRepo)
 	toolsetCommentSvc := toolsetService.NewCommentService(toolsetCommentRepo, toolsetRepository, uc)
-	toolsetResourceSvc := toolsetService.NewResourceService(toolsetResourceRepo, toolsetRepository, s3Client, uc)
-	toolsetUploadSvc := toolsetService.NewUploadService(s3Client, rdb, db)
+	toolsetResourceSvc := toolsetService.NewResourceService(toolsetResourceRepo, toolsetRepository, fileStorageClient, uc)
+	toolsetUploadSvc := toolsetService.NewUploadService(fileStorageClient, rdb, db)
 	toolsetCoreSvc := toolsetService.NewToolsetService(
 		toolsetRepository, toolsetResourceRepo, toolsetCommentRepo, toolsetPracticalityRepo,
-		s3Client, uc, toolsetPracticalitySvc, toolsetCommentSvc,
+		fileStorageClient, uc, toolsetPracticalitySvc, toolsetCommentSvc,
 	)
 
 	// Handlers

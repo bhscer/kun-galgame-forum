@@ -45,11 +45,16 @@ type DeleteResourceRequest struct {
 // ──────────────────────────────────────────
 
 // ResourceDetailResponse is returned by GET /toolset/:id/resource/detail.
-// It embeds the raw resource model so the wire format matches the
-// pre-refactor response exactly.
+// Wire format is flat — model fields appear at the JSON top level via
+// struct embedding, with `user` joined as a sibling key. This matches
+// the pre-refactor nitro response (which used `prisma.include` to merge
+// the relation) and the frontend's ToolsetResourceDetail interface
+// (which extends ToolsetResource flatly). Re-nesting the model under a
+// `resource` key would silently break the frontend: content/created
+// would be undefined and downstream UI prints "NaN 年前" / "/undefined".
 type ResourceDetailResponse struct {
-	Resource model.GalgameToolsetResource `json:"resource"`
-	User     userModel.UserBrief          `json:"user"`
+	model.GalgameToolsetResource
+	User userModel.UserBrief `json:"user"`
 }
 
 // CreatedResourceResponse is the resource row returned by POST.

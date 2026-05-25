@@ -57,8 +57,8 @@ func (s *ResourceService) GetResourceDetail(
 	user := userModel.UserBrief{ID: uc.ID, Name: uc.Name, Avatar: uc.Avatar}
 
 	return &dto.ResourceDetailResponse{
-		Resource: *resource,
-		User:     user,
+		GalgameToolsetResource: *resource,
+		User:                   user,
 	}, nil
 }
 

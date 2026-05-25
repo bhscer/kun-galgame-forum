@@ -11,7 +11,8 @@ type Config struct {
 	Database    DatabaseConfig
 	Redis       RedisConfig
 	OAuth       OAuthConfig
-	S3          S3Config
+	S3          S3Config // image bed (R2) — stickers, small inline images
+	FileStorage S3Config // file storage (B2) — toolset archive uploads
 	Mail        MailConfig
 	Search      SearchConfig
 	CORS        CORSConfig
@@ -150,6 +151,19 @@ func Load() (*Config, error) {
 			Bucket:    envOrDefault("S3_BUCKET", ""),
 			AccessKey: envOrDefault("S3_ACCESS_KEY", ""),
 			SecretKey: envOrDefault("S3_SECRET_KEY", ""),
+		},
+		// Separate bucket for archive uploads (Backblaze B2 in production).
+		// Toolset .7z/.zip/.rar files live here; the image bed (R2) above
+		// is dedicated to small images. Falls back to the image-bed config
+		// so a dev box without B2 still serves a single bucket — but the
+		// CORS rules of the two buckets are usually different, so prod
+		// must set FILE_STORAGE_* explicitly.
+		FileStorage: S3Config{
+			Endpoint:  envOrDefault("FILE_STORAGE_ENDPOINT", ""),
+			Region:    envOrDefault("FILE_STORAGE_REGION", ""),
+			Bucket:    envOrDefault("FILE_STORAGE_BUCKET", ""),
+			AccessKey: envOrDefault("FILE_STORAGE_ACCESS_KEY", ""),
+			SecretKey: envOrDefault("FILE_STORAGE_SECRET_KEY", ""),
 		},
 		Mail: MailConfig{
 			Host:     envOrDefault("MAIL_HOST", ""),

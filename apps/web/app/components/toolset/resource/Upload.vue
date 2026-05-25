@@ -20,18 +20,30 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
-  onUploadSuccess: [ToolsetUploadCompleteResponse]
+  onUploadSuccess: [ToolsetUploadResult]
   onClose: []
 }>()
 
 const MB = 1024 * 1024
+// Matches the Go backend's upload_service.ChunkSize constant. Used for
+// pre-flight progress math; the API does the authoritative slicing when
+// it issues presigned URLs in its UploadLargeResponse.parts.
+const LARGE_CHUNK_SIZE = 5 * MB
 const UPLOAD_TRANSFER_FAILED = 'UPLOAD_TRANSFER_FAILED'
+const DEFAULT_BINARY_CONTENT_TYPE = 'application/octet-stream'
 type ToolsetUploadStatus =
   (typeof KUN_GALGAME_TOOLSET_UPLOAD_STATUS_CONST)[number]
 type ToolsetUploadPart = {
-  PartNumber: number
-  ETag: string
+  partNumber: number
+  etag: string
 }
+
+// Browsers don't always populate File.type for archive formats (.7z, .rar
+// in particular often come back empty). Fall back to a generic binary
+// content-type so the API's required-field validator passes and so the
+// presigned PUT later sets a sensible Content-Type header on S3.
+const resolveContentType = (file: File): string =>
+  file.type && file.type.length > 0 ? file.type : DEFAULT_BINARY_CONTENT_TYPE
 
 const { moemoepoint, dailyToolsetUploadCount, role } = storeToRefs(
   usePersistUserStore()
@@ -107,10 +119,7 @@ const notifyUploadTransferError = (error: unknown) => {
 }
 
 const abortLargeUpload = async (upload: ToolsetLargeFileUploadResponse) => {
-  const abortUploadData = {
-    salt: upload.salt,
-    uploadId: upload.uploadId
-  }
+  const abortUploadData = { salt: upload.salt }
   const isValidAbortUploadData = useKunSchemaValidator(
     abortToolsetUploadSchema,
     abortUploadData
@@ -209,10 +218,12 @@ const clearSelected = () => {
 
 const uploadSmall = async (f: File) => {
   uploadStatus.value = 'smallInit'
+  const contentType = resolveContentType(f)
   const initUploadData = {
     toolsetId: props.toolsetId,
     filename: f.name,
-    filesize: f.size
+    filesize: f.size,
+    contentType
   }
   const isValidInitUploadData = useKunSchemaValidator(
     initToolsetUploadSchema,
@@ -237,17 +248,17 @@ const uploadSmall = async (f: File) => {
   let isUploadComplete = false
   try {
     uploadStatus.value = 'smallUploading'
-    const uploadRes = await fetch(initRes.url, {
-      headers: { 'Content-Type': 'application/octet-stream' },
+    // Content-Type here must match the value sent during init — S3's
+    // presigned URL is signed against it.
+    const uploadRes = await fetch(initRes.presignedUrl, {
+      headers: { 'Content-Type': contentType },
       method: 'PUT',
       body: f
     })
     throwIfUploadFailed(uploadRes)
 
     uploadStatus.value = 'smallComplete'
-    const completeUploadData = {
-      salt: initRes.salt
-    }
+    const completeUploadData = { salt: initRes.salt }
     const isValidCompleteUploadData = useKunSchemaValidator(
       completeToolsetUploadSchema,
       completeUploadData
@@ -265,7 +276,11 @@ const uploadSmall = async (f: File) => {
     )
     if (done) {
       useMessage('上传成功', 'success')
-      emits('onUploadSuccess', done)
+      emits('onUploadSuccess', {
+        salt: initRes.salt,
+        key: done.key,
+        size: done.size
+      })
       progress.value = 100
       uploadStatus.value = 'complete'
       isUploadComplete = true
@@ -281,10 +296,12 @@ const uploadSmall = async (f: File) => {
 
 const uploadLarge = async (f: File) => {
   uploadStatus.value = 'largeInit'
+  const contentType = resolveContentType(f)
   const initUploadData = {
     toolsetId: props.toolsetId,
     filename: f.name,
-    filesize: f.size
+    filesize: f.size,
+    contentType
   }
   const isValidInitUploadData = useKunSchemaValidator(
     initToolsetUploadSchema,
@@ -309,22 +326,22 @@ const uploadLarge = async (f: File) => {
 
   let isUploadComplete = false
   try {
-    const { partSize, urls } = initRes
+    const partUrls = initRes.parts
     const parts: ToolsetUploadPart[] = []
 
     uploadStatus.value = 'largeUploading'
-    for (let i = 0; i < urls.length; i++) {
-      const currentPart = urls[i]
+    for (let i = 0; i < partUrls.length; i++) {
+      const currentPart = partUrls[i]
       if (!currentPart) {
         throw new Error('Missing upload part')
       }
 
-      const { partNumber, url } = currentPart
-      const start = (partNumber - 1) * partSize
-      const end = Math.min(start + partSize, f.size)
+      const { partNumber, presignedUrl } = currentPart
+      const start = (partNumber - 1) * LARGE_CHUNK_SIZE
+      const end = Math.min(start + LARGE_CHUNK_SIZE, f.size)
       const blob = f.slice(start, end)
-      const resp = await fetch(url, {
-        headers: { 'Content-Type': 'application/octet-stream' },
+      const resp = await fetch(presignedUrl, {
+        headers: { 'Content-Type': contentType },
         method: 'PUT',
         body: blob
       })
@@ -333,14 +350,13 @@ const uploadLarge = async (f: File) => {
       if (!etag) {
         throw new Error('Missing ETag')
       }
-      parts.push({ PartNumber: partNumber, ETag: etag })
-      progress.value = Math.round(((i + 1) / urls.length) * 100)
+      parts.push({ partNumber, etag })
+      progress.value = Math.round(((i + 1) / partUrls.length) * 100)
     }
 
     uploadStatus.value = 'largeComplete'
     const completeUploadData = {
       salt: initRes.salt,
-      uploadId: initRes.uploadId,
       parts
     }
     const isValidCompleteUploadData = useKunSchemaValidator(
@@ -360,7 +376,11 @@ const uploadLarge = async (f: File) => {
     )
     if (done) {
       useMessage('上传成功', 'success')
-      emits('onUploadSuccess', done)
+      emits('onUploadSuccess', {
+        salt: initRes.salt,
+        key: done.key,
+        size: done.size
+      })
       uploadStatus.value = 'complete'
       isUploadComplete = true
     }
