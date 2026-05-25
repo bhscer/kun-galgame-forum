@@ -11,26 +11,30 @@ import (
 // ──────────────────────────────────────────
 
 type CreateWebsiteRequest struct {
-	Name        string `json:"name" validate:"required,max=233"`
-	URL         string `json:"url" validate:"required,url,max=500"`
-	Description string `json:"description" validate:"max=1000"`
-	Icon        string `json:"icon" validate:"max=500"`
-	CategoryID  int    `json:"categoryId" validate:"required,min=1"`
-	AgeLimit    string `json:"ageLimit" validate:"required,oneof=all r18"`
-	Language    string `json:"language" validate:"max=10"`
-	TagIDs      []int  `json:"tag_ids"`
+	Name        string   `json:"name" validate:"required,max=233"`
+	URL         string   `json:"url" validate:"required,url,max=500"`
+	Description string   `json:"description" validate:"max=1000"`
+	Icon        string   `json:"icon" validate:"max=500"`
+	CategoryID  int      `json:"categoryId" validate:"required,min=1"`
+	AgeLimit    string   `json:"ageLimit" validate:"required,oneof=all r18"`
+	Language    string   `json:"language" validate:"max=10"`
+	TagIDs      []int    `json:"tag_ids"`
+	Domain      []string `json:"domain" validate:"max=10,dive,max=100"`
+	CreateTime  string   `json:"createTime" validate:"max=20"`
 }
 
 type UpdateWebsiteRequest struct {
-	WebsiteID   int    `json:"websiteId" validate:"required,min=1"`
-	Name        string `json:"name" validate:"required,max=233"`
-	URL         string `json:"url" validate:"required,url,max=500"`
-	Description string `json:"description" validate:"max=1000"`
-	Icon        string `json:"icon" validate:"max=500"`
-	CategoryID  int    `json:"categoryId" validate:"required,min=1"`
-	AgeLimit    string `json:"ageLimit" validate:"required,oneof=all r18"`
-	Language    string `json:"language" validate:"max=10"`
-	TagIDs      []int  `json:"tag_ids"`
+	WebsiteID   int      `json:"websiteId" validate:"required,min=1"`
+	Name        string   `json:"name" validate:"required,max=233"`
+	URL         string   `json:"url" validate:"required,url,max=500"`
+	Description string   `json:"description" validate:"max=1000"`
+	Icon        string   `json:"icon" validate:"max=500"`
+	CategoryID  int      `json:"categoryId" validate:"required,min=1"`
+	AgeLimit    string   `json:"ageLimit" validate:"required,oneof=all r18"`
+	Language    string   `json:"language" validate:"max=10"`
+	TagIDs      []int    `json:"tag_ids"`
+	Domain      []string `json:"domain" validate:"max=10,dive,max=100"`
+	CreateTime  string   `json:"createTime" validate:"max=20"`
 }
 
 type DeleteWebsiteRequest struct {

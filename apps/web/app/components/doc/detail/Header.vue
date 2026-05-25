@@ -66,7 +66,7 @@ const handleDelete = async () => {
 
       <div class="flex flex-wrap items-center gap-3 text-sm">
         <KunChip color="secondary">
-          {{ metadata.category?.title || `分类 #${metadata.category_id}` }}
+          {{ metadata.category?.title || `分类 #${metadata.categoryId}` }}
         </KunChip>
         <div class="text-default-500 flex items-center gap-1">
           <KunIcon name="lucide:eye" class="h-4 w-4" />
@@ -95,14 +95,13 @@ const handleDelete = async () => {
         </div>
       </div>
 
-      <!-- TODO: author is now author_id (flat), need separate fetch for user info -->
       <div class="flex items-center gap-3">
         <div class="flex flex-col gap-1">
           <div class="text-default-500 flex items-center gap-2">
             <KunIcon name="lucide:calendar-days" />
             <p class="text-small text-inherit">
               {{
-                formatDate(metadata.published_time, {
+                formatDate(metadata.publishedTime, {
                   isPrecise: true,
                   isShowYear: true
                 })

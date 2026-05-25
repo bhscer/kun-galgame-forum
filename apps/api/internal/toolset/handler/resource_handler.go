@@ -72,10 +72,14 @@ func (h *ResourceHandler) UpdateResource(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	if appErr := h.resourceService.UpdateResource(user.ID, user.Role, &req); appErr != nil {
+	updated, appErr := h.resourceService.UpdateResource(user.ID, user.Role, &req)
+	if appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return response.OKMessage(c, "资源更新成功")
+	// Return the refreshed row so the frontend can rebind the resource
+	// card immediately. An OKMessage-only response was leaving the UI
+	// with null base data after every save.
+	return response.OK(c, updated)
 }
 
 // DeleteResource deletes a resource.

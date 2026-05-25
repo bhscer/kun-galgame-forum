@@ -10,7 +10,7 @@ const { data: articleResponse } = await useKunFetch<DocArticleListResponse>(
     query: {
       page: 1,
       limit: 24,
-      orderBy: 'published_time',
+      orderBy: 'publishedTime',
       sortOrder: 'desc'
     }
   }
@@ -44,14 +44,14 @@ const articles = computed(() => articleResponse.value?.items || [])
       >
         <div class="flex items-center gap-3 text-sm">
           <KunChip color="default">
-            {{ post.category?.title || `分类 #${post.category_id}` }}
+            {{ post.category?.title || `分类 #${post.categoryId}` }}
           </KunChip>
 
           <time
-            :datetime="post.published_time?.toString()"
+            :datetime="post.publishedTime?.toString()"
             class="text-default-500"
           >
-            {{ formatDate(post.published_time, { isShowYear: true }) }}
+            {{ formatDate(post.publishedTime, { isShowYear: true }) }}
           </time>
         </div>
 

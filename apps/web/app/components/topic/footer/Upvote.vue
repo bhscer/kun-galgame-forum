@@ -21,10 +21,7 @@ const upvoteTopic = async () => {
 
   const result = await kunFetch<string>(
     `/topic/${props.topicId}/upvote`,
-    {
-      method: 'PUT',
-      body: { topicId: props.topicId }
-    }
+    { method: 'PUT' }
   )
 
   if (result) {

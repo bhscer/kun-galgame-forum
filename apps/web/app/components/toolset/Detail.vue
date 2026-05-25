@@ -89,7 +89,7 @@ const handleSetStar = async (val: number) => {
   isSubmittingRate.value = true
   await kunFetch(`/toolset/${props.id}/practicality`, {
     method: 'PUT',
-    body: { toolsetId: props.id, rate: val }
+    body: { rate: val }
   })
 
   useMessage(`已评分: ${val} 星`, 'success')

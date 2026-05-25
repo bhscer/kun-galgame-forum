@@ -53,17 +53,16 @@ export interface DocArticle {
   description: string
   banner: string
   status: number
-  is_pin: boolean
+  isPin: boolean
   view: number
-  published_time: Date | string
-  edited_time: Date | string | null
-  content_markdown: string
-  category_id: number
-  author_id: number
+  publishedTime: Date | string
+  editedTime: Date | string | null
+  contentMarkdown: string
+  categoryId: number
+  authorId: number
   category: DocArticleCategoryBrief
   created: Date | string
   updated: Date | string
-  // TODO: server-side markdown rendering
   contentHtml?: string
   toc?: DocTocLink[]
 }

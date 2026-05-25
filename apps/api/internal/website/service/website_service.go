@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 
 	"kun-galgame-api/internal/website/dto"
@@ -12,6 +13,21 @@ import (
 
 	"gorm.io/gorm"
 )
+
+// marshalDomain produces a jsonb-compatible payload for the website's
+// alternate-domain list. The column is a jsonb default '[]', so we
+// always emit a JSON array (never null) — nil input becomes "[]" so
+// downstream readers don't crash on json.Unmarshal.
+func marshalDomain(domains []string) json.RawMessage {
+	if len(domains) == 0 {
+		return json.RawMessage("[]")
+	}
+	b, err := json.Marshal(domains)
+	if err != nil {
+		return json.RawMessage("[]")
+	}
+	return json.RawMessage(b)
+}
 
 type WebsiteService struct {
 	websiteRepo  *repository.WebsiteRepository
@@ -66,6 +82,8 @@ func (s *WebsiteService) Create(userID int, req *dto.CreateWebsiteRequest) *erro
 			AgeLimit:    req.AgeLimit,
 			CategoryID:  req.CategoryID,
 			UserID:      userID,
+			CreateTime:  req.CreateTime,
+			Domain:      marshalDomain(req.Domain),
 		}
 		if err := s.websiteRepo.Create(tx, &website); err != nil {
 			return err
@@ -181,6 +199,8 @@ func (s *WebsiteService) Update(req *dto.UpdateWebsiteRequest) *errors.AppError 
 			"category_id": req.CategoryID,
 			"age_limit":   req.AgeLimit,
 			"language":    req.Language,
+			"create_time": req.CreateTime,
+			"domain":      marshalDomain(req.Domain),
 		})
 		s.tagRepo.ReplaceWebsiteTagRelations(tx, req.WebsiteID, req.TagIDs)
 		return nil

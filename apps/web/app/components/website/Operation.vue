@@ -66,9 +66,9 @@ const handleOpenUpdateModal = () => {
     ...rest,
     language: language as keyof KunLanguage,
     tag_ids: tags.map((t) => t.id),
-    category_id: category.id,
-    age_limit: ageLimit,
-    create_time: createTime,
+    categoryId: category.id,
+    ageLimit,
+    createTime,
     websiteId: props.website.id
   }
   showWebsiteModal.value = true

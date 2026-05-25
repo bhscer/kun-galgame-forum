@@ -19,7 +19,7 @@ type GetArticlesRequest struct {
 	Status     *int   `query:"status"`
 	IsPin      *bool  `query:"isPin"`
 	Keyword    string `query:"keyword"`
-	OrderBy    string `query:"orderBy" validate:"omitempty,oneof=published_time created view updated"`
+	OrderBy    string `query:"orderBy" validate:"omitempty,oneof=publishedTime created view updated"`
 	SortOrder  string `query:"sortOrder" validate:"omitempty,oneof=asc desc"`
 }
 
@@ -68,8 +68,9 @@ type ArticleCategoryBrief struct {
 	Title string `json:"title"`
 }
 
-// ArticleSummary is the list-row shape of GET /doc/article. Mirrors
-// model.DocArticle's JSON tags but adds the `category` relation.
+// ArticleSummary is the list-row shape of GET /doc/article. All fields
+// are camelCase to match the rest of the kungal API surface (post-doc
+// casing cleanup). The pre-refactor mixed-case response is gone.
 type ArticleSummary struct {
 	ID            int                  `json:"id"`
 	Title         string               `json:"title"`
@@ -78,37 +79,35 @@ type ArticleSummary struct {
 	Description   string               `json:"description"`
 	Banner        string               `json:"banner"`
 	Status        int                  `json:"status"`
-	IsPin         bool                 `json:"is_pin"`
+	IsPin         bool                 `json:"isPin"`
 	View          int                  `json:"view"`
-	PublishedTime time.Time            `json:"published_time"`
-	EditedTime    *time.Time           `json:"edited_time"`
-	CategoryID    int                  `json:"category_id"`
-	AuthorID      int                  `json:"author_id"`
+	PublishedTime time.Time            `json:"publishedTime"`
+	EditedTime    *time.Time           `json:"editedTime"`
+	CategoryID    int                  `json:"categoryId"`
+	AuthorID      int                  `json:"authorId"`
 	Category      ArticleCategoryBrief `json:"category"`
 	Created       time.Time            `json:"created"`
 	Updated       time.Time            `json:"updated"`
 }
 
 // ArticleDetailResponse is the shape of GET /doc/article/:slug.
-// Field names mirror the pre-refactor handler output exactly (mixing snake_case
-// from the GORM model with one camelCase field for the rendered HTML).
 type ArticleDetailResponse struct {
-	ID              int        `json:"id"`
-	Title           string     `json:"title"`
-	Slug            string     `json:"slug"`
-	Path            string     `json:"path"`
-	Description     string     `json:"description"`
-	Banner          string     `json:"banner"`
-	Status          int        `json:"status"`
-	IsPin           bool       `json:"is_pin"`
-	View            int        `json:"view"`
-	PublishedTime   time.Time  `json:"published_time"`
-	EditedTime      *time.Time `json:"edited_time"`
-	ContentMarkdown string               `json:"content_markdown"`
+	ID              int                  `json:"id"`
+	Title           string               `json:"title"`
+	Slug            string               `json:"slug"`
+	Path            string               `json:"path"`
+	Description     string               `json:"description"`
+	Banner          string               `json:"banner"`
+	Status          int                  `json:"status"`
+	IsPin           bool                 `json:"isPin"`
+	View            int                  `json:"view"`
+	PublishedTime   time.Time            `json:"publishedTime"`
+	EditedTime      *time.Time           `json:"editedTime"`
+	ContentMarkdown string               `json:"contentMarkdown"`
 	ContentHTML     string               `json:"contentHtml"`
 	Toc             []markdown.TocLink   `json:"toc"`
-	CategoryID      int                  `json:"category_id"`
-	AuthorID        int                  `json:"author_id"`
+	CategoryID      int                  `json:"categoryId"`
+	AuthorID        int                  `json:"authorId"`
 	Category        ArticleCategoryBrief `json:"category"`
 	Created         time.Time            `json:"created"`
 	Updated         time.Time            `json:"updated"`

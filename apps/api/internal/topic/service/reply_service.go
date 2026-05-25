@@ -230,6 +230,19 @@ func (s *ReplyService) UpdateReply(
 		return errors.ErrForbidden("您没有权限编辑此回复")
 	}
 
+	// Same guard as CreateReply — the DTO can't express "at least one of
+	// content / targets must be non-empty", so we enforce it here.
+	// Without this an empty PUT silently clears the reply body.
+	validTargets := 0
+	for _, t := range req.Targets {
+		if strings.TrimSpace(t.Content) != "" {
+			validTargets++
+		}
+	}
+	if strings.TrimSpace(req.Content) == "" && validTargets == 0 {
+		return errors.ErrBadRequest("回复内容不能为空")
+	}
+
 	now := time.Now()
 	txErr := s.replyRepo.DB().Transaction(func(tx *gorm.DB) error {
 		if err := s.replyRepo.UpdateReplyContent(tx, req.ReplyID, map[string]any{

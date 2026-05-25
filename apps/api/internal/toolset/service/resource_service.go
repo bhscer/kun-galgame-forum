@@ -116,14 +116,14 @@ func (s *ResourceService) CreateResource(
 func (s *ResourceService) UpdateResource(
 	userID, userRole int,
 	req *dto.UpdateResourceRequest,
-) *errors.AppError {
+) (*model.GalgameToolsetResource, *errors.AppError) {
 	resource, err := s.resourceRepo.FindByID(req.ResourceID)
 	if err != nil {
-		return errors.ErrNotFound("未找到该资源")
+		return nil, errors.ErrNotFound("未找到该资源")
 	}
 
 	if resource.UserID != userID && userRole < 2 {
-		return errors.ErrForbidden("您没有权限编辑此资源")
+		return nil, errors.ErrForbidden("您没有权限编辑此资源")
 	}
 
 	now := time.Now()
@@ -142,7 +142,17 @@ func (s *ResourceService) UpdateResource(
 	}
 
 	s.resourceRepo.UpdateFields(resource, updates)
-	return nil
+
+	// Re-read after the update so the returned row carries the fresh
+	// `edited` timestamp and any DB-side defaults. The frontend assigns
+	// this directly into the resource list item, so handing back stale
+	// fields would resurrect the NaN-time / undefined-link symptoms we
+	// just fixed.
+	refreshed, refreshErr := s.resourceRepo.FindByID(resource.ID)
+	if refreshErr != nil {
+		return nil, errors.ErrInternal("读取更新后的资源失败")
+	}
+	return refreshed, nil
 }
 
 // ──────────────────────────────────────────

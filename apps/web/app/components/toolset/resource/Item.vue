@@ -59,9 +59,16 @@ const links = computed(() => {
   return [`${kungal.domain.oss}/${detail.value.content}`]
 })
 
+// formData.size mirrors the wire format expected by
+// updateToolsetResourceSchema: s3 rows carry a byte-count string (the
+// API rejects formatted strings here, and ignores size changes for s3
+// anyway), user rows carry the kb/mb/gb-suffixed value typed by the
+// author. UI presentation goes through s3DisplaySize separately so the
+// user still sees "1.5 MB" rather than a raw byte count.
 const formData = reactive({
   toolsetResourceId: base.value.id,
-  size: base.value.type === 's3' ? s3DisplaySize.value : base.value.size || '',
+  type: base.value.type,
+  size: base.value.size || '',
   code: '',
   password: '',
   note: '',
@@ -85,8 +92,8 @@ const fetchResourceDetail = async () => {
   if (res) {
     detail.value = res
     formData.toolsetResourceId = res.id
-    formData.size =
-      base.value.type === 's3' ? s3DisplaySize.value : res.size || ''
+    formData.type = base.value.type
+    formData.size = base.value.size || ''
     formData.code = res.code || ''
     formData.password = res.password || ''
     formData.note = res.note || ''
@@ -129,6 +136,7 @@ const handleDelete = async () => {
 const handleSave = async () => {
   const body = {
     toolsetResourceId: base.value.id,
+    type: base.value.type,
     size: formData.size,
     code: formData.code,
     password: formData.password,

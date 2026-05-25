@@ -18,10 +18,7 @@ const handleUpdateTopicHideStatus = async () => {
 
   const result = await kunFetch<string>(
     `/topic/${props.topicId}/hide`,
-    {
-      method: 'PUT',
-      body: { topicId: props.topicId }
-    }
+    { method: 'PUT' }
   )
 
   if (result) {

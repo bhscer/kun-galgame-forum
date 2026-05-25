@@ -28,11 +28,18 @@ func (s *CategoryService) GetList(req *dto.GetCategoriesRequest) *CategoryListRe
 }
 
 // Create — POST /doc/category
-func (s *CategoryService) Create(category *model.DocCategory) *errors.AppError {
-	if err := s.categoryRepo.Create(category); err != nil {
-		return errors.ErrInternal("创建分类失败")
+func (s *CategoryService) Create(req *dto.CreateCategoryRequest) (*model.DocCategory, *errors.AppError) {
+	category := &model.DocCategory{
+		Slug:        req.Slug,
+		Title:       req.Title,
+		Description: req.Description,
+		Icon:        req.Icon,
+		SortOrder:   req.SortOrder,
 	}
-	return nil
+	if err := s.categoryRepo.Create(category); err != nil {
+		return nil, errors.ErrInternal("创建分类失败")
+	}
+	return category, nil
 }
 
 // Update — PUT /doc/category

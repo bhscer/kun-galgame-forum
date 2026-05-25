@@ -12,10 +12,7 @@ const favoriteCount = ref(props.favoriteCount)
 const toggleFavoriteGalgame = async () => {
   const result = await kunFetch<string>(
     `/topic/${props.topicId}/favorite`,
-    {
-      method: 'PUT',
-      body: { topicId: props.topicId }
-    }
+    { method: 'PUT' }
   )
 
   if (result) {

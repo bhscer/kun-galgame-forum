@@ -28,11 +28,16 @@ func (s *TagService) GetList(req *dto.GetTagsRequest) *TagListResult {
 }
 
 // Create — POST /doc/tag
-func (s *TagService) Create(tag *model.DocTag) *errors.AppError {
-	if err := s.tagRepo.Create(tag); err != nil {
-		return errors.ErrInternal("创建标签失败")
+func (s *TagService) Create(req *dto.CreateTagRequest) (*model.DocTag, *errors.AppError) {
+	tag := &model.DocTag{
+		Slug:        req.Slug,
+		Title:       req.Title,
+		Description: req.Description,
 	}
-	return nil
+	if err := s.tagRepo.Create(tag); err != nil {
+		return nil, errors.ErrInternal("创建标签失败")
+	}
+	return tag, nil
 }
 
 // Delete — DELETE /doc/tag

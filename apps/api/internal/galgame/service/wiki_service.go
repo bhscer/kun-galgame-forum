@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
+	"strings"
 
 	"kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/galgame/dto"
@@ -11,6 +12,53 @@ import (
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
 )
+
+// renameTaxonomyIDField translates the camelCase id field that the FE
+// (KunUI tag/official/engine edit modals) sends — `tagId`, `officialId`,
+// `engineId` — into the snake_case form (`tag_id`, `official_id`,
+// `engine_id`) that the wiki taxonomy PUT endpoints actually validate.
+//
+// Without this rename the wiki silently drops the unknown camelCase key,
+// fails to find the target row (required `*_id` missing), and the entire
+// edit flow breaks. We do it here rather than in the FE so the three
+// modals don't each need their own body-translation step (mirrors the
+// per-call manual translation we already do for series `galgame_ids`).
+//
+// Only PUTs need it (POST creates have no id field in the body, DELETEs
+// have no body). For unrecognized paths it returns the body untouched.
+func renameTaxonomyIDField(wikiPath string, body []byte) []byte {
+	if len(body) == 0 {
+		return body
+	}
+
+	var srcKey, dstKey string
+	switch {
+	case strings.HasPrefix(wikiPath, "/tag"):
+		srcKey, dstKey = "tagId", "tag_id"
+	case strings.HasPrefix(wikiPath, "/official"):
+		srcKey, dstKey = "officialId", "official_id"
+	case strings.HasPrefix(wikiPath, "/engine"):
+		srcKey, dstKey = "engineId", "engine_id"
+	default:
+		return body
+	}
+
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(body, &m); err != nil {
+		return body
+	}
+	v, ok := m[srcKey]
+	if !ok {
+		return body
+	}
+	delete(m, srcKey)
+	m[dstKey] = v
+	out, err := json.Marshal(m)
+	if err != nil {
+		return body
+	}
+	return out
+}
 
 // WikiService handles pass-through proxying to the wiki service and the
 // common "wiki + local user resolution" pattern used by galgame sub-routes.
@@ -59,6 +107,14 @@ func (s *WikiService) ProxyWrite(
 	contentType string,
 ) (json.RawMessage, *errors.AppError) {
 	wikiPath := client.ToWikiPath(gatewayPath)
+
+	// Translate FE camelCase taxonomy id (tagId/officialId/engineId) to
+	// the wiki's required snake_case form. Done on PUT only — see helper
+	// doc above for the rationale.
+	if method == "PUT" {
+		body = renameTaxonomyIDField(wikiPath, body)
+	}
+
 	if len(query) > 0 {
 		wikiPath += "?" + query.Encode()
 	}

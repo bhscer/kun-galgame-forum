@@ -12,8 +12,7 @@ const likesCount = ref(props.likeCount)
 
 const toggleLikeGalgame = async () => {
   const result = await kunFetch(`/galgame/${props.galgameId}/like`, {
-    method: 'PUT',
-    body: { galgameId: props.galgameId }
+    method: 'PUT'
   })
 
   if (result) {

@@ -111,16 +111,39 @@ export const createToolsetResourceSchema = z
     }
   })
 
-export const updateToolsetResourceSchema = z.object({
-  toolsetResourceId: z.coerce.number<number>().min(1).max(9999999),
-  content: z.string().max(1007).optional().default(''),
-  size: z.string().refine((s) => ResourceSizePattern.test(s), {
-    message: '大小格式不正确, 需要包含 KB, MB, GB'
-  }),
-  code: z.string().max(1007).optional().default(''),
-  password: z.string().max(1007).optional().default(''),
-  note: z.string().max(1007).optional().default('')
-})
+// Same byte-vs-formatted contract as createToolsetResourceSchema: in s3
+// mode `size` is a raw byte-count string (matches what the resource row
+// already stores), in user mode it's a kb/mb/gb-suffixed human string.
+// The s3 branch is mostly a guard for hygiene — the API ignores size
+// updates on s3 rows anyway — but rejecting impossible inputs here keeps
+// the schema honest and avoids silent acceptance of typo'd values.
+export const updateToolsetResourceSchema = z
+  .object({
+    toolsetResourceId: z.coerce.number<number>().min(1).max(9999999),
+    type: z.enum(['s3', 'user']),
+    content: z.string().max(1007).optional().default(''),
+    size: z.string(),
+    code: z.string().max(1007).optional().default(''),
+    password: z.string().max(1007).optional().default(''),
+    note: z.string().max(1007).optional().default('')
+  })
+  .superRefine((val, ctx) => {
+    if (val.type === 's3') {
+      if (!/^\d+$/.test(val.size)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['size'],
+          message: 's3 资源的大小必须是字节数'
+        })
+      }
+    } else if (!ResourceSizePattern.test(val.size)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['size'],
+        message: '大小格式不正确, 需要包含 KB, MB, GB'
+      })
+    }
+  })
 
 export const deleteToolsetResourceSchema = z.object({
   toolsetResourceId: z.coerce.number<number>().min(1).max(9999999)

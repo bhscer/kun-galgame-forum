@@ -6,17 +6,23 @@ export const getWebsiteDetailSchema = z.object({
   domain: z.string().max(100, '网站可用域名最多 100 个字符')
 })
 
+// Length caps mirror apps/api/internal/website/dto/website_dto.go —
+// keeping the FE stricter than the BE would silently reject perfectly
+// valid input that the API would otherwise accept.
+// Field names match the BE JSON tags exactly: `categoryId`, `ageLimit`,
+// `createTime` (camelCase) but `tag_ids` (snake_case — kept this way to
+// match the existing BE tag).
 export const createWebsiteSchema = z.object({
-  name: z.string().min(1, '网站名称不能为空').max(30, '网站名称最多 30 个字符'),
-  url: z.string().max(100, '网站 URL 最多 100 个字符'),
+  name: z.string().min(1, '网站名称不能为空').max(233, '网站名称最多 233 个字符'),
+  url: z.url('无效的网站 URL').max(500, '网站 URL 最多 500 个字符'),
   description: z
     .string()
     .min(10, '网站介绍最少 10 个字符')
-    .max(170, '网站介绍最多 170 个字符'),
-  icon: z.url('无效的图标 URL').max(300, '图标 URL 最多 300 个字符'),
+    .max(1000, '网站介绍最多 1000 个字符'),
+  icon: z.url('无效的图标 URL').max(500, '图标 URL 最多 500 个字符'),
   language: z.enum(['en-us', 'ja-jp', 'zh-cn', 'zh-tw']).default('zh-cn'),
-  age_limit: z.enum(['all', 'r18']).default('all'),
-  category_id: z.coerce.number<number>().min(1).max(9999999),
+  ageLimit: z.enum(['all', 'r18']).default('all'),
+  categoryId: z.coerce.number<number>().min(1).max(9999999),
   tag_ids: z
     .array(z.coerce.number<number>().min(1).max(9999999))
     .max(20, '网站最多 20 个标签')
@@ -24,9 +30,10 @@ export const createWebsiteSchema = z.object({
     .default([]),
   domain: z
     .array(z.string().max(100, '网站可用域名最多 100 个字符'))
+    .max(10, '可用域名最多 10 个')
     .optional()
     .default([]),
-  create_time: z.string().min(1).max(20, '网站创建时间描述最多 20 个字符')
+  createTime: z.string().max(20, '网站创建时间描述最多 20 个字符').default('')
 })
 
 export const updateWebsiteSchema = createWebsiteSchema.extend({
@@ -101,14 +108,6 @@ export const createCommentSchema = z.object({
     .min(1, '评论内容不能为空')
     .max(1007, '评论内容最多 1007 个字符'),
   parentId: z.coerce.number<number>().min(1).max(9999999).optional()
-})
-
-export const updateCommentSchema = z.object({
-  websiteId: z.coerce.number<number>().min(1).max(9999999),
-  content: z
-    .string()
-    .min(1, '评论内容不能为空')
-    .max(1007, '评论内容最多 1007 个字符')
 })
 
 export const deleteCommentSchema = z.object({

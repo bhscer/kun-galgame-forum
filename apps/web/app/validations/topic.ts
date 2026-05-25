@@ -101,6 +101,18 @@ export const getReplyDetailSchema = z.object({
   replyId: z.coerce.number<number>().min(1).max(9999999)
 })
 
+// `targets` is always an array (zod default is []), so checking
+// `data.targets` truthy was always passing — empty replies slipped past
+// the FE check and only got caught by the service-layer guard. Compare
+// length AND require at least one non-blank target if no body content.
+const isReplyBodyNonEmpty = (data: {
+  content: string
+  targets: { content: string }[]
+}) => {
+  if (data.content?.trim()) return true
+  return data.targets.some((t) => t.content.trim() !== '')
+}
+
 export const createReplySchema = z
   .object({
     topicId: z.coerce.number<number>().min(1).max(9999999),
@@ -118,8 +130,8 @@ export const createReplySchema = z
       )
       .max(10, { message: '最多只能同时回复 10 个目标' })
   })
-  .refine((data) => data.content?.trim() || data.targets, {
-    message: '至少需要提供回复内容或回复目标才可以进行更新'
+  .refine(isReplyBodyNonEmpty, {
+    message: '至少需要提供回复内容或回复目标'
   })
 
 export const updateReplySchema = z
@@ -139,8 +151,8 @@ export const updateReplySchema = z
       )
       .max(10, { message: '最多只能同时回复 10 个目标' })
   })
-  .refine((data) => data.content?.trim() || data.targets, {
-    message: '至少需要提供回复内容或回复目标才可以进行更新'
+  .refine(isReplyBodyNonEmpty, {
+    message: '至少需要提供回复内容或回复目标'
   })
 
 export const updateReplyPinSchema = z.object({

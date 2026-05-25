@@ -46,11 +46,11 @@ const getInitialFormData = (): WebsiteData => ({
   description: '',
   icon: '',
   language: 'zh-cn',
-  age_limit: 'all',
-  category_id: 1,
+  ageLimit: 'all',
+  categoryId: 1,
   tag_ids: [],
   domain: [],
-  create_time: '',
+  createTime: '',
   ...(props.initialData || {})
 })
 
@@ -111,7 +111,7 @@ const handleSubmit = () => {
         <KunInput v-model="formData.name" label="网站名称" required />
         <KunInput v-model="formData.icon" label="图标 URL" required />
         <KunInput
-          v-model="formData.create_time"
+          v-model="formData.createTime"
           label="网站创建时间"
           required
         />
@@ -128,12 +128,12 @@ const handleSubmit = () => {
           required
           auto-grow
           show-char-count
-          :maxlength="170"
+          :maxlength="1000"
           class-name="md:col-span-2"
         />
 
         <KunSelect
-          v-model="formData.category_id"
+          v-model="formData.categoryId"
           label="分类"
           :options="categoryOptions"
         />
@@ -145,7 +145,7 @@ const handleSubmit = () => {
         />
 
         <KunSelect
-          v-model="formData.age_limit"
+          v-model="formData.ageLimit"
           label="年龄限制"
           :options="ageLimitOptions"
         />

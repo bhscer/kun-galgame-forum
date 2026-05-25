@@ -14,7 +14,7 @@ const likeComment = async () => {
   }
 
   const result = await kunFetch<string>(
-    `/topic/${props.comment.id}/comment/like`,
+    `/topic/${props.comment.topicId}/comment/like`,
     {
       method: 'PUT',
       body: { commentId: props.comment.id }

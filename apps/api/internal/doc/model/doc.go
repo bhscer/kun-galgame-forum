@@ -36,14 +36,14 @@ type DocArticle struct {
 	Description     string     `gorm:"type:varchar(777);not null" json:"description"`
 	Banner          string     `gorm:"type:varchar(777);default:''" json:"banner"`
 	Status          int        `gorm:"default:1" json:"status"` // 0=draft, 1=published, 2=archived
-	IsPin           bool       `gorm:"column:is_pin;default:false" json:"is_pin"`
+	IsPin           bool       `gorm:"column:is_pin;default:false" json:"isPin"`
 	View            int        `gorm:"default:0" json:"view"`
-	PublishedTime   time.Time  `gorm:"column:published_time;autoCreateTime" json:"published_time"`
-	EditedTime      *time.Time `gorm:"column:edited_time" json:"edited_time"`
-	ContentMarkdown string     `gorm:"column:content_markdown;type:varchar(100007);not null" json:"content_markdown"`
+	PublishedTime   time.Time  `gorm:"column:published_time;autoCreateTime" json:"publishedTime"`
+	EditedTime      *time.Time `gorm:"column:edited_time" json:"editedTime"`
+	ContentMarkdown string     `gorm:"column:content_markdown;type:varchar(100007);not null" json:"contentMarkdown"`
 
-	CategoryID int `gorm:"column:category_id;not null" json:"category_id"`
-	AuthorID   int `gorm:"column:author_id;not null" json:"author_id"`
+	CategoryID int `gorm:"column:category_id;not null" json:"categoryId"`
+	AuthorID   int `gorm:"column:author_id;not null" json:"authorId"`
 
 	CreatedAt time.Time `gorm:"column:created" json:"created"`
 	UpdatedAt time.Time `gorm:"column:updated" json:"updated"`

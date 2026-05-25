@@ -17,8 +17,7 @@ const likeCount = ref(props.likeCount)
 const toggleLike = async () => {
   const result = props.topicId
     ? await kunFetch<string>(`/topic/${props.topicId}/like`, {
-        method: 'PUT',
-        body: { topicId: props.topicId }
+        method: 'PUT'
       })
     : // Reply-scoped variant: the path needs a valid :tid. Using
       // `props.topicId` here produced `/topic/undefined/reply/like` —

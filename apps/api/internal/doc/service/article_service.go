@@ -34,8 +34,27 @@ type ArticleListResult struct {
 	Total int64
 }
 
+// orderByColumn maps the camelCase wire enum (validated by the DTO) onto
+// the actual DB column name used by GORM's Order clause. Without this
+// translation a request like `?orderBy=publishedTime` would emit
+// `ORDER BY publishedTime DESC` and PostgreSQL would 42703 — the column
+// is `published_time`. Doing the mapping here keeps the HTTP surface
+// consistent with the rest of the API (camelCase) without renaming the
+// DB column.
+var orderByColumn = map[string]string{
+	"publishedTime": "published_time",
+	"created":       "created",
+	"view":          "view",
+	"updated":       "updated",
+}
+
 func (s *ArticleService) GetList(req *dto.GetArticlesRequest) *ArticleListResult {
 	if req.OrderBy == "" {
+		req.OrderBy = "publishedTime"
+	}
+	if col, ok := orderByColumn[req.OrderBy]; ok {
+		req.OrderBy = col
+	} else {
 		req.OrderBy = "published_time"
 	}
 	if req.SortOrder == "" {

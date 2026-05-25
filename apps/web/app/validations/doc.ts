@@ -64,7 +64,7 @@ export const deleteDocTagSchema = z.object({
 })
 
 const docArticleOrderFields = [
-  'published_time',
+  'publishedTime',
   'created',
   'view',
   'updated'
@@ -76,7 +76,7 @@ export const getDocArticleListSchema = z.object({
   status: z.coerce.number<number>().int().min(0).max(2).optional(),
   isPin: z.coerce.boolean().optional(),
   tagId: z.coerce.number<number>().min(1).max(9999999).optional(),
-  orderBy: z.enum(docArticleOrderFields).default('published_time'),
+  orderBy: z.enum(docArticleOrderFields).default('publishedTime'),
   sortOrder: z.enum(['asc', 'desc']).default('desc')
 })
 

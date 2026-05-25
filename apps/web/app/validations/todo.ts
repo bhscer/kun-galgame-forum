@@ -11,12 +11,22 @@ export const createTodoSchema = z.object({
   type: z.enum(KUN_TODO_TYPE_CONST),
   content_en_us: z
     .string()
-    .max(1000, '更新简体英语待办最多 1000 个字符')
+    .max(1000, '英语待办最多 1000 个字符')
+    .optional()
+    .default(''),
+  content_ja_jp: z
+    .string()
+    .max(1000, '日语待办最多 1000 个字符')
     .optional()
     .default(''),
   content_zh_cn: z
     .string()
-    .max(1000, '更新简体中文待办最多 1000 个字符')
+    .max(1000, '简体中文待办最多 1000 个字符')
+    .optional()
+    .default(''),
+  content_zh_tw: z
+    .string()
+    .max(1000, '繁体中文待办最多 1000 个字符')
     .optional()
     .default('')
 })

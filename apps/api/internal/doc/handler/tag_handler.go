@@ -2,7 +2,6 @@ package handler
 
 import (
 	"kun-galgame-api/internal/doc/dto"
-	"kun-galgame-api/internal/doc/model"
 	"kun-galgame-api/internal/doc/service"
 	"kun-galgame-api/internal/middleware"
 	"kun-galgame-api/pkg/response"
@@ -38,14 +37,15 @@ func (h *TagHandler) CreateTag(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	var req model.DocTag
+	var req dto.CreateTagRequest
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.tagService.Create(&req); appErr != nil {
+	created, appErr := h.tagService.Create(&req)
+	if appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return response.OK(c, req)
+	return response.OK(c, created)
 }
 
 // UpdateTag updates an existing doc tag.

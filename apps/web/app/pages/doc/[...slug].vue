@@ -14,9 +14,9 @@ useKunSeoMeta({
   description: data.value?.description,
   ogImage: data.value?.banner,
   ogType: 'article',
-  articleAuthor: [`${kungal.domain.main}/user/${data.value?.author_id}/info`],
-  articlePublishedTime: data.value?.published_time?.toString(),
-  articleModifiedTime: data.value?.edited_time?.toString()
+  articleAuthor: [`${kungal.domain.main}/user/${data.value?.authorId}/info`],
+  articlePublishedTime: data.value?.publishedTime?.toString(),
+  articleModifiedTime: data.value?.editedTime?.toString()
 })
 </script>
 

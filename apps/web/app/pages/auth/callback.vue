@@ -32,10 +32,12 @@ onMounted(async () => {
     return
   }
 
+  // Matches BE dto.UserProfile exactly. Email is owned by OAuth and
+  // NOT returned here — the frontend fetches it from OAuth's
+  // /oauth/userinfo on demand (per the BE comment on UserProfile).
   const result = await kunFetch<{
     id: number
     name: string
-    email: string
     avatar: string
     role: number
     moemoepoint: number

@@ -537,11 +537,26 @@ export const getGalgameCommentSchema = z.object({
 
 export const createGalgameCommentSchema = z.object({
   galgameId: z.coerce.number<number>().min(1).max(9999999),
-  targetUserId: z.coerce.number<number>().min(1).max(9999999),
+  // Root comments target the galgame itself rather than another user, so
+  // the BE accepts a missing/null targetUserId (`*int` on the DTO).
+  // Marking it required here previously made KunMilkdown root-comment
+  // submits fail FE-side before ever hitting the API.
+  targetUserId: z.coerce
+    .number<number>()
+    .min(1)
+    .max(9999999)
+    .optional()
+    .nullable(),
+  parentCommentId: z.coerce
+    .number<number>()
+    .min(1)
+    .max(9999999)
+    .optional()
+    .nullable(),
   content: z
     .string()
     .min(1)
-    .max(1007, { message: 'Galgame 评论最多 1007 个字符' })
+    .max(5000, { message: 'Galgame 评论最多 5000 个字符' })
 })
 
 export const deleteGalgameCommentSchema = z.object({

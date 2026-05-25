@@ -24,7 +24,7 @@ const likeComment = async () => {
     `/galgame/${props.comment.galgameId}/comment/like`,
     {
       method: 'PUT',
-      body: { galgameCommentId: props.comment.id }
+      body: { commentId: props.comment.id }
     }
   )
 

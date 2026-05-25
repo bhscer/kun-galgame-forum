@@ -54,7 +54,7 @@ func (s *MessageService) GetMessages(
 		})
 	}
 
-	return &dto.MessageListResponse{Messages: messages, TotalCount: total}, nil
+	return &dto.MessageListResponse{Messages: messages, Total: total}, nil
 }
 
 func (s *MessageService) DeleteMessage(ctx context.Context, userID, messageID int) *errors.AppError {

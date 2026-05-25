@@ -15,8 +15,7 @@ const handleDeleteMessage = async (messageId: number) => {
   }
 
   const result = await kunFetch(`/message/${messageId}`, {
-    method: 'DELETE',
-    query: { messageId }
+    method: 'DELETE'
   })
 
   if (result) {

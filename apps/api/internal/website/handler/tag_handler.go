@@ -3,7 +3,6 @@ package handler
 import (
 	"kun-galgame-api/internal/middleware"
 	"kun-galgame-api/internal/website/dto"
-	"kun-galgame-api/internal/website/model"
 	"kun-galgame-api/internal/website/service"
 	"kun-galgame-api/pkg/response"
 	"kun-galgame-api/pkg/utils"
@@ -43,11 +42,11 @@ func (h *TagHandler) CreateWebsiteTag(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	var tag model.GalgameWebsiteTag
-	if appErr := utils.ParseAndValidate(c, &tag); appErr != nil {
+	var req dto.CreateWebsiteTagRequest
+	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.tagService.Create(&tag); appErr != nil {
+	if appErr := h.tagService.Create(&req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 	return response.OKMessage(c, "标签创建成功")

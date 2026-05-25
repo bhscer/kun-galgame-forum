@@ -71,7 +71,13 @@ func (s *TagService) GetDetail(name string) (*dto.WebsiteTagDetailResponse, *err
 // Create — POST /website-tag
 // ──────────────────────────────────────────
 
-func (s *TagService) Create(tag *model.GalgameWebsiteTag) *errors.AppError {
+func (s *TagService) Create(req *dto.CreateWebsiteTagRequest) *errors.AppError {
+	tag := &model.GalgameWebsiteTag{
+		Name:        req.Name,
+		Label:       req.Label,
+		Description: req.Description,
+		Level:       req.Level,
+	}
 	if err := s.tagRepo.Create(tag); err != nil {
 		return errors.ErrInternal("创建标签失败")
 	}

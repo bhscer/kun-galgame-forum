@@ -39,6 +39,7 @@ export interface ToolsetDetail {
   ratingCounts: Record<number, number>
   commentCount: number
   commentPreview: ToolsetComment[]
+  contributors: KunUser[]
 }
 
 export interface ToolsetRating {

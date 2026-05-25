@@ -73,6 +73,41 @@ const sendMessage = async () => {
   }
 }
 
+// Sender-only recall: server validates ownership, but we still gate
+// locally so we don't fire the request for foreign messages or already
+// recalled ones (matches the canRecall guard inside Item.vue).
+const handleRecallContextMenu = async (payload: {
+  event: MouseEvent
+  message: ChatMessage
+}) => {
+  const target = payload.message
+  if (target.sender.id !== currentUserId || target.isRecall) {
+    return
+  }
+
+  const confirmed = await useComponentMessageStore().alert(
+    '撤回这条消息?',
+    '撤回后对方将看到 “XX 撤回了一条消息”, 内容不可恢复'
+  )
+  if (!confirmed) {
+    return
+  }
+
+  const ok = await kunFetch<string>('/message/chat/recall', {
+    method: 'POST',
+    body: { messageId: target.id }
+  })
+  if (!ok) {
+    return
+  }
+
+  const idx = messages.value.findIndex((m) => m.id === target.id)
+  if (idx !== -1) {
+    messages.value[idx] = { ...messages.value[idx]!, isRecall: true }
+  }
+  useMessage('撤回成功', 'success')
+}
+
 const handleLoadHistoryMessages = async () => {
   if (!historyContainer.value) {
     return
@@ -142,6 +177,7 @@ onBeforeUnmount(() => {
       :key="message.id"
       :message="message"
       :is-sent="message.sender.id === currentUserId"
+      @context-menu="handleRecallContextMenu"
     />
 
     <div v-if="!messages.length" class="text-default-500 py-10 text-center">

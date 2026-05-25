@@ -6,12 +6,23 @@ import "time"
 // Requests
 // ──────────────────────────────────────────
 
+// CreateWebsiteTagRequest is the input for POST /website-tag. Bound to a
+// dedicated DTO instead of model.GalgameWebsiteTag so we can enforce
+// length / required constraints up front — the model has no validate
+// tags and would silently accept empty names + 5000-char descriptions.
+type CreateWebsiteTagRequest struct {
+	Name        string `json:"name" validate:"required,min=1,max=30"`
+	Label       string `json:"label" validate:"required,min=1,max=30"`
+	Description string `json:"description" validate:"max=300"`
+	Level       int    `json:"level" validate:"min=0,max=20"`
+}
+
 type UpdateWebsiteTagRequest struct {
 	TagID       int    `json:"tagId" validate:"required,min=1"`
-	Name        string `json:"name" validate:"required"`
-	Label       string `json:"label"`
-	Description string `json:"description"`
-	Level       int    `json:"level"`
+	Name        string `json:"name" validate:"required,min=1,max=30"`
+	Label       string `json:"label" validate:"required,min=1,max=30"`
+	Description string `json:"description" validate:"max=300"`
+	Level       int    `json:"level" validate:"min=0,max=20"`
 }
 
 type DeleteWebsiteTagRequest struct {

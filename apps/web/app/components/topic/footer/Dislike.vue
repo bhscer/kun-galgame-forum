@@ -14,8 +14,7 @@ const dislikeCount = ref(props.dislikeCount)
 const toggleDislike = async () => {
   const result = props.topicId
     ? await kunFetch<string>(`/topic/${props.topicId}/dislike`, {
-        method: 'PUT',
-        body: { topicId: props.topicId }
+        method: 'PUT'
       })
     : // Reply branch: same URL-shape fix as Like.vue — avoid
       // `/topic/undefined/reply/dislike` from an undefined topicId.
