@@ -47,6 +47,19 @@ func (r *CategoryRepository) UpdateFields(id int, updates map[string]any) {
 	r.db.Model(&model.DocCategory{}).Where("id = ?", id).Updates(updates)
 }
 
+// CountArticles returns how many articles reference the given category.
+// Used by the service layer to block deletion of a non-empty category —
+// the DB has `ON DELETE CASCADE` on doc_article.category_id (per the
+// legacy Prisma schema), so a naive DELETE would silently take every
+// article in that category down with it.
+func (r *CategoryRepository) CountArticles(categoryID int) int64 {
+	var count int64
+	r.db.Model(&model.DocArticle{}).
+		Where("category_id = ?", categoryID).
+		Count(&count)
+	return count
+}
+
 // DeleteByID deletes a category row.
 func (r *CategoryRepository) DeleteByID(id int) {
 	r.db.Delete(&model.DocCategory{}, id)

@@ -1,6 +1,8 @@
 package service
 
 import (
+	"fmt"
+
 	"kun-galgame-api/internal/doc/dto"
 	"kun-galgame-api/internal/doc/model"
 	"kun-galgame-api/internal/doc/repository"
@@ -55,7 +57,17 @@ func (s *CategoryService) Update(req *dto.UpdateCategoryRequest) *errors.AppErro
 }
 
 // Delete — DELETE /doc/category
+//
+// Guards against the DB-level CASCADE: the legacy Prisma schema declared
+// `doc_article.category_id` with `onDelete: Cascade`, so a raw DELETE
+// here would silently take down every article in the category. Reject
+// before that happens — admins must move / delete articles first.
 func (s *CategoryService) Delete(categoryID int) *errors.AppError {
+	if count := s.categoryRepo.CountArticles(categoryID); count > 0 {
+		return errors.ErrBadRequest(
+			fmt.Sprintf("该分类下还有 %d 篇文章, 请先移动或删除文章后再删除分类", count),
+		)
+	}
 	s.categoryRepo.DeleteByID(categoryID)
 	return nil
 }
