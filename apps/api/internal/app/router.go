@@ -80,9 +80,6 @@ func (a *App) setupRoutes() {
 	// Admin setting (public read)
 	api.Get("/admin/setting/register", a.AdminSettingHandler.GetRegisterSetting)
 
-	// Message (public)
-	api.Get("/message/admin", a.MessageHandler.GetSystemMessages)
-
 	// Activity (public)
 	api.Get("/activity", a.ActivityHandler.GetActivity)
 	api.Get("/activity/timeline", a.ActivityHandler.GetTimeline)
@@ -224,6 +221,7 @@ func (a *App) setupRoutes() {
 	authed.Get("/message", a.MessageHandler.GetMessages)
 	authed.Delete("/message/:id", a.MessageHandler.DeleteMessage)
 	authed.Put("/message/system/read", a.MessageHandler.MarkAllRead)
+	authed.Get("/message/admin", a.MessageHandler.GetSystemMessages)
 	authed.Put("/message/admin/read", a.MessageHandler.MarkAdminRead)
 	authed.Get("/message/nav/system", a.MessageHandler.GetNavSummary)
 	authed.Get("/message/nav/contact", a.MessageChatHandler.GetNavContact)

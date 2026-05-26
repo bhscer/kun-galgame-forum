@@ -24,13 +24,16 @@ type Message struct {
 func (Message) TableName() string { return "message" }
 
 // SystemMessage is a broadcast from admin with multi-language content.
+//
+// Per-user read state lives in SystemMessageReadState (HWM cursor) —
+// the old row-level `status` field was dropped in migration 012 because
+// it was global across all users (one click marked everyone as read).
 type SystemMessage struct {
-	ID            int    `gorm:"primaryKey;autoIncrement" json:"id"`
-	ContentEnUS   string `gorm:"column:content_en_us;type:text;default:''" json:"content_en_us"`
-	ContentJaJP   string `gorm:"column:content_ja_jp;type:text;default:''" json:"content_ja_jp"`
-	ContentZhCN   string `gorm:"column:content_zh_cn;type:text;default:''" json:"content_zh_cn"`
-	ContentZhTW   string `gorm:"column:content_zh_tw;type:text;default:''" json:"content_zh_tw"`
-	Status        string `gorm:"default:'unread'" json:"status"`
+	ID          int    `gorm:"primaryKey;autoIncrement" json:"id"`
+	ContentEnUS string `gorm:"column:content_en_us;type:text;default:''" json:"content_en_us"`
+	ContentJaJP string `gorm:"column:content_ja_jp;type:text;default:''" json:"content_ja_jp"`
+	ContentZhCN string `gorm:"column:content_zh_cn;type:text;default:''" json:"content_zh_cn"`
+	ContentZhTW string `gorm:"column:content_zh_tw;type:text;default:''" json:"content_zh_tw"`
 
 	UserID int `gorm:"column:user_id;not null" json:"user_id"` // sender (admin)
 
@@ -39,6 +42,17 @@ type SystemMessage struct {
 }
 
 func (SystemMessage) TableName() string { return "system_message" }
+
+// SystemMessageReadState is the per-user "read up to" cursor for the
+// admin broadcast stream. Mirrors WikiMessageReadState (model and
+// migration 008) — see migrations/012 for the rationale.
+type SystemMessageReadState struct {
+	UserID            int       `gorm:"column:user_id;primaryKey" json:"user_id"`
+	LastReadMessageID int64     `gorm:"column:last_read_message_id;default:0" json:"last_read_message_id"`
+	UpdatedAt         time.Time `gorm:"column:updated_at" json:"updated_at"`
+}
+
+func (SystemMessageReadState) TableName() string { return "system_message_read_state" }
 
 // ──────────────────────────────────────────
 // Chat system

@@ -36,9 +36,12 @@ export interface Message {
   created: Date | string
 }
 
+// System broadcasts use a per-user HWM cursor (system_message_read_state)
+// instead of the legacy row-level `status` field. The BE evaluates
+// `isRead = id <= cursor` for the caller — see migration 012.
 export interface MessageSystemMessage {
   id: number
-  status: MessageStatus
+  isRead: boolean
   content: KunNullable<KunLanguage>
   admin: KunUser
   created: Date | string

@@ -13,14 +13,12 @@ const pageData = reactive({
   order: 'desc'
 })
 
-const { data } = await useKunFetch<AdminMessage[]>('/message/admin', {
+const { data } = await useKunFetch<MessageSystemMessage[]>('/message/admin', {
   query: pageData
 })
 
 onMounted(async () => {
-  const hasUnreadMessage = data.value?.some(
-    (message) => message.status === 'unread'
-  )
+  const hasUnreadMessage = data.value?.some((message) => !message.isRead)
   if (hasUnreadMessage) {
     await kunFetch('/message/admin/read', { method: 'PUT' })
   }

@@ -71,11 +71,16 @@ func (s *MessageService) MarkAllRead(ctx context.Context, userID int) *errors.Ap
 	return nil
 }
 
-func (s *MessageService) GetSystemMessages(ctx context.Context) ([]dto.SystemMessageResponse, *errors.AppError) {
+func (s *MessageService) GetSystemMessages(ctx context.Context, userID int) ([]dto.SystemMessageResponse, *errors.AppError) {
 	rows, err := s.messageRepo.FindSystemMessages()
 	if err != nil {
 		return nil, errors.ErrInternal("获取系统消息失败")
 	}
+
+	// Per-user HWM cursor: every row whose id <= cursor has been read by
+	// this user. A missing cursor row returns 0 (everything unread),
+	// which matches "I just signed up, show me the backlog."
+	cursor, _ := s.messageRepo.GetSystemReadCursor(userID)
 
 	uids := userclient.CollectIDs(rows, func(r repository.SystemMessageRow) int { return r.UserID })
 	userMap := s.userClient.Hydrate(ctx, uids)
@@ -85,7 +90,7 @@ func (s *MessageService) GetSystemMessages(ctx context.Context) ([]dto.SystemMes
 		u := userMap[r.UserID]
 		messages = append(messages, dto.SystemMessageResponse{
 			ID:     r.ID,
-			Status: r.Status,
+			IsRead: int64(r.ID) <= cursor,
 			Content: map[string]string{
 				"en-us": r.ContentEnUS,
 				"ja-jp": r.ContentJaJP,
@@ -98,8 +103,15 @@ func (s *MessageService) GetSystemMessages(ctx context.Context) ([]dto.SystemMes
 	return messages, nil
 }
 
-func (s *MessageService) MarkAllSystemRead(ctx context.Context) *errors.AppError {
-	if err := s.messageRepo.MarkAllSystemRead(); err != nil {
+// MarkAllSystemRead advances the caller's HWM cursor to MAX(id) so every
+// existing broadcast becomes "read" for this user only. Broadcasts
+// posted later still appear as unread (id > cursor) until the next call.
+func (s *MessageService) MarkAllSystemRead(ctx context.Context, userID int) *errors.AppError {
+	maxID, err := s.messageRepo.GetMaxSystemMessageID()
+	if err != nil {
+		return errors.ErrInternal("标记已读失败")
+	}
+	if err := s.messageRepo.UpsertSystemReadCursorForward(userID, maxID); err != nil {
 		return errors.ErrInternal("标记已读失败")
 	}
 	return nil

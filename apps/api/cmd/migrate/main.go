@@ -22,7 +22,7 @@ func main() {
 	direction := flag.String("dir", "up", "Migration direction: up or down")
 	step := flag.Int("step", 0, "Number of migrations to run (0 = all)")
 	migrationsDir := flag.String("path", "migrations", "Path to migration files")
-	exclude := flag.String("exclude", "005,006,007", "Comma-separated migration prefixes to exclude (e.g. '005,006'). Use empty string to include all. Default skips the post-OAuth-migration steps (005 wiki cleanup, 006 resource provider, 007 user identity drop) — these must run explicitly via --only after the OAuth-side migrate-users + galgame service migrations have completed.")
+	exclude := flag.String("exclude", "005,006,007,012", "Comma-separated migration prefixes to exclude (e.g. '005,006'). Use empty string to include all. Default skips the post-OAuth-migration steps (005 wiki cleanup, 006 resource provider, 007 user identity drop, 012 system_message_read_state) — these must run explicitly via --only after the OAuth-side migrate-users + galgame service migrations have completed. 012 specifically backfills a per-user cursor from \"user\".id; if it runs before OAuth migrate-users remaps user IDs, the cursor rows end up pointing at stale pre-remap IDs (migrate-users only knows to remap a hard-coded list of dependent tables and is unaware of system_message_read_state).")
 	only := flag.String("only", "", "Comma-separated migration prefixes to run exclusively (e.g. '005')")
 	flag.Parse()
 

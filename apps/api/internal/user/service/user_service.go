@@ -136,7 +136,7 @@ func (s *UserService) GetUserStatus(ctx context.Context, userID int) (*dto.UserS
 	}
 
 	unreadMessage, _ := s.userStatsRepo.CountUnreadMessages(userID)
-	unreadSystem, _ := s.userStatsRepo.CountUnreadSystemMessages()
+	unreadSystem, _ := s.userStatsRepo.CountUnreadSystemMessages(userID)
 	unreadChat, _ := s.userStatsRepo.CountUnreadChatMessages(userID)
 
 	return &dto.UserStatusResponse{

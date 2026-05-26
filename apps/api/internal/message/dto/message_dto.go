@@ -44,9 +44,9 @@ type MessageListResponse struct {
 }
 
 type SystemMessageResponse struct {
-	ID      int     `json:"id"`
-	Status  string  `json:"status"`
+	ID      int               `json:"id"`
+	IsRead  bool              `json:"isRead"`
 	Content map[string]string `json:"content"`
-	Admin   KunUser `json:"admin"`
-	Created time.Time `json:"created"`
+	Admin   KunUser           `json:"admin"`
+	Created time.Time         `json:"created"`
 }

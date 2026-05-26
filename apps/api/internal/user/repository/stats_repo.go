@@ -52,11 +52,16 @@ func (r *UserStatsRepository) CountUnreadMessages(userID int) (int64, error) {
 	return count, err
 }
 
-// CountUnreadSystemMessages counts unread system-wide notifications.
-func (r *UserStatsRepository) CountUnreadSystemMessages() (int64, error) {
+// CountUnreadSystemMessages counts admin broadcasts the user hasn't read
+// yet (id > user's HWM cursor). A missing cursor row is treated as 0 so
+// fresh users see the full backlog as unread.
+func (r *UserStatsRepository) CountUnreadSystemMessages(userID int) (int64, error) {
 	var count int64
 	err := r.db.Table("system_message").
-		Where("status = 'unread'").
+		Where(`id > COALESCE(
+			(SELECT last_read_message_id
+			 FROM system_message_read_state
+			 WHERE user_id = ?), 0)`, userID).
 		Count(&count).Error
 	return count, err
 }

@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"kun-galgame-api/internal/message/model"
 
 	"gorm.io/gorm"
@@ -78,7 +80,6 @@ func (r *MessageRepository) MarkAllRead(receiverID int) error {
 
 type SystemMessageRow struct {
 	ID          int
-	Status      string
 	ContentEnUS string
 	ContentJaJP string
 	ContentZhCN string
@@ -90,7 +91,7 @@ type SystemMessageRow struct {
 func (r *MessageRepository) FindSystemMessages() ([]SystemMessageRow, error) {
 	var rows []SystemMessageRow
 	err := r.db.Table("system_message sm").
-		Select(`sm.id, sm.status, sm.content_en_us, sm.content_ja_jp,
+		Select(`sm.id, sm.content_en_us, sm.content_ja_jp,
 			sm.content_zh_cn, sm.content_zh_tw,
 			sm.user_id,
 			sm.created AS created_at`).
@@ -99,14 +100,46 @@ func (r *MessageRepository) FindSystemMessages() ([]SystemMessageRow, error) {
 	return rows, err
 }
 
-// TODO(critical, schema-change): no `user_id` parameter — this flips
-// status on the row itself, which is shared across ALL users. Caller
-// (handler MarkAdminRead) doesn't surface this either. Needs to migrate
-// to a per-user read-state table (see handler comment).
-func (r *MessageRepository) MarkAllSystemRead() error {
-	return r.db.Model(&model.SystemMessage{}).
-		Where("status = 'unread'").
-		Update("status", "read").Error
+// GetMaxSystemMessageID returns the highest system_message.id currently
+// in the table — used by MarkAllSystemRead to advance the user's cursor.
+// Returns 0 when there are no broadcasts.
+func (r *MessageRepository) GetMaxSystemMessageID() (int64, error) {
+	var maxID *int64
+	err := r.db.Table("system_message").Select("MAX(id)").Scan(&maxID).Error
+	if err != nil || maxID == nil {
+		return 0, err
+	}
+	return *maxID, nil
+}
+
+// GetSystemReadCursor returns the user's "read up to" marker, or 0 when
+// the user has never marked any broadcast as read.
+func (r *MessageRepository) GetSystemReadCursor(userID int) (int64, error) {
+	var row model.SystemMessageReadState
+	err := r.db.First(&row, "user_id = ?", userID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, nil
+	}
+	return row.LastReadMessageID, err
+}
+
+// UpsertSystemReadCursorForward advances the user's read marker.
+//
+// GREATEST() ensures the cursor only moves forward — stale "mark all
+// read" requests from a tab still showing yesterday's max id can't
+// rewind a fresher cursor written by another tab. Mirrors the wiki
+// repository pattern (see WikiMessageRepository.UpsertForward).
+func (r *MessageRepository) UpsertSystemReadCursorForward(userID int, lastReadID int64) error {
+	return r.db.Exec(`
+		INSERT INTO system_message_read_state (user_id, last_read_message_id, updated_at)
+		VALUES (?, ?, NOW())
+		ON CONFLICT (user_id) DO UPDATE
+		SET last_read_message_id = GREATEST(
+		        system_message_read_state.last_read_message_id,
+		        EXCLUDED.last_read_message_id
+		    ),
+		    updated_at = NOW()
+	`, userID, lastReadID).Error
 }
 
 // ──────────────────────────────────────────
@@ -122,10 +155,14 @@ func (r *MessageRepository) GetNavSummary(userID int) ([]map[string]any, error) 
 	var latestNotice model.Message
 	noticeResult := r.db.Where("receiver_id = ?", userID).Order("created DESC").First(&latestNotice)
 
-	// System messages
+	// System messages — unread is computed against the user's HWM cursor
+	// (see migration 012). A missing cursor row means the user has never
+	// read anything → treat as cursor=0 so every existing broadcast is
+	// unread (matches "new user sees backlog" intent).
 	var sysTotal, sysUnread int64
 	r.db.Model(&model.SystemMessage{}).Count(&sysTotal)
-	r.db.Model(&model.SystemMessage{}).Where("status = 'unread'").Count(&sysUnread)
+	cursor, _ := r.GetSystemReadCursor(userID)
+	r.db.Model(&model.SystemMessage{}).Where("id > ?", cursor).Count(&sysUnread)
 
 	var latestSys model.SystemMessage
 	sysResult := r.db.Order("created DESC").First(&latestSys)

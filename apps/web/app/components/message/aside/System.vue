@@ -7,18 +7,18 @@ defineProps<{
 <template>
   <div
     class="space-y-3 rounded-lg p-2"
-    :class="message.status === 'read' ? 'message-read' : ''"
+    :class="message.isRead ? 'message-read' : ''"
   >
     <div class="flex items-center break-all">
       <div class="ml-2 text-lg">
         <KunIcon
           class="text-secondary"
-          v-if="message.status === 'unread'"
+          v-if="!message.isRead"
           name="lucide:info"
         />
         <KunIcon
           class="text-default"
-          v-if="message.status === 'read'"
+          v-if="message.isRead"
           name="lucide:check-check"
         />
       </div>
