@@ -111,9 +111,18 @@ func (s *RatingService) GetAllRatings(
 func (s *RatingService) GetRatingDetail(
 	ctx context.Context,
 	ratingID, currentUserID int,
+	isSFW bool,
 ) (*dto.RatingDetail, *errors.AppError) {
 	row, ok := s.ratingRepo.FindByID(ratingID)
 	if !ok {
+		return nil, errors.ErrNotFound("评分不存在")
+	}
+
+	// SFW gate (docs/galgame_wiki/00-handbook §16): block detail URL
+	// from leaking NSFW galgame metadata + rating prose to SFW callers
+	// (crawlers, default-cookie visitors). Wiki returns no brief →
+	// treat the whole rating as not-found.
+	if briefMap, _ := s.wikiClient.GetBatchPublic(ctx, []int{row.GalgameID}, isSFW); briefMap[row.GalgameID].ID == 0 {
 		return nil, errors.ErrNotFound("评分不存在")
 	}
 

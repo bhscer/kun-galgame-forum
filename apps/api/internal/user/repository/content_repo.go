@@ -196,7 +196,12 @@ type UserReply struct {
 	Created string `gorm:"column:created" json:"created"`
 }
 
-func (r *UserContentRepository) FindUserReplies(userID int, queryType string, page, limit int) ([]UserReply, int64, error) {
+// FindUserReplies applies the SFW gate by joining topic and filtering
+// out replies whose parent topic is_nsfw=true. Replies link back to the
+// topic detail (which is itself SFW-gated), so without this filter the
+// profile page would show "ghost" replies pointing at 404 URLs and would
+// also surface raw NSFW-context reply text to crawlers.
+func (r *UserContentRepository) FindUserReplies(userID int, queryType string, page, limit int, isSFW bool) ([]UserReply, int64, error) {
 	offset := (page - 1) * limit
 	var results []UserReply
 	var total int64
@@ -216,6 +221,12 @@ func (r *UserContentRepository) FindUserReplies(userID int, queryType string, pa
 		baseQuery = baseQuery.Where("topic_reply.user_id = ?", userID)
 	}
 
+	if isSFW {
+		baseQuery = baseQuery.
+			Joins("JOIN topic ON topic.id = topic_reply.topic_id").
+			Where("topic.is_nsfw = false")
+	}
+
 	baseQuery.Count(&total)
 	err := baseQuery.Order("topic_reply.created DESC").Offset(offset).Limit(limit).Find(&results).Error
 	return results, total, err
@@ -231,7 +242,8 @@ type UserComment struct {
 	Created string `gorm:"column:created" json:"created"`
 }
 
-func (r *UserContentRepository) FindUserComments(userID int, queryType string, page, limit int) ([]UserComment, int64, error) {
+// FindUserComments — same SFW JOIN-on-topic gate as FindUserReplies.
+func (r *UserContentRepository) FindUserComments(userID int, queryType string, page, limit int, isSFW bool) ([]UserComment, int64, error) {
 	offset := (page - 1) * limit
 	var results []UserComment
 	var total int64
@@ -249,6 +261,12 @@ func (r *UserContentRepository) FindUserComments(userID int, queryType string, p
 			Where("topic_comment_like.user_id = ?", userID)
 	default: // comment_created
 		baseQuery = baseQuery.Where("topic_comment.user_id = ?", userID)
+	}
+
+	if isSFW {
+		baseQuery = baseQuery.
+			Joins("JOIN topic ON topic.id = topic_comment.topic_id").
+			Where("topic.is_nsfw = false")
 	}
 
 	baseQuery.Count(&total)

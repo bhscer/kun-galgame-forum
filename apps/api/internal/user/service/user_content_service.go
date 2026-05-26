@@ -118,16 +118,16 @@ func (s *UserContentService) GetUserTopics(ctx context.Context, userID int, req 
 	return items, total, nil
 }
 
-func (s *UserContentService) GetUserReplies(ctx context.Context, userID int, req *dto.UserRepliesRequest) ([]repository.UserReply, int64, *errors.AppError) {
-	items, total, err := s.userContentRepo.FindUserReplies(userID, req.Type, req.Page, req.Limit)
+func (s *UserContentService) GetUserReplies(ctx context.Context, userID int, req *dto.UserRepliesRequest, isSFW bool) ([]repository.UserReply, int64, *errors.AppError) {
+	items, total, err := s.userContentRepo.FindUserReplies(userID, req.Type, req.Page, req.Limit, isSFW)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户回复列表失败")
 	}
 	return items, total, nil
 }
 
-func (s *UserContentService) GetUserComments(ctx context.Context, userID int, req *dto.UserCommentsRequest) ([]repository.UserComment, int64, *errors.AppError) {
-	items, total, err := s.userContentRepo.FindUserComments(userID, req.Type, req.Page, req.Limit)
+func (s *UserContentService) GetUserComments(ctx context.Context, userID int, req *dto.UserCommentsRequest, isSFW bool) ([]repository.UserComment, int64, *errors.AppError) {
+	items, total, err := s.userContentRepo.FindUserComments(userID, req.Type, req.Page, req.Limit, isSFW)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户评论列表失败")
 	}
@@ -143,6 +143,7 @@ func (s *UserContentService) GetUserGalgameComments(
 	ctx context.Context,
 	userID int,
 	req *dto.UserGalgameCommentsRequest,
+	isSFW bool,
 ) ([]dto.UserGalgameComment, int64, *errors.AppError) {
 	rows, total, err := s.userContentRepo.FindUserGalgameComments(userID, req.Type, req.Page, req.Limit)
 	if err != nil {
@@ -153,17 +154,30 @@ func (s *UserContentService) GetUserGalgameComments(
 	}
 
 	uidSet := make(map[int]struct{}, len(rows))
+	gidSet := make(map[int]struct{}, len(rows))
 	for _, r := range rows {
 		uidSet[r.UserID] = struct{}{}
+		gidSet[r.GalgameID] = struct{}{}
 	}
 	uids := make([]int, 0, len(uidSet))
 	for id := range uidSet {
 		uids = append(uids, id)
 	}
+	gids := make([]int, 0, len(gidSet))
+	for id := range gidSet {
+		gids = append(gids, id)
+	}
 	userMap := s.userClient.Hydrate(ctx, uids)
+	// SFW gate via wiki content_limit
+	// (docs/galgame_wiki/00-handbook §16). Comments whose galgame is
+	// filtered out won't have a brief returned and are dropped here.
+	briefMap, _ := s.wikiClient.GetBatchPublic(ctx, gids, isSFW)
 
 	items := make([]dto.UserGalgameComment, 0, len(rows))
 	for _, r := range rows {
+		if _, ok := briefMap[r.GalgameID]; !ok {
+			continue
+		}
 		u := userMap[r.UserID]
 		items = append(items, dto.UserGalgameComment{
 			ID:          r.ID,

@@ -90,7 +90,7 @@ func (h *GalgameHandler) GetDetail(c *fiber.Ctx) error {
 	}
 
 	detail, appErr := h.galgameService.GetDetail(
-		c.Context(), gid, optionalUID(c), middleware.GetAccessToken(c),
+		c.Context(), gid, optionalUID(c), middleware.GetAccessToken(c), utils.IsSFW(c),
 	)
 	if appErr != nil {
 		return response.Error(c, appErr)

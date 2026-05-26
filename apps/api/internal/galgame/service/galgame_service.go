@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strconv"
 
 	"kun-galgame-api/internal/constants"
@@ -243,13 +244,25 @@ func (s *GalgameService) fetchOwnerID(ctx context.Context, galgameID int) int {
 // submitter of a pending draft can view their own row, an authenticated
 // user can see VNDB-source drafts, etc. Anonymous viewers get the same
 // behavior as before (status=0 only).
+//
+// SFW gate (docs/galgame_wiki/00-handbook §16.2): /galgame/:gid defaults
+// to NO content_limit filter on wiki — direct URL access is "有意为之"
+// per spec. kungal opts in by passing content_limit=sfw on SFW requests
+// so wiki returns 404 for NSFW galgames. This is the right place to gate
+// because the wiki sees an authoritative match/no-match decision.
+// NSFW-cookie-on users hit content_limit=all → wiki returns the row.
 func (s *GalgameService) GetDetail(
 	ctx context.Context,
 	galgameID, currentUserID int,
 	token string,
+	isSFW bool,
 ) (*dto.GalgameDetail, *errors.AppError) {
+	query := url.Values{}
+	if isSFW {
+		query.Set("content_limit", "sfw")
+	}
 	wikiData, appErr := s.wikiClient.GetWithToken(
-		ctx, fmt.Sprintf("/galgame/%d", galgameID), token, nil,
+		ctx, fmt.Sprintf("/galgame/%d", galgameID), token, query,
 	)
 	if appErr != nil {
 		return nil, appErr

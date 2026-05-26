@@ -90,6 +90,11 @@ func (h *TopicHandler) GetResourceList(c *fiber.Ctx) error {
 
 // GetDetail returns a single topic with all associated data.
 // GET /api/topic/:tid
+//
+// SFW gate: SFW-mode requests for an is_nsfw=true topic get 404. This
+// prevents search-engine crawlers (no cookie → IsSFW=true) from indexing
+// NSFW topic content via direct-URL access (inbound links, activity-feed
+// hops, etc.). NSFW-cookie-on users still see the topic.
 func (h *TopicHandler) GetDetail(c *fiber.Ctx) error {
 	tid, err := strconv.Atoi(c.Params("tid"))
 	if err != nil {
@@ -101,6 +106,10 @@ func (h *TopicHandler) GetDetail(c *fiber.Ctx) error {
 	detail, appErr := h.topicService.GetDetail(c.Context(), tid, userInfo)
 	if appErr != nil {
 		return response.Error(c, appErr)
+	}
+
+	if detail.IsNSFW && utils.IsSFW(c) {
+		return response.Error(c, errors.ErrNotFound("未找到该话题"))
 	}
 
 	return response.OK(c, detail)

@@ -53,7 +53,7 @@ func (h *ResourceHandler) GetResourceDetail(c *fiber.Ctx) error {
 	}
 
 	currentUID := optionalUID(c)
-	detail, notFound, appErr := h.resourceService.GetResourceDetail(c.Context(), id, currentUID)
+	detail, notFound, appErr := h.resourceService.GetResourceDetail(c.Context(), id, currentUID, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -73,7 +73,7 @@ func (h *ResourceHandler) GetResourceDownloadDetail(c *fiber.Ctx) error {
 	}
 
 	currentUID := optionalUID(c)
-	detail, appErr := h.resourceService.GetResourceDownloadDetail(c.Context(), id, currentUID)
+	detail, appErr := h.resourceService.GetResourceDownloadDetail(c.Context(), id, currentUID, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

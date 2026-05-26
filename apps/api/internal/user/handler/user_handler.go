@@ -138,7 +138,7 @@ func (h *UserHandler) GetUserReplies(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	items, total, appErr := h.userContentService.GetUserReplies(c.Context(), userID, &req)
+	items, total, appErr := h.userContentService.GetUserReplies(c.Context(), userID, &req, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -156,7 +156,7 @@ func (h *UserHandler) GetUserComments(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	items, total, appErr := h.userContentService.GetUserComments(c.Context(), userID, &req)
+	items, total, appErr := h.userContentService.GetUserComments(c.Context(), userID, &req, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -196,7 +196,7 @@ func (h *UserHandler) GetUserGalgameComments(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	items, total, appErr := h.userContentService.GetUserGalgameComments(c.Context(), userID, &req)
+	items, total, appErr := h.userContentService.GetUserGalgameComments(c.Context(), userID, &req, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
