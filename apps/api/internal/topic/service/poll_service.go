@@ -220,7 +220,11 @@ func (s *PollService) UpdatePoll(
 	if err != nil {
 		return errors.ErrNotFound("未找到该话题")
 	}
-	if topic.UserID != userID && role <= 2 {
+	// `role < 2` not `<= 2` — role >= 2 is admin / moderator and MUST be
+	// allowed to edit polls on others' topics. The earlier `<= 2`
+	// inadvertently blocked role=2 (admin) from modifying any non-owned
+	// poll, leaving moderation effectively neutered.
+	if topic.UserID != userID && role < 2 {
 		return errors.ErrForbidden("您没有权限修改此投票")
 	}
 

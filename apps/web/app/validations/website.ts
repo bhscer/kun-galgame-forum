@@ -67,6 +67,7 @@ export const createWebsiteTagSchema = z.object({
   level: z.coerce
     .number()
     .int('标签等级必须是整数')
+    .min(0, '网站标签等级最小为 0')
     .max(20, '网站标签等级最大为 20'),
   description: z.string().max(300, '网站标签描述最多 300 个字符').optional()
 })

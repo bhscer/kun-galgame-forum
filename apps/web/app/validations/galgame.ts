@@ -479,7 +479,7 @@ export const createGalgameResourceSchema = z.object({
         .max(1007, { message: '您的每条资源链接最大 1007 个字符' })
     )
     .min(1, { message: '您至少需要有一条资源链接' })
-    .max(107, { message: '您最多有 107 条资源链接' }),
+    .max(20, { message: '您最多有 20 条资源链接' }),
   language: z.enum(KUN_RESOURCE_LANGUAGE_CONST),
   platform: z.enum(KUN_RESOURCE_PLATFORM_CONST),
   size: z.string().refine((s) => ResourceSizePattern.test(s), {
@@ -563,8 +563,13 @@ export const deleteGalgameCommentSchema = z.object({
   galgameCommentId: z.coerce.number<number>().min(1).max(9999999)
 })
 
+// Field is `commentId` not `galgameCommentId` — that matches the BE
+// CommentInteractionRequest DTO (`json:"commentId"`). The component
+// (galgame/comment/Like.vue) already sends `commentId`, but this schema
+// previously declared the wrong key so any reuse via safeParse would
+// silently strip the actual field.
 export const updateGalgameCommentLikeSchema = z.object({
-  galgameCommentId: z.coerce.number<number>().min(1).max(9999999)
+  commentId: z.coerce.number<number>().min(1).max(9999999)
 })
 
 /*

@@ -6,11 +6,15 @@ import "time"
 // Requests
 // ──────────────────────────────────────────
 
+// Caps mirror apps/web/app/validations/website.ts updateWebsiteCategorySchema.
+// The BE was silently accepting unbounded name/label/description — added
+// max constraints so direct-API callers can't slip 5000-char categories
+// into the DB.
 type UpdateWebsiteCategoryRequest struct {
 	CategoryID  int    `json:"categoryId" validate:"required,min=1"`
-	Name        string `json:"name" validate:"required"`
-	Label       string `json:"label"`
-	Description string `json:"description"`
+	Name        string `json:"name" validate:"required,min=1,max=30"`
+	Label       string `json:"label" validate:"required,min=1,max=30"`
+	Description string `json:"description" validate:"max=300"`
 }
 
 // ──────────────────────────────────────────

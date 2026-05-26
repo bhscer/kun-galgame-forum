@@ -10,11 +10,16 @@ import (
 // Requests
 // ──────────────────────────────────────────
 
+// `Description` requires min=10 and `Icon` is validated as a URL —
+// previously the FE schema enforced these but the BE DTO didn't, so the
+// BE silently accepted empty descriptions and non-URL icons that the FE
+// would have rejected. Tightened the BE to match what the product
+// actually requires.
 type CreateWebsiteRequest struct {
 	Name        string   `json:"name" validate:"required,max=233"`
 	URL         string   `json:"url" validate:"required,url,max=500"`
-	Description string   `json:"description" validate:"max=1000"`
-	Icon        string   `json:"icon" validate:"max=500"`
+	Description string   `json:"description" validate:"required,min=10,max=1000"`
+	Icon        string   `json:"icon" validate:"required,url,max=500"`
 	CategoryID  int      `json:"categoryId" validate:"required,min=1"`
 	AgeLimit    string   `json:"ageLimit" validate:"required,oneof=all r18"`
 	Language    string   `json:"language" validate:"max=10"`
@@ -27,8 +32,8 @@ type UpdateWebsiteRequest struct {
 	WebsiteID   int      `json:"websiteId" validate:"required,min=1"`
 	Name        string   `json:"name" validate:"required,max=233"`
 	URL         string   `json:"url" validate:"required,url,max=500"`
-	Description string   `json:"description" validate:"max=1000"`
-	Icon        string   `json:"icon" validate:"max=500"`
+	Description string   `json:"description" validate:"required,min=10,max=1000"`
+	Icon        string   `json:"icon" validate:"required,url,max=500"`
 	CategoryID  int      `json:"categoryId" validate:"required,min=1"`
 	AgeLimit    string   `json:"ageLimit" validate:"required,oneof=all r18"`
 	Language    string   `json:"language" validate:"max=10"`
