@@ -1,34 +1,43 @@
 -- 000_baseline.up.sql
 --
--- Full schema snapshot of the kungalgame database as of the cut-over to
--- Go Fiber + GORM. The previous stack (Nuxt + Nitro + Prisma) created
--- and maintained these tables via Prisma migrations; the Go API does
--- not AutoMigrate and never declared most of these tables itself, so
--- until this file landed, NEW databases (dev, CI, DR rehearsal) had no
--- way to reach the same state production was in.
+-- Pre-001 schema baseline — the schema as it stood when the Go backend
+-- took over from the legacy Nuxt + Nitro + Prisma stack. Captured by
+-- `pg_restore -s` from kun-oauth-admin/scripts/kungalgame_backup.dump
+-- (the production snapshot used by the cross-project migration
+-- runbook, see kun-oauth-admin/scripts/reset_all.sh).
 --
--- All statements are idempotent so this is safe to run against an
--- existing production database — every CREATE uses `IF NOT EXISTS` and
--- every constraint is wrapped in a `DO $$` block that swallows
--- `duplicate_object` / `duplicate_table` errors. Running this on a
--- fresh DB produces the full schema; running on prod is a no-op.
+-- After this baseline applies, migrations 001-011 layer on the changes
+-- Go has made since the cut-over (new tables, jsonb conversions, count
+-- denorm columns, comment nesting, user identity columns dropped, …).
+-- The end-state of `000_baseline + 001-011` equals the live database.
 --
--- DEPLOYMENT NOTE for existing production databases:
---   Mark this migration as already applied before the next `pnpm migrate`,
---   so the runner records it without re-executing (re-execution is safe
---   because of the idempotency above, but skipping it is faster):
+-- All statements are idempotent so this is safe to re-run:
+--   • Every CREATE TABLE/SEQUENCE/INDEX uses `IF NOT EXISTS`
+--   • Every ALTER TABLE ADD CONSTRAINT is wrapped in a `DO $$` block
+--     that swallows `duplicate_object` / `duplicate_table` /
+--     `invalid_table_definition` errors and emits a NOTICE instead.
 --
---     INSERT INTO _migrations (name) VALUES ('000_baseline');
+-- DEPLOYMENT NOTE for existing databases:
+--   The cross-project runbook restores kungalgame from the dump in
+--   reset_all.sh — that dump IS the same content as this baseline, so
+--   after restore there is nothing for the migrator to do here. Mark
+--   the baseline as already applied so the runner doesn't replay it:
 --
--- For fresh databases:
---   The migrator picks this up first by filename order and creates the
---   full Prisma-era schema. Migrations 001-011 then layer on the
---   incremental changes Go has made since the cut-over.
+--     INSERT INTO _migrations (name) VALUES ('000_baseline')
+--     ON CONFLICT (name) DO NOTHING;
 --
--- Generated via `pg_dump -s --no-owner --no-acl --no-comments`, then
--- post-processed by scripts (see Step 1 of the schema-ownership recovery
--- in docs/proj/). Do NOT hand-edit; regenerate from prod if the schema
--- drifts.
+-- For fresh databases (CI, DR rehearsal, new dev machine without a
+-- dump):
+--   The migrator picks this up first and creates the pre-001 schema.
+--   001-011 then run normally — they were written assuming this is the
+--   starting state.
+--
+-- Regeneration:
+--   Re-extract from the same dump:
+--     pg_restore -s --no-owner --no-acl --no-comments \
+--       -f /tmp/raw.sql kun-oauth-admin/scripts/kungalgame_backup.dump
+--   Then run the sanitizer (Python script committed alongside this
+--   migration in the original PR description).
 --
 
 --
@@ -349,16 +358,57 @@ ALTER SEQUENCE public.doc_tag_id_seq OWNED BY public.doc_tag.id;
 
 CREATE TABLE IF NOT EXISTS public.galgame (
     id integer NOT NULL,
+    vndb_id character varying(10) NOT NULL,
+    name_en_us character varying(1000) DEFAULT ''::character varying NOT NULL,
+    name_ja_jp character varying(1000) DEFAULT ''::character varying NOT NULL,
+    name_zh_cn character varying(1000) DEFAULT ''::character varying NOT NULL,
+    name_zh_tw character varying(1000) DEFAULT ''::character varying NOT NULL,
+    banner character varying(233) DEFAULT ''::character varying NOT NULL,
+    intro_en_us text DEFAULT ''::text NOT NULL,
+    intro_ja_jp text DEFAULT ''::text NOT NULL,
+    intro_zh_cn text DEFAULT ''::text NOT NULL,
+    intro_zh_tw text DEFAULT ''::text NOT NULL,
+    content_limit character varying(10) DEFAULT 'sfw'::character varying NOT NULL,
+    status integer DEFAULT 0 NOT NULL,
     view integer DEFAULT 0 NOT NULL,
+    resource_update_time timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    original_language text DEFAULT 'ja-jp'::text NOT NULL,
+    age_limit text DEFAULT 'r18'::text NOT NULL,
+    user_id integer NOT NULL,
+    series_id integer,
     created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated timestamp(3) without time zone NOT NULL,
-    like_count integer DEFAULT 0 NOT NULL,
-    favorite_count integer DEFAULT 0 NOT NULL,
-    resource_count integer DEFAULT 0 NOT NULL,
-    comment_count integer DEFAULT 0 NOT NULL,
-    contributor_count integer DEFAULT 0 NOT NULL,
-    rating_count integer DEFAULT 0 NOT NULL
+    updated timestamp(3) without time zone NOT NULL
 );
+
+--
+-- Name: galgame_alias; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_alias (
+    id integer NOT NULL,
+    name text DEFAULT ''::text NOT NULL,
+    galgame_id integer NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_alias_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.galgame_alias_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--
+-- Name: galgame_alias_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.galgame_alias_id_seq OWNED BY public.galgame_alias.id;
 
 --
 -- Name: galgame_comment; Type: TABLE; Schema: public; Owner: -
@@ -366,16 +416,12 @@ CREATE TABLE IF NOT EXISTS public.galgame (
 
 CREATE TABLE IF NOT EXISTS public.galgame_comment (
     id integer NOT NULL,
-    content character varying(5000) NOT NULL,
+    content character varying(1007) NOT NULL,
     galgame_id integer NOT NULL,
     user_id integer NOT NULL,
     target_user_id integer,
     created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated timestamp(3) without time zone NOT NULL,
-    like_count integer DEFAULT 0 NOT NULL,
-    parent_comment_id integer,
-    root_comment_id integer,
-    edited timestamp with time zone
+    updated timestamp(3) without time zone NOT NULL
 );
 
 --
@@ -427,6 +473,78 @@ CREATE SEQUENCE IF NOT EXISTS public.galgame_comment_like_id_seq
 ALTER SEQUENCE public.galgame_comment_like_id_seq OWNED BY public.galgame_comment_like.id;
 
 --
+-- Name: galgame_contributor; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_contributor (
+    id integer NOT NULL,
+    galgame_id integer NOT NULL,
+    user_id integer NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_contributor_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.galgame_contributor_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--
+-- Name: galgame_contributor_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.galgame_contributor_id_seq OWNED BY public.galgame_contributor.id;
+
+--
+-- Name: galgame_engine; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_engine (
+    id integer NOT NULL,
+    name text NOT NULL,
+    description text DEFAULT ''::text NOT NULL,
+    alias text[] DEFAULT ARRAY[]::text[],
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_engine_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.galgame_engine_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--
+-- Name: galgame_engine_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.galgame_engine_id_seq OWNED BY public.galgame_engine.id;
+
+--
+-- Name: galgame_engine_relation; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_engine_relation (
+    galgame_id integer NOT NULL,
+    engine_id integer NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
 -- Name: galgame_favorite; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -455,6 +573,39 @@ CREATE SEQUENCE IF NOT EXISTS public.galgame_favorite_id_seq
 --
 
 ALTER SEQUENCE public.galgame_favorite_id_seq OWNED BY public.galgame_favorite.id;
+
+--
+-- Name: galgame_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_history (
+    id integer NOT NULL,
+    action text DEFAULT ''::text NOT NULL,
+    type text DEFAULT ''::text NOT NULL,
+    content character varying(1007) DEFAULT ''::character varying NOT NULL,
+    galgame_id integer NOT NULL,
+    user_id integer NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_history_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.galgame_history_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--
+-- Name: galgame_history_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.galgame_history_id_seq OWNED BY public.galgame_history.id;
 
 --
 -- Name: galgame_id_seq; Type: SEQUENCE; Schema: public; Owner: -
@@ -505,6 +656,148 @@ CREATE SEQUENCE IF NOT EXISTS public.galgame_like_id_seq
 ALTER SEQUENCE public.galgame_like_id_seq OWNED BY public.galgame_like.id;
 
 --
+-- Name: galgame_link; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_link (
+    id integer NOT NULL,
+    name character varying(107) DEFAULT ''::character varying NOT NULL,
+    link character varying(233) DEFAULT ''::character varying NOT NULL,
+    galgame_id integer NOT NULL,
+    user_id integer NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_link_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.galgame_link_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--
+-- Name: galgame_link_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.galgame_link_id_seq OWNED BY public.galgame_link.id;
+
+--
+-- Name: galgame_official; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_official (
+    id integer NOT NULL,
+    link text DEFAULT ''::text NOT NULL,
+    name text NOT NULL,
+    category text NOT NULL,
+    lang text DEFAULT ''::text NOT NULL,
+    description text DEFAULT ''::text NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_official_alias; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_official_alias (
+    id integer NOT NULL,
+    name text DEFAULT ''::text NOT NULL,
+    galgame_official_id integer NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_official_alias_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.galgame_official_alias_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--
+-- Name: galgame_official_alias_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.galgame_official_alias_id_seq OWNED BY public.galgame_official_alias.id;
+
+--
+-- Name: galgame_official_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.galgame_official_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--
+-- Name: galgame_official_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.galgame_official_id_seq OWNED BY public.galgame_official.id;
+
+--
+-- Name: galgame_official_relation; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_official_relation (
+    galgame_id integer NOT NULL,
+    official_id integer NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_pr; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_pr (
+    id integer NOT NULL,
+    status integer DEFAULT 0 NOT NULL,
+    index integer DEFAULT 0 NOT NULL,
+    note character varying(1007) DEFAULT ''::character varying NOT NULL,
+    completed_time timestamp(3) without time zone,
+    old_data jsonb,
+    new_data jsonb,
+    user_id integer NOT NULL,
+    galgame_id integer NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_pr_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.galgame_pr_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--
+-- Name: galgame_pr_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.galgame_pr_id_seq OWNED BY public.galgame_pr.id;
+
+--
 -- Name: galgame_rating; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -513,7 +806,7 @@ CREATE TABLE IF NOT EXISTS public.galgame_rating (
     recommend text NOT NULL,
     overall integer NOT NULL,
     view integer DEFAULT 0 NOT NULL,
-    galgame_type jsonb DEFAULT '[]'::jsonb,
+    galgame_type text[] DEFAULT ARRAY[]::text[],
     play_status text DEFAULT 'not_started'::text NOT NULL,
     short_summary character varying(1314) DEFAULT ''::character varying NOT NULL,
     spoiler_level text DEFAULT 'none'::text NOT NULL,
@@ -528,9 +821,7 @@ CREATE TABLE IF NOT EXISTS public.galgame_rating (
     created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated timestamp(3) without time zone NOT NULL,
     user_id integer NOT NULL,
-    galgame_id integer NOT NULL,
-    like_count integer DEFAULT 0 NOT NULL,
-    comment_count integer DEFAULT 0 NOT NULL
+    galgame_id integer NOT NULL
 );
 
 --
@@ -635,9 +926,7 @@ CREATE TABLE IF NOT EXISTS public.galgame_resource (
     download integer DEFAULT 0 NOT NULL,
     provider text[] DEFAULT ARRAY[]::text[],
     edited timestamp(3) without time zone,
-    view integer DEFAULT 0 NOT NULL,
-    like_count integer DEFAULT 0 NOT NULL,
-    provider_name jsonb DEFAULT '[]'::jsonb CONSTRAINT galgame_resource_provider_name_not_null1 NOT NULL
+    view integer DEFAULT 0 NOT NULL
 );
 
 --
@@ -719,22 +1008,22 @@ CREATE SEQUENCE IF NOT EXISTS public.galgame_resource_link_id_seq
 ALTER SEQUENCE public.galgame_resource_link_id_seq OWNED BY public.galgame_resource_link.id;
 
 --
--- Name: galgame_resource_provider; Type: TABLE; Schema: public; Owner: -
+-- Name: galgame_series; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE IF NOT EXISTS public.galgame_resource_provider (
+CREATE TABLE IF NOT EXISTS public.galgame_series (
     id integer NOT NULL,
-    resource_id integer NOT NULL,
-    name character varying(255) NOT NULL,
-    created timestamp without time zone DEFAULT now() NOT NULL,
-    updated timestamp without time zone DEFAULT now() NOT NULL
+    name character varying(1000) DEFAULT ''::character varying NOT NULL,
+    description character varying(2000) DEFAULT ''::character varying NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
 );
 
 --
--- Name: galgame_resource_provider_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: galgame_series_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-CREATE SEQUENCE IF NOT EXISTS public.galgame_resource_provider_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.galgame_series_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -743,10 +1032,83 @@ CREATE SEQUENCE IF NOT EXISTS public.galgame_resource_provider_id_seq
     CACHE 1;
 
 --
--- Name: galgame_resource_provider_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: galgame_series_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.galgame_resource_provider_id_seq OWNED BY public.galgame_resource_provider.id;
+ALTER SEQUENCE public.galgame_series_id_seq OWNED BY public.galgame_series.id;
+
+--
+-- Name: galgame_tag; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_tag (
+    id integer NOT NULL,
+    name text NOT NULL,
+    description text DEFAULT ''::text NOT NULL,
+    category text NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_tag_alias; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_tag_alias (
+    id integer NOT NULL,
+    name text DEFAULT ''::text NOT NULL,
+    galgame_tag_id integer NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL
+);
+
+--
+-- Name: galgame_tag_alias_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.galgame_tag_alias_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--
+-- Name: galgame_tag_alias_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.galgame_tag_alias_id_seq OWNED BY public.galgame_tag_alias.id;
+
+--
+-- Name: galgame_tag_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE IF NOT EXISTS public.galgame_tag_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--
+-- Name: galgame_tag_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.galgame_tag_id_seq OWNED BY public.galgame_tag.id;
+
+--
+-- Name: galgame_tag_relation; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.galgame_tag_relation (
+    galgame_id integer NOT NULL,
+    tag_id integer NOT NULL,
+    created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated timestamp(3) without time zone NOT NULL,
+    spoiler_level integer DEFAULT 0 NOT NULL
+);
 
 --
 -- Name: galgame_toolset; Type: TABLE; Schema: public; Owner: -
@@ -761,7 +1123,7 @@ CREATE TABLE IF NOT EXISTS public.galgame_toolset (
     type text DEFAULT ''::text NOT NULL,
     language text DEFAULT ''::text NOT NULL,
     platform text DEFAULT ''::text NOT NULL,
-    homepage jsonb DEFAULT '[]'::jsonb,
+    homepage text[] DEFAULT ARRAY[]::text[],
     resource_update_time timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     edited timestamp(3) without time zone,
     version character varying(233) DEFAULT ''::character varying NOT NULL,
@@ -808,7 +1170,7 @@ CREATE TABLE IF NOT EXISTS public.galgame_toolset_category (
     id integer NOT NULL,
     name text NOT NULL,
     description text DEFAULT ''::text NOT NULL,
-    alias jsonb DEFAULT '[]'::jsonb,
+    alias text[] DEFAULT ARRAY[]::text[],
     created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated timestamp(3) without time zone NOT NULL
 );
@@ -1007,14 +1369,11 @@ CREATE TABLE IF NOT EXISTS public.galgame_website (
     view integer DEFAULT 0 NOT NULL,
     language text DEFAULT 'JA'::text NOT NULL,
     age_limit text DEFAULT 'all'::text NOT NULL,
-    domain jsonb DEFAULT '[]'::jsonb,
+    domain text[] DEFAULT ARRAY[]::text[],
     category_id integer NOT NULL,
     created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated timestamp(3) without time zone NOT NULL,
-    user_id integer DEFAULT 2 NOT NULL,
-    like_count integer DEFAULT 0 NOT NULL,
-    favorite_count integer DEFAULT 0 NOT NULL,
-    comment_count integer DEFAULT 0 NOT NULL
+    user_id integer DEFAULT 2 NOT NULL
 );
 
 --
@@ -1162,20 +1521,6 @@ CREATE TABLE IF NOT EXISTS public.galgame_website_tag_relation (
     galgame_website_tag_id integer NOT NULL,
     created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated timestamp(3) without time zone NOT NULL
-);
-
---
--- Name: kungal_user_state; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE IF NOT EXISTS public.kungal_user_state (
-    user_id integer NOT NULL,
-    moemoepoint integer DEFAULT 7 NOT NULL,
-    daily_check_in integer DEFAULT 0 NOT NULL,
-    daily_image_count integer DEFAULT 0 NOT NULL,
-    daily_toolset_upload_count integer DEFAULT 0 NOT NULL,
-    created timestamp without time zone DEFAULT now() NOT NULL,
-    updated timestamp without time zone DEFAULT now() NOT NULL
 );
 
 --
@@ -1333,13 +1678,7 @@ CREATE TABLE IF NOT EXISTS public.topic (
     pinned_reply_id integer,
     created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated timestamp(3) without time zone NOT NULL,
-    is_nsfw boolean DEFAULT false NOT NULL,
-    like_count integer DEFAULT 0 NOT NULL,
-    dislike_count integer DEFAULT 0 NOT NULL,
-    reply_count integer DEFAULT 0 NOT NULL,
-    comment_count integer DEFAULT 0 NOT NULL,
-    favorite_count integer DEFAULT 0 NOT NULL,
-    upvote_count integer DEFAULT 0 NOT NULL
+    is_nsfw boolean DEFAULT false NOT NULL
 );
 
 --
@@ -1563,8 +1902,7 @@ CREATE TABLE IF NOT EXISTS public.topic_poll_option (
     text character varying(100) NOT NULL,
     poll_id integer NOT NULL,
     created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated timestamp(3) without time zone NOT NULL,
-    vote_count integer DEFAULT 0 NOT NULL
+    updated timestamp(3) without time zone NOT NULL
 );
 
 --
@@ -1628,10 +1966,7 @@ CREATE TABLE IF NOT EXISTS public.topic_reply (
     user_id integer NOT NULL,
     topic_id integer NOT NULL,
     created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated timestamp(3) without time zone NOT NULL,
-    like_count integer DEFAULT 0 NOT NULL,
-    dislike_count integer DEFAULT 0 NOT NULL,
-    comment_count integer DEFAULT 0 NOT NULL
+    updated timestamp(3) without time zone NOT NULL
 );
 
 --
@@ -1784,46 +2119,6 @@ CREATE TABLE IF NOT EXISTS public.topic_section_relation (
 );
 
 --
--- Name: topic_tag; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE IF NOT EXISTS public.topic_tag (
-    id integer NOT NULL,
-    name character varying(255) NOT NULL,
-    created timestamp without time zone DEFAULT now() NOT NULL,
-    updated timestamp without time zone DEFAULT now() NOT NULL
-);
-
---
--- Name: topic_tag_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE IF NOT EXISTS public.topic_tag_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
---
--- Name: topic_tag_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.topic_tag_id_seq OWNED BY public.topic_tag.id;
-
---
--- Name: topic_tag_relation; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE IF NOT EXISTS public.topic_tag_relation (
-    topic_id integer NOT NULL,
-    tag_id integer NOT NULL,
-    created timestamp without time zone DEFAULT now() NOT NULL,
-    updated timestamp without time zone DEFAULT now() NOT NULL
-);
-
---
 -- Name: topic_upvote; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1929,8 +2224,20 @@ ALTER SEQUENCE public.update_log_id_seq OWNED BY public.update_log.id;
 
 CREATE TABLE IF NOT EXISTS public."user" (
     id integer NOT NULL,
+    name text NOT NULL,
+    email text NOT NULL,
+    password text NOT NULL,
+    ip text DEFAULT ''::text NOT NULL,
+    avatar text DEFAULT ''::text NOT NULL,
+    role integer DEFAULT 1 NOT NULL,
+    status integer DEFAULT 0 NOT NULL,
+    moemoepoint integer DEFAULT 7 NOT NULL,
+    bio character varying(107) DEFAULT ''::character varying NOT NULL,
+    daily_check_in integer DEFAULT 0 NOT NULL,
+    daily_image_count integer DEFAULT 0 NOT NULL,
     created timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated timestamp(3) without time zone NOT NULL
+    updated timestamp(3) without time zone NOT NULL,
+    daily_toolset_upload_count integer DEFAULT 0 NOT NULL
 );
 
 --
@@ -2012,16 +2319,6 @@ CREATE SEQUENCE IF NOT EXISTS public.user_id_seq
 ALTER SEQUENCE public.user_id_seq OWNED BY public."user".id;
 
 --
--- Name: wiki_message_read_state; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE IF NOT EXISTS public.wiki_message_read_state (
-    user_id integer NOT NULL,
-    last_read_message_id bigint DEFAULT 0 NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
---
 -- Name: chat_message id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -2082,6 +2379,12 @@ ALTER TABLE ONLY public.doc_tag ALTER COLUMN id SET DEFAULT nextval('public.doc_
 ALTER TABLE ONLY public.galgame ALTER COLUMN id SET DEFAULT nextval('public.galgame_id_seq'::regclass);
 
 --
+-- Name: galgame_alias id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.galgame_alias ALTER COLUMN id SET DEFAULT nextval('public.galgame_alias_id_seq'::regclass);
+
+--
 -- Name: galgame_comment id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -2094,16 +2397,58 @@ ALTER TABLE ONLY public.galgame_comment ALTER COLUMN id SET DEFAULT nextval('pub
 ALTER TABLE ONLY public.galgame_comment_like ALTER COLUMN id SET DEFAULT nextval('public.galgame_comment_like_id_seq'::regclass);
 
 --
+-- Name: galgame_contributor id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.galgame_contributor ALTER COLUMN id SET DEFAULT nextval('public.galgame_contributor_id_seq'::regclass);
+
+--
+-- Name: galgame_engine id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.galgame_engine ALTER COLUMN id SET DEFAULT nextval('public.galgame_engine_id_seq'::regclass);
+
+--
 -- Name: galgame_favorite id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.galgame_favorite ALTER COLUMN id SET DEFAULT nextval('public.galgame_favorite_id_seq'::regclass);
 
 --
+-- Name: galgame_history id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.galgame_history ALTER COLUMN id SET DEFAULT nextval('public.galgame_history_id_seq'::regclass);
+
+--
 -- Name: galgame_like id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.galgame_like ALTER COLUMN id SET DEFAULT nextval('public.galgame_like_id_seq'::regclass);
+
+--
+-- Name: galgame_link id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.galgame_link ALTER COLUMN id SET DEFAULT nextval('public.galgame_link_id_seq'::regclass);
+
+--
+-- Name: galgame_official id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.galgame_official ALTER COLUMN id SET DEFAULT nextval('public.galgame_official_id_seq'::regclass);
+
+--
+-- Name: galgame_official_alias id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.galgame_official_alias ALTER COLUMN id SET DEFAULT nextval('public.galgame_official_alias_id_seq'::regclass);
+
+--
+-- Name: galgame_pr id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.galgame_pr ALTER COLUMN id SET DEFAULT nextval('public.galgame_pr_id_seq'::regclass);
 
 --
 -- Name: galgame_rating id; Type: DEFAULT; Schema: public; Owner: -
@@ -2142,10 +2487,22 @@ ALTER TABLE ONLY public.galgame_resource_like ALTER COLUMN id SET DEFAULT nextva
 ALTER TABLE ONLY public.galgame_resource_link ALTER COLUMN id SET DEFAULT nextval('public.galgame_resource_link_id_seq'::regclass);
 
 --
--- Name: galgame_resource_provider id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: galgame_series id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.galgame_resource_provider ALTER COLUMN id SET DEFAULT nextval('public.galgame_resource_provider_id_seq'::regclass);
+ALTER TABLE ONLY public.galgame_series ALTER COLUMN id SET DEFAULT nextval('public.galgame_series_id_seq'::regclass);
+
+--
+-- Name: galgame_tag id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.galgame_tag ALTER COLUMN id SET DEFAULT nextval('public.galgame_tag_id_seq'::regclass);
+
+--
+-- Name: galgame_tag_alias id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.galgame_tag_alias ALTER COLUMN id SET DEFAULT nextval('public.galgame_tag_alias_id_seq'::regclass);
 
 --
 -- Name: galgame_toolset id; Type: DEFAULT; Schema: public; Owner: -
@@ -2322,12 +2679,6 @@ ALTER TABLE ONLY public.topic_reply_target ALTER COLUMN id SET DEFAULT nextval('
 ALTER TABLE ONLY public.topic_section ALTER COLUMN id SET DEFAULT nextval('public.topic_section_id_seq'::regclass);
 
 --
--- Name: topic_tag id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.topic_tag ALTER COLUMN id SET DEFAULT nextval('public.topic_tag_id_seq'::regclass);
-
---
 -- Name: topic_upvote id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -2474,6 +2825,17 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
+-- Name: galgame_alias galgame_alias_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_alias
+        ADD CONSTRAINT galgame_alias_pkey PRIMARY KEY (id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
 -- Name: galgame_comment_like galgame_comment_like_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2496,6 +2858,39 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
+-- Name: galgame_contributor galgame_contributor_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_contributor
+        ADD CONSTRAINT galgame_contributor_pkey PRIMARY KEY (id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_engine galgame_engine_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_engine
+        ADD CONSTRAINT galgame_engine_pkey PRIMARY KEY (id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_engine_relation galgame_engine_relation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_engine_relation
+        ADD CONSTRAINT galgame_engine_relation_pkey PRIMARY KEY (galgame_id, engine_id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
 -- Name: galgame_favorite galgame_favorite_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2503,6 +2898,17 @@ DO $$
 BEGIN
     ALTER TABLE ONLY public.galgame_favorite
         ADD CONSTRAINT galgame_favorite_pkey PRIMARY KEY (id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_history galgame_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_history
+        ADD CONSTRAINT galgame_history_pkey PRIMARY KEY (id);
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
@@ -2518,6 +2924,50 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
+-- Name: galgame_link galgame_link_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_link
+        ADD CONSTRAINT galgame_link_pkey PRIMARY KEY (id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_official_alias galgame_official_alias_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_official_alias
+        ADD CONSTRAINT galgame_official_alias_pkey PRIMARY KEY (id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_official galgame_official_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_official
+        ADD CONSTRAINT galgame_official_pkey PRIMARY KEY (id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_official_relation galgame_official_relation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_official_relation
+        ADD CONSTRAINT galgame_official_relation_pkey PRIMARY KEY (galgame_id, official_id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
 -- Name: galgame galgame_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2525,6 +2975,17 @@ DO $$
 BEGIN
     ALTER TABLE ONLY public.galgame
         ADD CONSTRAINT galgame_pkey PRIMARY KEY (id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_pr galgame_pr_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_pr
+        ADD CONSTRAINT galgame_pr_pkey PRIMARY KEY (id);
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
@@ -2595,24 +3056,46 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
--- Name: galgame_resource_provider galgame_resource_provider_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: galgame_series galgame_series_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 DO $$
 BEGIN
-    ALTER TABLE ONLY public.galgame_resource_provider
-        ADD CONSTRAINT galgame_resource_provider_pkey PRIMARY KEY (id);
+    ALTER TABLE ONLY public.galgame_series
+        ADD CONSTRAINT galgame_series_pkey PRIMARY KEY (id);
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
--- Name: galgame_resource_provider galgame_resource_provider_resource_id_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: galgame_tag_alias galgame_tag_alias_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 DO $$
 BEGIN
-    ALTER TABLE ONLY public.galgame_resource_provider
-        ADD CONSTRAINT galgame_resource_provider_resource_id_name_key UNIQUE (resource_id, name);
+    ALTER TABLE ONLY public.galgame_tag_alias
+        ADD CONSTRAINT galgame_tag_alias_pkey PRIMARY KEY (id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_tag galgame_tag_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_tag
+        ADD CONSTRAINT galgame_tag_pkey PRIMARY KEY (id);
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_tag_relation galgame_tag_relation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_tag_relation
+        ADD CONSTRAINT galgame_tag_relation_pkey PRIMARY KEY (galgame_id, tag_id);
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
@@ -2778,17 +3261,6 @@ DO $$
 BEGIN
     ALTER TABLE ONLY public.galgame_website_tag_relation
         ADD CONSTRAINT galgame_website_tag_relation_pkey PRIMARY KEY (galgame_website_id, galgame_website_tag_id);
-EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
-END $$;
-
---
--- Name: kungal_user_state kungal_user_state_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-    ALTER TABLE ONLY public.kungal_user_state
-        ADD CONSTRAINT kungal_user_state_pkey PRIMARY KEY (user_id);
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
@@ -3002,39 +3474,6 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
--- Name: topic_tag topic_tag_name_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-    ALTER TABLE ONLY public.topic_tag
-        ADD CONSTRAINT topic_tag_name_key UNIQUE (name);
-EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
-END $$;
-
---
--- Name: topic_tag topic_tag_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-    ALTER TABLE ONLY public.topic_tag
-        ADD CONSTRAINT topic_tag_pkey PRIMARY KEY (id);
-EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
-END $$;
-
---
--- Name: topic_tag_relation topic_tag_relation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-    ALTER TABLE ONLY public.topic_tag_relation
-        ADD CONSTRAINT topic_tag_relation_pkey PRIMARY KEY (topic_id, tag_id);
-EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
-END $$;
-
---
 -- Name: topic_upvote topic_upvote_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3101,17 +3540,6 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
--- Name: wiki_message_read_state wiki_message_read_state_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-    ALTER TABLE ONLY public.wiki_message_read_state
-        ADD CONSTRAINT wiki_message_read_state_pkey PRIMARY KEY (user_id);
-EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
-END $$;
-
---
 -- Name: chat_message_reaction_chat_message_id_user_id_reaction_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3166,10 +3594,28 @@ CREATE UNIQUE INDEX IF NOT EXISTS doc_category_slug_key ON public.doc_category U
 CREATE UNIQUE INDEX IF NOT EXISTS doc_tag_slug_key ON public.doc_tag USING btree (slug);
 
 --
+-- Name: galgame_alias_galgame_id_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS galgame_alias_galgame_id_name_key ON public.galgame_alias USING btree (galgame_id, name);
+
+--
 -- Name: galgame_comment_like_galgame_comment_id_user_id_key; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX IF NOT EXISTS galgame_comment_like_galgame_comment_id_user_id_key ON public.galgame_comment_like USING btree (galgame_comment_id, user_id);
+
+--
+-- Name: galgame_contributor_galgame_id_user_id_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS galgame_contributor_galgame_id_user_id_key ON public.galgame_contributor USING btree (galgame_id, user_id);
+
+--
+-- Name: galgame_engine_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS galgame_engine_name_key ON public.galgame_engine USING btree (name);
 
 --
 -- Name: galgame_favorite_galgame_id_user_id_key; Type: INDEX; Schema: public; Owner: -
@@ -3182,6 +3628,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS galgame_favorite_galgame_id_user_id_key ON pub
 --
 
 CREATE UNIQUE INDEX IF NOT EXISTS galgame_like_galgame_id_user_id_key ON public.galgame_like USING btree (galgame_id, user_id);
+
+--
+-- Name: galgame_official_alias_galgame_official_id_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS galgame_official_alias_galgame_official_id_name_key ON public.galgame_official_alias USING btree (galgame_official_id, name);
+
+--
+-- Name: galgame_official_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS galgame_official_name_key ON public.galgame_official USING btree (name);
 
 --
 -- Name: galgame_rating_galgame_id_idx; Type: INDEX; Schema: public; Owner: -
@@ -3220,6 +3678,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS galgame_resource_like_galgame_resource_id_user
 CREATE UNIQUE INDEX IF NOT EXISTS galgame_resource_link_galgame_resource_id_url_key ON public.galgame_resource_link USING btree (galgame_resource_id, url);
 
 --
+-- Name: galgame_series_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS galgame_series_name_key ON public.galgame_series USING btree (name);
+
+--
+-- Name: galgame_tag_alias_galgame_tag_id_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS galgame_tag_alias_galgame_tag_id_name_key ON public.galgame_tag_alias USING btree (galgame_tag_id, name);
+
+--
+-- Name: galgame_tag_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS galgame_tag_name_key ON public.galgame_tag USING btree (name);
+
+--
 -- Name: galgame_toolset_alias_toolset_id_name_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3256,6 +3732,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS galgame_toolset_contributor_toolset_id_user_id
 CREATE UNIQUE INDEX IF NOT EXISTS galgame_toolset_resource_toolset_id_content_key ON public.galgame_toolset_resource USING btree (toolset_id, content);
 
 --
+-- Name: galgame_vndb_id_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS galgame_vndb_id_key ON public.galgame USING btree (vndb_id);
+
+--
 -- Name: galgame_website_category_name_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3290,24 +3772,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS galgame_website_tag_name_key ON public.galgame
 --
 
 CREATE UNIQUE INDEX IF NOT EXISTS galgame_website_url_key ON public.galgame_website USING btree (url);
-
---
--- Name: idx_galgame_comment_parent; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX IF NOT EXISTS idx_galgame_comment_parent ON public.galgame_comment USING btree (parent_comment_id);
-
---
--- Name: idx_galgame_comment_root_created; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX IF NOT EXISTS idx_galgame_comment_root_created ON public.galgame_comment USING btree (root_comment_id, created);
-
---
--- Name: idx_grp_resource_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX IF NOT EXISTS idx_grp_resource_id ON public.galgame_resource_provider USING btree (resource_id);
 
 --
 -- Name: topic_best_answer_id_key; Type: INDEX; Schema: public; Owner: -
@@ -3376,6 +3840,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS topic_reply_like_user_id_topic_reply_id_key ON
 CREATE UNIQUE INDEX IF NOT EXISTS topic_reply_target_reply_id_target_reply_id_key ON public.topic_reply_target USING btree (reply_id, target_reply_id);
 
 --
+-- Name: user_email_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS user_email_key ON public."user" USING btree (email);
+
+--
 -- Name: user_follow_follower_id_followed_id_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3386,6 +3856,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS user_follow_follower_id_followed_id_key ON pub
 --
 
 CREATE UNIQUE INDEX IF NOT EXISTS user_friend_user_id_friend_id_key ON public.user_friend USING btree (user_id, friend_id);
+
+--
+-- Name: user_name_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS user_name_key ON public."user" USING btree (name);
 
 --
 -- Name: chat_message chat_message_chat_room_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
@@ -3553,6 +4029,17 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
+-- Name: galgame_alias galgame_alias_galgame_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_alias
+        ADD CONSTRAINT galgame_alias_galgame_id_fkey FOREIGN KEY (galgame_id) REFERENCES public.galgame(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
 -- Name: galgame_comment galgame_comment_galgame_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3586,28 +4073,6 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
--- Name: galgame_comment galgame_comment_parent_comment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-    ALTER TABLE ONLY public.galgame_comment
-        ADD CONSTRAINT galgame_comment_parent_comment_id_fkey FOREIGN KEY (parent_comment_id) REFERENCES public.galgame_comment(id) ON DELETE CASCADE;
-EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
-END $$;
-
---
--- Name: galgame_comment galgame_comment_root_comment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-    ALTER TABLE ONLY public.galgame_comment
-        ADD CONSTRAINT galgame_comment_root_comment_id_fkey FOREIGN KEY (root_comment_id) REFERENCES public.galgame_comment(id) ON DELETE CASCADE;
-EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
-END $$;
-
---
 -- Name: galgame_comment galgame_comment_target_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3626,6 +4091,50 @@ DO $$
 BEGIN
     ALTER TABLE ONLY public.galgame_comment
         ADD CONSTRAINT galgame_comment_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_contributor galgame_contributor_galgame_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_contributor
+        ADD CONSTRAINT galgame_contributor_galgame_id_fkey FOREIGN KEY (galgame_id) REFERENCES public.galgame(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_contributor galgame_contributor_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_contributor
+        ADD CONSTRAINT galgame_contributor_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_engine_relation galgame_engine_relation_engine_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_engine_relation
+        ADD CONSTRAINT galgame_engine_relation_engine_id_fkey FOREIGN KEY (engine_id) REFERENCES public.galgame_engine(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_engine_relation galgame_engine_relation_galgame_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_engine_relation
+        ADD CONSTRAINT galgame_engine_relation_galgame_id_fkey FOREIGN KEY (galgame_id) REFERENCES public.galgame(id) ON UPDATE CASCADE ON DELETE CASCADE;
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
@@ -3652,6 +4161,28 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
+-- Name: galgame_history galgame_history_galgame_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_history
+        ADD CONSTRAINT galgame_history_galgame_id_fkey FOREIGN KEY (galgame_id) REFERENCES public.galgame(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_history galgame_history_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_history
+        ADD CONSTRAINT galgame_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
 -- Name: galgame_like galgame_like_galgame_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3670,6 +4201,83 @@ DO $$
 BEGIN
     ALTER TABLE ONLY public.galgame_like
         ADD CONSTRAINT galgame_like_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_link galgame_link_galgame_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_link
+        ADD CONSTRAINT galgame_link_galgame_id_fkey FOREIGN KEY (galgame_id) REFERENCES public.galgame(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_link galgame_link_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_link
+        ADD CONSTRAINT galgame_link_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_official_alias galgame_official_alias_galgame_official_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_official_alias
+        ADD CONSTRAINT galgame_official_alias_galgame_official_id_fkey FOREIGN KEY (galgame_official_id) REFERENCES public.galgame_official(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_official_relation galgame_official_relation_galgame_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_official_relation
+        ADD CONSTRAINT galgame_official_relation_galgame_id_fkey FOREIGN KEY (galgame_id) REFERENCES public.galgame(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_official_relation galgame_official_relation_official_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_official_relation
+        ADD CONSTRAINT galgame_official_relation_official_id_fkey FOREIGN KEY (official_id) REFERENCES public.galgame_official(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_pr galgame_pr_galgame_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_pr
+        ADD CONSTRAINT galgame_pr_galgame_id_fkey FOREIGN KEY (galgame_id) REFERENCES public.galgame(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_pr galgame_pr_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_pr
+        ADD CONSTRAINT galgame_pr_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
@@ -3795,17 +4403,6 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
 --
--- Name: galgame_resource_provider galgame_resource_provider_resource_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-    ALTER TABLE ONLY public.galgame_resource_provider
-        ADD CONSTRAINT galgame_resource_provider_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES public.galgame_resource(id) ON DELETE CASCADE;
-EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
-END $$;
-
---
 -- Name: galgame_resource galgame_resource_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3813,6 +4410,50 @@ DO $$
 BEGIN
     ALTER TABLE ONLY public.galgame_resource
         ADD CONSTRAINT galgame_resource_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame galgame_series_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame
+        ADD CONSTRAINT galgame_series_id_fkey FOREIGN KEY (series_id) REFERENCES public.galgame_series(id) ON UPDATE CASCADE ON DELETE SET NULL;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_tag_alias galgame_tag_alias_galgame_tag_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_tag_alias
+        ADD CONSTRAINT galgame_tag_alias_galgame_tag_id_fkey FOREIGN KEY (galgame_tag_id) REFERENCES public.galgame_tag(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_tag_relation galgame_tag_relation_galgame_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_tag_relation
+        ADD CONSTRAINT galgame_tag_relation_galgame_id_fkey FOREIGN KEY (galgame_id) REFERENCES public.galgame(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame_tag_relation galgame_tag_relation_tag_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame_tag_relation
+        ADD CONSTRAINT galgame_tag_relation_tag_id_fkey FOREIGN KEY (tag_id) REFERENCES public.galgame_tag(id) ON UPDATE CASCADE ON DELETE CASCADE;
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
@@ -3956,6 +4597,17 @@ DO $$
 BEGIN
     ALTER TABLE ONLY public.galgame_toolset
         ADD CONSTRAINT galgame_toolset_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
+END $$;
+
+--
+-- Name: galgame galgame_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+DO $$
+BEGIN
+    ALTER TABLE ONLY public.galgame
+        ADD CONSTRAINT galgame_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
@@ -4451,28 +5103,6 @@ DO $$
 BEGIN
     ALTER TABLE ONLY public.topic_section_relation
         ADD CONSTRAINT topic_section_relation_topic_section_id_fkey FOREIGN KEY (topic_section_id) REFERENCES public.topic_section(id) ON UPDATE CASCADE ON DELETE CASCADE;
-EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
-END $$;
-
---
--- Name: topic_tag_relation topic_tag_relation_tag_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-    ALTER TABLE ONLY public.topic_tag_relation
-        ADD CONSTRAINT topic_tag_relation_tag_id_fkey FOREIGN KEY (tag_id) REFERENCES public.topic_tag(id) ON DELETE CASCADE;
-EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
-END $$;
-
---
--- Name: topic_tag_relation topic_tag_relation_topic_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-    ALTER TABLE ONLY public.topic_tag_relation
-        ADD CONSTRAINT topic_tag_relation_topic_id_fkey FOREIGN KEY (topic_id) REFERENCES public.topic(id) ON DELETE CASCADE;
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'baseline skip: %', SQLERRM;
 END $$;
 
