@@ -70,7 +70,10 @@ func (s *HomeService) getHomeGalgames(ctx context.Context, isSFW bool) ([]dto.Ho
 	for i, r := range localRows {
 		galgameIDs[i] = r.ID
 	}
-	briefMap, appErr := s.wikiGC.GetBatch(ctx, galgameIDs)
+	// Wiki-side SFW filter — see docs/galgame_wiki/00-handbook §16. The
+	// batch endpoint defaults to NO filter, so we must pass isSFW
+	// explicitly. Any post-filter at this layer would be wrong per spec.
+	briefMap, appErr := s.wikiGC.GetBatchPublic(ctx, galgameIDs, isSFW)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -106,9 +109,6 @@ func (s *HomeService) getHomeGalgames(ctx context.Context, isSFW bool) ([]dto.Ho
 		b, ok := briefMap[lr.ID]
 		if !ok {
 			continue // wiki doesn't have this galgame
-		}
-		if isSFW && b.ContentLimit != "sfw" {
-			continue
 		}
 		u := userMap[b.UserID]
 		result = append(result, dto.HomeGalgame{

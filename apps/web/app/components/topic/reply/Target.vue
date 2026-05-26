@@ -43,7 +43,6 @@ const handleClick = () => {
 
     <KunLoading v-if="isLoading" description="正在加载完整回复内容" />
 
-    <!-- TODO: server-side markdown rendering — replyContentHtml may not exist -->
     <KunContent :content="target.replyContentHtml ?? ''" class="mt-2" />
   </blockquote>
 </template>

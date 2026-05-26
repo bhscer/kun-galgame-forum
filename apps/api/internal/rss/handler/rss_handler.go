@@ -59,7 +59,10 @@ func (h *RSSHandler) GetGalgameRSS(c *fiber.Ctx) error {
 		createdByID[r.ID] = r.Created
 	}
 
-	briefMap, _ := h.wikiClient.GetBatch(c.Context(), ids)
+	// RSS is consumed by feed readers and search engines — pin SFW
+	// unconditionally (docs/galgame_wiki/00-handbook §16). Anything
+	// else would leak NSFW into syndicated channels we don't control.
+	briefMap, _ := h.wikiClient.GetBatchPublic(c.Context(), ids, true)
 	if briefMap == nil {
 		briefMap = map[int]galgameClient.GalgameBrief{}
 	}

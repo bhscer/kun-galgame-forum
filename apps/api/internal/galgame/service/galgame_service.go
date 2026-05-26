@@ -396,8 +396,15 @@ func (s *GalgameService) GetList(
 		return &dto.GalgameListPage{Galgames: []dto.GalgameListCard{}, Total: total}, nil
 	}
 
-	// Wiki batch metadata
-	briefMap, _ := s.wikiClient.GetBatch(ctx, ids)
+	// Wiki batch metadata. SFW gating is delegated to wiki via
+	// content_limit per docs/galgame_wiki/00-handbook §16 — no
+	// service-layer post-filter (would violate "wiki is the only NSFW
+	// SoT" invariant). Note: `total` from listRepo is the count of
+	// kungal-known galgames (stats rows) and can over-report when wiki
+	// drops NSFW briefs in SFW mode; an exact total requires the public
+	// list to source from wiki's /galgame, not kungal's local stats —
+	// out of scope here.
+	briefMap, _ := s.wikiClient.GetBatchPublic(ctx, ids, isSFW)
 	if briefMap == nil {
 		briefMap = map[int]client.GalgameBrief{}
 	}
@@ -416,21 +423,10 @@ func (s *GalgameService) GetList(
 	metaRows := s.resourceMetaRepo.FindResourceMetaBatch(ids)
 	platformMap, languageMap := groupResourceMeta(metaRows)
 
-	// SFW filter applied at the service layer because the kungal `galgame`
-	// table has no content_limit column — that field lives only on wiki
-	// briefs. As a consequence, `total` here is the unfiltered count and
-	// can over-report when isSFW=true. Accepting this skew is the SEO-safe
-	// trade-off: it's far worse to let an unfiltered NSFW listing be
-	// crawler-visible than to return a slightly inflated total. A proper
-	// fix needs schema work (add galgame.content_limit + sync from wiki
-	// on submit/approve, then push the filter into list_repo's SQL).
 	cards := make([]dto.GalgameListCard, 0, len(ids))
 	for _, id := range ids {
 		b, ok := briefMap[id]
 		if !ok {
-			continue
-		}
-		if isSFW && b.ContentLimit != "sfw" {
 			continue
 		}
 		cards = append(cards, dto.GalgameListCard{

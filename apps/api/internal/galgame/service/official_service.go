@@ -178,14 +178,25 @@ func aliasesToNames(aliases []dto.WikiAlias) []string {
 	return out
 }
 
-// withSFWFilter clones q and, when isSFW is true, injects content_limit=sfw
-// so the wiki service filters NSFW galgames server-side and returns a
-// matching total. A nil/empty q is handled.
+// withSFWFilter clones q and pins `content_limit` per the wiki NSFW
+// protocol (see docs/galgame_wiki/00-handbook-for-downstream.md §16).
+//
+// Both modes are EXPLICIT: omitting the parameter would fall to each
+// endpoint's own default (mostly `sfw`), so an SFW-cookie-off user would
+// still get SFW from list/search endpoints. We must say `all` aloud to
+// include NSFW.
+//
+//   isSFW=true  → content_limit=sfw  (only SFW; matches list/search default)
+//   isSFW=false → content_limit=all  (user opted in; both SFW + NSFW)
+//
+// `nsfw`-only isn't reachable from the FE (the cookie only flips on/off).
 func withSFWFilter(q url.Values, isSFW bool) url.Values {
 	out := url.Values{}
 	maps.Copy(out, q)
 	if isSFW {
 		out.Set("content_limit", "sfw")
+	} else {
+		out.Set("content_limit", "all")
 	}
 	return out
 }

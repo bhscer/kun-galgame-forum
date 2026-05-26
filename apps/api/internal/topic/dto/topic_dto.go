@@ -79,6 +79,22 @@ type TopicDetail struct {
 	UpvoteTime       *time.Time             `json:"upvoteTime"`
 	Edited           *time.Time             `json:"edited"`
 	Created          time.Time              `json:"created"`
+	// Best answer summary — populated when topic.best_answer_id is set.
+	// Embedded here (instead of forcing a second /reply fetch) so the
+	// topic detail page can render JSON-LD `acceptedAnswer` schema during
+	// SSR. nil = no best answer set.
+	BestAnswer *TopicBestAnswer `json:"bestAnswer,omitempty"`
+}
+
+// TopicBestAnswer is the slim projection of the chosen reply that
+// /topic/:tid embeds for SEO (schema.org acceptedAnswer).
+type TopicBestAnswer struct {
+	ID              int       `json:"id"`
+	Floor           int       `json:"floor"`
+	User            KunUser   `json:"user"`
+	ContentMarkdown string    `json:"contentMarkdown"`
+	ContentHtml     string    `json:"contentHtml"`
+	Created         time.Time `json:"created"`
 }
 
 // ──────────────────────────────────────────

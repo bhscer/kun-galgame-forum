@@ -26,8 +26,12 @@ func NewRankingService(
 // GetGalgameRanking composes galgame ranking rows by
 // 1) querying local interaction columns, 2) batch-fetching wiki metadata,
 // 3) batch-fetching user info from OAuth.
+//
+// SFW gating goes through wiki via content_limit
+// (docs/galgame_wiki/00-handbook §16); kungal-local NSFW filtering is
+// explicitly forbidden by the protocol.
 func (s *RankingService) GetGalgameRanking(
-	ctx context.Context, req *dto.GalgameRankingRequest,
+	ctx context.Context, req *dto.GalgameRankingRequest, isSFW bool,
 ) []dto.GalgameRankingItem {
 	rows := s.repo.FindGalgameLocal(req.SortField, req.SortOrder, req.Page, req.Limit)
 	if len(rows) == 0 {
@@ -38,7 +42,7 @@ func (s *RankingService) GetGalgameRanking(
 	for i, r := range rows {
 		ids[i] = r.ID
 	}
-	briefMap, appErr := s.wikiGC.GetBatch(ctx, ids)
+	briefMap, appErr := s.wikiGC.GetBatchPublic(ctx, ids, isSFW)
 	if appErr != nil {
 		return []dto.GalgameRankingItem{}
 	}
@@ -72,9 +76,10 @@ func (s *RankingService) GetGalgameRanking(
 }
 
 // GetTopicRanking returns topic ranking items. Identity is hydrated from OAuth
-// via userclient.
-func (s *RankingService) GetTopicRanking(ctx context.Context, req *dto.TopicRankingRequest) []dto.TopicRankingItem {
-	rows := s.repo.FindTopicRanking(req.SortField, req.SortOrder, req.Page, req.Limit)
+// via userclient. SFW filter is applied at the SQL layer (topic.is_nsfw
+// is kungal-local data, not wiki-managed).
+func (s *RankingService) GetTopicRanking(ctx context.Context, req *dto.TopicRankingRequest, isSFW bool) []dto.TopicRankingItem {
+	rows := s.repo.FindTopicRanking(req.SortField, req.SortOrder, req.Page, req.Limit, isSFW)
 	uids := userclient.CollectIDs(rows, func(r repository.TopicRankingRow) int { return r.UserID })
 	userMap := s.userClient.Hydrate(ctx, uids)
 

@@ -21,16 +21,17 @@ export interface TopicAside {
   tid: number
 }
 
-// TODO: bestAnswer is no longer embedded in TopicDetail from Go backend.
-// Best answers are replies with isBestAnswer: true, loaded in reply list.
-// Kept for backward compatibility with BestAnswer.vue component.
-export interface TopicBestAnswer {
+// Slim best-answer projection embedded directly in TopicDetail (BE
+// populates from topic.best_answer_id during /topic/:tid). Used by the
+// detail page to render JSON-LD `acceptedAnswer` schema during SSR
+// without a second /reply fetch.
+export interface TopicBestAnswerSummary {
   id: number
-  topicId: number
   floor: number
-  user: KunUser & { moemoepoint: number }
+  user: KunUser
+  contentMarkdown: string
+  contentHtml: string
   created: Date | string
-  edited: Date | string | null
 }
 
 export interface TopicDetail {
@@ -62,4 +63,8 @@ export interface TopicDetail {
   upvoteTime: Date | string | null
   edited: Date | string | null
   created: Date | string
+
+  // Embedded by BE when topic.best_answer_id is set; omitted otherwise.
+  // Drives JSON-LD `acceptedAnswer` for SEO on the topic detail page.
+  bestAnswer?: TopicBestAnswerSummary
 }

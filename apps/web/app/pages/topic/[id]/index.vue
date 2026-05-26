@@ -102,9 +102,27 @@ if (data.value && data.value !== 'banned') {
       }
     ]
 
-    // TODO: bestAnswer is no longer embedded in TopicDetail from Go backend.
-    // Best answers are replies with isBestAnswer: true, loaded separately.
-    let acceptedAnswerSchema: Comment | undefined = undefined
+    // BE embeds a slim best-answer summary directly in TopicDetail when
+    // topic.best_answer_id is set (see TopicBestAnswerSummary). Mapping
+    // it to schema.org Comment surfaces the acceptedAnswer in Google's
+    // Q&A rich result — critical for forum-style SEO.
+    const ba = topic.bestAnswer
+    const acceptedAnswerSchema: Comment | undefined = ba
+      ? {
+          '@type': 'Comment',
+          text: markdownToText(ba.contentMarkdown)
+            .trim()
+            .slice(0, 5000),
+          datePublished: new Date(ba.created).toISOString(),
+          url: `${topicUrl}#k${ba.floor}`,
+          author: {
+            '@type': 'Person',
+            name: ba.user.name,
+            url: `${kungal.domain.main}/user/${ba.user.id}/info`,
+            image: ba.user.avatar
+          }
+        }
+      : undefined
 
     return {
       '@context': 'https://schema.org',

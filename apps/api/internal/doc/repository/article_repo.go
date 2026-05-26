@@ -121,3 +121,17 @@ func (r *ArticleRepository) InsertTagRelations(tx *gorm.DB, articleID int, tagID
 func (r *ArticleRepository) DeleteTagRelationsByArticleID(articleID int) {
 	r.db.Where("doc_article_id = ?", articleID).Delete(&model.DocArticleTagRelation{})
 }
+
+// FindTagIDsByArticleID returns the list of tag IDs attached to an
+// article. Always returns a non-nil slice (empty when no tags) so the
+// JSON response is `[]` rather than `null`.
+func (r *ArticleRepository) FindTagIDsByArticleID(articleID int) []int {
+	var ids []int
+	r.db.Model(&model.DocArticleTagRelation{}).
+		Where("doc_article_id = ?", articleID).
+		Pluck("doc_tag_id", &ids)
+	if ids == nil {
+		return []int{}
+	}
+	return ids
+}

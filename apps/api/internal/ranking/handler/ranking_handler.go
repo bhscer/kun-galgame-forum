@@ -24,7 +24,7 @@ func (h *RankingHandler) GetGalgameRanking(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return response.OK(c, h.rankingService.GetGalgameRanking(c.Context(), &req))
+	return response.OK(c, h.rankingService.GetGalgameRanking(c.Context(), &req, utils.IsSFW(c)))
 }
 
 // GetTopicRanking returns topic ranking.
@@ -34,7 +34,7 @@ func (h *RankingHandler) GetTopicRanking(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return response.OK(c, h.rankingService.GetTopicRanking(c.Context(), &req))
+	return response.OK(c, h.rankingService.GetTopicRanking(c.Context(), &req, utils.IsSFW(c)))
 }
 
 // GetUserRanking returns user ranking.

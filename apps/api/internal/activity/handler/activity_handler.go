@@ -25,7 +25,7 @@ func (h *ActivityHandler) GetActivity(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	res, appErr := h.activityService.GetActivity(c.Context(), req.Type, req.Page, req.Limit)
+	res, appErr := h.activityService.GetActivity(c.Context(), req.Type, req.Page, req.Limit, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -40,7 +40,7 @@ func (h *ActivityHandler) GetTimeline(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	res, appErr := h.activityService.GetTimeline(c.Context(), req.Page, req.Limit)
+	res, appErr := h.activityService.GetTimeline(c.Context(), req.Page, req.Limit, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

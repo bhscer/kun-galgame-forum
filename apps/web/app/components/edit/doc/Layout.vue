@@ -72,8 +72,7 @@ const applyArticleToForm = (article: DocArticleDetail) => {
   form.isPin = article.isPin
   form.contentMarkdown = article.contentMarkdown
   form.categoryId = article.categoryId
-  // TODO: tags are not embedded in Go response — need separate fetch
-  form.tagIds = []
+  form.tagIds = article.tagIds ?? []
 }
 
 const resetForm = () => {

@@ -35,12 +35,12 @@ func NewResourceService(
 // GetResourceList — GET /galgame-resource
 // ──────────────────────────────────────────
 
-// GetResourceList returns the public resource list. SFW filter is applied
-// at the service layer against each row's owning galgame: kungal's
-// galgame_resource table has no content_limit field (the flag lives only
-// on wiki briefs), so SQL-level filtering isn't possible without a
-// schema sync. `total` therefore over-reports in SFW mode — same SEO-safe
-// trade-off as galgame_service.GetList.
+// GetResourceList returns the public resource list. SFW gating is
+// delegated to wiki via content_limit per docs/galgame_wiki/00-handbook
+// §16 — wiki only returns briefs for galgames matching the requested
+// content_limit, so any row whose galgame is filtered shows up as
+// "no brief returned" below. `total` over-reports in SFW mode (it's the
+// count of kungal-side rows, not the post-filter remainder).
 func (s *ResourceService) GetResourceList(
 	ctx context.Context,
 	req *dto.ResourceListRequest,
@@ -50,7 +50,7 @@ func (s *ResourceService) GetResourceList(
 	rows := s.resourceRepo.ListPaginated(req.Page, req.Limit)
 
 	galgameIDs, userIDs := collectIDs(rows)
-	briefMap := s.fetchWikiBriefs(ctx, galgameIDs)
+	briefMap := s.fetchWikiBriefsPublic(ctx, galgameIDs, isSFW)
 	userMap := s.userClient.Hydrate(ctx, userIDs)
 
 	cards := make([]dto.ResourceCard, 0, len(rows))
@@ -60,16 +60,13 @@ func (s *ResourceService) GetResourceList(
 			continue
 		}
 		b, hasBrief := briefMap[r.GalgameID]
-		// Hide resources whose galgame is NSFW under SFW mode. If wiki
-		// didn't return the brief (migration lag), play it safe and
-		// drop the row in SFW — better to lose a row than expose it.
-		if isSFW && (!hasBrief || b.ContentLimit != "sfw") {
+		// Wiki dropped this row's galgame (didn't match content_limit
+		// or doesn't exist) → resource is unrenderable in this mode.
+		if !hasBrief {
 			continue
 		}
 		card := rowToCard(r, u)
-		if hasBrief {
-			card.GalgameName = briefToName(b)
-		}
+		card.GalgameName = briefToName(b)
 		cards = append(cards, card)
 	}
 
@@ -435,6 +432,26 @@ func (s *ResourceService) fetchWikiBriefs(
 		return map[int]client.GalgameBrief{}
 	}
 	briefMap, _ := s.wikiClient.GetBatch(ctx, galgameIDs)
+	if briefMap == nil {
+		return map[int]client.GalgameBrief{}
+	}
+	return briefMap
+}
+
+// fetchWikiBriefsPublic is the SFW-aware variant — for public list paths
+// that must honour content_limit per docs/galgame_wiki/00-handbook §16.
+// The unfiltered fetchWikiBriefs above is kept for internal call sites
+// where the caller already knows the IDs are safe to show (e.g.,
+// detail-page-internal lookups by ID the user already navigated to).
+func (s *ResourceService) fetchWikiBriefsPublic(
+	ctx context.Context,
+	galgameIDs []int,
+	isSFW bool,
+) map[int]client.GalgameBrief {
+	if len(galgameIDs) == 0 {
+		return map[int]client.GalgameBrief{}
+	}
+	briefMap, _ := s.wikiClient.GetBatchPublic(ctx, galgameIDs, isSFW)
 	if briefMap == nil {
 		return map[int]client.GalgameBrief{}
 	}

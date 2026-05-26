@@ -38,6 +38,16 @@ func (r *TopicRepository) FindByID(id int) (*model.Topic, error) {
 	return &topic, err
 }
 
+// FindReplyByID looks up a single reply row — exposed here (rather than
+// via a separate ReplyRepository injection) so the detail service can
+// hydrate topic.best_answer_id → reply summary without growing the
+// TopicService constructor's dependency list.
+func (r *TopicRepository) FindReplyByID(id int) (*model.TopicReply, error) {
+	var reply model.TopicReply
+	err := r.db.First(&reply, id).Error
+	return &reply, err
+}
+
 func (r *TopicRepository) Create(topic *model.Topic) error {
 	return r.db.Create(topic).Error
 }

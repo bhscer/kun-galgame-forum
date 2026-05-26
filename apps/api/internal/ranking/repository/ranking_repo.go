@@ -57,12 +57,21 @@ func (r *RankingRepository) FindGalgameLocal(sortField, sortOrder string, page, 
 
 // FindTopicRanking returns topic ranking rows. Identity is hydrated at the
 // service layer.
-func (r *RankingRepository) FindTopicRanking(sortField, sortOrder string, page, limit int) []TopicRankingRow {
+//
+// isSFW=true filters out is_nsfw=true rows so anonymous / SEO-bot callers
+// can't crawl NSFW topics through the ranking page (and so cookie-off
+// users get a clean list). is_nsfw is kungal-local data, so the filter
+// is correctly applied at the SQL layer here (unlike galgame.content_limit
+// which lives only on wiki).
+func (r *RankingRepository) FindTopicRanking(sortField, sortOrder string, page, limit int, isSFW bool) []TopicRankingRow {
 	var rows []TopicRankingRow
-	r.db.Table("topic t").
+	q := r.db.Table("topic t").
 		Select(`t.id, t.title, t.user_id, t.` + sortField + ` AS value`).
-		Where("t.status != 1").
-		Order("t." + sortField + " " + sortOrder).
+		Where("t.status != 1")
+	if isSFW {
+		q = q.Where("t.is_nsfw = false")
+	}
+	q.Order("t." + sortField + " " + sortOrder).
 		Offset((page - 1) * limit).Limit(limit).
 		Find(&rows)
 	return rows

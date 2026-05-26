@@ -56,7 +56,10 @@ defineProps<{
         </p>
       </div>
 
-      <!-- TODO: bestAnswer no longer embedded in TopicDetail from Go backend -->
+      <TopicDetailBestAnswer
+        v-if="topic.bestAnswer"
+        :best-answer="topic.bestAnswer"
+      />
 
       <TopicDetailUser
         class-name="lg:hidden"
@@ -68,7 +71,6 @@ defineProps<{
         :show-addition="false"
       />
 
-      <!-- TODO: server-side markdown rendering — contentHtml may not exist -->
       <KunContent class="kun-master" :content="topic.contentHtml ?? ''" />
 
       <p class="text-default-500 ml-auto text-sm">

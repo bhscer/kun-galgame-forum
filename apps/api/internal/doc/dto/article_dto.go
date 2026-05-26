@@ -109,6 +109,10 @@ type ArticleDetailResponse struct {
 	CategoryID      int                  `json:"categoryId"`
 	AuthorID        int                  `json:"authorId"`
 	Category        ArticleCategoryBrief `json:"category"`
-	Created         time.Time            `json:"created"`
-	Updated         time.Time            `json:"updated"`
+	// Tag IDs attached to this article. Embedded so the rewrite flow on
+	// the FE can pre-fill the tag picker without a second round-trip.
+	// Empty array when no tags are set.
+	TagIDs  []int     `json:"tagIds"`
+	Created time.Time `json:"created"`
+	Updated time.Time `json:"updated"`
 }

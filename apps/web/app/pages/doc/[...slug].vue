@@ -38,7 +38,6 @@ useKunSeoMeta({
         />
 
         <DocDetailHeader :metadata="data" />
-        <!-- TODO: server-side markdown rendering — contentHtml may not exist -->
         <KunContent :content="data.contentHtml ?? ''" />
         <DocDetailFooter />
       </article>

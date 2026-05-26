@@ -61,6 +61,9 @@ export interface DocArticle {
   categoryId: number
   authorId: number
   category: DocArticleCategoryBrief
+  // Embedded by BE so the rewrite flow can pre-fill the tag picker
+  // without a second fetch. List endpoints may omit; detail always sets.
+  tagIds?: number[]
   created: Date | string
   updated: Date | string
   contentHtml?: string

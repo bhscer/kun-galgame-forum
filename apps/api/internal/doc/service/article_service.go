@@ -159,8 +159,11 @@ func (s *ArticleService) GetBySlug(slug string) (*dto.ArticleDetailResponse, *er
 		CategoryID:      article.CategoryID,
 		AuthorID:        article.AuthorID,
 		Category:        cat,
-		Created:         article.CreatedAt,
-		Updated:         article.UpdatedAt,
+		// Tag IDs let the FE rewrite flow re-populate the tag picker
+		// without a second round-trip. See ArticleDetailResponse.
+		TagIDs:  s.articleRepo.FindTagIDsByArticleID(article.ID),
+		Created: article.CreatedAt,
+		Updated: article.UpdatedAt,
 	}, nil
 }
 

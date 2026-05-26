@@ -83,7 +83,10 @@ func (s *RatingService) GetAllRatings(
 		galgameIDs[i] = r.GalgameID
 	}
 	userMap := s.userClient.Hydrate(ctx, userIDs)
-	briefMap := s.fetchWikiBriefs(ctx, galgameIDs)
+	// Wiki-side SFW filter (content_limit) per
+	// docs/galgame_wiki/00-handbook §16. Rows whose galgame is filtered
+	// come back as "no brief returned" and get dropped below.
+	briefMap := s.fetchWikiBriefsPublic(ctx, galgameIDs, isSFW)
 
 	cards := make([]dto.RatingCard, 0, len(rows))
 	for _, r := range rows {
@@ -92,9 +95,7 @@ func (s *RatingService) GetAllRatings(
 			continue
 		}
 		b, hasBrief := briefMap[r.GalgameID]
-		// In SFW mode hide ratings whose galgame is NSFW. Missing brief
-		// (wiki migration lag) → drop conservatively.
-		if isSFW && (!hasBrief || b.ContentLimit != "sfw") {
+		if !hasBrief {
 			continue
 		}
 		cards = append(cards, ratingRowToCard(r, u, b))
@@ -508,6 +509,23 @@ func (s *RatingService) fetchWikiBriefs(
 		return map[int]client.GalgameBrief{}
 	}
 	m, _ := s.wikiClient.GetBatch(ctx, galgameIDs)
+	if m == nil {
+		return map[int]client.GalgameBrief{}
+	}
+	return m
+}
+
+// fetchWikiBriefsPublic is the SFW-aware variant — for public list paths
+// that must honour content_limit per docs/galgame_wiki/00-handbook §16.
+func (s *RatingService) fetchWikiBriefsPublic(
+	ctx context.Context,
+	galgameIDs []int,
+	isSFW bool,
+) map[int]client.GalgameBrief {
+	if len(galgameIDs) == 0 {
+		return map[int]client.GalgameBrief{}
+	}
+	m, _ := s.wikiClient.GetBatchPublic(ctx, galgameIDs, isSFW)
 	if m == nil {
 		return map[int]client.GalgameBrief{}
 	}

@@ -32,10 +32,12 @@ type Result struct {
 }
 
 // GetActivity returns a filtered activity feed. If the type is "all",
-// it falls back to GetTimeline.
-func (s *ActivityService) GetActivity(ctx context.Context, typeStr string, page, limit int) (*Result, *errors.AppError) {
+// it falls back to GetTimeline. isSFW is forwarded to wiki so NSFW
+// galgame names never enter the public activity stream
+// (docs/galgame_wiki/00-handbook §16).
+func (s *ActivityService) GetActivity(ctx context.Context, typeStr string, page, limit int, isSFW bool) (*Result, *errors.AppError) {
 	if typeStr == "all" {
-		return s.GetTimeline(ctx, page, limit)
+		return s.GetTimeline(ctx, page, limit, isSFW)
 	}
 
 	src, ok := s.repo.GetSource(typeStr)
@@ -48,19 +50,19 @@ func (s *ActivityService) GetActivity(ctx context.Context, typeStr string, page,
 		return nil, errors.ErrInternal("查询活动数据失败")
 	}
 	items := rowsToItems(rows)
-	s.enrichGalgameItems(ctx, rows, items)
+	s.enrichGalgameItems(ctx, rows, items, isSFW)
 	s.hydrateActors(ctx, items)
 	return &Result{Items: items, Total: total}, nil
 }
 
 // GetTimeline returns a mixed activity timeline across all sources.
-func (s *ActivityService) GetTimeline(ctx context.Context, page, limit int) (*Result, *errors.AppError) {
+func (s *ActivityService) GetTimeline(ctx context.Context, page, limit int, isSFW bool) (*Result, *errors.AppError) {
 	rows, total, err := s.repo.FetchTimeline(page, limit)
 	if err != nil {
 		return nil, errors.ErrInternal("查询活动列表失败")
 	}
 	items := rowsToItems(rows)
-	s.enrichGalgameItems(ctx, rows, items)
+	s.enrichGalgameItems(ctx, rows, items, isSFW)
 	s.hydrateActors(ctx, items)
 	return &Result{Items: items, Total: total}, nil
 }
@@ -98,6 +100,7 @@ func (s *ActivityService) enrichGalgameItems(
 	ctx context.Context,
 	rows []repository.ActivityRow,
 	items []dto.ActivityItem,
+	isSFW bool,
 ) {
 	idSet := map[int]struct{}{}
 	for _, r := range rows {
@@ -113,7 +116,7 @@ func (s *ActivityService) enrichGalgameItems(
 		ids = append(ids, id)
 	}
 
-	briefMap, appErr := s.wikiGC.GetBatch(ctx, ids)
+	briefMap, appErr := s.wikiGC.GetBatchPublic(ctx, ids, isSFW)
 	if appErr != nil {
 		return // graceful: leave raw content
 	}

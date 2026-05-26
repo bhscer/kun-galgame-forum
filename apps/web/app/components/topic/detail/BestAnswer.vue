@@ -2,7 +2,7 @@
 import { scrollPage } from '../_helper'
 
 defineProps<{
-  bestAnswer: TopicBestAnswer
+  bestAnswer: TopicBestAnswerSummary
 }>()
 </script>
 

@@ -37,10 +37,10 @@ func NewUserContentService(
 // GetUserGalgameCards returns enriched galgame cards for the user's list
 // (created / liked / favorited / commented depending on req.Type).
 //
-// SFW filter applied at the service layer against each card's wiki brief —
-// kungal's `galgame` table has no content_limit column, so SQL-level
-// filtering would need a schema sync. `total` over-reports in SFW mode;
-// same SEO-safe trade-off as galgame_service.GetList.
+// SFW gating delegated to wiki via content_limit per
+// docs/galgame_wiki/00-handbook §16; rows whose galgame is filtered come
+// back as "no brief returned" and get dropped below. `total` over-reports
+// in SFW mode (it counts kungal-side relation rows pre-filter).
 func (s *UserContentService) GetUserGalgameCards(
 	ctx context.Context,
 	userID int,
@@ -55,7 +55,7 @@ func (s *UserContentService) GetUserGalgameCards(
 		return []dto.UserGalgameCard{}, total, nil
 	}
 
-	briefMap, wikiErr := s.wikiClient.GetBatch(ctx, ids)
+	briefMap, wikiErr := s.wikiClient.GetBatchPublic(ctx, ids, isSFW)
 	if wikiErr != nil {
 		// Wiki failure → return empty list but preserve total count.
 		return []dto.UserGalgameCard{}, total, nil
@@ -72,9 +72,6 @@ func (s *UserContentService) GetUserGalgameCards(
 	for _, id := range ids {
 		b, ok := briefMap[id]
 		if !ok {
-			continue
-		}
-		if isSFW && b.ContentLimit != "sfw" {
 			continue
 		}
 		l := localMap[id]
@@ -206,28 +203,25 @@ func (s *UserContentService) GetUserResources(
 		linkMap, _ = s.userContentRepo.FindResourceLinks(resourceIDs)
 	}
 
+	// SFW gating via wiki content_limit per
+	// docs/galgame_wiki/00-handbook §16. Rows whose galgame is filtered
+	// come back as "no brief returned" and get dropped below.
 	var briefMap map[int]galgameClient.GalgameBrief
 	if len(galgameIDs) > 0 {
-		briefMap, _ = s.wikiClient.GetBatch(ctx, galgameIDs)
+		briefMap, _ = s.wikiClient.GetBatchPublic(ctx, galgameIDs, isSFW)
 	}
 
-	// SFW filter at service layer (content_limit lives on wiki briefs,
-	// not on galgame_resource). Total over-reports in SFW mode — same
-	// trade-off as galgame_service.GetList.
 	items := make([]dto.UserResourceItem, 0, len(rows))
 	for _, r := range rows {
 		b, hasBrief := briefMap[r.GalgameID]
-		if isSFW && (!hasBrief || b.ContentLimit != "sfw") {
+		if !hasBrief {
 			continue
 		}
 		links := linkMap[r.ID]
 		if links == nil {
 			links = []string{}
 		}
-		name := emptyLocale()
-		if hasBrief {
-			name = briefToLocale(b)
-		}
+		name := briefToLocale(b)
 		items = append(items, dto.UserResourceItem{
 			ID:          r.ID,
 			GalgameID:   r.GalgameID,
@@ -264,20 +258,20 @@ func (s *UserContentService) GetUserRatings(
 	}
 
 	galgameIDs := collectUniqueIDs(rows, func(r repository.UserRating) int { return r.GalgameID })
+	// SFW gating via wiki content_limit per
+	// docs/galgame_wiki/00-handbook §16.
 	var briefMap map[int]galgameClient.GalgameBrief
 	if len(galgameIDs) > 0 {
-		briefMap, _ = s.wikiClient.GetBatch(ctx, galgameIDs)
+		briefMap, _ = s.wikiClient.GetBatchPublic(ctx, galgameIDs, isSFW)
 	}
 
 	uids := collectUniqueIDs(rows, func(r repository.UserRating) int { return r.UserID })
 	userMap := s.userClient.Hydrate(ctx, uids)
 
-	// SFW filter at service layer — galgame_rating has no content_limit,
-	// only the wiki brief does. Total over-reports in SFW mode.
 	items := make([]dto.UserRatingItem, 0, len(rows))
 	for _, r := range rows {
 		b, hasBrief := briefMap[r.GalgameID]
-		if isSFW && (!hasBrief || b.ContentLimit != "sfw") {
+		if !hasBrief {
 			continue
 		}
 		var galgameType []string

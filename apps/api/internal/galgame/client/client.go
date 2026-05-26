@@ -247,7 +247,28 @@ type GalgameBrief struct {
 //
 // For "show me my own pending drafts too" use GetBatchWithViewer.
 func (c *GalgameClient) GetBatch(ctx context.Context, ids []int) (map[int]GalgameBrief, *errors.AppError) {
-	return c.GetBatchWithViewer(ctx, ids, "")
+	return c.GetBatchWithOptions(ctx, ids, "", "")
+}
+
+// GetBatchPublic is the cookie-aware batch fetch for any public list /
+// feed enrichment path: enriches kungal-local IDs with wiki briefs while
+// honouring the caller's NSFW preference.
+//
+//   isSFW=true  → content_limit=sfw  (drop NSFW server-side)
+//   isSFW=false → content_limit=all  (caller opted in to NSFW)
+//
+// Per docs/galgame_wiki/00-handbook §16, /galgame/batch defaults to
+// NO filter (callers presumed to know the IDs they want). Any path
+// reachable by anonymous traffic / search crawlers MUST go through
+// this helper rather than the bare GetBatch — see §16 "不要在下游做
+// 客户端 filtering" for why service-layer post-filtering isn't
+// equivalent (data has already left the wiki boundary).
+func (c *GalgameClient) GetBatchPublic(ctx context.Context, ids []int, isSFW bool) (map[int]GalgameBrief, *errors.AppError) {
+	limit := "all"
+	if isSFW {
+		limit = "sfw"
+	}
+	return c.GetBatchWithOptions(ctx, ids, "", limit)
 }
 
 // GetBatchWithViewer is the Bearer-aware batch fetch. With a non-empty token
@@ -256,6 +277,20 @@ func (c *GalgameClient) GetBatch(ctx context.Context, ids []int) (map[int]Galgam
 //
 // token="" reduces to the anonymous form.
 func (c *GalgameClient) GetBatchWithViewer(ctx context.Context, ids []int, token string) (map[int]GalgameBrief, *errors.AppError) {
+	return c.GetBatchWithOptions(ctx, ids, token, "")
+}
+
+// GetBatchWithOptions is the fully-parameterized batch fetch:
+//
+//   - token: caller's Bearer access_token; "" = anonymous
+//   - contentLimit: "sfw" / "nsfw" / "all" / "" (omit, wiki default = no filter)
+//
+// Per docs/galgame_wiki/00-handbook §16, /galgame/batch's default is
+// **no filter** (the caller already knows the IDs they want). Public
+// list/feed paths that re-use the batch endpoint to enrich kungal-local
+// IDs MUST pass "sfw" to keep NSFW out — there is no implicit safety
+// net at this layer.
+func (c *GalgameClient) GetBatchWithOptions(ctx context.Context, ids []int, token, contentLimit string) (map[int]GalgameBrief, *errors.AppError) {
 	if len(ids) == 0 {
 		return map[int]GalgameBrief{}, nil
 	}
@@ -265,6 +300,9 @@ func (c *GalgameClient) GetBatchWithViewer(ctx context.Context, ids []int, token
 		idStrs[i] = strconv.Itoa(id)
 	}
 	query := url.Values{"ids": {joinStrings(idStrs, ",")}}
+	if contentLimit != "" {
+		query.Set("content_limit", contentLimit)
+	}
 
 	data, appErr := c.GetWithToken(ctx, "/galgame/batch", token, query)
 	if appErr != nil {

@@ -234,5 +234,24 @@ func (s *TopicService) GetDetail(
 		Created:          topic.CreatedAt,
 	}
 
+	// Hydrate best-answer summary (JSON-LD acceptedAnswer on FE side).
+	// Identity comes from OAuth via userClient — same path as the topic
+	// author. Errors are tolerated: a broken best-answer reply must not
+	// break the whole detail page.
+	if topic.BestAnswerID != nil {
+		reply, replyErr := s.topicRepo.FindReplyByID(*topic.BestAnswerID)
+		if replyErr == nil && reply != nil {
+			ru, _, _ := s.userClient.User(ctx, reply.UserID)
+			detail.BestAnswer = &dto.TopicBestAnswer{
+				ID:              reply.ID,
+				Floor:           reply.Floor,
+				User:            dto.KunUser{ID: ru.ID, Name: ru.Name, Avatar: ru.Avatar},
+				ContentMarkdown: reply.Content,
+				ContentHtml:     markdown.Render(reply.Content),
+				Created:         reply.CreatedAt,
+			}
+		}
+	}
+
 	return detail, nil
 }
