@@ -12,7 +12,7 @@ const appVersion = packageJson.version
 console.log(appVersion)
 
 const sharedTsConfig: TSConfig = {
-  exclude: ['**/backup/**', '**/dist/**', '**/node_modules/**', '**/prisma/**']
+  exclude: ['**/backup/**', '**/dist/**', '**/node_modules/**']
 }
 
 // https://nuxt.com/docs/api/configuration/nuxt-config

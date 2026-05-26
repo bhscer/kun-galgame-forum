@@ -1,6 +1,6 @@
 {
   "name": "kun-galgame-nuxt4-fiber",
-  "version": "5.2.42",
+  "version": "5.2.43",
   "private": true,
   "packageManager": "pnpm@10.12.1",
   "workspaces": [
@@ -22,8 +22,6 @@
     "test:api": "pnpm -F @apps/api run test",
     "migrate": "pnpm -F @apps/api run migrate",
     "migrate:down": "pnpm -F @apps/api run migrate:down",
-    "prisma:generate": "pnpm -F @apps/web run prisma:generate",
-    "prisma:push": "pnpm -F @apps/web run prisma:push",
     "prepare": "husky",
     "precommit": "node .husky/scripts/bumpAppVersion.js && git add package.json",
     "sitemap": "esno apps/web/scripts/generateSitemap.ts",
@@ -57,12 +55,10 @@
     },
     "onlyBuiltDependencies": [
       "@parcel/watcher",
-      "@prisma/engines",
       "aws-sdk",
       "bcrypt",
       "better-sqlite3",
       "esbuild",
-      "prisma",
       "sharp",
       "unrs-resolver"
     ],
