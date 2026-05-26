@@ -26,13 +26,18 @@ func NewResourceHandler(resourceService *service.ResourceService) *ResourceHandl
 
 // GetResourceList returns the latest galgame resources.
 // GET /api/galgame-resource
+// GetResourceList — GET /galgame-resource
+//
+// SFW-default. Crawlers and cookie-less visitors see only resources
+// attached to content_limit=sfw galgames; logged-in users with the NSFW
+// switch enabled see everything.
 func (h *ResourceHandler) GetResourceList(c *fiber.Ctx) error {
 	var req dto.ResourceListRequest
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
-	page, appErr := h.resourceService.GetResourceList(c.Context(), &req)
+	page, appErr := h.resourceService.GetResourceList(c.Context(), &req, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

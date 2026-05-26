@@ -30,6 +30,12 @@ func NewTopicHandler(
 
 // GetList returns paginated topic list.
 // GET /api/topic
+//
+// SFW default: anonymous crawlers and users without the NSFW cookie set
+// see only `is_nsfw = false` rows. Logged-in users (or anyone) who flip
+// the NSFW switch in client settings (Pinia-persisted cookie
+// `KUNGalgameSettings.showKUNGalgameContentLimit = "nsfw"`) get the full
+// list. Search engines that don't carry cookies always land on SFW.
 func (h *TopicHandler) GetList(c *fiber.Ctx) error {
 	var req dto.ListTopicsRequest
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
@@ -43,8 +49,10 @@ func (h *TopicHandler) GetList(c *fiber.Ctx) error {
 		req.SortOrder = "desc"
 	}
 
-	// TODO: read NSFW cookie
-	isNSFW := false
+	// list_repo flips on `isNSFW = true` (no filter) vs `false` (where
+	// is_nsfw=false). utils.IsSFW returns true when the user wants SFW,
+	// so the service parameter is the negation.
+	isNSFW := !utils.IsSFW(c)
 
 	items, _, appErr := h.topicService.GetList(c.Context(), &req, isNSFW)
 	if appErr != nil {
@@ -56,6 +64,8 @@ func (h *TopicHandler) GetList(c *fiber.Ctx) error {
 
 // GetResourceList returns topics filtered to resource sections (g-seeking, g-other, t-help).
 // GET /api/resource
+//
+// Same SFW-default cookie semantics as GetList.
 func (h *TopicHandler) GetResourceList(c *fiber.Ctx) error {
 	var req dto.ListTopicsRequest
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
@@ -69,7 +79,7 @@ func (h *TopicHandler) GetResourceList(c *fiber.Ctx) error {
 		req.SortOrder = "desc"
 	}
 
-	isNSFW := false
+	isNSFW := !utils.IsSFW(c)
 	items, _, appErr := h.topicService.GetResourceList(c.Context(), &req, isNSFW)
 	if appErr != nil {
 		return response.Error(c, appErr)

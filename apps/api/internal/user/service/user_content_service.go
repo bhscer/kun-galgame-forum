@@ -36,10 +36,16 @@ func NewUserContentService(
 
 // GetUserGalgameCards returns enriched galgame cards for the user's list
 // (created / liked / favorited / commented depending on req.Type).
+//
+// SFW filter applied at the service layer against each card's wiki brief —
+// kungal's `galgame` table has no content_limit column, so SQL-level
+// filtering would need a schema sync. `total` over-reports in SFW mode;
+// same SEO-safe trade-off as galgame_service.GetList.
 func (s *UserContentService) GetUserGalgameCards(
 	ctx context.Context,
 	userID int,
 	req *dto.UserGalgamesRequest,
+	isSFW bool,
 ) ([]dto.UserGalgameCard, int64, *errors.AppError) {
 	ids, total, err := s.userContentRepo.FindUserGalgameIDs(userID, req.Type, req.Page, req.Limit)
 	if err != nil {
@@ -66,6 +72,9 @@ func (s *UserContentService) GetUserGalgameCards(
 	for _, id := range ids {
 		b, ok := briefMap[id]
 		if !ok {
+			continue
+		}
+		if isSFW && b.ContentLimit != "sfw" {
 			continue
 		}
 		l := localMap[id]
@@ -104,8 +113,8 @@ func values[K comparable, V any](m map[K]V) []V {
 // Topics / replies / comments (already thin)
 // ──────────────────────────────────────────
 
-func (s *UserContentService) GetUserTopics(ctx context.Context, userID int, req *dto.UserTopicsRequest) ([]dto.UserTopic, int64, *errors.AppError) {
-	items, total, err := s.userContentRepo.FindUserTopics(userID, req.Type, req.Page, req.Limit)
+func (s *UserContentService) GetUserTopics(ctx context.Context, userID int, req *dto.UserTopicsRequest, isSFW bool) ([]dto.UserTopic, int64, *errors.AppError) {
+	items, total, err := s.userContentRepo.FindUserTopics(userID, req.Type, req.Page, req.Limit, isSFW)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户话题列表失败")
 	}
@@ -179,6 +188,7 @@ func (s *UserContentService) GetUserResources(
 	ctx context.Context,
 	userID int,
 	req *dto.UserResourcesRequest,
+	isSFW bool,
 ) (*dto.UserResourcesResponse, *errors.AppError) {
 	rows, total, err := s.userContentRepo.FindUserResources(userID, req.Type, req.Page, req.Limit)
 	if err != nil {
@@ -201,19 +211,24 @@ func (s *UserContentService) GetUserResources(
 		briefMap, _ = s.wikiClient.GetBatch(ctx, galgameIDs)
 	}
 
-	items := make([]dto.UserResourceItem, len(rows))
-	for i, r := range rows {
+	// SFW filter at service layer (content_limit lives on wiki briefs,
+	// not on galgame_resource). Total over-reports in SFW mode — same
+	// trade-off as galgame_service.GetList.
+	items := make([]dto.UserResourceItem, 0, len(rows))
+	for _, r := range rows {
+		b, hasBrief := briefMap[r.GalgameID]
+		if isSFW && (!hasBrief || b.ContentLimit != "sfw") {
+			continue
+		}
 		links := linkMap[r.ID]
 		if links == nil {
 			links = []string{}
 		}
 		name := emptyLocale()
-		if briefMap != nil {
-			if b, ok := briefMap[r.GalgameID]; ok {
-				name = briefToLocale(b)
-			}
+		if hasBrief {
+			name = briefToLocale(b)
 		}
-		items[i] = dto.UserResourceItem{
+		items = append(items, dto.UserResourceItem{
 			ID:          r.ID,
 			GalgameID:   r.GalgameID,
 			GalgameName: name,
@@ -227,7 +242,7 @@ func (s *UserContentService) GetUserResources(
 			Note:        r.Note,
 			Status:      r.Status,
 			Created:     r.Created,
-		}
+		})
 	}
 
 	return &dto.UserResourcesResponse{Resources: items, Total: total}, nil
@@ -241,6 +256,7 @@ func (s *UserContentService) GetUserRatings(
 	ctx context.Context,
 	userID int,
 	req *dto.UserRatingsRequest,
+	isSFW bool,
 ) (*dto.UserRatingsResponse, *errors.AppError) {
 	rows, total, err := s.userContentRepo.FindUserRatings(userID, req.Page, req.Limit)
 	if err != nil {
@@ -256,26 +272,30 @@ func (s *UserContentService) GetUserRatings(
 	uids := collectUniqueIDs(rows, func(r repository.UserRating) int { return r.UserID })
 	userMap := s.userClient.Hydrate(ctx, uids)
 
-	items := make([]dto.UserRatingItem, len(rows))
-	for i, r := range rows {
+	// SFW filter at service layer — galgame_rating has no content_limit,
+	// only the wiki brief does. Total over-reports in SFW mode.
+	items := make([]dto.UserRatingItem, 0, len(rows))
+	for _, r := range rows {
+		b, hasBrief := briefMap[r.GalgameID]
+		if isSFW && (!hasBrief || b.ContentLimit != "sfw") {
+			continue
+		}
 		var galgameType []string
 		if r.GalgameType != "" {
 			_ = json.Unmarshal([]byte(r.GalgameType), &galgameType)
 		}
 
 		galgame := dto.UserRatingGalgame{ID: r.GalgameID}
-		if briefMap != nil {
-			if b, ok := briefMap[r.GalgameID]; ok {
-				galgame = dto.UserRatingGalgame{
-					ID:           b.ID,
-					Name:         briefToLocale(b),
-					ContentLimit: b.ContentLimit,
-				}
+		if hasBrief {
+			galgame = dto.UserRatingGalgame{
+				ID:           b.ID,
+				Name:         briefToLocale(b),
+				ContentLimit: b.ContentLimit,
 			}
 		}
 
 		u := userMap[r.UserID]
-		items[i] = dto.UserRatingItem{
+		items = append(items, dto.UserRatingItem{
 			ID:           r.ID,
 			User:         dto.UserBrief{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
 			Recommend:    r.Recommend,
@@ -296,7 +316,7 @@ func (s *UserContentService) GetUserRatings(
 			Created:      r.Created,
 			Updated:      r.Updated,
 			Galgame:      galgame,
-		}
+		})
 	}
 
 	return &dto.UserRatingsResponse{RatingData: items, Total: total}, nil

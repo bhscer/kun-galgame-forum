@@ -144,7 +144,11 @@ func (r *UserContentRepository) FindUserGalgameComments(
 // Topics
 // ──────────────────────────────────────────
 
-func (r *UserContentRepository) FindUserTopics(userID int, queryType string, page, limit int) ([]dto.UserTopic, int64, error) {
+// FindUserTopics applies the user's NSFW preference. In SFW mode every
+// query (regardless of type — created, liked, upvoted, favorited) hides
+// rows where topic.is_nsfw=true so a SFW crawler never indexes someone's
+// NSFW topic via their profile.
+func (r *UserContentRepository) FindUserTopics(userID int, queryType string, page, limit int, isSFW bool) ([]dto.UserTopic, int64, error) {
 	offset := (page - 1) * limit
 	var results []dto.UserTopic
 	var total int64
@@ -171,6 +175,10 @@ func (r *UserContentRepository) FindUserTopics(userID int, queryType string, pag
 		baseQuery = baseQuery.Where("topic.user_id = ? AND topic.status = 1", userID)
 	default:
 		baseQuery = baseQuery.Where("topic.user_id = ?", userID)
+	}
+
+	if isSFW {
+		baseQuery = baseQuery.Where("topic.is_nsfw = false")
 	}
 
 	baseQuery.Count(&total)

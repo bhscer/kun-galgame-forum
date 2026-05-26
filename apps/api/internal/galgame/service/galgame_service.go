@@ -372,6 +372,7 @@ func (s *GalgameService) buildDetailRatings(
 func (s *GalgameService) GetList(
 	ctx context.Context,
 	req *dto.GalgameListRequest,
+	isSFW bool,
 ) (*dto.GalgameListPage, *errors.AppError) {
 	sortOrder := req.SortOrder
 	if sortOrder == "" {
@@ -415,10 +416,21 @@ func (s *GalgameService) GetList(
 	metaRows := s.resourceMetaRepo.FindResourceMetaBatch(ids)
 	platformMap, languageMap := groupResourceMeta(metaRows)
 
+	// SFW filter applied at the service layer because the kungal `galgame`
+	// table has no content_limit column — that field lives only on wiki
+	// briefs. As a consequence, `total` here is the unfiltered count and
+	// can over-report when isSFW=true. Accepting this skew is the SEO-safe
+	// trade-off: it's far worse to let an unfiltered NSFW listing be
+	// crawler-visible than to return a slightly inflated total. A proper
+	// fix needs schema work (add galgame.content_limit + sync from wiki
+	// on submit/approve, then push the filter into list_repo's SQL).
 	cards := make([]dto.GalgameListCard, 0, len(ids))
 	for _, id := range ids {
 		b, ok := briefMap[id]
 		if !ok {
+			continue
+		}
+		if isSFW && b.ContentLimit != "sfw" {
 			continue
 		}
 		cards = append(cards, dto.GalgameListCard{

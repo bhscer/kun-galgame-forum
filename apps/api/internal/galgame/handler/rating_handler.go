@@ -23,13 +23,17 @@ func NewRatingHandler(ratingService *service.RatingService) *RatingHandler {
 
 // GetAllRatings returns paginated galgame ratings.
 // GET /api/galgame-rating/all
+// GetAllRatings — GET /api/galgame-rating/all
+//
+// SFW-default: anonymous + cookie-less requests get only ratings whose
+// galgame is content_limit=sfw.
 func (h *RatingHandler) GetAllRatings(c *fiber.Ctx) error {
 	var req dto.RatingListRequest
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
-	page, appErr := h.ratingService.GetAllRatings(c.Context(), &req)
+	page, appErr := h.ratingService.GetAllRatings(c.Context(), &req, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

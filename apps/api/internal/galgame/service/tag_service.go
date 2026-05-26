@@ -65,11 +65,16 @@ type TagMultiPage struct {
 // (galgame/tag/Container.vue) does `searchResult.value = res` expecting a
 // bare TagListItem[]. We unwrap `items` here so the gateway response stays
 // compatible without touching the frontend.
+//
+// SFW filter: drop tags with category="sexual" (matches the convention in
+// GetList line 155). Forwarding content_limit=sfw to wiki additionally
+// hides tags whose galgame attachments are NSFW-only.
 func (s *TagService) Search(
 	ctx context.Context,
 	rawQuery url.Values,
+	isSFW bool,
 ) ([]dto.TagListItem, *errors.AppError) {
-	data, appErr := s.wikiClient.Get(ctx, "/tag/search", rawQuery)
+	data, appErr := s.wikiClient.Get(ctx, "/tag/search", withSFWFilter(rawQuery, isSFW))
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -79,12 +84,15 @@ func (s *TagService) Search(
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, errors.ErrInternal("解析 Wiki 响应失败")
 	}
-	items := make([]dto.TagListItem, len(resp.Items))
-	for i, t := range resp.Items {
-		items[i] = dto.TagListItem{
+	items := make([]dto.TagListItem, 0, len(resp.Items))
+	for _, t := range resp.Items {
+		if isSFW && t.Category == "sexual" {
+			continue
+		}
+		items = append(items, dto.TagListItem{
 			ID: t.ID, Name: t.Name, Category: t.Category,
 			GalgameCount: t.GalgameCount,
-		}
+		})
 	}
 	return items, nil
 }

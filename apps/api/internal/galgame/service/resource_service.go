@@ -35,9 +35,16 @@ func NewResourceService(
 // GetResourceList — GET /galgame-resource
 // ──────────────────────────────────────────
 
+// GetResourceList returns the public resource list. SFW filter is applied
+// at the service layer against each row's owning galgame: kungal's
+// galgame_resource table has no content_limit field (the flag lives only
+// on wiki briefs), so SQL-level filtering isn't possible without a
+// schema sync. `total` therefore over-reports in SFW mode — same SEO-safe
+// trade-off as galgame_service.GetList.
 func (s *ResourceService) GetResourceList(
 	ctx context.Context,
 	req *dto.ResourceListRequest,
+	isSFW bool,
 ) (*dto.ResourceListPage, *errors.AppError) {
 	total := s.resourceRepo.CountAll()
 	rows := s.resourceRepo.ListPaginated(req.Page, req.Limit)
@@ -52,8 +59,15 @@ func (s *ResourceService) GetResourceList(
 		if !userclient.IsRenderable(u) {
 			continue
 		}
+		b, hasBrief := briefMap[r.GalgameID]
+		// Hide resources whose galgame is NSFW under SFW mode. If wiki
+		// didn't return the brief (migration lag), play it safe and
+		// drop the row in SFW — better to lose a row than expose it.
+		if isSFW && (!hasBrief || b.ContentLimit != "sfw") {
+			continue
+		}
 		card := rowToCard(r, u)
-		if b, ok := briefMap[r.GalgameID]; ok {
+		if hasBrief {
 			card.GalgameName = briefToName(b)
 		}
 		cards = append(cards, card)

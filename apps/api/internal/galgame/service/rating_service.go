@@ -49,9 +49,15 @@ func ratingReward(summaryLen int) int {
 // GetAllRatings — GET /galgame-rating/all
 // ──────────────────────────────────────────
 
+// GetAllRatings returns the public rating list. SFW filter is applied
+// at the service layer against each rating's galgame brief (content_limit
+// lives only on wiki, not on the local galgame_rating row), so `total`
+// over-reports in SFW mode — same SEO-safe trade-off as
+// galgame_service.GetList.
 func (s *RatingService) GetAllRatings(
 	ctx context.Context,
 	req *dto.RatingListRequest,
+	isSFW bool,
 ) (*dto.RatingListPage, *errors.AppError) {
 	// Normalise sort order
 	sortOrder := req.SortOrder
@@ -85,7 +91,13 @@ func (s *RatingService) GetAllRatings(
 		if !userclient.IsRenderable(u) {
 			continue
 		}
-		cards = append(cards, ratingRowToCard(r, u, briefMap[r.GalgameID]))
+		b, hasBrief := briefMap[r.GalgameID]
+		// In SFW mode hide ratings whose galgame is NSFW. Missing brief
+		// (wiki migration lag) → drop conservatively.
+		if isSFW && (!hasBrief || b.ContentLimit != "sfw") {
+			continue
+		}
+		cards = append(cards, ratingRowToCard(r, u, b))
 	}
 
 	return &dto.RatingListPage{RatingData: cards, Total: total}, nil

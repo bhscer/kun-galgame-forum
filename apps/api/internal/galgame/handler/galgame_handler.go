@@ -99,13 +99,18 @@ func (h *GalgameHandler) GetDetail(c *fiber.Ctx) error {
 }
 
 // GetList — GET /api/galgame
+//
+// SFW-default. Crawlers and cookie-less visitors get content_limit=sfw
+// only; logged-in users with the NSFW switch on see everything. The
+// filter happens in the service layer because kungal's galgame table
+// has no content_limit field (see service.GetList for the trade-off).
 func (h *GalgameHandler) GetList(c *fiber.Ctx) error {
 	var req dto.GalgameListRequest
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
-	page, appErr := h.galgameService.GetList(c.Context(), &req)
+	page, appErr := h.galgameService.GetList(c.Context(), &req, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

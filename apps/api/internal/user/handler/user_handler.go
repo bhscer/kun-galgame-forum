@@ -102,7 +102,7 @@ func (h *UserHandler) GetUserGalgames(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	cards, total, appErr := h.userContentService.GetUserGalgameCards(c.Context(), userID, &req)
+	cards, total, appErr := h.userContentService.GetUserGalgameCards(c.Context(), userID, &req, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -120,7 +120,7 @@ func (h *UserHandler) GetUserTopics(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	items, total, appErr := h.userContentService.GetUserTopics(c.Context(), userID, &req)
+	items, total, appErr := h.userContentService.GetUserTopics(c.Context(), userID, &req, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -174,7 +174,7 @@ func (h *UserHandler) GetUserResources(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	page, appErr := h.userContentService.GetUserResources(c.Context(), userID, &req)
+	page, appErr := h.userContentService.GetUserResources(c.Context(), userID, &req, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -214,7 +214,7 @@ func (h *UserHandler) GetUserRatings(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	page, appErr := h.userContentService.GetUserRatings(c.Context(), userID, &req)
+	page, appErr := h.userContentService.GetUserRatings(c.Context(), userID, &req, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
