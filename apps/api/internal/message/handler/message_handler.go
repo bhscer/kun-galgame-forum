@@ -72,6 +72,18 @@ func (h *MessageHandler) GetSystemMessages(c *fiber.Ctx) error {
 
 // MarkAdminRead marks all system broadcast messages as read.
 // PUT /api/message/admin/read
+//
+// TODO(critical, schema-change): this endpoint is GLOBAL — any logged-in
+// user calling it flips `system_message.status` from `unread` → `read`
+// for the entire row, which means EVERY OTHER USER also loses their
+// unread badge instantly. The schema currently has no per-user read
+// state for system_message; fixing it properly needs a new
+// `system_message_read_state` table modeled after
+// `wiki_message_read_state` (high-water-mark cursor per user), then
+// rewriting this handler to bump only the caller's cursor and the
+// `GET /message/admin` handler to read unread relative to that cursor.
+// See migrations/008 for the wiki-message precedent. Leaving this as a
+// known footgun until the schema change is scheduled.
 func (h *MessageHandler) MarkAdminRead(c *fiber.Ctx) error {
 	if _, appErr := middleware.MustGetUser(c); appErr != nil {
 		return response.Error(c, appErr)

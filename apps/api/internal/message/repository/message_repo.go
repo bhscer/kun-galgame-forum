@@ -99,6 +99,10 @@ func (r *MessageRepository) FindSystemMessages() ([]SystemMessageRow, error) {
 	return rows, err
 }
 
+// TODO(critical, schema-change): no `user_id` parameter — this flips
+// status on the row itself, which is shared across ALL users. Caller
+// (handler MarkAdminRead) doesn't surface this either. Needs to migrate
+// to a per-user read-state table (see handler comment).
 func (r *MessageRepository) MarkAllSystemRead() error {
 	return r.db.Model(&model.SystemMessage{}).
 		Where("status = 'unread'").

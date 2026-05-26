@@ -444,12 +444,11 @@ func (s *TopicWriteService) SetBestAnswer(ctx context.Context, userID, role, top
 				return err
 			}
 		}
-		if err := tx.Exec(
-			`UPDATE "user" SET moemoepoint = moemoepoint + ? WHERE id = ?`,
-			delta, reply.UserID,
-		).Error; err != nil {
-			return err
-		}
+		// Use the helper (kungal_user_state) instead of raw `UPDATE "user"
+		// SET moemoepoint = ...` — migration 007 dropped that column from
+		// the identity table, so the legacy SQL was PG-erroring out and
+		// silently rolling back the entire set-best-answer transaction.
+		s.helpers.AdjustMoemoepoint(tx, reply.UserID, delta)
 		// Only notify on set (not on clear) — matches legacy Nitro.
 		if !isCurrentBest {
 			return s.notifier.Emit(tx, msgService.Spec{

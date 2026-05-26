@@ -21,7 +21,14 @@ type GalgameWebsite struct {
 	AgeLimit    string          `gorm:"column:age_limit;default:'all'" json:"age_limit"` // all, r18
 	Domain      json.RawMessage `gorm:"type:jsonb;default:'[]'" json:"domain"`           // text[] → jsonb
 
-	CategoryID int `gorm:"column:category_id;not null" json:"category_id"`
+	// galgame_website.category_id references galgame_website_category(id)
+	// with `ON DELETE RESTRICT` at the DB level (see 000_baseline.up.sql).
+	// Deleting a category while websites exist will fail with a
+	// foreign_key_violation — categories are taxonomy and should not
+	// silently take their websites with them. Move/delete websites first.
+	// (`constraint:OnDelete:RESTRICT` is a doc tag only — GORM only acts
+	//  on it under AutoMigrate, which this project doesn't run.)
+	CategoryID int `gorm:"column:category_id;not null;constraint:OnDelete:RESTRICT" json:"category_id"`
 	UserID     int `gorm:"column:user_id;not null;default:2" json:"user_id"`
 
 	// Counts (denormalized)

@@ -140,7 +140,13 @@ func (s *CommentService) DeleteComment(userID, userRole, commentID int) *errors.
 		return errors.ErrForbidden("您没有权限删除此评论")
 	}
 
+	// Count the subtree BEFORE deletion. The DB FK on parent_id is
+	// `ON DELETE CASCADE` (legacy Prisma schema) so deleting a parent
+	// also wipes all replies; the website's denormalized comment_count
+	// must drop by the same amount or it stays inflated forever.
+	subtreeSize := max(s.commentRepo.CountSubtree(commentID), 1)
+
 	s.commentRepo.Delete(comment)
-	s.websiteRepo.AdjustCommentCount(comment.WebsiteID, -1)
+	s.websiteRepo.AdjustCommentCount(comment.WebsiteID, -int(subtreeSize))
 	return nil
 }

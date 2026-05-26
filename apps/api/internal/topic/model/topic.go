@@ -18,9 +18,18 @@ type Topic struct {
 	Edited           *time.Time `gorm:"" json:"edited"`
 	UpvoteTime       *time.Time `gorm:"column:upvote_time" json:"upvote_time"`
 
-	UserID        int  `gorm:"column:user_id;not null" json:"user_id"`
-	BestAnswerID  *int `gorm:"column:best_answer_id;uniqueIndex" json:"best_answer_id"`
-	PinnedReplyID *int `gorm:"column:pinned_reply_id;uniqueIndex" json:"pinned_reply_id"`
+	UserID int `gorm:"column:user_id;not null" json:"user_id"`
+
+	// Both best_answer_id and pinned_reply_id reference topic_reply(id)
+	// with `ON DELETE SET NULL` at the DB level (see 000_baseline.up.sql).
+	// That means deleting the referenced reply silently clears the
+	// pointer here — the topic survives with a null best-answer / pin.
+	// Code paths that delete replies do NOT need to manually unset these
+	// columns; PostgreSQL does it as part of the same statement.
+	// (`constraint:OnDelete:SET NULL` below is purely a doc tag — GORM
+	//  only acts on it when AutoMigrate runs, which this project doesn't.)
+	BestAnswerID  *int `gorm:"column:best_answer_id;uniqueIndex;constraint:OnDelete:SET NULL" json:"best_answer_id"`
+	PinnedReplyID *int `gorm:"column:pinned_reply_id;uniqueIndex;constraint:OnDelete:SET NULL" json:"pinned_reply_id"`
 
 	// Counts (denormalized)
 	LikeCount     int `gorm:"column:like_count;default:0" json:"like_count"`

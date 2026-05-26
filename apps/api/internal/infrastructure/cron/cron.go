@@ -47,10 +47,18 @@ func Start(db *gorm.DB, rdb *redis.Client, wikiMessageSync func()) func() {
 	}
 }
 
-// resetDaily resets all users' daily counters to 0.
+// resetDaily resets all users' daily counters to 0 at midnight.
+//
+// Targets `kungal_user_state`, NOT the old `"user"` table — migration 007
+// dropped the daily_* columns from the identity table and moved them to
+// the per-site state table. The original cron query (`UPDATE "user" SET
+// daily_* = 0`) silently errored every midnight after the migration
+// landed, so users who hit their daily upload caps stayed capped
+// indefinitely. See user/repository/state_repo.go ResetDailyCounters for
+// the mirrored repo helper.
 func resetDaily(db *gorm.DB) {
 	result := db.Exec(`
-		UPDATE "user" SET
+		UPDATE kungal_user_state SET
 			daily_check_in = 0,
 			daily_image_count = 0,
 			daily_toolset_upload_count = 0

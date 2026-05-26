@@ -80,6 +80,29 @@ func (r *CommentRepository) FindByID(id int) (*model.GalgameWebsiteComment, erro
 	return &comment, nil
 }
 
+// CountSubtree returns the size of the comment subtree rooted at `id`
+// (the comment itself + all descendants reachable through parent_id).
+// Used by DeleteComment so that `galgame_website.comment_count` can be
+// decremented by the actual number of rows the DB will cascade-delete
+// (the FK on parent_id is `ON DELETE CASCADE` per the legacy schema —
+// see refs/legacy/prisma/schema/galgame-website.prisma:85), not by a
+// flat -1 which would leave the counter inflated whenever a parent
+// comment had replies.
+func (r *CommentRepository) CountSubtree(id int) int64 {
+	var count int64
+	r.db.Raw(`
+		WITH RECURSIVE subtree AS (
+			SELECT id FROM galgame_website_comment WHERE id = ?
+			UNION ALL
+			SELECT c.id
+			FROM galgame_website_comment c
+			JOIN subtree s ON c.parent_id = s.id
+		)
+		SELECT COUNT(*) FROM subtree
+	`, id).Scan(&count)
+	return count
+}
+
 // ──────────────────────────────────────────
 // Writes
 // ──────────────────────────────────────────

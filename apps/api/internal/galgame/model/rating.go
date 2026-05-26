@@ -23,9 +23,17 @@ type GalgameRating struct {
 	Route        int             `gorm:"default:0" json:"route"`
 	System       int             `gorm:"default:0" json:"system"`
 	Voice        int             `gorm:"default:0" json:"voice"`
-	ReplayValue  int             `gorm:"column:replay_value;default:0" json:"replay_value"`
-	GalgameID    int             `gorm:"column:galgame_id;not null" json:"galgame_id"`
-	UserID       int             `gorm:"column:user_id;not null" json:"user_id"`
+	ReplayValue int `gorm:"column:replay_value;default:0" json:"replay_value"`
+
+	// galgame_rating.galgame_id references galgame(id) with
+	// `ON DELETE RESTRICT` at the DB level (see 000_baseline.up.sql).
+	// Deleting a galgame while ratings exist will fail with a
+	// foreign_key_violation — by design, since ratings are user-authored
+	// content that should not vanish silently with the wiki entity.
+	// (`constraint:OnDelete:RESTRICT` is a doc tag only — GORM only
+	//  acts on it under AutoMigrate, which this project doesn't run.)
+	GalgameID int `gorm:"column:galgame_id;not null;constraint:OnDelete:RESTRICT" json:"galgame_id"`
+	UserID    int `gorm:"column:user_id;not null" json:"user_id"`
 	LikeCount    int             `gorm:"column:like_count;default:0" json:"like_count"`
 	CommentCount int             `gorm:"column:comment_count;default:0" json:"comment_count"`
 

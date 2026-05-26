@@ -348,13 +348,29 @@ func (s *CommentService) DeleteComment(userID, role, commentID int) *errors.AppE
 		return errors.ErrForbidden("您没有权限删除此评论")
 	}
 
-	// Count this comment + all descendants so we can decrement the
-	// galgame.comment_count by the full subtree size in one shot
-	// (Postgres cascades the actual row deletes).
+	// Count this comment + every descendant reachable through
+	// parent_comment_id so we can decrement galgame.comment_count by the
+	// full subtree size (Postgres cascades the actual row deletes via
+	// the parent_comment_id FK). The old query
+	// `id = ? OR root_comment_id = ?` was only correct when commentID
+	// happened to be a thread root — deleting a mid-tree reply would
+	// under-count its grandchildren, since root_comment_id always points
+	// to the top of the thread, not the immediate parent. Recursive CTE
+	// is independent of the depth-of-current-row assumption.
 	var subtreeSize int64
-	s.commentRepo.DB().Model(&model.GalgameComment{}).
-		Where("id = ? OR root_comment_id = ?", commentID, commentID).
-		Count(&subtreeSize)
+	s.commentRepo.DB().Raw(`
+		WITH RECURSIVE subtree AS (
+			SELECT id FROM galgame_comment WHERE id = ?
+			UNION ALL
+			SELECT c.id
+			FROM galgame_comment c
+			JOIN subtree s ON c.parent_comment_id = s.id
+		)
+		SELECT COUNT(*) FROM subtree
+	`, commentID).Scan(&subtreeSize)
+	if subtreeSize < 1 {
+		subtreeSize = 1
+	}
 
 	txErr := s.commentRepo.DB().Transaction(func(tx *gorm.DB) error {
 		// Likes on descendant comments are cleared by their cascade
