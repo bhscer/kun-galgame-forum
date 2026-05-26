@@ -95,7 +95,7 @@ const handleWithdraw = async (item: MineGalgameItem) => {
         class="dark:border-default-200 flex flex-col gap-3 rounded-lg border border-transparent p-3 backdrop-blur-none transition-all duration-200 sm:flex-row sm:items-center"
       >
         <KunImage
-          :src="getEffectiveBanner(item) || '/kungalgame.webp'"
+          :src="getEffectiveBanner(item, { variant: 'mini' }) || '/kungalgame.webp'"
           loading="lazy"
           placeholder="/placeholder.webp"
           class="h-20 w-32 shrink-0 rounded object-cover"

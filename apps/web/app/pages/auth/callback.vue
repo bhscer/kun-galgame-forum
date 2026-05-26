@@ -53,9 +53,12 @@ onMounted(async () => {
       id: result.id,
       name: result.name,
       avatar: result.avatar,
-      avatarMin: result.avatar
-        ? result.avatar.replace(/\.webp$/, '-100.webp')
-        : '',
+      // withImageVariant picks the right separator per URL family:
+      // image_service hash-addressed URLs get `_100`, legacy nitro
+      // paths still on image.kungal.com get `-100`. The legacy avatar
+      // bulk migration is pending; until it lands both coexist for
+      // active users.
+      avatarMin: result.avatar ? withImageVariant(result.avatar, '100') : '',
       moemoepoint: result.moemoepoint,
       role: result.role,
       isCheckIn: false,

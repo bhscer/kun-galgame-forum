@@ -125,6 +125,11 @@ func (s *HomeService) getHomeGalgames(ctx context.Context, isSFW bool) ([]dto.Ho
 			ResourceUpdateTime: b.ResourceUpdateTime,
 			Platform:           mapKeys(platformMap[lr.ID]),
 			Language:           mapKeys(languageMap[lr.ID]),
+			// U2: pass through the derived banner so the FE card can
+			// pick `_mini`. Without these, new (covers-only) galgames
+			// fall through to the empty legacy `banner` field.
+			EffectiveBannerHash: b.EffectiveBannerHash,
+			EffectiveBannerURL:  b.EffectiveBannerURL,
 		})
 	}
 

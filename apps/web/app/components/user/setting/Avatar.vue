@@ -82,7 +82,10 @@ const submit = async () => {
     // into the local store so every component reading user.avatar
     // (top bar, comments, etc.) re-renders without a reload.
     userStore.avatar = result.url
-    userStore.avatarMin = result.url.replace(/\.webp$/, '-100.webp')
+    // withImageVariant handles both image_service (`_100`) and legacy
+    // nitro (`-100`) URL conventions automatically; see helper for the
+    // detection rule.
+    userStore.avatarMin = withImageVariant(result.url, '100')
     clearPick()
   }
 }

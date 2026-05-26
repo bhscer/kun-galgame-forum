@@ -21,7 +21,7 @@ defineProps<{
     >
       <div class="relative overflow-hidden">
         <KunImage
-          :src="getEffectiveBanner(galgame)"
+          :src="getEffectiveBanner(galgame, { variant: 'mini' })"
           loading="lazy"
           :alt="getPreferredLanguageText(galgame.name)"
           placeholder="/placeholder.webp"

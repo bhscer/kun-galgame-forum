@@ -3,6 +3,8 @@ import type { GalgameCard } from './galgame.d.ts'
 export interface GalgameSeriesSample {
   name: KunLanguage
   banner: string
+  effective_banner_hash?: string
+  effective_banner_url?: string
 }
 
 export interface GalgameSeries {

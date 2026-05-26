@@ -81,6 +81,11 @@ func (s *UserContentService) GetUserGalgameCards(
 			ResourceUpdateTime: b.ResourceUpdateTime,
 			Platform:           emptyStrSlice(platformMap[id]),
 			Language:           emptyStrSlice(languageMap[id]),
+			// U2: pass through the wiki-derived banner so the FE card
+			// can pick `_mini` instead of falling back to empty legacy
+			// `banner` for newly-uploaded galgames.
+			EffectiveBannerHash: b.EffectiveBannerHash,
+			EffectiveBannerURL:  b.EffectiveBannerURL,
 		})
 	}
 	return cards, total, nil

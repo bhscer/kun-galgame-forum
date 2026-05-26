@@ -221,7 +221,7 @@ const handleConfirmReason = async () => {
       >
         <KunImage
           v-if="getEffectiveBanner(msg.galgame)"
-          :src="getEffectiveBanner(msg.galgame)"
+          :src="getEffectiveBanner(msg.galgame, { variant: 'mini' })"
           loading="lazy"
           placeholder="/placeholder.webp"
           class="h-20 w-32 shrink-0 rounded object-cover"

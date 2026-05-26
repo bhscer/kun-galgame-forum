@@ -22,9 +22,65 @@ interface BannerSource {
   banner?: string
 }
 
-export const getEffectiveBanner = (g?: BannerSource | null): string => {
+// Two CDN conventions coexist during the legacy → image_service
+// migration of galgame covers:
+//
+//   image_service (new, hash-addressed):
+//     main    {cdn}/{hash[:2]}/{hash[2:4]}/{hash}.webp           1920×1080
+//     variant {cdn}/{hash[:2]}/{hash[2:4]}/{hash}_{variant}.webp  underscore
+//
+//   legacy nitro (pre-migration, path-based, e.g. image.kungal.com):
+//     main    {cdn}/galgame/{id}/banner/banner.webp
+//     variant {cdn}/galgame/{id}/banner/banner-{variant}.webp     hyphen
+//
+// Old galgame rows still serve from the legacy host and won't move
+// until the bulk migration runs, so the helper must produce the right
+// URL for either. We detect which family a URL belongs to by its path
+// shape — image_service URLs always end with a hex-hash file under a
+// two-level hex prefix; anything else (including arbitrary external
+// URLs) is treated as legacy / unknown and uses the hyphen form.
+//
+// Non-`.webp` URLs are returned untouched — historical free-form
+// `banner` fallbacks may be jpg/png from arbitrary external sources
+// where no variant convention applies; rewriting them would 404.
+// All variants currently in use across the app:
+//   'mini'  — galgame banner mini (460×259)
+//   '100'   — avatar small (100×100, comment lists, top bar)
+//   '256'   — avatar medium (256×256, profile cards)
+type ImageVariant = 'mini' | '100' | '256'
+
+const IMAGE_SERVICE_HASH_PATH = /\/[0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]+\.webp$/i
+
+// Exposed so call sites that receive a raw URL string (banner from
+// series detail, avatar from OAuth callback / store, etc.) can reuse
+// the same convention detection without re-implementing it. Detects
+// image_service URLs by their hash-addressed path shape and applies
+// underscore; everything else (legacy nitro paths, arbitrary external
+// URLs) gets the hyphen form.
+export const withImageVariant = (
+  url: string,
+  variant: ImageVariant
+): string => {
+  if (!url || !/\.webp$/i.test(url)) return url
+  const sep = IMAGE_SERVICE_HASH_PATH.test(url) ? '_' : '-'
+  return url.replace(/\.webp$/i, `${sep}${variant}.webp`)
+}
+
+// Back-compat alias — older call sites import `withBannerVariant` and
+// pass the banner variant union. Keep it as a thin wrapper so existing
+// imports keep compiling; internal logic is shared with the generic.
+export const withBannerVariant = (
+  url: string,
+  variant: Extract<ImageVariant, 'mini'>
+): string => withImageVariant(url, variant)
+
+export const getEffectiveBanner = (
+  g?: BannerSource | null,
+  opts?: { variant?: Extract<ImageVariant, 'mini'> }
+): string => {
   if (!g) return ''
   const eff = g.effective_banner_url?.trim()
-  if (eff) return eff
-  return g.banner?.trim() ?? ''
+  const base = (eff || g.banner?.trim() || '').trim()
+  if (!base || !opts?.variant) return base
+  return withBannerVariant(base, opts.variant)
 }

@@ -230,13 +230,21 @@ type WikiGalgameDetailFullResp struct {
 }
 
 // WikiSeriesSample is a sample galgame inside a series detail response.
+//
+// EffectiveBannerHash/URL must be declared here even though wiki's series
+// payload nests these objects — rewriteBanners walks the JSON and injects
+// `effective_banner_url`, but Go's json.Unmarshal silently drops any field
+// not declared on the target struct, leaving the FE carousel without the
+// U2 hash/URL pair for newly-uploaded (covers-only) galgames.
 type WikiSeriesSample struct {
-	NameEnUs     string `json:"name_en_us"`
-	NameJaJp     string `json:"name_ja_jp"`
-	NameZhCn     string `json:"name_zh_cn"`
-	NameZhTw     string `json:"name_zh_tw"`
-	Banner       string `json:"banner"`
-	ContentLimit string `json:"content_limit"`
+	NameEnUs            string `json:"name_en_us"`
+	NameJaJp            string `json:"name_ja_jp"`
+	NameZhCn            string `json:"name_zh_cn"`
+	NameZhTw            string `json:"name_zh_tw"`
+	Banner              string `json:"banner"`
+	ContentLimit        string `json:"content_limit"`
+	EffectiveBannerHash string `json:"effective_banner_hash"`
+	EffectiveBannerURL  string `json:"effective_banner_url"`
 }
 
 // WikiSeriesBrief is the shape of /series/:id used inside GalgameDetail.

@@ -28,6 +28,10 @@ type UserGalgameCard struct {
 	ResourceUpdateTime string      `json:"resourceUpdateTime"`
 	Platform           []string    `json:"platform"`
 	Language           []string    `json:"language"`
+	// U2: see HomeGalgame — without these the FE card can't render
+	// `_mini` for newly-uploaded (covers-only) galgames.
+	EffectiveBannerHash string `json:"effective_banner_hash,omitempty"`
+	EffectiveBannerURL  string `json:"effective_banner_url,omitempty"`
 }
 
 // UserGalgameComment is an item in GET /api/user/:userID/galgame-comments —

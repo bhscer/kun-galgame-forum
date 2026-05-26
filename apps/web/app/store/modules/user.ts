@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { withImageVariant } from '../../../shared/utils/getEffectiveBanner'
 import type { UserStore } from '../types/user'
 
 export const usePersistUserStore = defineStore(
@@ -18,7 +19,10 @@ export const usePersistUserStore = defineStore(
       id.value = user.id
       name.value = user.name
       avatar.value = user.avatar
-      avatarMin.value = user.avatar.replace(/\.webp$/, '-100.webp')
+      // withImageVariant picks the right separator per URL family:
+      // image_service hash-addressed URLs get `_100`, legacy nitro
+      // avatar paths get `-100`. Both coexist until the bulk migration.
+      avatarMin.value = withImageVariant(user.avatar, '100')
       moemoepoint.value = user.moemoepoint
       role.value = user.role
       isCheckIn.value = user.isCheckIn

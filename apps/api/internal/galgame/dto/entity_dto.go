@@ -28,9 +28,15 @@ type GalgameCard struct {
 }
 
 // GalgameSample is a minimal galgame sample (name + banner) used in list views.
+//
+// U2: see GalgameCard. The FE series carousel needs the same hash/URL
+// pair to render `_mini` for newly-uploaded (covers-only) galgames —
+// without it the carousel falls back to empty `banner` and shows nothing.
 type GalgameSample struct {
-	Name   KunLanguage `json:"name"`
-	Banner string      `json:"banner"`
+	Name                KunLanguage `json:"name"`
+	Banner              string      `json:"banner"`
+	EffectiveBannerHash string      `json:"effective_banner_hash,omitempty"`
+	EffectiveBannerURL  string      `json:"effective_banner_url,omitempty"`
 }
 
 // ──────────────────────────────────────────

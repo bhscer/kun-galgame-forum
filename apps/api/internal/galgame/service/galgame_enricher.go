@@ -60,7 +60,9 @@ func (e *GalgameEnricher) Samples(items []dto.WikiGalgameItem, n int) []dto.Galg
 				EnUs: g.NameEnUs, JaJp: g.NameJaJp,
 				ZhCn: g.NameZhCn, ZhTw: g.NameZhTw,
 			},
-			Banner: g.Banner,
+			Banner:              g.Banner,
+			EffectiveBannerHash: g.EffectiveBannerHash,
+			EffectiveBannerURL:  g.EffectiveBannerURL,
 		})
 	}
 	return out

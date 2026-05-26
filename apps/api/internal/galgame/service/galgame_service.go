@@ -316,7 +316,9 @@ func (s *GalgameService) fetchSeriesBrief(ctx context.Context, seriesID int) *dt
 					EnUs: sg.NameEnUs, JaJp: sg.NameJaJp,
 					ZhCn: sg.NameZhCn, ZhTw: sg.NameZhTw,
 				},
-				Banner: sg.Banner,
+				Banner:              sg.Banner,
+				EffectiveBannerHash: sg.EffectiveBannerHash,
+				EffectiveBannerURL:  sg.EffectiveBannerURL,
 			})
 		}
 	}

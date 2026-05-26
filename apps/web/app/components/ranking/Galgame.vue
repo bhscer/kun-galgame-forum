@@ -26,7 +26,7 @@ const { data } = await useKunFetch<RankingGalgame[]>('/ranking/galgame', {
         <div
           class="aspect-video h-16 shrink-0 overflow-hidden rounded-md bg-cover bg-center"
           :style="{
-            backgroundImage: `url(${getEffectiveBanner(galgame)})`
+            backgroundImage: `url(${getEffectiveBanner(galgame, { variant: 'mini' })})`
           }"
         />
         <div class="flex-1">

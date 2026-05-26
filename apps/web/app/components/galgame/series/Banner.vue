@@ -4,7 +4,12 @@ const props = defineProps<{
   galgames: GalgameSeriesSample[]
 }>()
 
-const banners = computed(() => props.galgames.map((g) => g.banner).slice(0, 5))
+// Prefer the U2 derived banner — `g.banner` is the legacy free-form URL
+// and is empty for newly-uploaded (covers-only) galgames, so reading it
+// directly leaves the carousel blank for fresh series entries.
+const banners = computed(() =>
+  props.galgames.map((g) => getEffectiveBanner(g)).slice(0, 5)
+)
 
 const hoverTranslations = [
   'group-hover:translate-x-0',
@@ -37,8 +42,14 @@ const hoverTranslations = [
         "
         :style="{ zIndex: banners.length - index }"
       >
+        <!--
+          Variant separator is picked per URL because legacy nitro-era
+          banners (image.kungal.com/galgame/N/banner/banner.webp) use
+          `-mini` while image_service URLs (hash-addressed) use `_mini`.
+          See getEffectiveBanner helper for the detection rule.
+        -->
         <KunImage
-          :src="banner.replace(/\.webp$/, '-mini.webp')"
+          :src="banner ? withBannerVariant(banner, 'mini') : ''"
           :alt="`Series Banner ${index + 1}`"
           class="h-full w-full rounded-lg object-cover"
           loading="lazy"
