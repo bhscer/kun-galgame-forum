@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"strconv"
 
 	"kun-galgame-api/internal/constants"
@@ -245,24 +244,20 @@ func (s *GalgameService) fetchOwnerID(ctx context.Context, galgameID int) int {
 // user can see VNDB-source drafts, etc. Anonymous viewers get the same
 // behavior as before (status=0 only).
 //
-// SFW gate (docs/galgame_wiki/00-handbook §16.2): /galgame/:gid defaults
-// to NO content_limit filter on wiki — direct URL access is "有意为之"
-// per spec. kungal opts in by passing content_limit=sfw on SFW requests
-// so wiki returns 404 for NSFW galgames. This is the right place to gate
-// because the wiki sees an authoritative match/no-match decision.
-// NSFW-cookie-on users hit content_limit=all → wiki returns the row.
+// NSFW is NOT gated here — wiki's /galgame/:gid default is "不过滤"
+// (docs/galgame_wiki/00-handbook §16.2: direct URL access is "有意为之").
+// We deliberately let the response carry contentLimit through to the FE
+// and let the FE decide UX: anonymous + SFW-cookie users see a "click
+// to confirm" interstitial, logged-in OR NSFW-cookie-on users see the
+// page directly. This trades a tiny SSR leak (mitigated by FE
+// `useKunDisableSeo`) for a much better UX on shared NSFW links.
 func (s *GalgameService) GetDetail(
 	ctx context.Context,
 	galgameID, currentUserID int,
 	token string,
-	isSFW bool,
 ) (*dto.GalgameDetail, *errors.AppError) {
-	query := url.Values{}
-	if isSFW {
-		query.Set("content_limit", "sfw")
-	}
 	wikiData, appErr := s.wikiClient.GetWithToken(
-		ctx, fmt.Sprintf("/galgame/%d", galgameID), token, query,
+		ctx, fmt.Sprintf("/galgame/%d", galgameID), token, nil,
 	)
 	if appErr != nil {
 		return nil, appErr

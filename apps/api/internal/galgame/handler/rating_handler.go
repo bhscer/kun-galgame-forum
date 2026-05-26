@@ -49,7 +49,7 @@ func (h *RatingHandler) GetRatingDetail(c *fiber.Ctx) error {
 	}
 
 	currentUID := optionalUID(c)
-	detail, appErr := h.ratingService.GetRatingDetail(c.Context(), id, currentUID, utils.IsSFW(c))
+	detail, appErr := h.ratingService.GetRatingDetail(c.Context(), id, currentUID)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

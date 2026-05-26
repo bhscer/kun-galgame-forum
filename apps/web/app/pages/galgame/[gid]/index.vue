@@ -7,7 +7,19 @@ import type {
 } from 'schema-dts'
 
 const userId = storeToRefs(usePersistUserStore()).id.value
+const { showKUNGalgameContentLimit } = storeToRefs(usePersistSettingsStore())
 const route = useRoute()
+
+// "NSFW mode" = cookie says nsfw or all. Used together with `userId` to
+// decide whether to short-circuit the NSFW interstitial:
+//   logged-in           → show directly (better UX for known visitors)
+//   anonymous + NSFW on → show directly (the user opted in)
+//   anonymous + SFW     → confirm interstitial (default browser policy)
+const isNsfwMode = computed(
+  () =>
+    showKUNGalgameContentLimit.value === 'nsfw' ||
+    showKUNGalgameContentLimit.value === 'all'
+)
 
 const gid = computed(() => {
   return parseInt((route.params as { gid: string }).gid)
@@ -37,9 +49,14 @@ if (galgame) {
     })
   } else if (galgame.contentLimit === 'nsfw') {
     const title = getPreferredLanguageText(galgame.name)
-    useKunDisableSeo(userId ? title : '')
+    // Disable SEO meta either way — NSFW pages should never feed
+    // OpenGraph / rich-result hints to crawlers, regardless of who's
+    // looking. Title is suppressed entirely for the SFW-cookie anonymous
+    // case so even the document.title can't leak.
+    const trustedVisitor = !!userId || isNsfwMode.value
+    useKunDisableSeo(trustedVisitor ? title : '')
 
-    if (!userId) {
+    if (!trustedVisitor) {
       isShowGalgame.value = false
     }
   } else {

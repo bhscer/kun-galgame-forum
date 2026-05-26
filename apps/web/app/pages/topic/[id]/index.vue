@@ -10,6 +10,22 @@ import type {
 
 const route = useRoute()
 
+const userId = storeToRefs(usePersistUserStore()).id.value
+const { showKUNGalgameContentLimit } = storeToRefs(usePersistSettingsStore())
+const isNsfwMode = computed(
+  () =>
+    showKUNGalgameContentLimit.value === 'nsfw' ||
+    showKUNGalgameContentLimit.value === 'all'
+)
+
+// NSFW topic interstitial — same rule as galgame detail:
+//   logged-in           → show directly
+//   anonymous + NSFW on → show directly
+//   anonymous + SFW     → click-to-confirm card
+// Default `true`; only flipped to `false` below when the topic is NSFW
+// and the visitor is anonymous + SFW.
+const isShowTopic = ref(true)
+
 const { isReplyRewriting } = storeToRefs(useTempReplyStore())
 const { isEdit } = storeToRefs(useTempReplyStore())
 
@@ -157,7 +173,11 @@ if (data.value && data.value !== 'banned') {
   })
 
   if (topic.isNSFW) {
-    useKunDisableSeo(topic.title)
+    const trustedVisitor = !!userId || isNsfwMode.value
+    useKunDisableSeo(trustedVisitor ? topic.title : '')
+    if (!trustedVisitor) {
+      isShowTopic.value = false
+    }
   } else {
     useKunSeoMeta({
       title: data.value.title,
@@ -176,7 +196,14 @@ if (data.value && data.value !== 'banned') {
 
 <template>
   <div>
-    <TopicDetail v-if="data && data.status !== 1" :topic="data" />
+    <template v-if="data && data.status !== 1">
+      <TopicDetail v-if="isShowTopic" :topic="data" />
+
+      <KunCard v-else :is-hoverable="false" :is-transparent="false">
+        <p>这个话题含有 NSFW 内容, 您需要点击确认以显示这个话题</p>
+        <KunButton @click="isShowTopic = true">确认显示</KunButton>
+      </KunCard>
+    </template>
 
     <KunNull v-if="!data" description="未找到这个话题" />
 

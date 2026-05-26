@@ -33,8 +33,13 @@ func (h *SearchHandler) Search(c *fiber.Ctx) error {
 		}
 		return response.Paginated(c, res.Items, res.Total)
 	case "galgame":
+		// Search ignores the SFW cookie by product decision: anyone (logged
+		// in or not, SFW-mode or not) can discover every game by name. The
+		// SFW gate is enforced on the detail page itself (anonymous SFW
+		// callers see a click-to-confirm interstitial there). Pass
+		// isSFW=false so wiki receives content_limit=all.
 		res, appErr := h.searchService.SearchGalgames(
-			c.Context(), req.Keywords, req.Page, req.Limit, utils.IsSFW(c),
+			c.Context(), req.Keywords, req.Page, req.Limit, false,
 		)
 		if appErr != nil {
 			return response.Error(c, appErr)

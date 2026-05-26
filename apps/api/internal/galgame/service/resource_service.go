@@ -82,23 +82,17 @@ func (s *ResourceService) GetResourceList(
 // The handler serialises it to the JSON string "not found" for backwards compat.
 type ResourceNotFound struct{}
 
+// GetResourceDetail returns the resource detail. NSFW is NOT gated here —
+// the parent galgame's content_limit reaches the FE in the page payload,
+// and the FE decides whether to show an "click to confirm" interstitial
+// (same UX as galgame detail). Cross-detail behaviour stays consistent
+// rather than 404-ing only on certain paths.
 func (s *ResourceService) GetResourceDetail(
 	ctx context.Context,
 	resourceID, currentUserID int,
-	isSFW bool,
 ) (*dto.ResourceDetailPage, *ResourceNotFound, *errors.AppError) {
 	row, ok := s.resourceRepo.FindByID(resourceID)
 	if !ok {
-		return nil, &ResourceNotFound{}, nil
-	}
-
-	// SFW gate (docs/galgame_wiki/00-handbook §16) — peek at the wiki
-	// brief BEFORE incrementing view / fetching links. If the parent
-	// galgame is NSFW and the caller is SFW, wiki returns no brief and
-	// we treat the whole resource as not-found, matching galgame detail
-	// semantics. This is the only choke point a SFW crawler can use
-	// to reach NSFW content via a resource URL.
-	if briefMap, _ := s.wikiClient.GetBatchPublic(ctx, []int{row.GalgameID}, isSFW); briefMap[row.GalgameID].ID == 0 {
 		return nil, &ResourceNotFound{}, nil
 	}
 
@@ -136,16 +130,9 @@ func (s *ResourceService) GetResourceDetail(
 func (s *ResourceService) GetResourceDownloadDetail(
 	ctx context.Context,
 	resourceID, currentUserID int,
-	isSFW bool,
 ) (*dto.ResourceDownloadDetail, *errors.AppError) {
 	row, ok := s.resourceRepo.FindByID(resourceID)
 	if !ok {
-		return nil, errors.ErrNotFound("未找到该资源")
-	}
-
-	// SFW gate (mirror of GetResourceDetail): block the download link
-	// route from leaking NSFW resources to SFW callers.
-	if briefMap, _ := s.wikiClient.GetBatchPublic(ctx, []int{row.GalgameID}, isSFW); briefMap[row.GalgameID].ID == 0 {
 		return nil, errors.ErrNotFound("未找到该资源")
 	}
 
