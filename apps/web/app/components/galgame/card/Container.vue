@@ -32,7 +32,6 @@ const { data, status } = await useKunFetch<{
             <p class="text-default-500">
               Galgame 资源页面, 提供各类 Galgame 下载。我们不是资源的提供者,
               我们只是资源的指路人。
-              <GalgameCardNSFWHint />
             </p>
           </template>
         </KunHeader>

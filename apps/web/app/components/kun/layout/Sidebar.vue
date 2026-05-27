@@ -52,7 +52,7 @@ const links = [
   >
     <div class="space-y-3 p-3">
       <template v-if="!isCollapsed">
-        <KunBrand :name="kungal.titleShort" badge="论坛" />
+        <KunBrand :name="kungal.titleShort" />
       </template>
       <template v-else>
         <KunLink
@@ -67,6 +67,16 @@ const links = [
           />
         </KunLink>
       </template>
+
+      <!--
+        Sole NSFW toggle entry point (in addition to /user/:id/setting).
+        Always rendered directly under the brand so visitors immediately
+        see whether SFW filtering is hiding content — danger card when
+        off, success card when on. Mobile hamburger reuses this whole
+        component via force-expanded=true, so the expanded card form is
+        what mobile users get.
+      -->
+      <KunLayoutSidebarNSFWToggle :is-collapsed="isCollapsed" />
 
       <Transition name="sidebar-switch" mode="out-in">
         <template v-if="!isCollapsed">

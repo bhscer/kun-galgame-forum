@@ -20,10 +20,8 @@ defineProps<{
           >
         </div>
         <p class="text-default-500">
-          默认仅展示 SFW (内容安全的内容), 您可以打开 NSFW (会显示涩涩等内容,
-          不适合在公共场合打开)
+          默认仅展示 SFW (内容安全的内容), 切换 NSFW 请使用侧边栏入口
         </p>
-        <GalgameCardNSFWHint />
       </div>
     </KunCard>
 
