@@ -11,18 +11,18 @@ const { data } = await useKunFetch<UserInfo | 'banned'>(
 )
 
 if (data.value === 'banned') {
-  useHead({
-    meta: [{ name: 'robots', content: 'noindex, nofollow' }]
-  })
+  // Banned profile: noindex (don't carry the now-removed user across
+  // search-engine caches) but keep a minimal title so the page header
+  // shows a sensible "已被封禁" hint while logged-in admins still see it.
+  useKunDisableSeo('该用户已被封禁')
+} else if (data.value) {
   useKunSeoMeta({
-    title: '该用户已被封禁',
-    description: '该用户已被封禁'
+    title: data.value.name,
+    description: data.value.bio
   })
 } else {
-  useKunSeoMeta({
-    title: data.value?.name,
-    description: data.value?.bio
-  })
+  // Missing data → don't let `undefined` text leak into search results.
+  useKunDisableSeo('未找到该用户')
 }
 </script>
 

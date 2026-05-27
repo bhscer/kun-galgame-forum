@@ -4,6 +4,10 @@ definePageMeta({ layout: 'blank' })
 const route = useRoute()
 const error = ref('')
 
+// OAuth callback is a transient redirect-only page — never something a
+// search engine should index.
+useKunDisableSeo('OAuth 登录回调')
+
 onMounted(async () => {
   const code = route.query.code as string
   const returnedState = route.query.state as string

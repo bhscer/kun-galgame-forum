@@ -110,6 +110,8 @@ if (data.value) {
   } else {
     useKunDisableSeo(data.value.name)
   }
+} else {
+  useKunDisableSeo('未找到该网站')
 }
 </script>
 

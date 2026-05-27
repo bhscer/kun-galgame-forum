@@ -56,6 +56,8 @@ if (data.value) {
     articlePublishedTime: data.value.created.toString(),
     articleModifiedTime: data.value.updated.toString()
   })
+} else {
+  useKunDisableSeo('未找到该网站标签')
 }
 </script>
 

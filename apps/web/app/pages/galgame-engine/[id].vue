@@ -18,7 +18,7 @@ const editingEngine = ref<UpdateGalgameEnginePayload>(
   {} as UpdateGalgameEnginePayload
 )
 
-const { data, status } = await useKunFetch(
+const { data, status } = await useKunFetch<GalgameEngineDetail>(
   `/galgame-engine/${engineId.value}`,
   {
     method: 'GET',
@@ -90,10 +90,14 @@ const handleDeleteEngine = async () => {
   }
 }
 
-useKunSeoMeta({
-  title: `${data.value?.name} 引擎`,
-  description: `查看所有使用 ${data.value?.name} 引擎制作的 Galgame`
-})
+if (data.value) {
+  useKunSeoMeta({
+    title: `${data.value.name} 引擎`,
+    description: `查看所有使用 ${data.value.name} 引擎制作的 Galgame`
+  })
+} else {
+  useKunDisableSeo('未找到 Galgame 引擎')
+}
 </script>
 
 <template>

@@ -13,7 +13,7 @@ import type {
 const route = useRoute()
 const id = computed(() => parseInt((route.params as { id: string }).id))
 
-const { data, refresh } = await useKunFetch(`/galgame-rating/${id.value}`, {
+const { data, refresh } = await useKunFetch<GalgameRatingDetails>(`/galgame-rating/${id.value}`, {
   method: 'GET',
   watch: false,
   query: { galgameRatingId: id.value }

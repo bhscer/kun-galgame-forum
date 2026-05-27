@@ -15,7 +15,10 @@ const params = reactive({
   galgameType: 'all'
 })
 
-const { data, status } = await useKunFetch(`/galgame-rating/all`, {
+const { data, status } = await useKunFetch<{
+  ratingData: GalgameRatingCard[]
+  total: number
+}>(`/galgame-rating/all`, {
   method: 'GET',
   query: params
 })

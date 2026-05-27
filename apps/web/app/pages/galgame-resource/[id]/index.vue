@@ -8,7 +8,7 @@ import {
 const route = useRoute()
 const resourceId = computed(() => Number((route.params as { id: string }).id))
 
-const { data, refresh } = await useKunFetch(
+const { data, refresh } = await useKunFetch<GalgameResourcePageData | 'not found'>(
   `/galgame-resource/${resourceId.value}`,
   {
     query: { resourceId }
@@ -17,28 +17,32 @@ const { data, refresh } = await useKunFetch(
 
 if (data.value && data.value !== 'not found') {
   const titleBase = getPreferredLanguageText(data.value.galgame.name)
+
+  // NSFW resources must not feed crawlers: useKunSeoMeta below would
+  // otherwise overwrite the robots=noindex from useKunDisableSeo and
+  // leak title/description/og:image. Branch hard.
   if (data.value.galgame.contentLimit === 'nsfw') {
     useKunDisableSeo(titleBase)
+  } else {
+    const resource = data.value.resource
+
+    const typeLabel =
+      KUN_GALGAME_RESOURCE_TYPE_MAP[resource.type] || resource.type
+    const languageLabel =
+      KUN_GALGAME_RESOURCE_LANGUAGE_MAP[resource.language] || resource.language
+    const platformLabel =
+      KUN_GALGAME_RESOURCE_PLATFORM_MAP[resource.platform] || resource.platform
+
+    const description = `${typeLabel} · ${languageLabel} · ${platformLabel} · ${resource.size}`
+
+    useKunSeoMeta({
+      title: `${titleBase} ${typeLabel}资源下载`,
+      description: data.value.resource.note
+        ? data.value.resource.note
+        : description,
+      ogImage: getEffectiveBanner(data.value.galgame)
+    })
   }
-
-  const resource = data.value.resource
-
-  const typeLabel =
-    KUN_GALGAME_RESOURCE_TYPE_MAP[resource.type] || resource.type
-  const languageLabel =
-    KUN_GALGAME_RESOURCE_LANGUAGE_MAP[resource.language] || resource.language
-  const platformLabel =
-    KUN_GALGAME_RESOURCE_PLATFORM_MAP[resource.platform] || resource.platform
-
-  const description = `${typeLabel} · ${languageLabel} · ${platformLabel} · ${resource.size}`
-
-  useKunSeoMeta({
-    title: `${titleBase} ${typeLabel}资源下载`,
-    description: data.value.resource.note
-      ? data.value.resource.note
-      : description,
-    ogImage: getEffectiveBanner(data.value.galgame)
-  })
 } else {
   useKunDisableSeo('未找到 Galgame 资源')
 }

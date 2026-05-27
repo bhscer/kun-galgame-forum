@@ -9,15 +9,19 @@ const { data } = await useKunFetch<DocArticleDetail>(
   `/doc/article/${docSlug.value}`
 )
 
-useKunSeoMeta({
-  title: data.value?.title,
-  description: data.value?.description,
-  ogImage: data.value?.banner,
-  ogType: 'article',
-  articleAuthor: [`${kungal.domain.main}/user/${data.value?.authorId}/info`],
-  articlePublishedTime: data.value?.publishedTime?.toString(),
-  articleModifiedTime: data.value?.editedTime?.toString()
-})
+if (data.value) {
+  useKunSeoMeta({
+    title: data.value.title,
+    description: data.value.description,
+    ogImage: data.value.banner,
+    ogType: 'article',
+    articleAuthor: [`${kungal.domain.main}/user/${data.value.authorId}/info`],
+    articlePublishedTime: data.value.publishedTime?.toString(),
+    articleModifiedTime: data.value.editedTime?.toString()
+  })
+} else {
+  useKunDisableSeo('未找到该文档')
+}
 </script>
 
 <template>

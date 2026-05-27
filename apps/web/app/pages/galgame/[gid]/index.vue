@@ -25,7 +25,7 @@ const gid = computed(() => {
   return parseInt((route.params as { gid: string }).gid)
 })
 
-const { data } = await useKunFetch(`/galgame/${gid.value}`, {
+const { data } = await useKunFetch<GalgameDetail | 'banned'>(`/galgame/${gid.value}`, {
   method: 'GET',
   watch: false,
   query: { galgameId: gid.value }

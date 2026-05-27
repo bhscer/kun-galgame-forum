@@ -6,7 +6,10 @@ const pageData = reactive({
   limit: 100
 })
 
-const { data, status } = await useKunFetch(`/galgame-official`, {
+const { data, status } = await useKunFetch<{
+  officials: GalgameOfficialItem[]
+  total: number
+}>(`/galgame-official`, {
   method: 'GET',
   query: pageData
 })

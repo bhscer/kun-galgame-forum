@@ -4,7 +4,10 @@ const pageData = reactive({
   limit: 50
 })
 
-const { data, status } = await useKunFetch(`/galgame-resource`, {
+const { data, status } = await useKunFetch<{
+  resources: GalgameResourceCard[]
+  total: number
+}>(`/galgame-resource`, {
   method: 'GET',
   query: pageData
 })

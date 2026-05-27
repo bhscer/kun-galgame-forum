@@ -20,7 +20,7 @@ const pageData = reactive({
 const showTagModal = ref(false)
 const editingTag = ref<UpdateGalgameTagPayload>({} as UpdateGalgameTagPayload)
 
-const { data, status } = await useKunFetch(`/galgame-tag/${tagId.value}`, {
+const { data, status } = await useKunFetch<GalgameTagDetail>(`/galgame-tag/${tagId.value}`, {
   method: 'GET',
   query: pageData
 })

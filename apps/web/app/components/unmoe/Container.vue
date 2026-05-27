@@ -4,7 +4,10 @@ const pageData = reactive({
   limit: 30
 })
 
-const { data, status } = await useKunFetch(`/unmoe`, {
+const { data, status } = await useKunFetch<{
+  logs: UnmoeLog[]
+  total: number
+}>(`/unmoe`, {
   method: 'GET',
   query: pageData
 })

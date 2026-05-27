@@ -17,7 +17,7 @@ const { page, limit, type, language, platform, sortField, sortOrder } =
 const showTagModal = ref(false)
 const editingTag = ref<UpdateGalgameTagPayload>({} as UpdateGalgameTagPayload)
 
-const { data, status } = await useKunFetch(`/galgame-tag/${tagId.value}`, {
+const { data, status } = await useKunFetch<GalgameTagDetail>(`/galgame-tag/${tagId.value}`, {
   method: 'GET',
   query: {
     page,
@@ -61,15 +61,15 @@ if (data.value) {
   if (data.value.category !== 'sexual') {
     useKunSeoMeta({
       title: `标签 ${data.value.name} 的 Galgame`,
-      description: data.value
-        ? data.value.galgame
-            .map((g) => getPreferredLanguageText(g.name))
-            .toString()
-        : ''
+      description: data.value.galgame
+        .map((g) => getPreferredLanguageText(g.name))
+        .toString()
     })
   } else {
     useKunDisableSeo(`标签 ${data.value.name} 的 Galgame`)
   }
+} else {
+  useKunDisableSeo('未找到 Galgame 标签')
 }
 </script>
 

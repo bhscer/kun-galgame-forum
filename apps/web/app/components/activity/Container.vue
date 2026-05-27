@@ -14,7 +14,10 @@ const pageData = reactive({
   type: 'TOPIC_CREATION'
 })
 
-const { data, status } = await useKunFetch('/activity', {
+const { data, status } = await useKunFetch<{
+  items: ActivityItem[]
+  total: number
+}>('/activity', {
   method: 'GET',
   query: pageData
 })

@@ -6,7 +6,10 @@ const pageData = reactive({
   limit: 50
 })
 
-const { data, status } = await useKunFetch('/activity/timeline', {
+const { data, status } = await useKunFetch<{
+  items: ActivityItem[]
+  total: number
+}>('/activity/timeline', {
   method: 'GET',
   query: pageData
 })

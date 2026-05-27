@@ -6,7 +6,10 @@ const { includeProviders, excludeOnlyProviders } = storeToRefs(
   usePersistKUNGalgameAdvancedFilterStore()
 )
 
-const { data, status } = await useKunFetch(`/galgame`, {
+const { data, status } = await useKunFetch<{
+  galgames: GalgameCard[]
+  total: number
+}>(`/galgame`, {
   method: 'GET',
   query: {
     ...pageData,

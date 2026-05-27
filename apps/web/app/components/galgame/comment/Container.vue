@@ -27,7 +27,10 @@ const pageData = reactive({
 // Mutations after the initial load are applied OPTIMISTICALLY by
 // rewriting `data.value` to a fresh object — no `refresh()`, no
 // loading flash.
-const { data, status } = await useKunFetch(
+const { data, status } = await useKunFetch<{
+  items: GalgameComment[]
+  total: number
+}>(
   `/galgame/${gid}/comment/all`,
   {
     lazy: true,

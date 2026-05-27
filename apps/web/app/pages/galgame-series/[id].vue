@@ -6,7 +6,7 @@ const seriesId = computed(() => {
   return Number((route.params as { id: string }).id)
 })
 
-const { data } = await useKunFetch(`/galgame-series/${seriesId.value}`, {
+const { data } = await useKunFetch<GalgameSeriesDetail>(`/galgame-series/${seriesId.value}`, {
   method: 'GET',
   query: { seriesId: seriesId.value }
 })
@@ -20,6 +20,8 @@ if (data.value) {
       description: data.value.description
     })
   }
+} else {
+  useKunDisableSeo('未找到 Galgame 系列')
 }
 </script>
 

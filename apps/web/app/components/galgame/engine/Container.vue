@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { data } = await useKunFetch(`/galgame-engine`, {
+const { data } = await useKunFetch<GalgameEngineItem[]>(`/galgame-engine`, {
   method: 'GET'
 })
 </script>

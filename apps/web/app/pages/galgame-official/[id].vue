@@ -19,7 +19,7 @@ const editingOfficial = ref<UpdateGalgameOfficialPayload>(
   {} as UpdateGalgameOfficialPayload
 )
 
-const { data, status } = await useKunFetch(
+const { data, status } = await useKunFetch<GalgameOfficialDetail>(
   `/galgame-official/${officialId.value}`,
   {
     method: 'GET',
@@ -107,10 +107,14 @@ const handleDeleteOfficial = async () => {
   }
 }
 
-useKunSeoMeta({
-  title: `${data.value?.name} 会社`,
-  description: `${data.value?.name}${data.value?.alias ? `, 即 ${data.value?.alias.join('| ')}` : ''}, 查看会社 ${data.value?.name} 制作的所有 Galgame`
-})
+if (data.value) {
+  useKunSeoMeta({
+    title: `${data.value.name} 会社`,
+    description: `${data.value.name}${data.value.alias?.length ? `, 即 ${data.value.alias.join('| ')}` : ''}, 查看会社 ${data.value.name} 制作的所有 Galgame`
+  })
+} else {
+  useKunDisableSeo('未找到 Galgame 会社')
+}
 </script>
 
 <template>
