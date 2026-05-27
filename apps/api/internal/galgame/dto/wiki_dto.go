@@ -123,19 +123,27 @@ type WikiContributor struct {
 // WikiGalgameDetail is the core galgame payload returned by /galgame/:id.
 // It contains the fields commonly consumed by the gateway service.
 type WikiGalgameDetail struct {
-	ID               int               `json:"id"`
-	NameEnUs         string            `json:"name_en_us"`
-	NameJaJp         string            `json:"name_ja_jp"`
-	NameZhCn         string            `json:"name_zh_cn"`
-	NameZhTw         string            `json:"name_zh_tw"`
-	Banner           string            `json:"banner"`
-	ContentLimit     string            `json:"content_limit"`
-	AgeLimit         string            `json:"age_limit"`
-	OriginalLanguage string            `json:"original_language"`
-	Official         []WikiOfficialRel `json:"official"`
-	Engine           []WikiEngineRel   `json:"engine"`
-	Tag              []WikiTagRel      `json:"tag"`
-	Contributors     []WikiContributor `json:"contributors"`
+	ID               int    `json:"id"`
+	NameEnUs         string `json:"name_en_us"`
+	NameJaJp         string `json:"name_ja_jp"`
+	NameZhCn         string `json:"name_zh_cn"`
+	NameZhTw         string `json:"name_zh_tw"`
+	Banner           string `json:"banner"`
+	// U2 derived banner pair (wiki PR5). Forwarded so consumers like the
+	// rating detail service can ship them downstream — without these,
+	// covers-only galgames render an empty hero on the FE.
+	EffectiveBannerHash string `json:"effective_banner_hash"`
+	EffectiveBannerURL  string `json:"effective_banner_url"`
+	ContentLimit        string `json:"content_limit"`
+	AgeLimit            string `json:"age_limit"`
+	OriginalLanguage    string `json:"original_language"`
+	// nil when the galgame isn't part of any series. Used by the rating
+	// detail service to attach the minimal series brief for JSON-LD.
+	SeriesID     *int              `json:"series_id"`
+	Official     []WikiOfficialRel `json:"official"`
+	Engine       []WikiEngineRel   `json:"engine"`
+	Tag          []WikiTagRel      `json:"tag"`
+	Contributors []WikiContributor `json:"contributors"`
 }
 
 // WikiGalgameDetailResponse is the envelope: {galgame: {...}}.

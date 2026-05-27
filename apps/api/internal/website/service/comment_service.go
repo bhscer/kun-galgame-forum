@@ -74,11 +74,20 @@ func (s *CommentService) GetComments(ctx context.Context, websiteID int) []*dto.
 	var nested []*dto.CommentItem
 	for _, item := range flat {
 		if item.ParentID != nil {
-			if parent, ok := idMap[*item.ParentID]; ok {
-				item.TargetUser = parent.User
-				parent.Reply = append(parent.Reply, item)
+			parent, ok := idMap[*item.ParentID]
+			if !ok {
+				// Parent was dropped (banned author) — its reply has no
+				// visible thread to attach to and TargetUser would be
+				// nil, so the FE would render an orphan as a top-level
+				// comment with a dangling "回复 (deleted)" affordance.
+				// Drop the reply to keep the website comment tree
+				// consistent with the galgame side, which also discards
+				// descendants whose root row was filtered.
 				continue
 			}
+			item.TargetUser = parent.User
+			parent.Reply = append(parent.Reply, item)
+			continue
 		}
 		nested = append(nested, item)
 	}

@@ -87,7 +87,7 @@ func (h *EntityHandler) GetOfficialDetail(c *fiber.Ctx) error {
 	detail, appErr := h.officialService.GetDetail(
 		c.Context(),
 		c.Params("name"),
-		collectQueryWithRename(c, "officialId", "official_id"),
+		collectQueryWithRenames(c, entityDetailRenames("officialId", "official_id")),
 		utils.IsSFW(c),
 	)
 	if appErr != nil {
@@ -114,7 +114,7 @@ func (h *EntityHandler) GetEngineDetail(c *fiber.Ctx) error {
 	detail, appErr := h.engineService.GetDetail(
 		c.Context(),
 		c.Params("name"),
-		collectQueryWithRename(c, "engineId", "engine_id"),
+		collectQueryWithRenames(c, entityDetailRenames("engineId", "engine_id")),
 		utils.IsSFW(c),
 	)
 	if appErr != nil {
@@ -159,7 +159,7 @@ func (h *EntityHandler) GetTagDetail(c *fiber.Ctx) error {
 	detail, appErr := h.tagService.GetDetail(
 		c.Context(),
 		c.Params("name"),
-		collectQueryWithRename(c, "tagId", "tag_id"),
+		collectQueryWithRenames(c, entityDetailRenames("tagId", "tag_id")),
 		utils.IsSFW(c),
 	)
 	if appErr != nil {
@@ -181,17 +181,36 @@ func collectQuery(c *fiber.Ctx) url.Values {
 	return q
 }
 
-// collectQueryWithRename is like collectQuery but renames one key on the way
-// through (used to translate camelCase frontend params to wiki's snake_case).
-func collectQueryWithRename(c *fiber.Ctx, from, to string) url.Values {
+// collectQueryWithRenames is like collectQuery but rewrites keys per the
+// supplied translation map on the way through. Used to bridge the
+// camelCase params the FE sends to the snake_case the wiki expects.
+//
+// Any key absent from `renames` passes through unchanged.
+func collectQueryWithRenames(c *fiber.Ctx, renames map[string]string) url.Values {
 	q := make(url.Values)
 	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
 		k := string(key)
-		if k == from {
+		if to, ok := renames[k]; ok {
 			q.Set(to, string(value))
 		} else {
 			q.Set(k, string(value))
 		}
 	})
 	return q
+}
+
+// entityDetailRenames returns the rename map common to every wiki-backed
+// entity detail handler (tag / official / engine): the FE's per-entity ID
+// key plus the shared `sortField` / `sortOrder` pair the embedded galgame
+// list pages send.
+//
+// Without sortField/sortOrder translation here the wiki silently fell
+// back to its defaults (created/desc) regardless of the user's choice on
+// the FE sort buttons — a bug surfaced by the K-PR6 group-2 audit.
+func entityDetailRenames(idFrom, idTo string) map[string]string {
+	return map[string]string{
+		idFrom:      idTo,
+		"sortField": "sort_field",
+		"sortOrder": "sort_order",
+	}
 }

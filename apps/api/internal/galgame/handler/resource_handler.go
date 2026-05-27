@@ -200,16 +200,3 @@ func (h *ResourceHandler) MarkExpired(c *fiber.Ctx) error {
 	return response.OKMessage(c, "资源已标记为失效")
 }
 
-// GetRecommend — GET /api/galgame-resource/:id/recommend
-// Returns the top 6 sibling resources (same galgame, sorted by like_count).
-func (h *ResourceHandler) GetRecommend(c *fiber.Ctx) error {
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
-		return response.Error(c, errors.ErrBadRequest("无效的资源 ID"))
-	}
-	cards, appErr := h.resourceService.GetRecommendations(c.Context(), id, optionalUID(c))
-	if appErr != nil {
-		return response.Error(c, appErr)
-	}
-	return response.OK(c, cards)
-}

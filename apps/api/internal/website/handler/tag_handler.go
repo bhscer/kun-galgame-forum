@@ -28,7 +28,7 @@ func (h *TagHandler) GetWebsiteTags(c *fiber.Ctx) error {
 // GET /api/website-tag/:name
 func (h *TagHandler) GetWebsiteTagDetail(c *fiber.Ctx) error {
 	name := c.Params("name")
-	detail, appErr := h.tagService.GetDetail(name)
+	detail, appErr := h.tagService.GetDetail(name, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

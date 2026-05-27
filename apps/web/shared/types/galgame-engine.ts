@@ -8,6 +8,7 @@ export interface GalgameEngine {
 export interface GalgameEngineItem {
   id: number
   name: string
+  description: string
   alias: string[]
   galgameCount: number
 }

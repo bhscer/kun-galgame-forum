@@ -181,15 +181,21 @@ type RatingOfficial struct {
 
 // RatingGalgameDetail is the full galgame panel on the rating detail page.
 type RatingGalgameDetail struct {
-	ID               int              `json:"id"`
-	ContentLimit     string           `json:"contentLimit"`
-	Banner           string           `json:"banner"`
-	AgeLimit         string           `json:"ageLimit"`
-	OriginalLanguage string           `json:"originalLanguage"`
-	Rating           int64            `json:"rating"`
-	RatingCount      int64            `json:"ratingCount"`
-	Official         []RatingOfficial `json:"official"`
-	Name             KunLanguage      `json:"name"`
+	ID               int    `json:"id"`
+	ContentLimit     string `json:"contentLimit"`
+	Banner           string `json:"banner"`
+	// U2 banner pair — FE getEffectiveBanner reads these first and only
+	// falls back to legacy `banner` when both are empty. New
+	// covers-only galgames (post wiki PR5) have empty `banner`, so
+	// omitting these here renders an empty hero on the rating page.
+	EffectiveBannerHash string           `json:"effective_banner_hash,omitempty"`
+	EffectiveBannerURL  string           `json:"effective_banner_url,omitempty"`
+	AgeLimit            string           `json:"ageLimit"`
+	OriginalLanguage    string           `json:"originalLanguage"`
+	Rating              int64            `json:"rating"`
+	RatingCount         int64            `json:"ratingCount"`
+	Official            []RatingOfficial `json:"official"`
+	Name                KunLanguage      `json:"name"`
 }
 
 // RatingCommentItem is a reply on a rating.
@@ -221,4 +227,10 @@ type RatingDetail struct {
 	Created      string              `json:"created"`
 	Updated      string              `json:"updated"`
 	Galgame      RatingGalgameDetail `json:"galgame"`
+	// Full series brief (matches the FE GalgameSeries shape used by
+	// GalgameSeriesCard on the rating detail page). Nil when the rated
+	// galgame isn't part of any series. SeriesListItem is reused
+	// verbatim here so a single FE component renders both /galgame-
+	// series list entries and this in-rating "所属系列" card.
+	GalgameSeries *SeriesListItem `json:"galgameSeries"`
 }

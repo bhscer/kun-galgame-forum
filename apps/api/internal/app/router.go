@@ -84,9 +84,11 @@ func (a *App) setupRoutes() {
 	api.Get("/activity", a.ActivityHandler.GetActivity)
 	api.Get("/activity/timeline", a.ActivityHandler.GetTimeline)
 
-	// Galgame rating (public)
-	api.Get("/galgame-rating/all", a.GalgameRatingHandler.GetAllRatings)
-	api.Get("/galgame-rating/:id", a.GalgameRatingHandler.GetRatingDetail)
+	// Galgame rating — moved to optAuth group below so service handlers
+	// receive a non-zero `currentUserID` for logged-in callers and can
+	// hydrate the per-row `isLiked` / liked-by-me state. Leaving them
+	// here in the `api` group made optionalUID return 0 unconditionally,
+	// which silently broke the K-PR `FindLikedSet` batch fix.
 
 	// Resource topics (public, same as topic but filtered to resource sections)
 	api.Get("/resource", a.TopicHandler.GetResourceList)
@@ -149,16 +151,29 @@ func (a *App) setupRoutes() {
 	api.Get("/galgame-series", a.GalgameEntityHandler.GetSeriesList)
 	api.Get("/galgame-series/search", a.GalgameWikiHandler.ProxyGet)
 	api.Get("/galgame-series/:id", a.GalgameEntityHandler.GetSeriesDetail)
-	api.Get("/galgame-resource", a.GalgameResourceHandler.GetResourceList)
+	// `/galgame-resource` list — moved to optAuth below (FE list cards
+	// show the heart icon and need the viewer's per-row like state).
+	// `/galgame-rating/all` stays here in the public group: the rating
+	// Card.vue doesn't render a like toggle, so optAuth would just be
+	// dead-weight middleware on a high-traffic list endpoint.
+	api.Get("/galgame-rating/all", a.GalgameRatingHandler.GetAllRatings)
 
 	// ════════════════════════════════════════════
 	// OPTIONAL AUTH routes (public but attach user if logged in)
 	// ════════════════════════════════════════════
 
 	optAuth := api.Group("", middleware.OptionalAuth(a.Redis))
+	// Galgame resource list + detail family — all need optionalUID for
+	// the per-row `isLiked` flag (batch query via FindLikedSet on lists,
+	// single query on detail).
+	optAuth.Get("/galgame-resource", a.GalgameResourceHandler.GetResourceList)
 	optAuth.Get("/galgame-resource/:id/detail", a.GalgameResourceHandler.GetResourceDownloadDetail)
-	optAuth.Get("/galgame-resource/:id/recommend", a.GalgameResourceHandler.GetRecommend)
 	optAuth.Get("/galgame-resource/:id", a.GalgameResourceHandler.GetResourceDetail)
+
+	// Galgame rating detail — currentUserID feeds containsInt against
+	// likerIDs to populate the per-viewer `isLiked` flag the Like.vue
+	// component renders.
+	optAuth.Get("/galgame-rating/:id", a.GalgameRatingHandler.GetRatingDetail)
 
 	// Topic (optional auth for interaction status)
 	optAuth.Get("/topic", a.TopicHandler.GetList)

@@ -44,28 +44,44 @@ type WebsiteListRow struct {
 // Reads
 // ──────────────────────────────────────────
 
+// sfwScope chains the age_limit='all' predicate when SFW mode is on.
+// Mirrors the wiki content_limit protocol so SFW guests don't see r18
+// websites in any list view (the FE Container.vue still advertises
+// "默认仅显示 SFW 的网站" — without this scope the BE shipped the full
+// list and broke that promise).
+func sfwScope(isSFW bool) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if isSFW {
+			return db.Where("age_limit = ?", "all")
+		}
+		return db
+	}
+}
+
 // FindAll returns all websites as the slim list projection, ordered by created DESC.
-func (r *WebsiteRepository) FindAll() []WebsiteListRow {
+func (r *WebsiteRepository) FindAll(isSFW bool) []WebsiteListRow {
 	var rows []WebsiteListRow
 	r.db.Table("galgame_website").
 		Select("id, name, url, description, icon, age_limit, category_id").
+		Scopes(sfwScope(isSFW)).
 		Order("created DESC").
 		Scan(&rows)
 	return rows
 }
 
 // FindByCategoryID returns websites matching a category ID.
-func (r *WebsiteRepository) FindByCategoryID(categoryID int) []WebsiteListRow {
+func (r *WebsiteRepository) FindByCategoryID(categoryID int, isSFW bool) []WebsiteListRow {
 	var rows []WebsiteListRow
 	r.db.Table("galgame_website").
 		Select("id, name, url, description, icon, age_limit, category_id").
 		Where("category_id = ?", categoryID).
+		Scopes(sfwScope(isSFW)).
 		Scan(&rows)
 	return rows
 }
 
 // FindByIDs returns websites matching a list of IDs.
-func (r *WebsiteRepository) FindByIDs(ids []int) []WebsiteListRow {
+func (r *WebsiteRepository) FindByIDs(ids []int, isSFW bool) []WebsiteListRow {
 	if len(ids) == 0 {
 		return nil
 	}
@@ -73,6 +89,7 @@ func (r *WebsiteRepository) FindByIDs(ids []int) []WebsiteListRow {
 	r.db.Table("galgame_website").
 		Select("id, name, url, description, icon, age_limit, category_id").
 		Where("id IN ?", ids).
+		Scopes(sfwScope(isSFW)).
 		Scan(&rows)
 	return rows
 }

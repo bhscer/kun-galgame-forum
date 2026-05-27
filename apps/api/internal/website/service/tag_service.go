@@ -37,7 +37,7 @@ func (s *TagService) GetAll() []model.GalgameWebsiteTag {
 // GetDetail — GET /website-tag/:name
 // ──────────────────────────────────────────
 
-func (s *TagService) GetDetail(name string) (*dto.WebsiteTagDetailResponse, *errors.AppError) {
+func (s *TagService) GetDetail(name string, isSFW bool) (*dto.WebsiteTagDetailResponse, *errors.AppError) {
 	tag, err := s.tagRepo.FindByName(name)
 	if err != nil {
 		return nil, errors.ErrNotFound("未找到该标签")
@@ -49,7 +49,7 @@ func (s *TagService) GetDetail(name string) (*dto.WebsiteTagDetailResponse, *err
 		websiteIDs[i] = r.GalgameWebsiteID
 	}
 
-	websites := s.websiteRepo.FindByIDs(websiteIDs)
+	websites := s.websiteRepo.FindByIDs(websiteIDs, isSFW)
 	catMap := s.categoryRepo.FindNamesByIDs(collectCategoryIDs(websites))
 	levelMap := s.tagRepo.LevelSumsByWebsiteIDs(collectWebsiteIDs(websites))
 	cards := websiteCardsFromRows(websites, catMap, levelMap)

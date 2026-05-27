@@ -29,7 +29,11 @@ func NewRatingService(
 	wikiClient *client.GalgameClient,
 	userClient *userclient.Client,
 ) *RatingService {
-	return &RatingService{ratingRepo: ratingRepo, wikiClient: wikiClient, userClient: userClient}
+	return &RatingService{
+		ratingRepo: ratingRepo,
+		wikiClient: wikiClient,
+		userClient: userClient,
+	}
 }
 
 // ratingReward applies the documented thresholds (architecture-patterns spec):
@@ -151,8 +155,8 @@ func (s *RatingService) GetRatingDetail(
 		comments[i] = ratingCommentRowToDTO(cm, userMap)
 	}
 
-	// Galgame detail from wiki
-	galgame := s.buildRatingGalgame(ctx, row.GalgameID)
+	// Galgame detail from wiki + (when present) its parent series.
+	galgame, seriesBrief := s.buildRatingGalgame(ctx, row.GalgameID)
 
 	// Author projection of liked users (preserve liker order).
 	authorBriefs := make([]dto.UserBrief, 0, len(likerIDs))
@@ -178,10 +182,11 @@ func (s *RatingService) GetRatingDetail(
 		LikeCount:    len(likerIDs),
 		IsLiked:      isLiked,
 		LikedUsers:   authorBriefs,
-		Comments:     comments,
-		Created:      row.Created,
-		Updated:      row.Updated,
-		Galgame:      galgame,
+		Comments:      comments,
+		Created:       row.Created,
+		Updated:       row.Updated,
+		Galgame:       galgame,
+		GalgameSeries: seriesBrief,
 	}
 	return detail, nil
 }
@@ -535,12 +540,23 @@ func (s *RatingService) fetchWikiBriefsPublic(
 	return m
 }
 
-// buildRatingGalgame fetches galgame detail from wiki and computes rating stats.
-func (s *RatingService) buildRatingGalgame(ctx context.Context, galgameID int) dto.RatingGalgameDetail {
+// buildRatingGalgame fetches galgame detail from wiki, computes rating
+// stats, and — when the galgame belongs to a series — returns the full
+// series brief used by the FE GalgameSeriesCard ("所属系列" panel) +
+// the Review JSON-LD `isPartOf` clause.
+//
+// The second return is nil when wiki reports no series_id; the rating
+// detail handler emits a literal `null` in that case so FE conditional
+// (`v-if="data?.galgameSeries"`) shortcircuits cleanly.
+func (s *RatingService) buildRatingGalgame(
+	ctx context.Context,
+	galgameID int,
+) (dto.RatingGalgameDetail, *dto.SeriesListItem) {
 	summary := dto.RatingGalgameDetail{
 		ID:       galgameID,
 		Official: []dto.RatingOfficial{},
 	}
+	var seriesBrief *dto.SeriesListItem
 
 	data, err := s.wikiClient.Get(ctx, fmt.Sprintf("/galgame/%d", galgameID), nil)
 	if err == nil {
@@ -549,6 +565,8 @@ func (s *RatingService) buildRatingGalgame(ctx context.Context, galgameID int) d
 			g := envelope.Galgame
 			summary.ID = g.ID
 			summary.Banner = g.Banner
+			summary.EffectiveBannerHash = g.EffectiveBannerHash
+			summary.EffectiveBannerURL = g.EffectiveBannerURL
 			summary.ContentLimit = g.ContentLimit
 			summary.AgeLimit = g.AgeLimit
 			summary.OriginalLanguage = g.OriginalLanguage
@@ -557,11 +575,80 @@ func (s *RatingService) buildRatingGalgame(ctx context.Context, galgameID int) d
 				ZhCn: g.NameZhCn, ZhTw: g.NameZhTw,
 			}
 			summary.Official = wikiOfficialsToDTO(g.Official)
+			if g.SeriesID != nil {
+				seriesBrief = s.fetchSeriesBrief(ctx, *g.SeriesID)
+			}
 		}
 	}
 
 	sum, count := s.ratingRepo.GalgameRatingStats(galgameID)
 	summary.Rating = sum
 	summary.RatingCount = count
-	return summary
+	return summary, seriesBrief
+}
+
+// fetchSeriesBrief pulls /series/:id and shapes the response into the
+// same SeriesListItem used by the /galgame-series list endpoint — so
+// the FE renders both through GalgameSeriesCard without per-call type
+// shenanigans.
+//
+// Returns nil on any wiki / parse failure or when wiki reports the
+// series no longer exists; the rating page is fine without the
+// "所属系列" panel and the JSON-LD isPartOf clause is conditional.
+//
+// Note: isSFW is intentionally false here — the rating detail page
+// itself doesn't gate NSFW (mirrors galgame/topic detail policy; FE
+// shows a confirm card based on cookie+login state), so the series
+// brief should reflect the truth and not over-filter.
+func (s *RatingService) fetchSeriesBrief(ctx context.Context, seriesID int) *dto.SeriesListItem {
+	data, err := s.wikiClient.Get(ctx, fmt.Sprintf("/series/%d", seriesID), nil)
+	if err != nil {
+		return nil
+	}
+	var envelope dto.WikiSeriesBrief
+	if jsonErr := json.Unmarshal(data, &envelope); jsonErr != nil {
+		return nil
+	}
+	if envelope.ID == 0 {
+		return nil
+	}
+	// WikiSeriesBrief.Galgame is []WikiSeriesSample (no content_limit),
+	// so we can't reuse enricher.FilterSFW directly. The series detail
+	// endpoint uses the richer /series/:id wiki shape with full
+	// WikiGalgameItem; here we keep the cheaper SeriesSample path and
+	// derive isNSFW from the samples that already carry the flag.
+	isNSFW := false
+	samples := make([]dto.GalgameSample, 0, len(envelope.Galgame))
+	for _, g := range envelope.Galgame {
+		// Wiki's series-sample payload carries the flat name_<locale> +
+		// banner/effective_banner triple; the FE GalgameSample expects
+		// a nested KunLanguage `name` plus the U2 banner pair.
+		samples = append(samples, dto.GalgameSample{
+			Name: dto.KunLanguage{
+				EnUs: g.NameEnUs,
+				JaJp: g.NameJaJp,
+				ZhCn: g.NameZhCn,
+				ZhTw: g.NameZhTw,
+			},
+			Banner:              g.Banner,
+			EffectiveBannerHash: g.EffectiveBannerHash,
+			EffectiveBannerURL:  g.EffectiveBannerURL,
+		})
+		if g.ContentLimit == "nsfw" {
+			isNSFW = true
+		}
+	}
+	if len(samples) > 5 {
+		samples = samples[:5]
+	}
+	return &dto.SeriesListItem{
+		ID:            envelope.ID,
+		Name:          envelope.Name,
+		Description:   envelope.Description,
+		IsNSFW:        isNSFW,
+		SampleGalgame: samples,
+		GalgameCount:  len(envelope.Galgame),
+		Created:       envelope.Created,
+		Updated:       envelope.Updated,
+	}
 }

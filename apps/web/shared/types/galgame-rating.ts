@@ -9,6 +9,8 @@ export interface GalgameRatingGalgameInfo {
   ageLimit: string
   originalLanguage: string
   banner: string
+  effective_banner_hash?: string
+  effective_banner_url?: string
   // rating overall average
   rating: number
   ratingCount: number
@@ -22,6 +24,11 @@ export interface GalgameRatingCard {
   view: number
   galgameType: string[]
   play_status: string
+  // Author's short writeup; BE returns it on every list row (RatingCard),
+  // so listing it here mirrors the wire shape. Card.vue doesn't render it
+  // today but consumers like user/Rating.vue may surface a preview later
+  // without having to widen the type.
+  short_summary: string
 
   art: number
   story: number
@@ -55,8 +62,6 @@ export interface GalgameRatingComment {
 }
 
 export interface GalgameRatingDetails extends GalgameRatingCard {
-  short_summary: string
-
   isLiked: boolean
   likedUsers: KunUser[]
   comments: GalgameRatingComment[]
@@ -65,6 +70,5 @@ export interface GalgameRatingDetails extends GalgameRatingCard {
 }
 
 export interface GalgameRatingCardOnGalgamePage extends GalgameRatingCard {
-  short_summary: string
   isLiked: boolean
 }

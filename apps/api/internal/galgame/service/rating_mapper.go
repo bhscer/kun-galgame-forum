@@ -9,11 +9,15 @@ import (
 	"kun-galgame-api/pkg/userclient"
 )
 
-// rawJSON wraps a DB-stored JSON string into a json.RawMessage, falling back
-// to `null` for empty strings so the field serialises cleanly.
+// rawJSON wraps a DB-stored JSON string into a json.RawMessage.
+//
+// Falls back to an empty array (`[]`) rather than `null` because the
+// only call site is `GalgameType` and the FE declares the field as
+// `string[]` — historic rows with NULL or "" galgame_type would
+// otherwise crash the FE on `data.galgameType.map(...)` / JSON-LD.
 func rawJSON(s string) json.RawMessage {
 	if s == "" {
-		return json.RawMessage("null")
+		return json.RawMessage("[]")
 	}
 	return json.RawMessage(s)
 }

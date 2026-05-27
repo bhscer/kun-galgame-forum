@@ -8,7 +8,7 @@
 const route = useRoute()
 const gid = computed(() => parseInt((route.params as { gid: string }).gid))
 
-const { data } = await useKunFetch<{ id: number; name: string; link: string }[]>(
+const { data } = await useKunFetch<GalgameLink[]>(
   `/galgame/${gid.value}/link/all`,
   {
     lazy: true,

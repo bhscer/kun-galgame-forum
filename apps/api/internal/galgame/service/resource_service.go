@@ -116,7 +116,7 @@ func (s *ResourceService) GetResourceDetail(
 
 	ownerUser, _, _ := s.userClient.User(ctx, row.UserID)
 
-	resource := rowToDownloadDetail(row, links, isLiked, ownerUser)
+	resource := rowToMeta(row, links, isLiked, ownerUser)
 
 	// Galgame summary
 	galgameSummary := s.buildGalgameSummary(ctx, row.GalgameID)
@@ -187,23 +187,6 @@ func (s *ResourceService) GetGalgameResources(
 		cards = append(cards, rowToCard(r, u, likedSet[r.ID]))
 	}
 	return cards, nil
-}
-
-// ──────────────────────────────────────────
-// GetRecommendations — GET /galgame-resource/:id/recommend
-// Returns up to 6 sibling resources sorted by like_count, sharing the same galgame.
-// ──────────────────────────────────────────
-
-func (s *ResourceService) GetRecommendations(
-	ctx context.Context,
-	resourceID, currentUserID int,
-) ([]dto.ResourceCard, *errors.AppError) {
-	row, ok := s.resourceRepo.FindByID(resourceID)
-	if !ok {
-		return nil, errors.ErrNotFound("未找到该资源")
-	}
-	recRows := s.resourceRepo.FindRecommendations(row.GalgameID, resourceID, 6)
-	return s.buildRecommendations(ctx, recRows, row.GalgameID, currentUserID), nil
 }
 
 // ──────────────────────────────────────────
@@ -498,17 +481,19 @@ func (s *ResourceService) buildGalgameSummary(
 	localView := s.resourceRepo.FindGalgameView(galgameID)
 
 	return dto.ResourceGalgameSummary{
-		ID:                 b.ID,
-		Name:               briefToName(b),
-		Banner:             b.Banner,
-		ContentLimit:       b.ContentLimit,
-		View:               localView,
-		ResourceUpdateTime: b.ResourceUpdateTime,
-		OriginalLanguage:   b.OriginalLanguage,
-		AgeLimit:           b.AgeLimit,
-		Platform:           platforms,
-		Language:           languages,
-		Type:               types,
+		ID:                  b.ID,
+		Name:                briefToName(b),
+		Banner:              b.Banner,
+		EffectiveBannerHash: b.EffectiveBannerHash,
+		EffectiveBannerURL:  b.EffectiveBannerURL,
+		ContentLimit:        b.ContentLimit,
+		View:                localView,
+		ResourceUpdateTime:  b.ResourceUpdateTime,
+		OriginalLanguage:    b.OriginalLanguage,
+		AgeLimit:            b.AgeLimit,
+		Platform:            platforms,
+		Language:            languages,
+		Type:                types,
 	}
 }
 

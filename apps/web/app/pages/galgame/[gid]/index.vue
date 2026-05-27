@@ -25,7 +25,7 @@ const gid = computed(() => {
   return parseInt((route.params as { gid: string }).gid)
 })
 
-const { data } = await useKunFetch<GalgameDetail | 'banned'>(`/galgame/${gid.value}`, {
+const { data } = await useKunFetch<GalgameDetail>(`/galgame/${gid.value}`, {
   method: 'GET',
   watch: false,
   query: { galgameId: gid.value }
@@ -35,19 +35,7 @@ const galgame = data.value
 const isShowGalgame = ref(true)
 
 if (galgame) {
-  if (galgame === 'banned') {
-    useHead({
-      meta: [{ name: 'robots', content: 'noindex, nofollow' }]
-    })
-    useKunSeoMeta({
-      title: data.value
-        ? '这个 Galgame 已被封禁'
-        : '未找到这个 Galgame 资源 wiki',
-      description: data.value
-        ? `这个 Galgame 由于违反了 ${kungal.titleShort} 资源发布规定, 或者被作者删除, 您可以进入 Galgame 总览页面查看其它相似 Galgame 资源 wiki`
-        : `未找到这个 Galgame, 请确认您的请求路径是否正确, 您可以进入 Galgame 页面查看其它 Galgame`
-    })
-  } else if (galgame.contentLimit === 'nsfw') {
+  if (galgame.contentLimit === 'nsfw') {
     const title = getPreferredLanguageText(galgame.name)
     // Disable SEO meta either way — NSFW pages should never feed
     // OpenGraph / rich-result hints to crawlers, regardless of who's
@@ -156,7 +144,7 @@ if (galgame) {
 
 <template>
   <div>
-    <div v-if="data && data !== 'banned'">
+    <div v-if="data">
       <Galgame v-if="isShowGalgame" :galgame="data" />
 
       <KunCard v-else :is-hoverable="false" :is-transparent="false">
@@ -165,10 +153,6 @@ if (galgame) {
       </KunCard>
     </div>
 
-    <KunNull
-      v-if="!data && data !== 'banned'"
-      description="未找到这个 Galgame"
-    />
-    <KunNull v-if="data === 'banned'" description="此 Galgame 已被封禁" />
+    <KunNull v-else description="未找到这个 Galgame" />
   </div>
 </template>

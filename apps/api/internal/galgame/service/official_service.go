@@ -43,6 +43,12 @@ type wikiOfficialListResp struct {
 type wikiOfficialDetail struct {
 	ID          int             `json:"id"`
 	Name        string          `json:"name"`
+	// Original-language name (added by wiki PR4 sub-change, K-PR6).
+	// Pointer because wiki may omit / null when the field hasn't been
+	// set yet; the FE edit modal needs to round-trip the current
+	// value, so dropping it on the floor here makes the modal default
+	// to an empty input every open.
+	Original    *string         `json:"original"`
 	Link        string          `json:"link"`
 	Category    string          `json:"category"`
 	Lang        string          `json:"lang"`
@@ -156,9 +162,14 @@ func (s *OfficialService) GetDetail(
 	filtered := s.enricher.FilterSFW(parsed.Galgames, isSFW)
 
 	o := parsed.Official
+	original := ""
+	if o.Original != nil {
+		original = *o.Original
+	}
 	return &dto.OfficialDetail{
 		ID:           o.ID,
 		Name:         o.Name,
+		Original:     original,
 		Link:         o.Link,
 		Category:     o.Category,
 		Lang:         o.Lang,

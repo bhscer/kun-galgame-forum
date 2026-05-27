@@ -159,6 +159,8 @@ func (s *HomeService) getHomeTopics(ctx context.Context, isSFW bool) ([]dto.Home
 		tagMap[t.TopicID] = append(tagMap[t.TopicID], t.TagName)
 	}
 
+	pollSet := s.repo.FindTopicIDsWithPoll(topicIDs)
+
 	uids := userclient.CollectIDs(rows, func(r repository.TopicRow) int { return r.UserID })
 	userMap := s.userClient.Hydrate(ctx, uids)
 
@@ -185,7 +187,7 @@ func (s *HomeService) getHomeTopics(ctx context.Context, isSFW bool) ([]dto.Home
 			ReplyCount:       r.ReplyCount,
 			CommentCount:     r.CommentCount,
 			HasBestAnswer:    r.BestAnswerID != nil,
-			IsPollTopic:      false,
+			IsPollTopic:      pollSet[r.ID],
 			IsNSFWTopic:      r.IsNSFW,
 			Section:          topicSections,
 			Tag:              topicTags,

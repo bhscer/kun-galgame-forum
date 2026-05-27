@@ -22,6 +22,11 @@ export interface GalgameOfficialItem {
 export interface GalgameOfficialDetail {
   id: number
   name: string
+  // Original-language name (wiki PR4 sub-change, K-PR6). BE returns ""
+  // when wiki hasn't recorded an original yet. The edit modal pre-fills
+  // from this so admins can see the existing value instead of starting
+  // from empty.
+  original: string
   link: string
   category: KunGalgameOfficialCategory
   lang: string

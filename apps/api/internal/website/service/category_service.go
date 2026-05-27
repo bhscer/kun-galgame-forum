@@ -28,13 +28,13 @@ func NewCategoryService(
 // GetDetail — GET /website-category/:name
 // ──────────────────────────────────────────
 
-func (s *CategoryService) GetDetail(name string) (*dto.WebsiteCategoryDetailResponse, *errors.AppError) {
+func (s *CategoryService) GetDetail(name string, isSFW bool) (*dto.WebsiteCategoryDetailResponse, *errors.AppError) {
 	category, err := s.categoryRepo.FindByName(name)
 	if err != nil {
 		return nil, errors.ErrNotFound("未找到该分类")
 	}
 
-	rows := s.websiteRepo.FindByCategoryID(category.ID)
+	rows := s.websiteRepo.FindByCategoryID(category.ID, isSFW)
 	websiteIDs := collectWebsiteIDs(rows)
 	levelMap := s.tagRepo.LevelSumsByWebsiteIDs(websiteIDs)
 	cards := websiteCardsFromRowsSingleCategory(rows, category.Name, levelMap)

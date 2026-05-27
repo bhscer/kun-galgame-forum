@@ -31,6 +31,23 @@ type TopicRow struct {
 	CommentCount     int
 	StatusUpdateTime time.Time
 	UserID           int
+	IsNSFW           bool
+	BestAnswerID     *int
+	UpvoteTime       *time.Time
+}
+
+// TopicSectionRow + TopicTagRow share the shape used by home_repo:
+// {topic_id, name}. Duplicated here rather than imported so the search
+// module stays free of inter-module repo dependencies — the queries are
+// trivially small and the data shapes won't drift independently.
+type TopicSectionRow struct {
+	TopicID     int    `gorm:"column:topic_id"`
+	SectionName string `gorm:"column:name"`
+}
+
+type TopicTagRow struct {
+	TopicID int    `gorm:"column:topic_id"`
+	TagName string `gorm:"column:name"`
 }
 
 type ReplyRow struct {
@@ -58,10 +75,16 @@ type CommentRow struct {
 
 // SearchTopics fulltext-searches topics by title/content/category. Identity
 // is hydrated by the service layer via userclient.
+//
+// Selects the same superset of fields the FE HomeTopicCard expects so a
+// search-topic result renders with all the badges (best-answer / poll /
+// NSFW / upvote chip) instead of silently missing them — the card is
+// shared with the /home and /topic feeds.
 func (r *SearchRepository) SearchTopics(keywords []string, page, limit int) (rows []TopicRow, total int64) {
 	query := r.db.Table("topic t").
 		Select(`t.id, t.title, t.view, t.status, t.like_count, t.reply_count,
-			t.comment_count, t.status_update_time, t.user_id`).
+			t.comment_count, t.status_update_time, t.user_id,
+			t.is_nsfw, t.best_answer_id, t.upvote_time`).
 		Where("t.status != 1")
 	for _, kw := range keywords {
 		like := "%" + kw + "%"
@@ -74,6 +97,55 @@ func (r *SearchRepository) SearchTopics(keywords []string, page, limit int) (row
 		Offset((page - 1) * limit).Limit(limit).
 		Find(&rows)
 	return
+}
+
+// FindTopicSections groups section names by topic id (same shape as
+// home_repo.FindTopicSections).
+func (r *SearchRepository) FindTopicSections(topicIDs []int) []TopicSectionRow {
+	if len(topicIDs) == 0 {
+		return nil
+	}
+	var rows []TopicSectionRow
+	r.db.Table("topic_section_relation tsr").
+		Select("tsr.topic_id, ts.name").
+		Joins("JOIN topic_section ts ON ts.id = tsr.topic_section_id").
+		Where("tsr.topic_id IN ?", topicIDs).
+		Find(&rows)
+	return rows
+}
+
+// FindTopicTags groups tag names by topic id.
+func (r *SearchRepository) FindTopicTags(topicIDs []int) []TopicTagRow {
+	if len(topicIDs) == 0 {
+		return nil
+	}
+	var rows []TopicTagRow
+	r.db.Table("topic_tag_relation ttr").
+		Select("ttr.topic_id, tt.name").
+		Joins("JOIN topic_tag tt ON tt.id = ttr.tag_id").
+		Where("ttr.topic_id IN ?", topicIDs).
+		Find(&rows)
+	return rows
+}
+
+// FindTopicIDsWithPoll returns the subset of topicIDs that have at
+// least one row in topic_poll.
+func (r *SearchRepository) FindTopicIDsWithPoll(topicIDs []int) map[int]bool {
+	out := map[int]bool{}
+	if len(topicIDs) == 0 {
+		return out
+	}
+	var rows []struct {
+		TopicID int `gorm:"column:topic_id"`
+	}
+	r.db.Table("topic_poll").
+		Where("topic_id IN ?", topicIDs).
+		Select("topic_id").
+		Scan(&rows)
+	for _, row := range rows {
+		out[row.TopicID] = true
+	}
+	return out
 }
 
 // SearchReplies searches topic replies by content. Identity is hydrated by

@@ -57,8 +57,8 @@ func NewWebsiteService(
 // GetList — GET /website
 // ──────────────────────────────────────────
 
-func (s *WebsiteService) GetList() []dto.WebsiteCard {
-	rows := s.websiteRepo.FindAll()
+func (s *WebsiteService) GetList(isSFW bool) []dto.WebsiteCard {
+	rows := s.websiteRepo.FindAll(isSFW)
 	catMap := s.categoryRepo.FindNamesByIDs(collectCategoryIDs(rows))
 	levelMap := s.tagRepo.LevelSumsAll()
 	return websiteCardsFromRows(rows, catMap, levelMap)

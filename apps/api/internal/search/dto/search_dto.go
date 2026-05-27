@@ -23,16 +23,27 @@ type UserBrief struct {
 	Avatar string `json:"avatar"`
 }
 
+// TopicItem mirrors home.dto.HomeTopic so the FE renders search-topic
+// results through the same HomeTopicCard (badges, section/tag chips,
+// poll/best-answer/NSFW flags). Without the extra fields the card
+// silently dropped the badges and Vue v-for warned on undefined
+// section/tag arrays.
 type TopicItem struct {
-	ID               int       `json:"id"`
-	Title            string    `json:"title"`
-	View             int       `json:"view"`
-	Status           int       `json:"status"`
-	LikeCount        int       `json:"likeCount"`
-	ReplyCount       int       `json:"replyCount"`
-	CommentCount     int       `json:"commentCount"`
-	StatusUpdateTime time.Time `json:"statusUpdateTime"`
-	User             UserBrief `json:"user"`
+	ID               int        `json:"id"`
+	Title            string     `json:"title"`
+	View             int        `json:"view"`
+	Status           int        `json:"status"`
+	LikeCount        int        `json:"likeCount"`
+	ReplyCount       int        `json:"replyCount"`
+	CommentCount     int        `json:"commentCount"`
+	HasBestAnswer    bool       `json:"hasBestAnswer"`
+	IsPollTopic      bool       `json:"isPollTopic"`
+	IsNSFWTopic      bool       `json:"isNSFWTopic"`
+	Section          []string   `json:"section"`
+	Tag              []string   `json:"tag"`
+	UpvoteTime       *time.Time `json:"upvoteTime"`
+	StatusUpdateTime time.Time  `json:"statusUpdateTime"`
+	User             UserBrief  `json:"user"`
 }
 
 type UserItem struct {

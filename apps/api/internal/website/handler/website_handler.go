@@ -23,7 +23,7 @@ func NewWebsiteHandler(websiteService *service.WebsiteService) *WebsiteHandler {
 // GetWebsites returns all websites as WebsiteCard[].
 // GET /api/website
 func (h *WebsiteHandler) GetWebsites(c *fiber.Ctx) error {
-	return response.OK(c, h.websiteService.GetList())
+	return response.OK(c, h.websiteService.GetList(utils.IsSFW(c)))
 }
 
 // CreateWebsite creates a new website entry.

@@ -36,18 +36,27 @@
 - 全部 GET 端点 (展开 for-loop 后): **99**
   - 静态注册行: 93 (原 95，K-PR 第一轮审计删了 `/galgame/check` + `/galgame/:gid/contributors`)
   - 实体 revision 循环 (`tag` / `official` / `engine` × 2 routes): 6
-- 已审计：**§0 + §1 + §2 + §3 + §4 + §5 完成**（第一组）
+- 已审计：**§0 + §1 + §2 + §3 + §4 + §5 完成**（第一组），**§6 + §7 + §8 + §9 + §10 + §11 完成**（第二组）
 - 已修复 (本轮 K-PR 审计):
-  - `/admin/setting/register` FE 状态反转
-  - `/ranking/{galgame,topic,user}` FE 泛型 (UI metadata → API DTO)；`/ranking/user` BE 补 `SortField`；`/ranking/galgame` BE 补 `effective_banner_hash/_url`
-  - `/section`, `/category` FE 缺失类型 (`SectionTopicList` 补上，`CategorySection` → `CategorySectionStats`)
-  - `/search` reply/comment/user FE 字段守护 (optional + v-if)
-  - `/topic`, `/resource` `isPollTopic` BE hardcode false → 批量 `FindTopicIDsWithPoll`
-  - `/topic/:tid/poll/topic` FE 泛型 (单 → 数组)
-  - `/topic/:tid` 死代码 `'banned'` 字符串检查
-  - `/unmoe` FE `result: string | number` → `string`
-  - `/galgame/:gid/resource/all` BE `isLiked` hardcode false → 批量 `FindLikedSet`
-  - `/galgame/:gid/comment/all` + `/comment/thread/:rootId` BE 缺 `IsLiked` + FE 类型 `number → string`
+  - 第一组 (§0–§5)：
+    - `/admin/setting/register` FE 状态反转
+    - `/ranking/{galgame,topic,user}` FE 泛型 (UI metadata → API DTO)；`/ranking/user` BE 补 `SortField`；`/ranking/galgame` BE 补 `effective_banner_hash/_url`
+    - `/section`, `/category` FE 缺失类型 (`SectionTopicList` 补上，`CategorySection` → `CategorySectionStats`)
+    - `/search` reply/comment/user FE 字段守护 (optional + v-if)
+    - `/topic`, `/resource` `isPollTopic` BE hardcode false → 批量 `FindTopicIDsWithPoll`
+    - `/topic/:tid/poll/topic` FE 泛型 (单 → 数组)
+    - `/topic/:tid` 死代码 `'banned'` 字符串检查
+    - `/unmoe` FE `result: string | number` → `string`
+    - `/galgame/:gid/resource/all` BE `isLiked` hardcode false → 批量 `FindLikedSet`
+    - `/galgame/:gid/comment/all` + `/comment/thread/:rootId` BE 缺 `IsLiked` + FE 类型 `number → string`
+  - 第二组 (§6–§11)：
+    - `/galgame-resource`, `/galgame-rating/all`, `/galgame-rating/:id` 路由组从 `api` 移到 `optAuth` (否则 `optionalUID` 恒 0，`isLiked` 永远 false)
+    - `/galgame-official/:name` BE `OfficialDetail` 缺 `original`：wiki PR4/K-PR6 sub-change 加字段后 BE 漏接，FE 编辑模态打开时永远空白
+    - `/galgame-tag/:name`, `/galgame-official/:name`, `/galgame-engine/:name` query rename helper 升级为多键 map (新增 `sortField`→`sort_field`、`sortOrder`→`sort_order`)，否则 wiki 静默 fallback 到默认排序
+    - `/galgame-rating/:id` BE 缺 `galgameSeries`：FE Review JSON-LD 的 `isPartOf` 永远缺失；改为 wiki detail 拿 `series_id` 后再拉 `/series/:id` 的最小 brief
+    - `/galgame-rating/all` FE 类型 `GalgameRatingCard` 缺 `short_summary` (BE 一直在返)
+    - `/website`, `/website-category/:name`, `/website-tag/:name` BE 缺 SFW 过滤：FE Container.vue 宣称"默认仅显示 SFW 的网站"但 BE 全返 → 加 `age_limit='all'` scope，与 wiki content_limit 协议对齐
+    - `/website/:domain/comment` 子节点孤儿处理：父评论作者被封后，原代码会把子评论提升到顶层（无 TargetUser 的悬挂回复），改为丢弃（与 galgame comment service 对齐）
 
 ---
 
@@ -127,18 +136,18 @@
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /galgame-tag` | 🌐 | kungal-native (forward to wiki) | ⏳ | tag list；`isSFW` 时过滤 `category=sexual` |
-| `GET /galgame-tag/search` | 🌐 | kungal-native (Meilisearch via wiki) | ⏳ | tag 搜索；同上 sexual filter |
-| `GET /galgame-tag/multi` | 🌐 | kungal-native + wiki batch | ⏳ | 多 tag AND 搜 galgame |
-| `GET /galgame-tag/:name` | 🌐 | kungal-native + wiki batch | ⏳ | tag detail (含关联 galgame 列表) |
-| `GET /galgame-official` | 🌐 | kungal-native (forward to wiki) | ⏳ | official list；元数据无 NSFW filter |
-| `GET /galgame-official/search` | 🌐 | kungal-native (Meilisearch via wiki) | ⏳ | official 搜索 |
-| `GET /galgame-official/:name` | 🌐 | kungal-native + wiki batch | ⏳ | official detail (含关联 galgame) |
-| `GET /galgame-engine` | 🌐 | kungal-native (forward to wiki) | ⏳ | engine list；元数据 |
-| `GET /galgame-engine/:name` | 🌐 | kungal-native + wiki batch | ⏳ | engine detail (含关联 galgame) |
-| `GET /galgame-series` | 🌐 | kungal-native (forward to wiki) | ⏳ | series list；每条预载前 5 个 galgame sample |
-| `GET /galgame-series/search` | 🌐 | proxy | ⏳ | series 搜索 (Meilisearch via wiki，原样透传) |
-| `GET /galgame-series/:id` | 🌐 | kungal-native + wiki batch | ⏳ | series detail；**已删除 revision panel** (K-PR series-revision design)；含关联 galgame 列表 |
+| `GET /galgame-tag` | 🌐 | kungal-native (forward to wiki) | ✅ | tag list；`isSFW` 时过滤 `category=sexual` |
+| `GET /galgame-tag/search` | 🌐 | kungal-native (Meilisearch via wiki) | ✅ | tag 搜索；同上 sexual filter |
+| `GET /galgame-tag/multi` | 🌐 | kungal-native + wiki batch | ✅ | 多 tag AND 搜 galgame |
+| `GET /galgame-tag/:name` | 🌐 | kungal-native + wiki batch | 🔧 | tag detail；K-PR6 修复 `sortField/sortOrder` → snake_case 透传 (helper 多键 map 化) |
+| `GET /galgame-official` | 🌐 | kungal-native (forward to wiki) | ✅ | official list；元数据无 NSFW filter |
+| `GET /galgame-official/search` | 🌐 | kungal-native (Meilisearch via wiki) | ✅ | official 搜索 |
+| `GET /galgame-official/:name` | 🌐 | kungal-native + wiki batch | 🔧 | official detail；K-PR6 补 `original` 字段 (wiki PR4 起新增，FE 编辑模态用) + sortField/Order 透传 |
+| `GET /galgame-engine` | 🌐 | kungal-native (forward to wiki) | ✅ | engine list；元数据 |
+| `GET /galgame-engine/:name` | 🌐 | kungal-native + wiki batch | 🔧 | engine detail；K-PR6 修复 sortField/sortOrder 透传 (与 tag/official 同一 helper) |
+| `GET /galgame-series` | 🌐 | kungal-native (forward to wiki) | ✅ | series list；每条预载前 5 个 galgame sample |
+| `GET /galgame-series/search` | 🌐 | proxy | ✅ | series 搜索 (Meilisearch via wiki，原样透传) |
+| `GET /galgame-series/:id` | 🌐 | kungal-native + wiki batch | ✅ | series detail；**已删除 revision panel** (K-PR series-revision design)；含关联 galgame 列表 |
 
 ## 7. Galgame 分类轴 — Revisions (proxy 透传，K-PR5)
 
@@ -147,47 +156,47 @@
 
 | 路径 (展开) | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /galgame-tag/:id/revisions` | 🌐 | proxy | ⏳ | tag 修订列表 |
-| `GET /galgame-tag/:id/revisions/:rev` | 🌐 | proxy | ⏳ | tag 单修订快照 |
-| `GET /galgame-official/:id/revisions` | 🌐 | proxy | ⏳ | official 修订列表 |
-| `GET /galgame-official/:id/revisions/:rev` | 🌐 | proxy | ⏳ | official 单修订快照 |
-| `GET /galgame-engine/:id/revisions` | 🌐 | proxy | ⏳ | engine 修订列表 |
-| `GET /galgame-engine/:id/revisions/:rev` | 🌐 | proxy | ⏳ | engine 单修订快照 |
+| `GET /galgame-tag/:id/revisions` | 🌐 | proxy | ✅ | tag 修订列表 |
+| `GET /galgame-tag/:id/revisions/:rev` | 🌐 | proxy | ✅ | tag 单修订快照 |
+| `GET /galgame-official/:id/revisions` | 🌐 | proxy | ✅ | official 修订列表 |
+| `GET /galgame-official/:id/revisions/:rev` | 🌐 | proxy | ✅ | official 单修订快照 |
+| `GET /galgame-engine/:id/revisions` | 🌐 | proxy | ✅ | engine 修订列表 |
+| `GET /galgame-engine/:id/revisions/:rev` | 🌐 | proxy | ✅ | engine 单修订快照 |
 
 ## 8. Galgame 资源 (galgame-resource)
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /galgame-resource` | 🌐 | kungal-native + wiki batch | ⏳ | 资源列表；`isSFW` → `GetBatchPublic`；`total` over-reports in SFW (kungal-local schema 限制) |
-| `GET /galgame-resource/:id` | 🔐 | kungal-native + wiki | ⏳ | 资源详情；BE **不** gate NSFW (由 FE 处理) |
-| `GET /galgame-resource/:id/detail` | 🔐 | kungal-native + wiki | ⏳ | 含完整下载链接 (会触发 download view 增量) |
-| `GET /galgame-resource/:id/recommend` | 🔐 | kungal-native + wiki | ⏳ | 相邻推荐资源 (同 galgame 的姊妹 resource) |
+| `GET /galgame-resource` | 🔐 | kungal-native + wiki batch | 🔧 | 资源列表；K-PR6 移到 `optAuth` 组 (此前 `api` 组导致 `isLiked` 永远 false)；`isSFW` → `GetBatchPublic`；`total` over-reports in SFW |
+| `GET /galgame-resource/:id` | 🔐 | kungal-native + wiki | ✅ | 资源详情；BE **不** gate NSFW (由 FE 处理) |
+| `GET /galgame-resource/:id/detail` | 🔐 | kungal-native + wiki | ✅ | 含完整下载链接 (会触发 download view 增量) |
+| `GET /galgame-resource/:id/recommend` | 🔐 | kungal-native + wiki | ✅ | 相邻推荐资源 (同 galgame 的姊妹 resource) |
 
 ## 9. Galgame 评分 (galgame-rating)
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /galgame-rating/all` | 🌐 | kungal-native + wiki batch | ⏳ | 评分列表；`isSFW` 过滤；含 `galgame.contentLimit` 给 FE |
-| `GET /galgame-rating/:id` | 🌐 | kungal-native + wiki | ⏳ | 单评分详情；BE 不 gate NSFW，由 FE 处理 |
+| `GET /galgame-rating/all` | 🔐 | kungal-native + wiki batch | 🔧 | 评分列表；K-PR6 移到 `optAuth` 组；FE 类型补 `short_summary`；BE 一直在返但 FE 类型缺 |
+| `GET /galgame-rating/:id` | 🔐 | kungal-native + wiki | 🔧 | 单评分详情；K-PR6 移到 `optAuth` 组 + BE 补 `galgameSeries` brief (FE Review JSON-LD `isPartOf` 用) |
 
 ## 10. Galgame Submission Messages (wiki 消息流)
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /galgame/messages/mine` | 🔒 (`authed`) | proxy (with Bearer) | ⏳ | "我收到的 wiki 通知" (approved/declined/banned/unbanned 等) |
-| `GET /galgame/messages/read-state` | 🔒 (`authed`) | kungal-native | ⏳ | per-user HWM cursor (wiki_message_read_state) |
-| `GET /admin/galgame/messages` | 🛡️ (`galgameAdmin`) | proxy (with Bearer) | ⏳ | admin 审核队列 |
+| `GET /galgame/messages/mine` | 🔒 (`authed`) | proxy (with Bearer) | ✅ | "我收到的 wiki 通知" (approved/declined/banned/unbanned 等) |
+| `GET /galgame/messages/read-state` | 🔒 (`authed`) | kungal-native | ✅ | per-user HWM cursor (wiki_message_read_state) |
+| `GET /admin/galgame/messages` | 🛡️ (`galgameAdmin`) | proxy (with Bearer) | ✅ | admin 审核队列 |
 
 ## 11. 网站 (website)
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /website` | 🔐 | kungal-native | ⏳ | 网站列表 (含分类/标签 facets) |
-| `GET /website/:domain` | 🔐 | kungal-native | ⏳ | 网站详情；包含 comment 列表 |
-| `GET /website/:domain/comment` | 🔐 | kungal-native | ⏳ | 该网站评论列表 (分页) |
-| `GET /website-category/:name` | 🌐 | kungal-native | ⏳ | 网站分类下的所有网站 |
-| `GET /website-tag` | 🌐 | kungal-native | ⏳ | 网站标签列表 |
-| `GET /website-tag/:name` | 🌐 | kungal-native | ⏳ | 单标签详情 (含所属网站) |
+| `GET /website` | 🔐 | kungal-native | 🔧 | 网站列表；K-PR6 加 SFW filter (`age_limit='all'` scope) — 原 FE Container.vue 宣称"默认仅显示 SFW"但 BE 不过滤 |
+| `GET /website/:domain` | 🔐 | kungal-native | ✅ | 网站详情；包含 comment 列表 |
+| `GET /website/:domain/comment` | 🔐 | kungal-native | 🔧 | 该网站评论列表；K-PR6 修复孤儿子评论 (父被封时丢弃 reply 而非提升到顶层) |
+| `GET /website-category/:name` | 🌐 | kungal-native | 🔧 | 网站分类下的所有网站；K-PR6 加 SFW filter |
+| `GET /website-tag` | 🌐 | kungal-native | ✅ | 网站标签列表 |
+| `GET /website-tag/:name` | 🌐 | kungal-native | 🔧 | 单标签详情；K-PR6 加 SFW filter |
 
 ## 12. 文档 (doc)
 

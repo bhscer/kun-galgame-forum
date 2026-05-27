@@ -96,8 +96,12 @@ type OfficialListPage struct {
 }
 
 type OfficialDetail struct {
-	ID           int           `json:"id"`
-	Name         string        `json:"name"`
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	// Original-language name (wiki PR4 sub-change, K-PR6). Passed through
+	// from wiki so the FE edit modal can pre-fill the current value;
+	// without it the modal opens with an empty input every time.
+	Original     string        `json:"original"`
 	Link         string        `json:"link"`
 	Category     string        `json:"category"`
 	Lang         string        `json:"lang"`

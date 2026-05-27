@@ -141,3 +141,26 @@ func (r *HomeRepository) FindTopicTags(topicIDs []int) []TagRelationRow {
 		Find(&tags)
 	return tags
 }
+
+// FindTopicIDsWithPoll returns the subset of topicIDs that have at
+// least one row in topic_poll. Mirrors
+// topic_repo.FindTopicIDsWithPoll so the homepage feed can render the
+// "投票" badge — it was hardcoded false on the home path even after
+// the /topic + /resource list endpoints were batched.
+func (r *HomeRepository) FindTopicIDsWithPoll(topicIDs []int) map[int]bool {
+	out := map[int]bool{}
+	if len(topicIDs) == 0 {
+		return out
+	}
+	var rows []struct {
+		TopicID int `gorm:"column:topic_id"`
+	}
+	r.db.Table("topic_poll").
+		Where("topic_id IN ?", topicIDs).
+		Select("topic_id").
+		Scan(&rows)
+	for _, row := range rows {
+		out[row.TopicID] = true
+	}
+	return out
+}

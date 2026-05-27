@@ -112,18 +112,21 @@ func rowToCard(r model.GalgameResourceRow, u userclient.User, isLiked bool) dto.
 }
 
 // rowToDownloadDetail maps a resource row + links + liked flag + owner to the
-// download-detail DTO.
-func rowToDownloadDetail(
+// rowToMeta shapes the credential-free metadata returned by the page
+// endpoint GET /galgame-resource/:id. The actual download fields
+// (link / code / password) live on ResourceDownloadDetail and are only
+// returned by /detail, which also bumps the download counter.
+func rowToMeta(
 	r model.GalgameResourceRow,
 	links []string,
 	isLiked bool,
 	owner userclient.User,
-) dto.ResourceDownloadDetail {
+) dto.ResourceMeta {
 	linkDomain := ""
 	if len(links) > 0 {
 		linkDomain = links[0]
 	}
-	return dto.ResourceDownloadDetail{
+	return dto.ResourceMeta{
 		ID:            r.ID,
 		View:          r.View,
 		GalgameID:     r.GalgameID,
@@ -138,11 +141,25 @@ func rowToDownloadDetail(
 		IsLiked:       isLiked,
 		LinkDomain:    linkDomain,
 		ProviderNames: decodeProviderNames(r.ProviderName),
-		Link:          links,
-		Code:          r.Code,
-		Password:      r.Password,
 		Note:          r.Note,
 		Created:       r.Created,
 		Edited:        r.Edited,
+	}
+}
+
+// rowToDownloadDetail layers the credentials on top of the meta view.
+// Caller is responsible for having already bumped the download
+// counter — only /detail does that.
+func rowToDownloadDetail(
+	r model.GalgameResourceRow,
+	links []string,
+	isLiked bool,
+	owner userclient.User,
+) dto.ResourceDownloadDetail {
+	return dto.ResourceDownloadDetail{
+		ResourceMeta: rowToMeta(r, links, isLiked, owner),
+		Link:         links,
+		Code:         r.Code,
+		Password:     r.Password,
 	}
 }

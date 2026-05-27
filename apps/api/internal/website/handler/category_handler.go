@@ -22,7 +22,7 @@ func NewCategoryHandler(categoryService *service.CategoryService) *CategoryHandl
 // GET /api/website-category/:name
 func (h *CategoryHandler) GetWebsiteCategory(c *fiber.Ctx) error {
 	name := c.Params("name")
-	detail, appErr := h.categoryService.GetDetail(name)
+	detail, appErr := h.categoryService.GetDetail(name, utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

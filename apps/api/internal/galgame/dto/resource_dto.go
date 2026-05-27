@@ -96,9 +96,19 @@ type ResourceCard struct {
 	GalgameName   KunLanguage `json:"galgameName,omitempty"`
 }
 
-// ResourceDownloadDetail is returned by GET /galgame-resource/:id/detail.
-// Includes download links, code, password, note.
-type ResourceDownloadDetail struct {
+// ResourceMeta is the safe (no credentials) view of a single resource —
+// returned by the page endpoint GET /galgame-resource/:id. The FE
+// type `GalgameResource` mirrors this shape and the dedicated
+// LinkDetailModal calls GET /galgame-resource/:id/detail when the user
+// actually clicks the download button.
+//
+// Keeping link/code/password OFF this endpoint matters for two
+// reasons: (a) the page endpoint is in the optAuth group so anonymous
+// scrapers can fetch it; leaking credentials there bypasses the
+// per-download moemoepoint check. (b) the dedicated /detail call is
+// what bumps the download counter — if the page already shipped the
+// link, the counter never moves.
+type ResourceMeta struct {
 	ID            int       `json:"id"`
 	View          int       `json:"view"`
 	GalgameID     int       `json:"galgameId"`
@@ -113,33 +123,47 @@ type ResourceDownloadDetail struct {
 	IsLiked       bool      `json:"isLiked"`
 	LinkDomain    string    `json:"linkDomain"`
 	ProviderNames []string  `json:"providerNames"`
-	Link          []string  `json:"link"`
-	Code          string    `json:"code"`
-	Password      string    `json:"password"`
 	Note          string    `json:"note"`
 	Created       string    `json:"created"`
 	Edited        *string   `json:"edited"`
 }
 
+// ResourceDownloadDetail is returned by GET /galgame-resource/:id/detail.
+// Includes download links, code, password — the actual credentials.
+// Endpoint also bumps the download counter as a side effect, so call
+// it once per user click.
+type ResourceDownloadDetail struct {
+	ResourceMeta
+	Link     []string `json:"link"`
+	Code     string   `json:"code"`
+	Password string   `json:"password"`
+}
+
 // ResourceGalgameSummary is the galgame info shown on resource detail page.
 type ResourceGalgameSummary struct {
-	ID                 int         `json:"id"`
-	Name               KunLanguage `json:"name"`
-	Banner             string      `json:"banner"`
-	ContentLimit       string      `json:"contentLimit"`
-	View               int         `json:"view"`
-	ResourceUpdateTime string      `json:"resourceUpdateTime"`
-	OriginalLanguage   string      `json:"originalLanguage"`
-	AgeLimit           string      `json:"ageLimit"`
-	Platform           []string    `json:"platform"`
-	Language           []string    `json:"language"`
-	Type               []string    `json:"type"`
+	ID     int         `json:"id"`
+	Name   KunLanguage `json:"name"`
+	Banner string      `json:"banner"`
+	// U2 banner pair — FE Hero / [id]/index.vue both call
+	// `getEffectiveBanner(galgame)` which reads these before falling
+	// back to legacy `banner`. Missing them broke the hero on
+	// covers-only (post wiki PR5) galgames.
+	EffectiveBannerHash string   `json:"effective_banner_hash,omitempty"`
+	EffectiveBannerURL  string   `json:"effective_banner_url,omitempty"`
+	ContentLimit        string   `json:"contentLimit"`
+	View                int      `json:"view"`
+	ResourceUpdateTime  string   `json:"resourceUpdateTime"`
+	OriginalLanguage    string   `json:"originalLanguage"`
+	AgeLimit            string   `json:"ageLimit"`
+	Platform            []string `json:"platform"`
+	Language            []string `json:"language"`
+	Type                []string `json:"type"`
 }
 
 // ResourceDetailPage is the full response for GET /galgame-resource/:id.
 type ResourceDetailPage struct {
 	Galgame         ResourceGalgameSummary `json:"galgame"`
-	Resource        ResourceDownloadDetail `json:"resource"`
+	Resource        ResourceMeta           `json:"resource"`
 	Recommendations []ResourceCard         `json:"recommendations"`
 }
 
