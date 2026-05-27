@@ -51,7 +51,7 @@ const handleTagSubmit = async (
 
 if (data.value) {
   useKunSeoMeta({
-    title: data.value.name,
+    title: `${data.value.label}的 Galgame 网站`,
     description: data.value.description,
     articlePublishedTime: data.value.created.toString(),
     articleModifiedTime: data.value.updated.toString()

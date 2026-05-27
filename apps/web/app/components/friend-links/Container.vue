@@ -3,12 +3,7 @@ import { friendArray } from '~/config/friend'
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="true"
-    content-class="space-y-6"
-    class-name="pb-12"
-  >
+  <KunCard :is-hoverable="false" content-class="space-y-6" class-name="pb-12">
     <KunHeader
       name="友情链接"
       description="我们非常重视合作, 因为在我们网站的建设过程中, 受到了来自世界各地朋友的帮助, 我们与下面的网站都是朋友关系, 我们衷心的为能和这些网站成为朋友感到荣幸"
@@ -35,6 +30,7 @@ import { friendArray } from '~/config/friend'
         -->
         <KunCard
           :dark-border="true"
+          :is-transparent="true"
           v-for="(friend, i) in friendGroup.value"
           :key="i"
           :href="friend.link"
@@ -63,7 +59,7 @@ import { friendArray } from '~/config/friend'
     </template>
 
     <div class="flex flex-col items-center justify-center gap-3">
-      <KunLink underline="none" to="/doc/contact">
+      <KunLink underline="always" to="/doc/contact">
         <h3 class="text-primary text-xl font-bold">加入我们</h3>
       </KunLink>
 

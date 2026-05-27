@@ -22,7 +22,6 @@ const articles = computed(() => articleResponse.value?.items || [])
 <template>
   <KunCard
     :is-hoverable="false"
-    :is-transparent="true"
     class-name="min-h-[calc(100dvh-6rem)]"
     content-class="space-y-6"
   >
@@ -37,6 +36,7 @@ const articles = computed(() => articleResponse.value?.items || [])
     >
       <KunCard
         :dark-border="true"
+        :is-transparent="true"
         v-for="post in articles"
         :key="post.id"
         :href="post.path"
