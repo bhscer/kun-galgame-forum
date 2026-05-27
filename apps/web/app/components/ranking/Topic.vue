@@ -2,7 +2,7 @@
 import { topicSortItem } from '~/constants/ranking'
 import { topicRankingPageData, getRankClasses } from './pageData'
 
-const { data } = await useKunFetch<RankingTopic[]>('/ranking/topic', {
+const { data } = await useKunFetch<RankingTopicItem[]>('/ranking/topic', {
   query: topicRankingPageData
 })
 </script>

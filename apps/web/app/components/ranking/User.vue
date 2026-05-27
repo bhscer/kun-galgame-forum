@@ -2,7 +2,7 @@
 import { userSortItem } from '~/constants/ranking'
 import { userRankingPageData, getRankClasses } from './pageData'
 
-const { data } = await useKunFetch<RankingUser[]>('/ranking/user', {
+const { data } = await useKunFetch<RankingUserItem[]>('/ranking/user', {
   query: userRankingPageData
 })
 </script>

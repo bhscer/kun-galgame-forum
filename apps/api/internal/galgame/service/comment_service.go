@@ -64,7 +64,13 @@ type CommentItem struct {
 	ParentCommentID *int           `json:"parentCommentId"`
 	RootCommentID   *int           `json:"rootCommentId"`
 	LikeCount       int            `json:"likeCount"`
-	Created         string         `json:"created"`
+	// IsLiked is per-viewer: set by GetComments/GetCommentThread from a
+	// batch query against galgame_comment_like. Anonymous callers see
+	// false. The FE Like component initialises its toggled state from
+	// this flag — without it the heart icon would always render off
+	// even after the user has already clicked it.
+	IsLiked    bool           `json:"isLiked"`
+	Created    string         `json:"created"`
 	// Edited: ISO timestamp when the author last rewrote this comment;
 	// null if untouched. Drives the "已编辑" badge in the UI.
 	Edited     *string        `json:"edited"`
@@ -93,7 +99,7 @@ const inlineRepliesPerRoot = 3
 // FLATTENED into a single list, plus a ReplyCount = total descendants.
 // The drawer (GET /comment/thread/:rootId) fetches the whole thread
 // on demand for the "查看更多" path.
-func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit int) *CommentListResult {
+func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit, currentUserID int) *CommentListResult {
 	total := s.commentRepo.CountRootsByGalgame(galgameID)
 	roots := s.commentRepo.FindRootsPaginated(galgameID, page, limit)
 	if len(roots) == 0 {
@@ -139,6 +145,25 @@ func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit
 		}
 	}
 
+	// Per-viewer `isLiked` flag — batched in one query then stamped on
+	// every item across the roots-and-flattened-replies graph. Anonymous
+	// callers (currentUserID=0) skip the DB hit entirely (FindLikedSet
+	// returns the empty set).
+	allIDs := make([]int, 0, len(rootItems)*(1+inlineRepliesPerRoot))
+	for _, item := range rootItems {
+		allIDs = append(allIDs, item.ID)
+		for _, reply := range item.Replies {
+			allIDs = append(allIDs, reply.ID)
+		}
+	}
+	likedSet := s.commentRepo.FindLikedSet(currentUserID, allIDs)
+	for _, item := range rootItems {
+		item.IsLiked = likedSet[item.ID]
+		for _, reply := range item.Replies {
+			reply.IsLiked = likedSet[reply.ID]
+		}
+	}
+
 	return &CommentListResult{Items: rootItems, Total: total}
 }
 
@@ -149,12 +174,19 @@ func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit
 // GetThread returns root + all descendants flattened under root.Replies
 // (ASC by created). Mirrors the inline flat-tier shape, with no per-
 // root cap.
-func (s *CommentService) GetThread(ctx context.Context, rootID int) (*CommentItem, *errors.AppError) {
+func (s *CommentService) GetThread(ctx context.Context, rootID, currentUserID int) (*CommentItem, *errors.AppError) {
 	rows := s.commentRepo.FindThreadByRoot(rootID)
 	if len(rows) == 0 {
 		return nil, errors.ErrNotFound("评论线程不存在")
 	}
 	userMap := s.hydrateUsers(ctx, rows)
+	// Batch-fetch the viewer's like state across the whole thread; same
+	// rationale as GetComments above. Empty for anonymous callers.
+	commentIDs := make([]int, 0, len(rows))
+	for _, r := range rows {
+		commentIDs = append(commentIDs, r.ID)
+	}
+	likedSet := s.commentRepo.FindLikedSet(currentUserID, commentIDs)
 
 	var rootItem *CommentItem
 	descendants := make([]*CommentItem, 0, len(rows)-1)
@@ -163,6 +195,7 @@ func (s *CommentService) GetThread(ctx context.Context, rootID int) (*CommentIte
 		if item == nil {
 			continue
 		}
+		item.IsLiked = likedSet[item.ID]
 		if r.ID == rootID {
 			rootItem = item
 		} else {

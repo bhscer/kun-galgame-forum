@@ -30,11 +30,19 @@ defineProps<{
         <KunAvatar :user="comment.user" />
         <span class="ml-2 text-sm">{{ comment.user.name }}</span>
       </div>
-      <KunIcon name="lucide:arrow-right" class="h-4 w-4" />
-      <div class="flex items-center">
-        <KunAvatar :user="comment.targetUser" />
-        <span class="ml-2 text-sm">{{ comment.targetUser.name }}</span>
-      </div>
+      <!--
+        BE `CommentItem` (search/dto) doesn't carry `targetUser`. Guard
+        with v-if so the arrow + avatar pair appears only when the
+        chain parent is populated. See SearchResultComment in
+        shared/types/search.ts for the optional-typed field.
+      -->
+      <template v-if="comment.targetUser">
+        <KunIcon name="lucide:arrow-right" class="h-4 w-4" />
+        <div class="flex items-center">
+          <KunAvatar :user="comment.targetUser" />
+          <span class="ml-2 text-sm">{{ comment.targetUser.name }}</span>
+        </div>
+      </template>
     </div>
   </KunLink>
 </template>

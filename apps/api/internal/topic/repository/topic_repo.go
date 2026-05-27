@@ -112,6 +112,29 @@ func (r *TopicRepository) HasPoll(topicID int) (bool, error) {
 	return count > 0, err
 }
 
+// FindTopicIDsWithPoll returns a set of the topic IDs (from the given
+// list) that have at least one row in topic_poll. Used by the list
+// mappers so the FE can render the "投票" badge on cards — was
+// previously hardcoded `false`, leaving the badge permanently absent
+// from topic / resource list pages.
+func (r *TopicRepository) FindTopicIDsWithPoll(topicIDs []int) map[int]bool {
+	out := map[int]bool{}
+	if len(topicIDs) == 0 {
+		return out
+	}
+	var rows []struct {
+		TopicID int `gorm:"column:topic_id"`
+	}
+	r.db.Model(&model.TopicPoll{}).
+		Where("topic_id IN ?", topicIDs).
+		Select("topic_id").
+		Scan(&rows)
+	for _, row := range rows {
+		out[row.TopicID] = true
+	}
+	return out
+}
+
 // ──────────────────────────────────────────
 // Tx-aware write operations (for the service coordinator)
 // ──────────────────────────────────────────

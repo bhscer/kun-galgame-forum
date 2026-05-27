@@ -44,6 +44,7 @@ func NewResourceService(
 func (s *ResourceService) GetResourceList(
 	ctx context.Context,
 	req *dto.ResourceListRequest,
+	currentUserID int,
 	isSFW bool,
 ) (*dto.ResourceListPage, *errors.AppError) {
 	total := s.resourceRepo.CountAll()
@@ -52,6 +53,15 @@ func (s *ResourceService) GetResourceList(
 	galgameIDs, userIDs := collectIDs(rows)
 	briefMap := s.fetchWikiBriefsPublic(ctx, galgameIDs, isSFW)
 	userMap := s.userClient.Hydrate(ctx, userIDs)
+
+	// Batch lookup of "did current user already like" so the FE can
+	// hydrate the heart icon correctly on first render. Anonymous /
+	// userID=0 yields an empty set without hitting the DB.
+	resourceIDs := make([]int, len(rows))
+	for i, r := range rows {
+		resourceIDs[i] = r.ID
+	}
+	likedSet := s.resourceRepo.FindLikedSet(currentUserID, resourceIDs)
 
 	cards := make([]dto.ResourceCard, 0, len(rows))
 	for _, r := range rows {
@@ -65,7 +75,7 @@ func (s *ResourceService) GetResourceList(
 		if !hasBrief {
 			continue
 		}
-		card := rowToCard(r, u)
+		card := rowToCard(r, u, likedSet[r.ID])
 		card.GalgameName = briefToName(b)
 		cards = append(cards, card)
 	}
@@ -113,7 +123,7 @@ func (s *ResourceService) GetResourceDetail(
 
 	// Recommendations (max 6)
 	recRows := s.resourceRepo.FindRecommendations(row.GalgameID, resourceID, 6)
-	recommendations := s.buildRecommendations(ctx, recRows, row.GalgameID)
+	recommendations := s.buildRecommendations(ctx, recRows, row.GalgameID, currentUserID)
 
 	return &dto.ResourceDetailPage{
 		Galgame:         galgameSummary,
@@ -154,14 +164,19 @@ func (s *ResourceService) GetResourceDownloadDetail(
 func (s *ResourceService) GetGalgameResources(
 	ctx context.Context,
 	req *dto.GalgameResourcesRequest,
+	currentUserID int,
 ) ([]dto.ResourceCard, *errors.AppError) {
 	rows := s.resourceRepo.FindByGalgameID(req.GalgameID)
 
 	userIDs := make([]int, len(rows))
+	resourceIDs := make([]int, len(rows))
 	for i, r := range rows {
 		userIDs[i] = r.UserID
+		resourceIDs[i] = r.ID
 	}
 	userMap := s.userClient.Hydrate(ctx, userIDs)
+	// Per-row like state for the logged-in viewer; anonymous → empty set.
+	likedSet := s.resourceRepo.FindLikedSet(currentUserID, resourceIDs)
 
 	cards := make([]dto.ResourceCard, 0, len(rows))
 	for _, r := range rows {
@@ -169,7 +184,7 @@ func (s *ResourceService) GetGalgameResources(
 		if !userclient.IsRenderable(u) {
 			continue
 		}
-		cards = append(cards, rowToCard(r, u))
+		cards = append(cards, rowToCard(r, u, likedSet[r.ID]))
 	}
 	return cards, nil
 }
@@ -181,14 +196,14 @@ func (s *ResourceService) GetGalgameResources(
 
 func (s *ResourceService) GetRecommendations(
 	ctx context.Context,
-	resourceID int,
+	resourceID, currentUserID int,
 ) ([]dto.ResourceCard, *errors.AppError) {
 	row, ok := s.resourceRepo.FindByID(resourceID)
 	if !ok {
 		return nil, errors.ErrNotFound("未找到该资源")
 	}
 	recRows := s.resourceRepo.FindRecommendations(row.GalgameID, resourceID, 6)
-	return s.buildRecommendations(ctx, recRows, row.GalgameID), nil
+	return s.buildRecommendations(ctx, recRows, row.GalgameID, currentUserID), nil
 }
 
 // ──────────────────────────────────────────
@@ -501,13 +516,17 @@ func (s *ResourceService) buildRecommendations(
 	ctx context.Context,
 	rows []model.GalgameResourceRow,
 	galgameID int,
+	currentUserID int,
 ) []dto.ResourceCard {
 	userIDs := make([]int, len(rows))
+	resourceIDs := make([]int, len(rows))
 	for i, r := range rows {
 		userIDs[i] = r.UserID
+		resourceIDs[i] = r.ID
 	}
 	userMap := s.userClient.Hydrate(ctx, userIDs)
 	briefMap := s.fetchWikiBriefs(ctx, []int{galgameID})
+	likedSet := s.resourceRepo.FindLikedSet(currentUserID, resourceIDs)
 
 	cards := make([]dto.ResourceCard, 0, len(rows))
 	for _, r := range rows {
@@ -515,7 +534,7 @@ func (s *ResourceService) buildRecommendations(
 		if !userclient.IsRenderable(u) {
 			continue
 		}
-		card := rowToCard(r, u)
+		card := rowToCard(r, u, likedSet[r.ID])
 		if b, ok := briefMap[galgameID]; ok {
 			card.GalgameName = briefToName(b)
 		}

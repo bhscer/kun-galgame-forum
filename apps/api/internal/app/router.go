@@ -106,7 +106,10 @@ func (a *App) setupRoutes() {
 
 	// Galgame wiki proxies (public reads)
 	api.Get("/galgame", a.GalgameHandler.GetList)
-	api.Get("/galgame/check", a.GalgameWikiHandler.ProxyGet)
+	// `/galgame/check` (VNDB-ID precheck) was retired when the publish
+	// wizard moved to name-based search — no FE caller remains. Removed
+	// from registration; re-add only if a downstream brings the check
+	// flow back.
 	// /galgame/mine and /galgame/search/wizard MUST be registered BEFORE
 	// /galgame/:gid below — Fiber matches by registration order and a
 	// catch-all `:gid` happily binds to the literal "mine" / "search",
@@ -126,7 +129,11 @@ func (a *App) setupRoutes() {
 	api.Get("/galgame/:gid/prs/:id", a.GalgameWikiHandler.ProxyGet)
 	api.Get("/galgame/:gid/links", a.GalgameWikiHandler.ProxyGet)
 	api.Get("/galgame/:gid/aliases", a.GalgameWikiHandler.ProxyGet)
-	api.Get("/galgame/:gid/contributors", a.GalgameWikiHandler.ProxyGet)
+	// `/galgame/:gid/contributors` is unused — the FE contributor view
+	// reads from detail's embedded `contributor[]` array now
+	// (apps/web/.../components/galgame/contributor/Container.vue notes
+	// the removal). Drop the proxy route to keep the public surface
+	// honest; re-add if a downstream rebuilds the standalone view.
 	// NOTE: galgame detail sub-routes (/pr/all, /link/all, etc.) are
 	// registered in the optAuth group below to avoid Fiber route shadowing
 	// by /galgame/:gid.

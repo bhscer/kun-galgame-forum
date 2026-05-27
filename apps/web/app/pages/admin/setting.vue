@@ -5,7 +5,11 @@ const { data } = await useKunFetch<{ registerStatus: boolean }>(
   '/admin/setting/register'
 )
 
-const registerStatus = ref(data.value ? !data.value.registerStatus : true)
+// BE semantics: `registerStatus: true` = registration is OPEN (see
+// setting_service.go:19 — "`registerStatus` is true when registration is OPEN").
+// Default to `true` (open) on missing data so the switch starts in the
+// permissive state.
+const registerStatus = ref(data.value?.registerStatus ?? true)
 
 const handleUpdateRegisterStatus = async () => {
   const res = await useComponentMessageStore().alert(

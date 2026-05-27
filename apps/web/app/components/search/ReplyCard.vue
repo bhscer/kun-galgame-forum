@@ -27,7 +27,13 @@ defineProps<{
       {{ reply.content }}
     </div>
 
-    <template v-for="(target, index) in reply.targets" :key="index">
+    <!--
+      BE `ReplyItem` (search/dto) doesn't populate `targets`; the field
+      is reserved for future "show what this reply is quoting". Use
+      `?? []` so the v-for short-circuits cleanly when missing.
+      See SearchResultReply in shared/types/search.ts.
+    -->
+    <template v-for="(target, index) in reply.targets ?? []" :key="index">
       <div
         class="border-primary bg-primary/10 my-2 rounded border-l-3 p-2 text-sm"
       >

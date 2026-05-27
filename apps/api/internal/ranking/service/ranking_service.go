@@ -66,10 +66,12 @@ func (s *RankingService) GetGalgameRanking(
 				EnUS: b.NameEnUs, JaJP: b.NameJaJp,
 				ZhCN: b.NameZhCn, ZhTW: b.NameZhTw,
 			},
-			User:      dto.UserBrief{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
-			Banner:    b.Banner,
-			Value:     r.Value,
-			SortField: req.SortField,
+			User:                dto.UserBrief{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
+			Banner:              b.Banner,
+			Value:               r.Value,
+			SortField:           req.SortField,
+			EffectiveBannerHash: b.EffectiveBannerHash,
+			EffectiveBannerURL:  b.EffectiveBannerURL,
 		})
 	}
 	return items
@@ -116,6 +118,7 @@ func (s *RankingService) GetUserRanking(ctx context.Context, req *dto.UserRankin
 		items = append(items, dto.UserRankingItem{
 			ID: u.ID, Name: u.Name, Avatar: u.Avatar,
 			Bio: u.Bio, Value: r.Value,
+			SortField: req.SortField,
 		})
 	}
 	return items

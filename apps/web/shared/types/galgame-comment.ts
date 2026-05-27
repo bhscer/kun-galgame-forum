@@ -1,10 +1,13 @@
 export interface GalgameComment {
   id: number
   galgameId: number
-  created: number
+  // BE emits ISO timestamps (`Created string`, `Edited *string`); the
+  // old `number` typings were a Nitro-era holdover. `formatTimeDifference`
+  // and date helpers all accept ISO strings.
+  created: string
   // Author-driven edit timestamp; null = never edited. Drives the
   // "已编辑" badge on the rendered comment.
-  edited: number | null
+  edited: string | null
   // Raw markdown source — round-trips through the edit-mode textarea.
   content: string
   // Server-rendered HTML via the project's goldmark pipeline (same as

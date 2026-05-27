@@ -37,7 +37,7 @@ func (h *ResourceHandler) GetResourceList(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	page, appErr := h.resourceService.GetResourceList(c.Context(), &req, utils.IsSFW(c))
+	page, appErr := h.resourceService.GetResourceList(c.Context(), &req, optionalUID(c), utils.IsSFW(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -88,7 +88,7 @@ func (h *ResourceHandler) GetGalgameResources(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	cards, appErr := h.resourceService.GetGalgameResources(c.Context(), &req)
+	cards, appErr := h.resourceService.GetGalgameResources(c.Context(), &req, optionalUID(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -207,7 +207,7 @@ func (h *ResourceHandler) GetRecommend(c *fiber.Ctx) error {
 	if err != nil {
 		return response.Error(c, errors.ErrBadRequest("无效的资源 ID"))
 	}
-	cards, appErr := h.resourceService.GetRecommendations(c.Context(), id)
+	cards, appErr := h.resourceService.GetRecommendations(c.Context(), id, optionalUID(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

@@ -18,6 +18,28 @@ func NewCommentRepository(db *gorm.DB) *CommentRepository {
 
 func (r *CommentRepository) DB() *gorm.DB { return r.db }
 
+// FindLikedSet returns the subset of commentIDs the user has liked.
+// Anonymous (userID=0) or empty input → empty set without hitting DB.
+// Used by GetComments / GetCommentThread to hydrate the per-row
+// `isLiked` flag in one query rather than N individual lookups.
+func (r *CommentRepository) FindLikedSet(userID int, commentIDs []int) map[int]bool {
+	out := map[int]bool{}
+	if userID <= 0 || len(commentIDs) == 0 {
+		return out
+	}
+	var rows []struct {
+		CommentID int `gorm:"column:galgame_comment_id"`
+	}
+	r.db.Table("galgame_comment_like").
+		Where("user_id = ? AND galgame_comment_id IN ?", userID, commentIDs).
+		Select("galgame_comment_id").
+		Scan(&rows)
+	for _, row := range rows {
+		out[row.CommentID] = true
+	}
+	return out
+}
+
 // CommentRow holds a galgame comment row. Identity is hydrated by the
 // service layer via userclient.
 type CommentRow struct {

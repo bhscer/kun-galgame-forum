@@ -2,7 +2,7 @@
 import { galgameSortItem } from '~/constants/ranking'
 import { galgameRankingPageData, getRankClasses } from './pageData'
 
-const { data } = await useKunFetch<RankingGalgame[]>('/ranking/galgame', {
+const { data } = await useKunFetch<RankingGalgameItem[]>('/ranking/galgame', {
   query: galgameRankingPageData
 })
 </script>

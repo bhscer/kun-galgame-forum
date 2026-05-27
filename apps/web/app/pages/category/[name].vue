@@ -8,7 +8,11 @@ const categoryName = computed(() => {
   return (route.params as { name: string }).name
 })
 
-const { data } = await useKunFetch<CategorySection[]>('/category', {
+// BE returns `[]SectionStat` (see apps/api/internal/section/dto). The FE
+// type name used to be `CategorySection` which never existed — the right
+// type is `CategorySectionStats` (already imported by CategoryContainer
+// for its `sections` prop).
+const { data } = await useKunFetch<CategorySectionStats[]>('/category', {
   query: { category: categoryName }
 })
 

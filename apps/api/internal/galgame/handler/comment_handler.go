@@ -33,7 +33,7 @@ func (h *CommentHandler) GetComments(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	result := h.commentService.GetComments(c.Context(), gid, req.Page, req.Limit)
+	result := h.commentService.GetComments(c.Context(), gid, req.Page, req.Limit, optionalUID(c))
 	return response.Paginated(c, result.Items, result.Total)
 }
 
@@ -78,7 +78,7 @@ func (h *CommentHandler) GetCommentThread(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrBadRequest("非法的评论 ID"))
 	}
 
-	root, appErr := h.commentService.GetThread(c.Context(), rootID)
+	root, appErr := h.commentService.GetThread(c.Context(), rootID, optionalUID(c))
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

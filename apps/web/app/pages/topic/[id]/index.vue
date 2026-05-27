@@ -73,7 +73,11 @@ const getFirstImageSrc = (htmlString: string) => {
   return match ? match[1] : `${kungal.domain.main}/kungalgame.webp`
 }
 
-if (data.value && data.value !== 'banned') {
+// `'banned'` was a Nitro-era sentinel that the Go BE no longer returns
+// (banned topics now bubble up as HTTP 404). `useKunFetch<TopicDetail>`
+// hard-types data.value as `TopicDetail | null`, so the legacy check
+// was a permanent no-op string compare.
+if (data.value) {
   const topic = data.value
 
   const markdown = topic.contentMarkdown

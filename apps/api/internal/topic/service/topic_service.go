@@ -93,6 +93,10 @@ func (s *TopicService) mapListRows(ctx context.Context, rows []repository.TopicC
 
 	tagMap, _ := s.taxonomyRepo.FindTagNamesByTopicIDs(topicIDs)
 	sectionMap, _ := s.taxonomyRepo.FindSectionNamesByTopicIDs(topicIDs)
+	// Batch-check which of these topics actually have a poll attached.
+	// Without this the cards' `isPollTopic` was always `false`, so the
+	// "投票" badge never showed on /topic or /resource list pages.
+	pollSet := s.topicRepo.FindTopicIDsWithPoll(topicIDs)
 
 	uids := userclient.CollectIDs(rows, func(r repository.TopicCardRow) int { return r.UserID })
 	userMap := s.userClient.Hydrate(ctx, uids)
@@ -108,7 +112,7 @@ func (s *TopicService) mapListRows(ctx context.Context, rows []repository.TopicC
 		if u, ok := userMap[r.UserID]; ok && !userclient.IsRenderable(u) {
 			continue
 		}
-		cards = append(cards, toTopicCard(r, tagMap[r.ID], sectionMap[r.ID], false))
+		cards = append(cards, toTopicCard(r, tagMap[r.ID], sectionMap[r.ID], pollSet[r.ID]))
 		_ = i
 	}
 	return cards, total, nil

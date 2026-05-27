@@ -31,4 +31,3 @@ export interface TopicReply {
   isBestAnswer: boolean
 }
 
-export type TopicReplyDetail = Omit<TopicReply, 'comment'>

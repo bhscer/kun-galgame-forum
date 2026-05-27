@@ -144,6 +144,28 @@ func (r *ResourceRepository) IsLikedBy(resourceID, userID int) bool {
 	return cnt > 0
 }
 
+// FindLikedSet returns the subset of resourceIDs that `userID` has
+// liked. Empty result for anonymous (userID=0) or empty input — saves
+// the N+1 single-row Count calls that GetGalgameResources / list paths
+// would otherwise need to compute the per-row `isLiked` flag.
+func (r *ResourceRepository) FindLikedSet(userID int, resourceIDs []int) map[int]bool {
+	out := map[int]bool{}
+	if userID <= 0 || len(resourceIDs) == 0 {
+		return out
+	}
+	var rows []struct {
+		ResourceID int `gorm:"column:galgame_resource_id"`
+	}
+	r.db.Table("galgame_resource_like").
+		Where("user_id = ? AND galgame_resource_id IN ?", userID, resourceIDs).
+		Select("galgame_resource_id").
+		Scan(&rows)
+	for _, row := range rows {
+		out[row.ResourceID] = true
+	}
+	return out
+}
+
 // FindGalgameView returns the local galgame.view counter.
 func (r *ResourceRepository) FindGalgameView(galgameID int) int {
 	var view int

@@ -15,12 +15,24 @@ defineProps<{
       {{ user.bio }}
     </pre>
 
-    <div class="mt-2 flex items-center justify-between text-sm">
-      <div class="text-secondary flex items-center">
+    <!--
+      BE `UserItem` (search/dto) currently leaves `moemoepoint`+`created`
+      zero (kungal_user_state not joined at search time). Guard each
+      block so we don't render "0 萌点" / "Date(zero)". Drop the whole
+      row when neither is available.
+    -->
+    <div
+      v-if="user.moemoepoint || user.created"
+      class="mt-2 flex items-center justify-between text-sm"
+    >
+      <div
+        v-if="user.moemoepoint"
+        class="text-secondary flex items-center"
+      >
         <KunIcon name="lucide:lollipop" class="h-5 w-5" />
         {{ user.moemoepoint }}
       </div>
-      <span class="text-default-700">
+      <span v-if="user.created" class="text-default-700">
         {{ formatDate(user.created, { isShowYear: true }) }}
       </span>
     </div>
