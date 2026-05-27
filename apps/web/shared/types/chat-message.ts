@@ -12,7 +12,12 @@ export interface ChatMessageAsideItem {
   route: string
   title: string
   avatar: string
-  lastMessageTime: Date | string
+  // BE returns null/empty when no message has been exchanged yet
+  // (NavContactItem.LastMessageTime *string + the nav/system summary
+  // emits ""). The Item/SystemItem templates already guard with v-if,
+  // so allowing null/"" here removes the formatTimeDifference("") →
+  // "NaN years ago" rendering on fresh chat rooms.
+  lastMessageTime: Date | string | null
 }
 
 export interface ChatMessage {
@@ -20,7 +25,7 @@ export interface ChatMessage {
   chatroomName: string
   sender: KunUser
   readBy: KunUser[]
-  receiverId: number | null
+  receiverId: number
   content: string
   isRecall: boolean
   created: Date | string

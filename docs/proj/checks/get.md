@@ -33,10 +33,10 @@
 
 ## 统计
 
-- 全部 GET 端点 (展开 for-loop 后): **99**
-  - 静态注册行: 93 (原 95，K-PR 第一轮审计删了 `/galgame/check` + `/galgame/:gid/contributors`)
+- 全部 GET 端点 (展开 for-loop 后): **98**
+  - 静态注册行: 92 (原 95，K-PR 审计删了 `/galgame/check` + `/galgame/:gid/contributors` + `/galgame-resource/:id/recommend`)
   - 实体 revision 循环 (`tag` / `official` / `engine` × 2 routes): 6
-- 已审计：**§0 + §1 + §2 + §3 + §4 + §5 完成**（第一组），**§6 + §7 + §8 + §9 + §10 + §11 完成**（第二组）
+- 已审计：**§0 + §1 + §2 + §3 + §4 + §5 完成**（第一组），**§6 + §7 + §8 + §9 + §10 + §11 完成**（第二组），**§12 + §13 + §14 + §15 + §16 + §17 完成**（第三组）
 - 已修复 (本轮 K-PR 审计):
   - 第一组 (§0–§5)：
     - `/admin/setting/register` FE 状态反转
@@ -57,6 +57,16 @@
     - `/galgame-rating/all` FE 类型 `GalgameRatingCard` 缺 `short_summary` (BE 一直在返)
     - `/website`, `/website-category/:name`, `/website-tag/:name` BE 缺 SFW 过滤：FE Container.vue 宣称"默认仅显示 SFW 的网站"但 BE 全返 → 加 `age_limit='all'` scope，与 wiki content_limit 协议对齐
     - `/website/:domain/comment` 子节点孤儿处理：父评论作者被封后，原代码会把子评论提升到顶层（无 TargetUser 的悬挂回复），改为丢弃（与 galgame comment service 对齐）
+  - 第三组 (§12–§17)：
+    - `/message/admin` `created` 字段从未被赋值（DTO `time.Time` 漏 set）→ 显示零值"约 2024 年前"；改为 string 字段对齐 repo 行 `CreatedAt`，同步修 `/message` 同款漏赋值
+    - `/user/:id` FE `useKunFetch<UserInfo \| 'banned'>` 死代码移除（BE 返封禁用户的 `{id, name, status:1}` 对象而非字符串），改用 `status !== 0` 判断；顺带清理 Ref 包装的冗余 query
+    - `/user/:id/ratings` BE `UserRatingItem` + repo 加 `ShortSummary` 字段（FE GalgameRatingCard 在 K-PR6 已加 `short_summary`，user 子端点漏接）
+    - `/doc/category` + `/doc/tag` FE 类型外层 key 从 `{categories,...}/{tags,...}` 改为 `{items, total}` 对齐 BE 实际 wire（FE consumer 早就读 `.items`）
+    - `pages/message/notice.vue`、`components/update/{History,Todo}.vue` 用未声明类型 `MessageList`/`UpdateHistoryList`/`UpdateTodoList`（TS any）→ 在 shared/types 声明
+    - `/toolset/:id` `commentPreview` BE `CommentDetailItem` 嵌入原始 model 输出 `user_id/toolset_id/parent_id` snake_case → 改为显式 camelCase 字段（与 ToolsetCommentItem 一致）
+    - `/user/:id/galgames` BE `UserGalgameCard` + repo brief 透传 `releaseDate/releaseDateTBA`（wiki U1 后字段漂移，user 子端点漏接）
+    - `/toolset/:id/practicality` FE `mine: number` → `number \| null`；`/message/nav/*` FE `lastMessageTime` 加 null + `ChatMessage.receiverId` 收窄为 `number`
+    - `/user/status` BE 用户无 state 行时不再 404，lazy 用 0 默认值（新注册用户 Nav 不再丢萌萌点/签到状态）
 
 ---
 
@@ -170,7 +180,7 @@
 | `GET /galgame-resource` | 🔐 | kungal-native + wiki batch | 🔧 | 资源列表；K-PR6 移到 `optAuth` 组 (此前 `api` 组导致 `isLiked` 永远 false)；`isSFW` → `GetBatchPublic`；`total` over-reports in SFW |
 | `GET /galgame-resource/:id` | 🔐 | kungal-native + wiki | ✅ | 资源详情；BE **不** gate NSFW (由 FE 处理) |
 | `GET /galgame-resource/:id/detail` | 🔐 | kungal-native + wiki | ✅ | 含完整下载链接 (会触发 download view 增量) |
-| `GET /galgame-resource/:id/recommend` | 🔐 | kungal-native + wiki | ✅ | 相邻推荐资源 (同 galgame 的姊妹 resource) |
+| ~~`GET /galgame-resource/:id/recommend`~~ | — | — | ❌ removed | FE 已改用页面端点内嵌的 `recommendations` 字段，独立端点无调用方；K-PR6 审计中已从 router.go + handler + service 删除注册。 |
 
 ## 9. Galgame 评分 (galgame-rating)
 
@@ -202,52 +212,52 @@
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /doc/article` | 🌐 | kungal-native | ⏳ | 文档列表 (含分类/标签 facets) |
-| `GET /doc/article/:slug` | 🌐 | kungal-native | ⏳ | 文档详情；含 `tagIds[]` (K-PR 修复，便于 rewrite 重填) |
-| `GET /doc/category` | 🌐 | kungal-native | ⏳ | 文档分类列表 |
-| `GET /doc/tag` | 🌐 | kungal-native | ⏳ | 文档标签列表 |
+| `GET /doc/article` | 🌐 | kungal-native | ✅ | 文档列表 (含分类/标签 facets) |
+| `GET /doc/article/:slug` | 🌐 | kungal-native | ✅ | 文档详情；含 `tagIds[]` (K-PR 修复，便于 rewrite 重填) |
+| `GET /doc/category` | 🌐 | kungal-native | 🔧 | 文档分类列表；K-PR6 FE 外层 key `{categories,...}` → `{items, total}` 对齐 BE wire |
+| `GET /doc/tag` | 🌐 | kungal-native | 🔧 | 文档标签列表；K-PR6 同上 |
 
 ## 13. 工具集 (toolset)
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /toolset` | 🔐 | kungal-native | ⏳ | 工具列表 |
-| `GET /toolset/:id` | 🔐 | kungal-native | ⏳ | 工具详情 (含 practicality 评分聚合 + commentPreview) |
-| `GET /toolset/:id/practicality` | 🔐 | kungal-native | ⏳ | 实用度评分分布 |
-| `GET /toolset/:id/comment/all` | 🔐 | kungal-native | ⏳ | 工具评论列表 |
-| `GET /toolset/:id/resource/detail` | 🌐 | kungal-native | ⏳ | 工具关联资源详情 |
+| `GET /toolset` | 🔐 | kungal-native | ✅ | 工具列表 |
+| `GET /toolset/:id` | 🔐 | kungal-native | 🔧 | 工具详情；K-PR6 `CommentDetailItem` 从嵌入 model (snake_case) 改为显式 camelCase 字段，对齐 FE ToolsetComment 类型 |
+| `GET /toolset/:id/practicality` | 🔐 | kungal-native | 🔧 | 实用度评分分布；K-PR6 FE `mine: number \| null` 收紧（BE 用 `*int` 可空） |
+| `GET /toolset/:id/comment/all` | 🔐 | kungal-native | ✅ | 工具评论列表 |
+| `GET /toolset/:id/resource/detail` | 🌐 | kungal-native | ✅ | 工具关联资源详情 |
 
 ## 14. 用户主页 (user/:id/*)
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /user/status` | 🔒 (`userAuth`) | kungal-native | ⏳ | 当前用户的萌萌点/签到/未读数 (sum of message+system+chat) |
-| `GET /user/:id` | 🌐 | kungal-native | ⏳ | 用户 profile (识别 `'banned'` 字面值) |
-| `GET /user/:id/floating` | 🌐 | kungal-native | ⏳ | 浮动卡片 (hover user header 显示) |
-| `GET /user/:id/galgames` | 🌐 | kungal-native + wiki batch | ⏳ | 用户上传/参与的 galgame；`isSFW` 过滤 |
-| `GET /user/:id/galgame-comments` | 🌐 | kungal-native + wiki batch | ⏳ | 用户的 galgame 评论；按 galgame `contentLimit` 过滤 |
-| `GET /user/:id/topics` | 🌐 | kungal-native | ⏳ | 用户话题；SQL `topic.is_nsfw=false` when SFW |
-| `GET /user/:id/replies` | 🌐 | kungal-native | ⏳ | 用户回复；JOIN topic 过滤 NSFW topic 下的回复 |
-| `GET /user/:id/comments` | 🌐 | kungal-native | ⏳ | 用户评论；JOIN topic 过滤 |
-| `GET /user/:id/resources` | 🌐 | kungal-native + wiki batch | ⏳ | 用户上传的 galgame 资源 |
-| `GET /user/:id/ratings` | 🌐 | kungal-native + wiki batch | ⏳ | 用户的 galgame 评分 |
+| `GET /user/status` | 🔒 (`userAuth`) | kungal-native | 🔧 | 当前用户的萌萌点/签到/未读数；K-PR6 用户无 state 行时不再 404，lazy 0 默认值（新用户 Nav 不再丢字段） |
+| `GET /user/:id` | 🌐 | kungal-native | 🔧 | 用户 profile；K-PR6 FE 移除 `'banned'` sentinel 死代码，改用 `status !== 0` 判断 |
+| `GET /user/:id/floating` | 🌐 | kungal-native | ✅ | 浮动卡片 (hover user header 显示) |
+| `GET /user/:id/galgames` | 🌐 | kungal-native + wiki batch | 🔧 | 用户上传/参与的 galgame；K-PR6 BE `UserGalgameCard` 补 `releaseDate/releaseDateTBA`（wiki U1 字段漂移漏接） |
+| `GET /user/:id/galgame-comments` | 🌐 | kungal-native + wiki batch | ✅ | 用户的 galgame 评论；按 galgame `contentLimit` 过滤 |
+| `GET /user/:id/topics` | 🌐 | kungal-native | ✅ | 用户话题；SQL `topic.is_nsfw=false` when SFW |
+| `GET /user/:id/replies` | 🌐 | kungal-native | ✅ | 用户回复；JOIN topic 过滤 NSFW topic 下的回复 |
+| `GET /user/:id/comments` | 🌐 | kungal-native | ✅ | 用户评论；JOIN topic 过滤 |
+| `GET /user/:id/resources` | 🌐 | kungal-native + wiki batch | ✅ | 用户上传的 galgame 资源 |
+| `GET /user/:id/ratings` | 🌐 | kungal-native + wiki batch | 🔧 | 用户的 galgame 评分；K-PR6 BE 补 `short_summary`（与 GalgameRatingCard 对齐） |
 
 ## 15. 消息中心 / 聊天
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /message` | 🔒 (`authed`) | kungal-native | ⏳ | 个人通知列表 (user-to-user `message` 表) |
-| `GET /message/admin` | 🔒 (`authed`) | kungal-native | ⏳ | 系统广播；含 per-user `isRead` (HWM cursor `system_message_read_state`) |
-| `GET /message/nav/system` | 🔒 (`authed`) | kungal-native | ⏳ | nav-bar 概览 (notice + system unread count) |
-| `GET /message/nav/contact` | 🔒 (`authed`) | kungal-native | ⏳ | 私信 nav (chat rooms 列表) |
-| `GET /message/chat/history` | 🔒 (`authed`) | kungal-native | ⏳ | 单对话历史消息 |
+| `GET /message` | 🔒 (`authed`) | kungal-native | 🔧 | 个人通知列表；K-PR6 BE `MessageResponse.Created` 漏赋值修复 + DTO `time.Time → string` 对齐 repo row；FE 补声明 `MessageList` 类型 |
+| `GET /message/admin` | 🔒 (`authed`) | kungal-native | 🔧 | 系统广播；K-PR6 BE `SystemMessageResponse.Created` 漏赋值修复（之前序列化为零值导致 FE 显示"约 2024 年前"） |
+| `GET /message/nav/system` | 🔒 (`authed`) | kungal-native | 🔧 | nav-bar 概览；K-PR6 FE `lastMessageTime` 加 null 类型，避免 `formatTimeDifference("")` 渲染 NaN |
+| `GET /message/nav/contact` | 🔒 (`authed`) | kungal-native | 🔧 | 私信 nav；同上 lastMessageTime + ChatMessage.receiverId 收窄 |
+| `GET /message/chat/history` | 🔒 (`authed`) | kungal-native | ✅ | 单对话历史消息 |
 
 ## 16. 排行 / 更新日志
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /update/history` | 🌐 | kungal-native | ⏳ | GitHub commits feed 镜像 |
-| `GET /update/todo` | 🌐 | kungal-native | ⏳ | 待办列表 (admin maintained) |
+| `GET /update/history` | 🌐 | kungal-native | 🔧 | GitHub commits feed 镜像；K-PR6 FE 补声明 `UpdateHistoryList` 类型（之前 TS any） |
+| `GET /update/todo` | 🌐 | kungal-native | 🔧 | 待办列表；K-PR6 FE 补声明 `UpdateTodoList` 类型 |
 
 > 注：排行 (`/ranking/*`) 已在 §3 列出。
 
@@ -255,10 +265,10 @@
 
 | 路径 | 鉴权 | Handler 类型 | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /admin/overview/all` | ⚙️ (`admin`, role >= 3) | kungal-native | ⏳ | 后台数据总览 (user/topic/galgame/comment 增长) |
-| `GET /admin/overview/stats` | ⚙️ (`admin`, role >= 3) | kungal-native | ⏳ | 后台统计数字快照 |
-| `GET /admin/galgame/messages` | 🛡️ (`galgameAdmin`, role >= 2) | proxy | ⏳ | (重复列出，与 §10 一致) admin galgame 消息队列 |
-| `GET /admin/setting/register` | 🌐 | kungal-native | ⏳ | (重复列出，与 §1 一致) 公开读注册策略 |
+| `GET /admin/overview/all` | ⚙️ (`admin`, role >= 3) | kungal-native | ✅ | 后台数据总览 (user/topic/galgame/comment 增长) |
+| `GET /admin/overview/stats` | ⚙️ (`admin`, role >= 3) | kungal-native | ✅ | 后台统计数字快照 |
+| `GET /admin/galgame/messages` | 🛡️ (`galgameAdmin`, role >= 2) | proxy | ✅ | (重复列出，与 §10 一致) admin galgame 消息队列 |
+| `GET /admin/setting/register` | 🌐 | kungal-native | ✅ | (重复列出，与 §1 一致) 公开读注册策略 |
 
 ---
 

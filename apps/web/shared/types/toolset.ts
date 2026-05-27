@@ -47,7 +47,8 @@ export interface ToolsetRating {
     [x: number]: number
   }
   avg: number
-  mine: number
+  // BE returns `null` when the caller hasn't rated yet (PracticalityResponse.Mine *int).
+  mine: number | null
 }
 
 export interface ToolsetLargeFileUploadResponse {

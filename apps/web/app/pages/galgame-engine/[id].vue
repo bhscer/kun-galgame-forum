@@ -7,11 +7,13 @@ const engineId = computed(() => {
   return Number((route.params as { id: string }).id)
 })
 
-const pageData = reactive({
-  page: 1,
-  limit: 24,
-  engineId: engineId.value
-})
+// Shared store with /galgame-tag/[id].vue + /galgame-official/[id].vue
+// so the global galgame filter Nav (sort/type/language/platform)
+// drives the embedded galgame list here too. Previously a local
+// `pageData` snapshot meant the entity_handler's sortField/sortOrder
+// rename helper had no params to translate on this page.
+const { page, limit, type, language, platform, sortField, sortOrder } =
+  storeToRefs(useTempGalgameStore())
 
 const showEngineModal = ref(false)
 const editingEngine = ref<UpdateGalgameEnginePayload>(
@@ -22,7 +24,16 @@ const { data, status } = await useKunFetch<GalgameEngineDetail>(
   `/galgame-engine/${engineId.value}`,
   {
     method: 'GET',
-    query: pageData
+    query: {
+      page,
+      limit,
+      type,
+      language,
+      platform,
+      sortField,
+      sortOrder,
+      engineId
+    }
   }
 )
 
@@ -160,9 +171,9 @@ if (data.value) {
     />
 
     <KunPagination
-      v-if="data.galgameCount > pageData.limit"
-      v-model:current-page="pageData.page"
-      :total-page="Math.ceil(data.galgameCount / pageData.limit)"
+      v-if="data.galgameCount > limit"
+      v-model:current-page="page"
+      :total-page="Math.ceil(data.galgameCount / limit)"
       :is-loading="status === 'pending'"
     />
 

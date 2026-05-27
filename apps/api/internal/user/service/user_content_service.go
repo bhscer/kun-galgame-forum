@@ -87,6 +87,8 @@ func (s *UserContentService) GetUserGalgameCards(
 			ResourceUpdateTime: b.ResourceUpdateTime,
 			Platform:           emptyStrSlice(platformMap[id]),
 			Language:           emptyStrSlice(languageMap[id]),
+			ReleaseDate:        b.ReleaseDate,
+			ReleaseDateTBA:     b.ReleaseDateTBA,
 			// U2: pass through the wiki-derived banner so the FE card
 			// can pick `_mini` instead of falling back to empty legacy
 			// `banner` for newly-uploaded galgames.
@@ -311,6 +313,7 @@ func (s *UserContentService) GetUserRatings(
 			View:         r.View,
 			GalgameType:  galgameType,
 			PlayStatus:   r.PlayStatus,
+			ShortSummary: r.ShortSummary,
 			Art:          r.Art,
 			Story:        r.Story,
 			Music:        r.Music,

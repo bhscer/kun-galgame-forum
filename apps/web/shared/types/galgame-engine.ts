@@ -8,7 +8,12 @@ export interface GalgameEngine {
 export interface GalgameEngineItem {
   id: number
   name: string
-  description: string
+  // BE `/galgame-engine` list returns this; the embedded
+  // `GalgameDetail.engine[]` (GalgameDetailEngine) does not. Same
+  // type is shared by both contexts (Info.vue + list Card), so
+  // optional keeps Card.vue's metadata chip on the list view while
+  // not lying about the detail-embedded shape.
+  description?: string
   alias: string[]
   galgameCount: number
 }

@@ -70,10 +70,39 @@ type CommentItem struct {
 }
 
 // CommentDetailItem is a slim comment + user projection used by the toolset
-// detail response (no ParentUser field).
+// detail response (commentPreview field).
+//
+// Explicit camelCase fields instead of embedding model.GalgameToolsetComment
+// — the model's json tags are snake_case (user_id / toolset_id / parent_id)
+// which silently broke the FE ToolsetComment type contract on /toolset/:id
+// while /toolset/:id/comment/all (which uses ToolsetCommentItem) returned
+// the same logical row in camelCase.
 type CommentDetailItem struct {
-	model.GalgameToolsetComment
-	User userModel.UserBrief `json:"user"`
+	ID        int                 `json:"id"`
+	Content   string              `json:"content"`
+	UserID    int                 `json:"userId"`
+	ToolsetID int                 `json:"toolsetId"`
+	ParentID  *int                `json:"parentId"`
+	Edited    *time.Time          `json:"edited"`
+	Created   time.Time           `json:"created"`
+	Updated   time.Time           `json:"updated"`
+	User      userModel.UserBrief `json:"user"`
+}
+
+// NewCommentDetailItem projects a row + hydrated user into the
+// camelCase wire shape.
+func NewCommentDetailItem(c model.GalgameToolsetComment, user userModel.UserBrief) CommentDetailItem {
+	return CommentDetailItem{
+		ID:        c.ID,
+		Content:   c.Content,
+		UserID:    c.UserID,
+		ToolsetID: c.ToolsetID,
+		ParentID:  c.ParentID,
+		Edited:    c.Edited,
+		Created:   c.CreatedAt,
+		Updated:   c.UpdatedAt,
+		User:      user,
+	}
 }
 
 // CreatedCommentResponse mirrors the raw comment row returned by POST.

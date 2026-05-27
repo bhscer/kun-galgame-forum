@@ -102,10 +102,7 @@ func (s *CommentService) GetLatestForDetail(ctx context.Context, toolsetID, limi
 	userMap := s.userClient.Hydrate(ctx, uids)
 	items := make([]dto.CommentDetailItem, 0, len(rows))
 	for _, cm := range rows {
-		items = append(items, dto.CommentDetailItem{
-			GalgameToolsetComment: cm,
-			User:                  userBriefFromClient(userMap[cm.UserID]),
-		})
+		items = append(items, dto.NewCommentDetailItem(cm, userBriefFromClient(userMap[cm.UserID])))
 	}
 	return items
 }

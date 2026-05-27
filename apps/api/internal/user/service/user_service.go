@@ -130,9 +130,17 @@ func (s *UserService) CheckIn(ctx context.Context, userID int) (int, *errors.App
 }
 
 func (s *UserService) GetUserStatus(ctx context.Context, userID int) (*dto.UserStatusResponse, *errors.AppError) {
-	state, err := s.stateRepo.FindByID(userID)
-	if err != nil {
-		return nil, errors.ErrNotFound("未找到该用户")
+	// A freshly-registered user may not have a state row yet (the
+	// callback flow creates it lazily). Treat that case as zero-state
+	// rather than 404 — the FE Nav.vue otherwise silently drops the
+	// moemoepoint chip + check-in badge with no fallback, so brand-new
+	// users see a half-broken nav until they click "签到" the first
+	// time (which is itself gated behind reading moemoepoint…).
+	moe := 0
+	isCheckIn := false
+	if state, err := s.stateRepo.FindByID(userID); err == nil && state != nil {
+		moe = state.Moemoepoint
+		isCheckIn = state.DailyCheckIn == 1
 	}
 
 	unreadMessage, _ := s.userStatsRepo.CountUnreadMessages(userID)
@@ -140,8 +148,8 @@ func (s *UserService) GetUserStatus(ctx context.Context, userID int) (*dto.UserS
 	unreadChat, _ := s.userStatsRepo.CountUnreadChatMessages(userID)
 
 	return &dto.UserStatusResponse{
-		Moemoepoints:  state.Moemoepoint,
-		IsCheckIn:     state.DailyCheckIn == 1,
+		Moemoepoints:  moe,
+		IsCheckIn:     isCheckIn,
 		HasNewMessage: (unreadMessage + unreadSystem + unreadChat) > 0,
 	}, nil
 }

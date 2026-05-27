@@ -91,12 +91,13 @@ func wikiOfficialsToDTO(rels []dto.WikiOfficialRel) []dto.RatingOfficial {
 			alias[j] = a.Name
 		}
 		out[i] = dto.RatingOfficial{
-			ID:       rel.Official.ID,
-			Name:     rel.Official.Name,
-			Link:     rel.Official.Link,
-			Category: rel.Official.Category,
-			Lang:     rel.Official.Lang,
-			Alias:    alias,
+			ID:           rel.Official.ID,
+			Name:         rel.Official.Name,
+			Link:         rel.Official.Link,
+			Category:     rel.Official.Category,
+			Lang:         rel.Official.Lang,
+			Alias:        alias,
+			GalgameCount: rel.Official.GalgameCount,
 		}
 	}
 	return out

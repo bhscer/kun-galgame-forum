@@ -44,13 +44,14 @@ func (s *MessageService) GetMessages(
 			continue
 		}
 		messages = append(messages, dto.MessageResponse{
-			ID:          r.ID,
-			Sender:      dto.KunUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
+			ID:         r.ID,
+			Sender:     dto.KunUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
 			ReceiverID: r.ReceiverID,
-			Link:        r.Link,
-			Content:     r.Content,
-			Status:      r.Status,
-			Type:        r.Type,
+			Link:       r.Link,
+			Content:    r.Content,
+			Status:     r.Status,
+			Type:       r.Type,
+			Created:    r.CreatedAt,
 		})
 	}
 
@@ -97,7 +98,8 @@ func (s *MessageService) GetSystemMessages(ctx context.Context, userID int) ([]d
 				"zh-cn": r.ContentZhCN,
 				"zh-tw": r.ContentZhTW,
 			},
-			Admin: dto.KunUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
+			Admin:   dto.KunUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
+			Created: r.CreatedAt,
 		})
 	}
 	return messages, nil

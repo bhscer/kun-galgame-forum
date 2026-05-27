@@ -17,6 +17,10 @@ type UserBrief struct {
 }
 
 // UserGalgameCard is an item in GET /api/user/:userID/galgames.
+//
+// Wire shape mirrors HomeGalgame/GalgameCard so the FE
+// components/user/Galgame.vue can render through the same card
+// component as the homepage feed without per-route field guards.
 type UserGalgameCard struct {
 	ID                 int         `json:"id"`
 	Name               KunLanguage `json:"name"`
@@ -28,6 +32,12 @@ type UserGalgameCard struct {
 	ResourceUpdateTime string      `json:"resourceUpdateTime"`
 	Platform           []string    `json:"platform"`
 	Language           []string    `json:"language"`
+	// Wiki U1: `released` (free-form string) was replaced by release_date
+	// + release_date_tba. FE GalgameCard.releaseDate is optional, so we
+	// pass through the *string (nil → JSON null) and let the FE collapse
+	// missing dates to "未知".
+	ReleaseDate    *string `json:"releaseDate"`
+	ReleaseDateTBA bool    `json:"releaseDateTBA"`
 	// U2: see HomeGalgame — without these the FE card can't render
 	// `_mini` for newly-uploaded (covers-only) galgames.
 	EffectiveBannerHash string `json:"effective_banner_hash,omitempty"`

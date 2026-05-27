@@ -5,15 +5,15 @@ const userId = computed(() => {
   return parseInt((route.params as { id: string }).id)
 })
 
-const { data } = await useKunFetch<UserInfo | 'banned'>(
-  `/user/${userId.value}`,
-  { query: { userId } }
-)
+const { data } = await useKunFetch<UserInfo>(`/user/${userId.value}`)
 
-if (data.value === 'banned') {
-  // Banned profile: noindex (don't carry the now-removed user across
-  // search-engine caches) but keep a minimal title so the page header
-  // shows a sensible "已被封禁" hint while logged-in admins still see it.
+// Banned profiles get a stripped {id, name, status: 1} payload from
+// the BE — there's no `'banned'` sentinel string, so the previous
+// `data === 'banned'` branch was dead. status !== 0 is the canonical
+// "not in good standing" signal.
+const isBanned = computed(() => data.value && data.value.status !== 0)
+
+if (isBanned.value) {
   useKunDisableSeo('该用户已被封禁')
 } else if (data.value) {
   useKunSeoMeta({
@@ -21,7 +21,6 @@ if (data.value === 'banned') {
     description: data.value.bio
   })
 } else {
-  // Missing data → don't let `undefined` text leak into search results.
   useKunDisableSeo('未找到该用户')
 }
 </script>
@@ -29,11 +28,11 @@ if (data.value === 'banned') {
 <template>
   <div class="contents">
     <KunCard
+      v-if="!isBanned"
       :is-hoverable="false"
       :is-transparent="false"
       class-name="m-auto"
       content-class="h-[calc(100dvh-120px)]"
-      v-if="data !== 'banned'"
     >
       <div v-if="data" class="flex h-full w-full">
         <UserNavBar
@@ -45,11 +44,11 @@ if (data.value === 'banned') {
         </div>
       </div>
 
-      <KunNull v-if="!data" description="未找到该用户" />
+      <KunNull v-else description="未找到该用户" />
     </KunCard>
 
     <KunCard
-      v-if="data === 'banned'"
+      v-else
       :is-hoverable="false"
       :is-transparent="false"
       content-class="h-[calc(100dvh-120px)]"

@@ -1,7 +1,5 @@
 package dto
 
-import "time"
-
 // ──────────────────────────────────────────
 // Requests
 // ──────────────────────────────────────────
@@ -24,14 +22,18 @@ type KunUser struct {
 }
 
 type MessageResponse struct {
-	ID          int       `json:"id"`
-	Sender      KunUser   `json:"sender"`
-	ReceiverID int       `json:"receiverId"`
-	Link        string    `json:"link"`
-	Content     string    `json:"content"`
-	Status      string    `json:"status"`
-	Type        string    `json:"type"`
-	Created     time.Time `json:"created"`
+	ID         int     `json:"id"`
+	Sender     KunUser `json:"sender"`
+	ReceiverID int     `json:"receiverId"`
+	Link       string  `json:"link"`
+	Content    string  `json:"content"`
+	Status     string  `json:"status"`
+	Type       string  `json:"type"`
+	// ISO timestamp from message.created; matches MessageRow.CreatedAt
+	// string. See SystemMessageResponse.Created for the same fix —
+	// the prior `time.Time` declaration was never populated by the
+	// service.
+	Created string `json:"created"`
 }
 
 type MessageListResponse struct {
@@ -48,5 +50,10 @@ type SystemMessageResponse struct {
 	IsRead  bool              `json:"isRead"`
 	Content map[string]string `json:"content"`
 	Admin   KunUser           `json:"admin"`
-	Created time.Time         `json:"created"`
+	// ISO timestamp as returned by the DB — kept as string to match the
+	// repo row type (system_message.created is selected straight into
+	// `created_at string`). A previous `time.Time` declaration was never
+	// assigned in the service and serialised as `0001-01-01T00:00:00Z`,
+	// which the FE displayed as "约 2024 年前".
+	Created string `json:"created"`
 }

@@ -360,6 +360,7 @@ type UserRating struct {
 	ReplayValue  int    `gorm:"column:replay_value" json:"replay_value"`
 	GalgameType  string `gorm:"column:galgame_type" json:"-"` // raw JSON
 	PlayStatus   string `gorm:"column:play_status" json:"play_status"`
+	ShortSummary string `gorm:"column:short_summary" json:"short_summary"`
 	SpoilerLevel string `gorm:"column:spoiler_level" json:"spoiler_level"`
 	LikeCount    int    `gorm:"column:like_count" json:"likeCount"`
 	UserID       int    `gorm:"column:user_id" json:"-"`
@@ -377,7 +378,7 @@ func (r *UserContentRepository) FindUserRatings(userID int, page, limit int) ([]
 	err := r.db.Table("galgame_rating").
 		Select(`galgame_rating.id, galgame_rating.galgame_id, galgame_rating.recommend, galgame_rating.overall, galgame_rating.view,
 			galgame_rating.art, galgame_rating.story, galgame_rating.music, galgame_rating.character, galgame_rating.route, galgame_rating.system, galgame_rating.voice, galgame_rating.replay_value,
-			galgame_rating.galgame_type, galgame_rating.play_status, galgame_rating.spoiler_level, galgame_rating.like_count,
+			galgame_rating.galgame_type, galgame_rating.play_status, galgame_rating.short_summary, galgame_rating.spoiler_level, galgame_rating.like_count,
 			galgame_rating.user_id,
 			galgame_rating.created, galgame_rating.updated`).
 		Where("galgame_rating.user_id = ?", userID).

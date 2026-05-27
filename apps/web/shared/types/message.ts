@@ -36,6 +36,14 @@ export interface Message {
   created: Date | string
 }
 
+// Wire shape of GET /message (BE dto.MessageListResponse). FE
+// pages/message/notice.vue previously referenced an undeclared
+// `MessageList` and fell through to TS `any`.
+export interface MessageList {
+  messages: Message[]
+  total: number
+}
+
 // System broadcasts use a per-user HWM cursor (system_message_read_state)
 // instead of the legacy row-level `status` field. The BE evaluates
 // `isRead = id <= cursor` for the caller — see migration 012.

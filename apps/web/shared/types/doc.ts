@@ -16,11 +16,13 @@ export interface DocCategoryItem {
   updated: Date | string
 }
 
+// BE returns the shared response.Paginated envelope `{items, total}`
+// (apps/api/pkg/response/response.go). FE consumers already read
+// `.items` everywhere, so the legacy `categories` / `page` / `limit`
+// keys were dead-and-misleading TS.
 export interface DocCategoryListResponse {
-  categories: DocCategoryItem[]
+  items: DocCategoryItem[]
   total: number
-  page: number
-  limit: number
 }
 
 export interface DocTagItem {
@@ -33,10 +35,8 @@ export interface DocTagItem {
 }
 
 export interface DocTagListResponse {
-  tags: DocTagItem[]
+  items: DocTagItem[]
   total: number
-  page: number
-  limit: number
 }
 
 export interface DocArticleCategoryBrief {
