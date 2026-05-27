@@ -23,12 +23,12 @@
 // galgame (kungal handler) but snake_case verbatim for taxonomies
 // (ProxyGet) — `Revision` is normalised to a shared shape for the UI.
 
-export type RevisionEntity =
-  | 'galgame'
-  | 'tag'
-  | 'official'
-  | 'engine'
-  | 'series'
+// Series intentionally excluded: per K-PR series-revision design note,
+// membership changes are written as galgame-side revisions (each
+// affected galgame gets a `series_id` change record), so a per-series
+// revision history would always be empty/misleading. The /galgame-series/:id
+// page therefore does not mount the revision panel.
+export type RevisionEntity = 'galgame' | 'tag' | 'official' | 'engine'
 
 export interface GalgameRevisionListItem {
   id: number

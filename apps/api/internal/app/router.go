@@ -338,7 +338,15 @@ func (a *App) setupRoutes() {
 	// (/galgame-tag → /tag) does NOT apply here.
 	// GETs are public — list + single revision snapshot. POST revert
 	// is authed; wiki gates creator/admin authorization.
-	for _, ent := range []string{"galgame-tag", "galgame-official", "galgame-engine", "galgame-series"} {
+	//
+	// `galgame-series` is intentionally excluded — series membership
+	// changes are recorded as galgame-side revisions (each affected
+	// galgame gets its own `series_id` change), so a per-series
+	// revision feed would be empty / misleading. The /galgame-series/:id
+	// page does not mount the revision panel and these proxy routes
+	// would be unreachable from the UI. Re-add only if a downstream
+	// brings the panel back.
+	for _, ent := range []string{"galgame-tag", "galgame-official", "galgame-engine"} {
 		api.Get("/"+ent+"/:id/revisions", a.GalgameWikiHandler.ProxyGet)
 		api.Get("/"+ent+"/:id/revisions/:rev", a.GalgameWikiHandler.ProxyGet)
 		authed.Post("/"+ent+"/:id/revert", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))

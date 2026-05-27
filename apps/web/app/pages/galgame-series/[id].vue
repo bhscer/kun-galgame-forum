@@ -1,6 +1,10 @@
 <script setup lang="ts">
+// Series detail intentionally does NOT show revision history — series
+// membership changes are recorded as galgame-side revisions (each
+// affected galgame gets its own `series_id` change), so a per-series
+// revision feed would be empty/misleading. See K-PR series-revision
+// design note for context.
 const route = useRoute()
-const { role } = usePersistUserStore()
 
 const seriesId = computed(() => {
   return Number((route.params as { id: string }).id)
@@ -29,13 +33,5 @@ if (data.value) {
   <div class="contents">
     <GalgameSeriesDetail :data="data" v-if="data" />
     <KunNull v-else description="未找到这个 Galgame 系列" />
-
-    <GalgameRevisionList
-      v-if="data"
-      entity="series"
-      :id="seriesId"
-      :entity-label="`系列「${data.name}」`"
-      :can-revert="role >= 2"
-    />
   </div>
 </template>
