@@ -77,9 +77,6 @@ func (a *App) setupRoutes() {
 	api.Get("/update/history", a.UpdateHandler.GetHistory)
 	api.Get("/update/todo", a.UpdateHandler.GetTodos)
 
-	// Admin setting (public read)
-	api.Get("/admin/setting/register", a.AdminSettingHandler.GetRegisterSetting)
-
 	// Activity (public)
 	api.Get("/activity", a.ActivityHandler.GetActivity)
 	api.Get("/activity/timeline", a.ActivityHandler.GetTimeline)
@@ -401,10 +398,10 @@ func (a *App) setupRoutes() {
 	admin := authed.Group("", middleware.RequireRole(3))
 	admin.Get("/admin/overview/all", a.AdminOverviewHandler.GetOverview)
 	admin.Get("/admin/overview/stats", a.AdminOverviewHandler.GetStats)
-	admin.Put("/admin/setting/register", a.AdminSettingHandler.ToggleRegisterSetting)
 
-	// User management (ban / delete / list / search) is owned by the OAuth
-	// admin UI post-migration — kungal no longer brokers identity ops.
+	// Website settings (register toggle, etc.) and user management
+	// (ban / delete / list / search) are owned by the OAuth admin UI
+	// post-migration — kungal no longer brokers identity or register ops.
 
 	// Galgame admin (role >= 2): wiki submission review queue +
 	// approve/decline/ban actions. Wiki requires admin/moderator on these

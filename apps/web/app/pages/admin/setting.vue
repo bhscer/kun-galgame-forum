@@ -1,31 +1,5 @@
 <script setup lang="ts">
 useKunDisableSeo('网站设置')
-
-const { data } = await useKunFetch<{ registerStatus: boolean }>(
-  '/admin/setting/register'
-)
-
-// BE semantics: `registerStatus: true` = registration is OPEN (see
-// setting_service.go:19 — "`registerStatus` is true when registration is OPEN").
-// Default to `true` (open) on missing data so the switch starts in the
-// permissive state.
-const registerStatus = ref(data.value?.registerStatus ?? true)
-
-const handleUpdateRegisterStatus = async () => {
-  const res = await useComponentMessageStore().alert(
-    registerStatus.value ? '要禁止网站注册新用户吗' : '要允许网站注册新用户吗',
-    registerStatus.value
-      ? '网站受攻击时, 请诸位管理员关闭注册'
-      : '这会使网站重新允许新用户注册'
-  )
-  if (!res) {
-    return
-  }
-
-  await kunFetch('/admin/setting/register', { method: 'PUT' })
-
-  registerStatus.value = !registerStatus.value
-}
 </script>
 
 <template>
@@ -35,29 +9,12 @@ const handleUpdateRegisterStatus = async () => {
     class="w-full"
     content-class="space-y-6"
   >
-    <KunHeader
-      name="网站设置"
-      description="有时网站会不间断涌入大量发布违规信息的用户, 这是有人在攻击网站, 此时请各位管理员关闭网站注册"
-    >
-    </KunHeader>
+    <KunHeader name="网站设置" description="本论坛的全局配置项" />
 
-    <KunCard
-      :is-hoverable="false"
-      :is-transparent="true"
-      content-class="space-y-1"
-    >
-      <h2 class="text-xl">网站注册状态</h2>
+    <KunCard :is-hoverable="false" :is-transparent="true">
       <p class="text-default-500 text-sm">
-        有时网站会不间断涌入大量发布违规信息的用户, 这是有人在攻击网站,
-        此时请各位管理员关闭网站注册
+        网站注册开关等身份相关设置已迁移至 OAuth 管理后台, 此处暂无可配置项。
       </p>
-      <KunSwitch
-        :label="
-          registerStatus ? '网站当前允许注册新用户' : '网站当前已关闭注册'
-        "
-        :model-value="registerStatus"
-        @update:model-value="handleUpdateRegisterStatus"
-      />
     </KunCard>
   </KunCard>
 </template>
