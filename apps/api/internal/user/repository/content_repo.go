@@ -206,8 +206,20 @@ func (r *UserContentRepository) FindUserReplies(userID int, queryType string, pa
 	var results []UserReply
 	var total int64
 
+	// A reply can target multiple other replies; when it does, the user's
+	// text lives per-target in topic_reply_target.content and
+	// topic_reply.content itself is empty. Concatenate both so multi-target
+	// replies aren't shown blank (same pattern as the activity feed).
 	baseQuery := r.db.Table("topic_reply").
-		Select("topic_reply.topic_id, topic_reply.content, topic_reply.created")
+		Select(`topic_reply.topic_id,
+			COALESCE(topic_reply.content, '') ||
+			COALESCE(
+				(SELECT STRING_AGG(trt.content, ' ' ORDER BY trt.id)
+				 FROM topic_reply_target trt
+				 WHERE trt.reply_id = topic_reply.id),
+				''
+			) AS content,
+			topic_reply.created`)
 
 	switch queryType {
 	case "reply_target":

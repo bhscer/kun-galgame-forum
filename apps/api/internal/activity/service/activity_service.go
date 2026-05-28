@@ -92,8 +92,11 @@ func rowsToItems(rows []repository.ActivityRow) []dto.ActivityItem {
 //
 //	GALGAME_CREATION          → "<game name>"
 //	GALGAME_RESOURCE_CREATION → "在《<game name>》发布了下载资源"
-//	GALGAME_RATING_CREATION   → "<game name> · <short summary>" (if summary)
-//	GALGAME_COMMENT_CREATION  → "在《<game name>》<comment>"
+//	GALGAME_RATING_CREATION   → "<game name> · <short summary>" (name only when no summary)
+//
+// GALGAME_COMMENT_CREATION is intentionally NOT rewritten: it keeps the raw
+// comment text (matching the legacy API) since the type chip + link already
+// convey what it is and where it points — a "在《game》" prefix is just noise.
 //
 // rows/items must be index-aligned; the caller guarantees this.
 func (s *ActivityService) enrichGalgameItems(
@@ -155,13 +158,7 @@ func (s *ActivityService) enrichGalgameItems(
 			if r.Content != "" {
 				items[i].Content = fmt.Sprintf("%s · %s", name, r.Content)
 			} else {
-				items[i].Content = fmt.Sprintf("评价了《%s》", name)
-			}
-		case "GALGAME_COMMENT_CREATION":
-			if r.Content != "" {
-				items[i].Content = fmt.Sprintf("在《%s》%s", name, r.Content)
-			} else {
-				items[i].Content = fmt.Sprintf("评论了《%s》", name)
+				items[i].Content = name
 			}
 		}
 	}
