@@ -6,7 +6,6 @@ const props = defineProps<{
 }>()
 
 const { id, role } = usePersistUserStore()
-const { images, isLightboxOpen, currentImageIndex } = useKunLightbox()
 const tempReplyStore = useTempReplyStore()
 const { lastSuccessfulReply } = storeToRefs(tempReplyStore)
 const isTopicAdmin = computed(() => role > 1 || props.topic.user.id === id)
@@ -69,12 +68,6 @@ watch(
 
 <template>
   <div class="w-full min-w-0 flex-1 space-y-4">
-    <KunLightbox
-      :images="images"
-      v-model:is-open="isLightboxOpen"
-      :initial-index="currentImageIndex"
-    />
-
     <TopicDetailMaster :topic="topic" />
 
     <TopicPollContainer :topic-id="topic.id" :is-topic-admin="isTopicAdmin" />

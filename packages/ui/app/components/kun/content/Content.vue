@@ -3,7 +3,7 @@ import DOMPurify from 'isomorphic-dompurify'
 import { useSpoilerContent } from '../../../composables/topic/useSpoilerContent'
 import 'katex/dist/katex.min.css'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     content: string
     className?: string
@@ -21,6 +21,25 @@ const sanitizeConfig = {
   ADD_TAGS: ['div', 'span', 'button'],
   ADD_ATTR: ['class', 'title', 'line']
 }
+
+// Click-to-zoom for every `data-kun-lazy-image` <img> the backend
+// renders into this prose block. KunContent is the single markdown
+// surface site-wide, so wiring the lightbox here gives every consumer
+// (topic body + replies, galgame intro, comments, toolset, doc
+// article, user galgame comments…) zoomable images for free.
+//
+// scope = this article ref → one logical gallery per prose block (a
+// reply's screenshots stay separate from another reply's). watchSource
+// = content → rebind when the markdown swaps, which also covers
+// async-loaded replies/comments that mount their own KunContent.
+const {
+  images: lightboxImages,
+  isLightboxOpen,
+  currentImageIndex: lightboxIndex
+} = useKunLightbox({
+  scope: articleRef,
+  watchSource: () => props.content
+})
 </script>
 
 <template>
@@ -29,6 +48,18 @@ const sanitizeConfig = {
       ref="articleRef"
       :class="cn('kun-prose', className)"
       v-html="DOMPurify.sanitize(content, sanitizeConfig)"
+    />
+
+    <!-- Only mount the dialog when this prose actually has images.
+         Topic pages render dozens of KunContent instances (every reply
+         + comment); skipping the empty ones avoids dozens of idle
+         <dialog> nodes. SSR + client-initial both see [] (the scan runs
+         in onMounted, client-only), so there's no hydration mismatch. -->
+    <KunLightbox
+      v-if="lightboxImages.length"
+      :images="lightboxImages"
+      v-model:is-open="isLightboxOpen"
+      :initial-index="lightboxIndex"
     />
   </div>
 </template>
