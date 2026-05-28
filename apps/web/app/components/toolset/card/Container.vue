@@ -1,12 +1,33 @@
 <script setup lang="ts">
-const pageData = storeToRefs(useTempToolsetStore())
+// URL-backed filters (useToolsetFilters / useRouteQuery) — refs double as
+// the fetch query (URL key === BE query key). useKunFetch watches them, so
+// a filter change (which writes the URL) re-fetches; back/forward too.
+const {
+  page,
+  limit,
+  type,
+  language,
+  platform,
+  version,
+  sortField,
+  sortOrder
+} = useToolsetFilters()
 
 const { data, status } = await useKunFetch<{
   items: ToolsetCard[]
   total: number
 }>('/toolset', {
   method: 'GET',
-  query: pageData
+  query: {
+    page,
+    limit,
+    type,
+    language,
+    platform,
+    version,
+    sortField,
+    sortOrder
+  }
 })
 </script>
 
@@ -33,8 +54,8 @@ const { data, status } = await useKunFetch<{
       content-class="gap-3"
     >
       <KunPagination
-        v-model:current-page="pageData.page.value"
-        :total-page="Math.ceil(data.total / pageData.limit.value)"
+        v-model:current-page="page"
+        :total-page="Math.ceil(data.total / limit)"
         :is-loading="status === 'pending'"
       />
     </KunCard>

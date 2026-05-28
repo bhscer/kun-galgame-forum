@@ -1,9 +1,20 @@
 <script setup lang="ts">
+import { useRouteQuery } from '@vueuse/router'
 import type { UpdateGalgameSeriesPayload } from '../types'
 
 const props = defineProps<{
   data: GalgameSeriesDetail
 }>()
+
+// URL-backed page (shareable / back-forward), consistent with the
+// tag/official/engine detail pages. The BE returns the full member list
+// (a series caps at ~27 games), so we paginate client-side — no extra
+// request, just slice the already-loaded cards for display.
+const page = useRouteQuery('page', 1, { mode: 'replace', transform: Number })
+const limit = 24
+const pagedGalgames = computed(() =>
+  props.data.galgame.slice((page.value - 1) * limit, page.value * limit)
+)
 
 const { role } = usePersistUserStore()
 const showSeriesModal = ref(false)
@@ -114,6 +125,12 @@ const handleDeleteSeries = async () => {
       @submit="handleUpdateSeries"
     />
 
-    <GalgameCard :is-transparent="true" :galgames="data.galgame" />
+    <GalgameCard :is-transparent="true" :galgames="pagedGalgames" />
+
+    <KunPagination
+      v-if="data.galgame.length > limit"
+      v-model:current-page="page"
+      :total-page="Math.ceil(data.galgame.length / limit)"
+    />
   </KunCard>
 </template>

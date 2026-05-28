@@ -13,7 +13,7 @@ import {
 } from '~/constants/toolset'
 
 const { page, type, language, platform, version, sortField, sortOrder } =
-  storeToRefs(useTempToolsetStore())
+  useToolsetFilters()
 
 watch(
   () => [
