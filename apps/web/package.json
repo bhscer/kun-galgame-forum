@@ -91,6 +91,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "@types/jsonwebtoken": "^9.0.10",
     "@vueuse/core": "^14.1.0",
+    "@vueuse/router": "^14.1.0",
     "apexcharts": "^5.3.6",
     "aws-sdk": "^2.1693.0",
     "bcrypt": "^6.0.0",

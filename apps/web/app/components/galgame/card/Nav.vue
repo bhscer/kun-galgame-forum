@@ -10,7 +10,6 @@ import {
   PROVIDER_KEY_OPTIONS,
   type ProviderKey
 } from '~/constants/galgameResource'
-import { usePersistKUNGalgameAdvancedFilterStore } from '~/store/modules/galgame'
 import type {
   KunGalgameResourceTypeOptions,
   KunGalgameResourceLanguageOptions,
@@ -24,6 +23,9 @@ withDefaults(
   { isShowAdvanced: false }
 )
 
+// All filters now live in the URL query (useGalgameFilters / useRouteQuery)
+// instead of a Pinia store — the filtered view is shareable + survives
+// refresh + back/forward. providers + months ride as CSV strings.
 const {
   page,
   type,
@@ -33,11 +35,11 @@ const {
   sortOrder,
   releasedFrom,
   releasedTo,
-  releasedMonths
-} = storeToRefs(useTempGalgameStore())
+  releasedMonths,
+  includeProviders,
+  excludeOnlyProviders
+} = useGalgameFilters()
 
-const advStore = usePersistKUNGalgameAdvancedFilterStore()
-const { includeProviders, excludeOnlyProviders } = storeToRefs(advStore)
 const showAdvanced = ref(false)
 const showReleaseFilter = ref(false)
 
@@ -50,13 +52,25 @@ watch(
     sortOrder.value,
     releasedFrom.value,
     releasedMonths.value,
-    includeProviders.value.join(','),
-    excludeOnlyProviders.value.join(',')
+    includeProviders.value,
+    excludeOnlyProviders.value
   ],
   () => {
     page.value = 1
   }
 )
+
+// ── CSV set helpers (shared by month + provider multi-selects) ──────
+const csvToSet = (csv: string) => new Set(csv.split(',').filter(Boolean))
+const toggleCsv = (csv: string, key: string) => {
+  const set = csvToSet(csv)
+  if (set.has(key)) {
+    set.delete(key)
+  } else {
+    set.add(key)
+  }
+  return [...set].sort().join(',')
+}
 
 // ── Release year / month filter (wiki §17 + §17.10) ─────────────────
 // Two ORTHOGONAL controls, both derived views over the store so the
@@ -101,15 +115,11 @@ const applyToYear = (year: string) => {
   }
 }
 
-// Month set parsed from the csv store value, for highlight checks.
-const selectedMonths = computed(
-  () => new Set(releasedMonths.value.split(',').filter(Boolean))
-)
+// Month multi-select (numeric sort for a tidy URL: months=2,3,10).
+const selectedMonths = computed(() => csvToSet(releasedMonths.value))
 const isMonthSelected = (m: number) => selectedMonths.value.has(String(m))
-
-// Toggle a month in/out of the set, re-serialising sorted csv.
 const toggleMonth = (m: number) => {
-  const set = new Set(selectedMonths.value)
+  const set = csvToSet(releasedMonths.value)
   const key = String(m)
   if (set.has(key)) {
     set.delete(key)
@@ -120,6 +130,16 @@ const toggleMonth = (m: number) => {
     .map(Number)
     .sort((a, b) => a - b)
     .join(',')
+}
+
+// Provider multi-selects (CSV; lexical order is fine, BE does set membership).
+const includeSet = computed(() => csvToSet(includeProviders.value))
+const excludeSet = computed(() => csvToSet(excludeOnlyProviders.value))
+const toggleInclude = (key: string) => {
+  includeProviders.value = toggleCsv(includeProviders.value, key)
+}
+const toggleExclude = (key: string) => {
+  excludeOnlyProviders.value = toggleCsv(excludeOnlyProviders.value, key)
 }
 
 const typeOptions = Object.entries(KUN_GALGAME_RESOURCE_TYPE_MAP)
@@ -140,6 +160,37 @@ const sortOptions = Object.entries(KUN_GALGAME_RESOURCE_SORT_FIELD_MAP).map(
     label
   })
 )
+
+// ── Reset all filters ───────────────────────────────────────────────
+// `hasActiveFilter` gates the reset button so it only appears when there
+// is something to clear. Defaults mirror the store's initial values
+// (type/language/platform = 'all', sort = time/desc).
+const hasActiveFilter = computed(
+  () =>
+    type.value !== 'all' ||
+    language.value !== 'all' ||
+    platform.value !== 'all' ||
+    sortField.value !== 'time' ||
+    sortOrder.value !== 'desc' ||
+    !!releasedFrom.value ||
+    !!releasedTo.value ||
+    !!releasedMonths.value ||
+    !!includeProviders.value ||
+    !!excludeOnlyProviders.value
+)
+
+const resetFilters = () => {
+  type.value = 'all'
+  language.value = 'all'
+  platform.value = 'all'
+  sortField.value = 'time'
+  sortOrder.value = 'desc'
+  releasedFrom.value = ''
+  releasedTo.value = ''
+  releasedMonths.value = ''
+  includeProviders.value = ''
+  excludeOnlyProviders.value = ''
+}
 </script>
 
 <template>
@@ -237,10 +288,7 @@ const sortOptions = Object.entries(KUN_GALGAME_RESOURCE_SORT_FIELD_MAP).map(
       <button
         v-if="isShowAdvanced"
         class="text-default-500 hover:text-primary flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors"
-        :class="
-          (includeProviders.length || excludeOnlyProviders.length) &&
-          'text-warning'
-        "
+        :class="(includeProviders || excludeOnlyProviders) && 'text-warning'"
         @click="showAdvanced = !showAdvanced"
       >
         <KunIcon name="lucide:filter" class="text-inherit" />
@@ -255,6 +303,15 @@ const sortOptions = Object.entries(KUN_GALGAME_RESOURCE_SORT_FIELD_MAP).map(
       >
         <KunIcon name="lucide:calendar-days" class="text-inherit" />
         <span>发售日期</span>
+      </button>
+
+      <button
+        v-if="hasActiveFilter"
+        class="text-default-500 hover:text-danger flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors"
+        @click="resetFilters"
+      >
+        <KunIcon name="lucide:rotate-ccw" class="text-inherit" />
+        <span>重置筛选</span>
       </button>
     </div>
 
@@ -341,11 +398,11 @@ const sortOptions = Object.entries(KUN_GALGAME_RESOURCE_SORT_FIELD_MAP).map(
             :key="key"
             class="cursor-pointer rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors"
             :class="
-              includeProviders.includes(key)
+              includeSet.has(key)
                 ? 'bg-primary/15 text-primary font-medium'
                 : 'text-default-600 hover:bg-default-100'
             "
-            @click="advStore.toggleIncludeProvider(key as ProviderKey)"
+            @click="toggleInclude(key)"
           >
             {{ KUN_GALGAME_PROVIDER_LABEL_MAP[key as ProviderKey] }}
           </button>
@@ -362,11 +419,11 @@ const sortOptions = Object.entries(KUN_GALGAME_RESOURCE_SORT_FIELD_MAP).map(
             :key="key + '-ex'"
             class="cursor-pointer rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors"
             :class="
-              excludeOnlyProviders.includes(key)
+              excludeSet.has(key)
                 ? 'bg-danger/15 text-danger font-medium'
                 : 'text-default-600 hover:bg-default-100'
             "
-            @click="advStore.toggleExcludeOnlyProvider(key as ProviderKey)"
+            @click="toggleExclude(key)"
           >
             {{ KUN_GALGAME_PROVIDER_LABEL_MAP[key as ProviderKey] }}
           </button>

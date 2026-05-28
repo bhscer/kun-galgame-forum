@@ -12,7 +12,7 @@ const officialId = computed(() => {
 })
 
 const { page, limit, type, language, platform, sortField, sortOrder } =
-  storeToRefs(useTempGalgameStore())
+  useGalgameFilters()
 
 const showOfficialModal = ref(false)
 const editingOfficial = ref<UpdateGalgameOfficialPayload>(

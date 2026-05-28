@@ -12,7 +12,7 @@ const tagId = computed(() => {
 })
 
 const { page, limit, type, language, platform, sortField, sortOrder } =
-  storeToRefs(useTempGalgameStore())
+  useGalgameFilters()
 
 const showTagModal = ref(false)
 const editingTag = ref<UpdateGalgameTagPayload>({} as UpdateGalgameTagPayload)

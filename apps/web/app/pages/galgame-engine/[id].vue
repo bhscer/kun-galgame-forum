@@ -13,7 +13,7 @@ const engineId = computed(() => {
 // `pageData` snapshot meant the entity_handler's sortField/sortOrder
 // rename helper had no params to translate on this page.
 const { page, limit, type, language, platform, sortField, sortOrder } =
-  storeToRefs(useTempGalgameStore())
+  useGalgameFilters()
 
 const showEngineModal = ref(false)
 const editingEngine = ref<UpdateGalgameEnginePayload>(

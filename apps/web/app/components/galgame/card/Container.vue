@@ -1,10 +1,22 @@
 <script setup lang="ts">
-import { usePersistKUNGalgameAdvancedFilterStore } from '~/store/modules/galgame'
-
-const pageData = storeToRefs(useTempGalgameStore())
-const { includeProviders, excludeOnlyProviders } = storeToRefs(
-  usePersistKUNGalgameAdvancedFilterStore()
-)
+// Filters are URL-backed (useGalgameFilters / useRouteQuery). The refs
+// double as the fetch query — URL key === BE query key, so no remapping.
+// useKunFetch watches the query refs, so a chip toggle (which writes the
+// URL) re-fetches; browser back/forward re-fetches too.
+const {
+  page,
+  limit,
+  type,
+  language,
+  platform,
+  sortField,
+  sortOrder,
+  releasedFrom,
+  releasedTo,
+  releasedMonths,
+  includeProviders,
+  excludeOnlyProviders
+} = useGalgameFilters()
 
 const { data, status } = await useKunFetch<{
   galgames: GalgameCard[]
@@ -12,9 +24,18 @@ const { data, status } = await useKunFetch<{
 }>(`/galgame`, {
   method: 'GET',
   query: {
-    ...pageData,
-    includeProviders: includeProviders.value,
-    excludeOnlyProviders: excludeOnlyProviders.value
+    page,
+    limit,
+    type,
+    language,
+    platform,
+    sortField,
+    sortOrder,
+    releasedFrom,
+    releasedTo,
+    releasedMonths,
+    includeProviders,
+    excludeOnlyProviders
   }
 })
 </script>
@@ -47,8 +68,8 @@ const { data, status } = await useKunFetch<{
         content-class="gap-3"
       >
         <KunPagination
-          v-model:current-page="pageData.page.value"
-          :total-page="Math.ceil(data.total / pageData.limit.value)"
+          v-model:current-page="page"
+          :total-page="Math.ceil(data.total / limit)"
           :is-loading="status === 'pending'"
         />
       </KunCard>

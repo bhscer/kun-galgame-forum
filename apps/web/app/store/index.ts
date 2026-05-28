@@ -1,5 +1,4 @@
 import { usePersistEditGalgameRatingStore } from './modules/edit/rating'
-import { usePersistKUNGalgameAdvancedFilterStore } from './modules/galgame'
 
 export const createEmptyLocaleMap = () => ({
   'en-us': '',
@@ -48,10 +47,6 @@ export const kungalgameStoreReset = () => {
   persistSettingsStore.showKUNGalgameBackgroundBrightness = 100
   persistSettingsStore.showKUNGalgameBackLoli = false
   persistSettingsStore.showKUNGalgameSidebarCollapsed = false
-
-  const persistAdvancedFilterStore = usePersistKUNGalgameAdvancedFilterStore()
-  persistAdvancedFilterStore.includeProviders = []
-  persistAdvancedFilterStore.excludeOnlyProviders = []
 
   const tempEditStore = useTempEditStore()
   tempEditStore.resetRewriteTopicData()
