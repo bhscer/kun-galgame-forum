@@ -449,6 +449,9 @@ func (s *GalgameService) GetList(
 	// Local stats batch
 	localMap := s.galgameRepo.FindLocalBatch(ids)
 
+	// Bayesian display rating per card (same formula as the rating sort).
+	ratingMap := s.listRepo.BayesianRatings(ids)
+
 	// Platform/language aggregation
 	metaRows := s.resourceMetaRepo.FindResourceMetaBatch(ids)
 	platformMap, languageMap := groupResourceMeta(metaRows)
@@ -470,6 +473,8 @@ func (s *GalgameService) GetList(
 			ContentLimit:       b.ContentLimit,
 			View:               localMap[id].View,
 			LikeCount:          localMap[id].LikeCount,
+			Rating:              ratingMap[id].Score,
+			RatingCount:         ratingMap[id].Count,
 			ResourceUpdateTime:  b.ResourceUpdateTime,
 			ReleaseDate:         b.ReleaseDate,
 			ReleaseDateTBA:      b.ReleaseDateTBA,

@@ -72,6 +72,10 @@ type GalgameListCard struct {
 	ContentLimit       string      `json:"contentLimit"`
 	View               int         `json:"view"`
 	LikeCount          int         `json:"likeCount"`
+	// Bayesian-smoothed display rating + raw vote count. ratingCount 0 =
+	// unrated → FE omits the rating badge (rating would otherwise be 0).
+	Rating             float64     `json:"rating"`
+	RatingCount        int         `json:"ratingCount"`
 	ResourceUpdateTime string      `json:"resourceUpdateTime"`
 	Platform           []string    `json:"platform"`
 	Language           []string    `json:"language"`

@@ -93,6 +93,11 @@ export interface GalgameCard {
   contentLimit: string
   view: number
   likeCount: number
+  // Bayesian-smoothed display rating + vote count. Optional: only the
+  // /galgame list endpoint computes them; other card sources omit them
+  // (ratingCount falsy → the card hides the rating badge).
+  rating?: number
+  ratingCount?: number
   platform: string[]
   language: string[]
   resourceUpdateTime: Date | string

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import {
   KUN_GALGAME_RESOURCE_TYPE_MAP,
   KUN_GALGAME_RESOURCE_LANGUAGE_MAP,
@@ -42,9 +43,22 @@ const {
   minRating
 } = useGalgameFilters()
 
-const showAdvanced = ref(false)
-const showReleaseFilter = ref(false)
-const showRatingFilter = ref(false)
+// One unified 高级筛选 panel folds together what used to be three
+// separate toggles (网盘 / 发售日期 / 评分); 显示设置 controls the card
+// layout prefs. Both toggle independently.
+const showFilters = ref(false)
+const showDisplay = ref(false)
+
+// Card display prefs (persisted) — bound to the 显示设置 switches.
+const {
+  showPlatform,
+  showRating,
+  showViewLike,
+  showLanguage,
+  showNsfwBadge,
+  showPublisher,
+  showJapaneseName
+} = storeToRefs(usePersistGalgameCardStore())
 
 watch(
   () => [
@@ -203,6 +217,19 @@ const hasActiveFilter = computed(
     minRating.value > 0
 )
 
+// Highlights the 高级筛选 button when anything inside its (now unified)
+// panel is active — providers, release date, or rating.
+const hasAdvancedFilter = computed(
+  () =>
+    !!includeProviders.value ||
+    !!excludeOnlyProviders.value ||
+    !!releasedFrom.value ||
+    !!releasedTo.value ||
+    !!releasedMonths.value ||
+    minRatingCount.value > 0 ||
+    minRating.value > 0
+)
+
 const resetFilters = () => {
   type.value = 'all'
   language.value = 'all'
@@ -315,31 +342,21 @@ const resetFilters = () => {
       <button
         v-if="isShowAdvanced"
         class="text-default-500 hover:text-primary flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors"
-        :class="(includeProviders || excludeOnlyProviders) && 'text-warning'"
-        @click="showAdvanced = !showAdvanced"
+        :class="hasAdvancedFilter && 'text-warning'"
+        @click="showFilters = !showFilters"
       >
-        <KunIcon name="lucide:filter" class="text-inherit" />
-        <span>网盘筛选</span>
+        <KunIcon name="lucide:sliders-horizontal" class="text-inherit" />
+        <span>高级筛选</span>
       </button>
 
       <button
         v-if="isShowAdvanced"
         class="text-default-500 hover:text-primary flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors"
-        :class="(releasedFrom || releasedMonths) && 'text-warning'"
-        @click="showReleaseFilter = !showReleaseFilter"
+        :class="showDisplay && 'text-primary'"
+        @click="showDisplay = !showDisplay"
       >
-        <KunIcon name="lucide:calendar-days" class="text-inherit" />
-        <span>发售日期</span>
-      </button>
-
-      <button
-        v-if="isShowAdvanced"
-        class="text-default-500 hover:text-primary flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors"
-        :class="(minRatingCount || minRating) && 'text-warning'"
-        @click="showRatingFilter = !showRatingFilter"
-      >
-        <KunIcon name="lucide:star" class="text-inherit" />
-        <span>评分筛选</span>
+        <KunIcon name="lucide:layout-grid" class="text-inherit" />
+        <span>显示设置</span>
       </button>
 
       <button
@@ -353,9 +370,11 @@ const resetFilters = () => {
     </div>
 
     <div
-      v-if="showRatingFilter"
-      class="bg-default-50 space-y-3 rounded-lg border p-3"
+      v-if="showFilters"
+      class="bg-default-50 space-y-4 rounded-lg border p-3"
     >
+      <div class="text-primary border-b pb-1 text-sm font-semibold">评分</div>
+
       <div>
         <div class="text-default-700 mb-1.5 text-xs font-medium">
           最低评分人数
@@ -399,12 +418,11 @@ const resetFilters = () => {
           </button>
         </KunScrollShadow>
       </div>
-    </div>
 
-    <div
-      v-if="showReleaseFilter"
-      class="bg-default-50 space-y-3 rounded-lg border p-3"
-    >
+      <div class="text-primary border-b pb-1 text-sm font-semibold">
+        发售日期
+      </div>
+
       <div>
         <div class="text-default-700 mb-1.5 text-xs font-medium">
           起始年份
@@ -468,12 +486,9 @@ const resetFilters = () => {
           </button>
         </KunScrollShadow>
       </div>
-    </div>
 
-    <div
-      v-if="showAdvanced"
-      class="bg-default-50 space-y-3 rounded-lg border p-3"
-    >
+      <div class="text-primary border-b pb-1 text-sm font-semibold">网盘</div>
+
       <div>
         <div class="text-default-700 mb-1.5 text-xs font-medium">
           必须含有以下网盘
@@ -514,6 +529,28 @@ const resetFilters = () => {
             {{ KUN_GALGAME_PROVIDER_LABEL_MAP[key as ProviderKey] }}
           </button>
         </KunScrollShadow>
+      </div>
+    </div>
+
+    <div
+      v-if="showDisplay"
+      class="bg-default-50 space-y-4 rounded-lg border p-3"
+    >
+      <div class="text-primary border-b pb-1 text-sm font-semibold">
+        卡片四角
+      </div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <KunSwitch v-model="showPlatform" label="左上角 · 游戏平台" />
+        <KunSwitch v-model="showRating" label="右上角 · 总评分" />
+        <KunSwitch v-model="showViewLike" label="左下角 · 浏览 / 点赞" />
+        <KunSwitch v-model="showLanguage" label="右下角 · 可用语言" />
+      </div>
+
+      <div class="text-primary border-b pb-1 text-sm font-semibold">其它</div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <KunSwitch v-model="showNsfwBadge" label="显示 NSFW 角标" />
+        <KunSwitch v-model="showPublisher" label="底部发布者与时间" />
+        <KunSwitch v-model="showJapaneseName" label="中文名下显示日语名" />
       </div>
     </div>
   </div>

@@ -1,10 +1,23 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { GALGAME_RESOURCE_PLATFORM_ICON_MAP } from '~/constants/galgameResource'
 
 defineProps<{
   galgames: GalgameCard[]
   isTransparent?: boolean
 }>()
+
+// Card layout is user-configurable (persisted): each banner corner, the
+// NSFW badge, the footer, and the secondary JP title toggle independently.
+const {
+  showPlatform,
+  showRating,
+  showViewLike,
+  showLanguage,
+  showNsfwBadge,
+  showPublisher,
+  showJapaneseName
+} = storeToRefs(usePersistGalgameCardStore())
 </script>
 
 <template>
@@ -29,8 +42,13 @@ defineProps<{
           :style="{ aspectRatio: '16/9' }"
         />
 
-        <div class="absolute top-2 right-2 left-2 flex justify-between">
-          <div class="flex gap-1">
+        <div
+          v-if="
+            showPlatform || (showRating && galgame.ratingCount) || showNsfwBadge
+          "
+          class="absolute top-2 right-2 left-2 flex items-start gap-1"
+        >
+          <div v-if="showPlatform" class="flex flex-wrap gap-1">
             <template v-if="galgame.platform.length">
               <span
                 v-for="(platform, i) in galgame.platform"
@@ -51,19 +69,30 @@ defineProps<{
             </span>
           </div>
 
-          <KunChip
-            variant="solid"
-            class-name="opacity-50 absolute top-0 right-0"
-            :color="galgame.contentLimit === 'sfw' ? 'success' : 'danger'"
-          >
-            {{ galgame.contentLimit.toLocaleUpperCase() }}
-          </KunChip>
+          <div class="ml-auto flex flex-col items-end gap-1">
+            <span
+              v-if="showRating && galgame.ratingCount"
+              class="bg-background flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium backdrop-blur-sm sm:text-sm"
+            >
+              <KunIcon name="lucide:star" class="text-warning" />
+              {{ galgame.rating?.toFixed(1) }}
+            </span>
+
+            <KunChip
+              v-if="showNsfwBadge"
+              variant="solid"
+              :color="galgame.contentLimit === 'sfw' ? 'success' : 'danger'"
+            >
+              {{ galgame.contentLimit.toLocaleUpperCase() }}
+            </KunChip>
+          </div>
         </div>
 
         <div
-          class="absolute right-0 bottom-0 left-0 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent p-2 text-xs transition-opacity duration-300 sm:text-sm"
+          v-if="showViewLike || showLanguage"
+          class="absolute right-0 bottom-0 left-0 flex items-center gap-2 bg-gradient-to-t from-black/60 to-transparent p-2 text-xs transition-opacity duration-300 sm:text-sm"
         >
-          <div class="flex gap-3">
+          <div v-if="showViewLike" class="flex gap-3">
             <span class="flex items-center gap-1">
               <KunIcon class="text-white" name="lucide:eye" />
               <span class="text-white">{{ galgame.view }}</span>
@@ -75,7 +104,7 @@ defineProps<{
             </span>
           </div>
 
-          <div class="flex gap-2">
+          <div v-if="showLanguage" class="ml-auto flex gap-2">
             <span
               class="text-white"
               v-for="(lang, i) in galgame.language"
@@ -87,14 +116,28 @@ defineProps<{
         </div>
       </div>
 
-      <div class="flex flex-auto flex-col justify-between p-2 sm:p-3">
+      <div class="flex flex-auto flex-col p-2 sm:p-3">
         <h2
-          class="hover:text-primary mb-3 line-clamp-2 font-medium transition-colors"
+          class="hover:text-primary line-clamp-2 font-medium transition-colors"
         >
           {{ getPreferredLanguageText(galgame.name) }}
         </h2>
 
-        <div class="text-default-600 flex items-center gap-1 text-sm">
+        <p
+          v-if="
+            showJapaneseName &&
+            galgame.name['ja-jp'] &&
+            galgame.name['ja-jp'] !== getPreferredLanguageText(galgame.name)
+          "
+          class="text-default-500 mt-1 line-clamp-1 text-sm"
+        >
+          {{ galgame.name['ja-jp'] }}
+        </p>
+
+        <div
+          v-if="showPublisher"
+          class="text-default-600 mt-auto flex items-center gap-1 pt-3 text-sm"
+        >
           <KunAvatar :disable-floating="true" :user="galgame.user" size="xs" />
           {{
             `${galgame.user.name} · ${formatTimeDifference(galgame.resourceUpdateTime)}`

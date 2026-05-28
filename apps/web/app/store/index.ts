@@ -48,6 +48,8 @@ export const kungalgameStoreReset = () => {
   persistSettingsStore.showKUNGalgameBackLoli = false
   persistSettingsStore.showKUNGalgameSidebarCollapsed = false
 
+  usePersistGalgameCardStore().reset()
+
   const tempEditStore = useTempEditStore()
   tempEditStore.resetRewriteTopicData()
 

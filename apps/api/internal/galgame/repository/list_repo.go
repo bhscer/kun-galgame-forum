@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -187,6 +188,53 @@ func (r *GalgameListRepository) bayesianExpr() string {
 	ms := strconv.FormatFloat(m, 'f', 6, 64)
 	return "(" + c + " * " + ms + " + COALESCE(rt.rsum, 0)) / (" +
 		c + " + COALESCE(rt.rcnt, 0))"
+}
+
+// RatingInfo is a galgame's display rating: the Bayesian-smoothed score
+// (rounded to 1 dp) and the raw vote count. Count lets the FE distinguish
+// "unrated" (omit the badge) from a genuine score.
+type RatingInfo struct {
+	Score float64
+	Count int
+}
+
+// BayesianRatings computes the display rating for a page of galgame IDs in
+// two cheap queries: the live global mean m (one AVG), then per-id
+// Σoverall/n (one grouped scan), combined as (C·m + Σ)/(C + n) — the same
+// formula ListIDs sorts/filters by, kept consistent via bayesianPriorC.
+// Unrated ids are absent from the map (so the caller omits the badge rather
+// than show the prior m as if it were a real score).
+func (r *GalgameListRepository) BayesianRatings(ids []int) map[int]RatingInfo {
+	out := make(map[int]RatingInfo, len(ids))
+	if len(ids) == 0 {
+		return out
+	}
+	var m float64
+	r.db.Table("galgame_rating").Select("COALESCE(AVG(overall), 0)").Scan(&m)
+
+	type aggRow struct {
+		GalgameID int     `gorm:"column:galgame_id"`
+		Rsum      float64 `gorm:"column:rsum"`
+		Rcnt      int     `gorm:"column:rcnt"`
+	}
+	var rows []aggRow
+	r.db.Table("galgame_rating").
+		Select("galgame_id, SUM(overall) AS rsum, COUNT(*) AS rcnt").
+		Where("galgame_id IN ?", ids).
+		Group("galgame_id").
+		Scan(&rows)
+
+	for _, row := range rows {
+		if row.Rcnt == 0 {
+			continue
+		}
+		score := (bayesianPriorC*m + row.Rsum) / (bayesianPriorC + float64(row.Rcnt))
+		out[row.GalgameID] = RatingInfo{
+			Score: math.Round(score*10) / 10,
+			Count: row.Rcnt,
+		}
+	}
+	return out
 }
 
 // applyRatingFilter adds the advanced rating WHEREs. minRatingCount is a
