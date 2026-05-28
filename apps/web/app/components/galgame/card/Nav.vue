@@ -24,8 +24,17 @@ withDefaults(
   { isShowAdvanced: false }
 )
 
-const { page, type, language, platform, sortField, sortOrder, releasedFrom, releasedTo } =
-  storeToRefs(useTempGalgameStore())
+const {
+  page,
+  type,
+  language,
+  platform,
+  sortField,
+  sortOrder,
+  releasedFrom,
+  releasedTo,
+  releasedMonths
+} = storeToRefs(useTempGalgameStore())
 
 const advStore = usePersistKUNGalgameAdvancedFilterStore()
 const { includeProviders, excludeOnlyProviders } = storeToRefs(advStore)
@@ -40,6 +49,7 @@ watch(
     sortField.value,
     sortOrder.value,
     releasedFrom.value,
+    releasedMonths.value,
     includeProviders.value.join(','),
     excludeOnlyProviders.value.join(',')
   ],
@@ -48,15 +58,20 @@ watch(
   }
 )
 
-// ── Release year / month filter (wiki §17) ──────────────────────────
-// Store holds the canonical `releasedFrom`/`releasedTo` ('' | 'YYYY' |
-// 'YYYY-MM'); a single-period pick keeps from === to. The year/month
-// chips below are derived views over `releasedFrom` so the selection
-// survives Nav remounts (the store is the source of truth, not local
-// refs). Mirrors the 网盘筛选 panel's toggle-button-+-chip-rows UX.
+// ── Release year / month filter (wiki §17 + §17.10) ─────────────────
+// Two ORTHOGONAL controls, both derived views over the store so the
+// selection survives Nav remounts (store is the source of truth):
+//   • year range — `releasedFrom`/`releasedTo` (each '' | 'YYYY',
+//             independent). Pick the same on both ends for a single
+//             year; leave one end '全部/不限' for an open-ended range
+//             ("2020 及以后" / "2024 及以前").
+//   • months — multi-select set (wiki §17.10) → releasedMonths csv
+//             ('' | '3' | '3,7'). AND-combined with the year range, and
+//             works WITHOUT a year ('历年三月' = months only, no year).
+// Mirrors the 网盘筛选 panel's toggle-button-+-chip-rows UX.
 const KUN_RELEASE_EARLIEST_YEAR = 1980
 const yearOptions = [
-  { value: '', label: '全部' },
+  { value: '', label: '不限' },
   ...Array.from(
     { length: new Date().getFullYear() - KUN_RELEASE_EARLIEST_YEAR + 1 },
     (_, i) => {
@@ -65,25 +80,46 @@ const yearOptions = [
     }
   )
 ]
-const monthOptions = [
-  { value: '', label: '全部' },
-  ...Array.from({ length: 12 }, (_, i) => {
-    const m = String(i + 1).padStart(2, '0')
-    return { value: m, label: `${i + 1} 月` }
-  })
-]
+const monthOptions = Array.from({ length: 12 }, (_, i) => ({
+  value: i + 1,
+  label: `${i + 1} 月`
+}))
 
-const selectedYear = computed(() => releasedFrom.value.slice(0, 4))
-const selectedMonth = computed(() =>
-  releasedFrom.value.length === 7 ? releasedFrom.value.slice(5, 7) : ''
+// Year-range setters with clamping so the lower bound never exceeds the
+// upper (picking a `from` past the current `to` drags `to` along, and
+// vice versa) — an inverted range would silently return nothing.
+const applyFromYear = (year: string) => {
+  releasedFrom.value = year
+  if (year && releasedTo.value && Number(releasedTo.value) < Number(year)) {
+    releasedTo.value = year
+  }
+}
+const applyToYear = (year: string) => {
+  releasedTo.value = year
+  if (year && releasedFrom.value && Number(releasedFrom.value) > Number(year)) {
+    releasedFrom.value = year
+  }
+}
+
+// Month set parsed from the csv store value, for highlight checks.
+const selectedMonths = computed(
+  () => new Set(releasedMonths.value.split(',').filter(Boolean))
 )
+const isMonthSelected = (m: number) => selectedMonths.value.has(String(m))
 
-// Recompute both bounds from a (year, month) pair. Empty year clears the
-// filter entirely; month without year is meaningless so it's ignored.
-const applyRelease = (year: string, month: string) => {
-  const value = year ? (month ? `${year}-${month}` : year) : ''
-  releasedFrom.value = value
-  releasedTo.value = value
+// Toggle a month in/out of the set, re-serialising sorted csv.
+const toggleMonth = (m: number) => {
+  const set = new Set(selectedMonths.value)
+  const key = String(m)
+  if (set.has(key)) {
+    set.delete(key)
+  } else {
+    set.add(key)
+  }
+  releasedMonths.value = [...set]
+    .map(Number)
+    .sort((a, b) => a - b)
+    .join(',')
 }
 
 const typeOptions = Object.entries(KUN_GALGAME_RESOURCE_TYPE_MAP)
@@ -214,7 +250,7 @@ const sortOptions = Object.entries(KUN_GALGAME_RESOURCE_SORT_FIELD_MAP).map(
       <button
         v-if="isShowAdvanced"
         class="text-default-500 hover:text-primary flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors"
-        :class="releasedFrom && 'text-warning'"
+        :class="(releasedFrom || releasedMonths) && 'text-warning'"
         @click="showReleaseFilter = !showReleaseFilter"
       >
         <KunIcon name="lucide:calendar-days" class="text-inherit" />
@@ -227,18 +263,41 @@ const sortOptions = Object.entries(KUN_GALGAME_RESOURCE_SORT_FIELD_MAP).map(
       class="bg-default-50 space-y-3 rounded-lg border p-3"
     >
       <div>
-        <div class="text-default-700 mb-1.5 text-xs font-medium">发售年份</div>
+        <div class="text-default-700 mb-1.5 text-xs font-medium">
+          起始年份
+        </div>
         <KunScrollShadow>
           <button
             v-for="opt in yearOptions"
-            :key="opt.value || 'all-year'"
+            :key="opt.value || 'from-all'"
             class="cursor-pointer rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors"
             :class="
-              selectedYear === opt.value
+              releasedFrom === opt.value
                 ? 'bg-primary/15 text-primary font-medium'
                 : 'text-default-600 hover:bg-default-100'
             "
-            @click="applyRelease(opt.value, selectedMonth)"
+            @click="applyFromYear(opt.value)"
+          >
+            {{ opt.label }}
+          </button>
+        </KunScrollShadow>
+      </div>
+
+      <div>
+        <div class="text-default-700 mb-1.5 text-xs font-medium">
+          结束年份
+        </div>
+        <KunScrollShadow>
+          <button
+            v-for="opt in yearOptions"
+            :key="opt.value || 'to-all'"
+            class="cursor-pointer rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors"
+            :class="
+              releasedTo === opt.value
+                ? 'bg-primary/15 text-primary font-medium'
+                : 'text-default-600 hover:bg-default-100'
+            "
+            @click="applyToYear(opt.value)"
           >
             {{ opt.label }}
           </button>
@@ -248,27 +307,19 @@ const sortOptions = Object.entries(KUN_GALGAME_RESOURCE_SORT_FIELD_MAP).map(
       <div>
         <div class="text-default-700 mb-1.5 text-xs font-medium">
           发售月份
-          <span v-if="!selectedYear" class="text-default-400 font-normal">
-            (先选择年份)
-          </span>
+          <span class="text-default-400 font-normal">(可多选, 含历年)</span>
         </div>
         <KunScrollShadow>
           <button
             v-for="opt in monthOptions"
-            :key="opt.value || 'all-month'"
-            :disabled="!selectedYear"
-            class="rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors"
-            :class="[
-              !selectedYear
-                ? 'text-default-400 cursor-not-allowed opacity-60'
-                : 'cursor-pointer',
-              selectedYear && selectedMonth === opt.value
+            :key="opt.value"
+            class="cursor-pointer rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors"
+            :class="
+              isMonthSelected(opt.value)
                 ? 'bg-primary/15 text-primary font-medium'
-                : selectedYear
-                  ? 'text-default-600 hover:bg-default-100'
-                  : ''
-            ]"
-            @click="selectedYear && applyRelease(selectedYear, opt.value)"
+                : 'text-default-600 hover:bg-default-100'
+            "
+            @click="toggleMonth(opt.value)"
           >
             {{ opt.label }}
           </button>

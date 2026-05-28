@@ -15,6 +15,7 @@ export const useTempGalgameStore = defineStore(
     const sortOrder = ref<GalgameStoreTemp['sortOrder']>('desc')
     const releasedFrom = ref<GalgameStoreTemp['releasedFrom']>('')
     const releasedTo = ref<GalgameStoreTemp['releasedTo']>('')
+    const releasedMonths = ref<GalgameStoreTemp['releasedMonths']>('')
 
     return {
       page,
@@ -25,7 +26,8 @@ export const useTempGalgameStore = defineStore(
       sortField,
       sortOrder,
       releasedFrom,
-      releasedTo
+      releasedTo,
+      releasedMonths
     }
   },
   {

@@ -399,6 +399,10 @@ func (s *GalgameService) GetList(
 	if err != nil {
 		return nil, errors.ErrBadRequest(err.Error())
 	}
+	releasedMonths, err := utils.ParseMonthSet(req.ReleasedMonths)
+	if err != nil {
+		return nil, errors.ErrBadRequest(err.Error())
+	}
 
 	filter := model.GalgameListFilter{
 		Type:                 req.Type,
@@ -410,6 +414,7 @@ func (s *GalgameService) GetList(
 		ExcludeOnlyProviders: splitCSV(req.ExcludeOnlyProviders),
 		ReleasedFrom:         releasedFrom,
 		ReleasedTo:           releasedTo,
+		ReleasedMonths:       releasedMonths,
 		Page:                 req.Page,
 		Limit:                req.Limit,
 	}

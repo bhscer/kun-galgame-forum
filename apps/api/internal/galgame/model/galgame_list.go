@@ -15,8 +15,12 @@ type GalgameListFilter struct {
 	// NULL rows drop out once either bound is set (wiki §17.4).
 	ReleasedFrom string
 	ReleasedTo   string
-	Page         int
-	Limit        int
+	// Discontinuous month set (1–12), AND-combined with the year range
+	// (wiki §17.10): keep only games whose release month ∈ this set,
+	// across all in-range years. Empty = no month filter.
+	ReleasedMonths []int
+	Page           int
+	Limit          int
 }
 
 // GalgameResourceMeta holds a platform/language tuple from galgame_resource,

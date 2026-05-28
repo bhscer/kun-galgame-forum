@@ -3,7 +3,9 @@ package utils
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -80,4 +82,43 @@ func validMonth(mm string) error {
 		return fmt.Errorf("非法的月份 %q（应为 01-12）", mm)
 	}
 	return nil
+}
+
+// ParseMonthSet parses the `released_months` query param (wiki §17.10):
+// a comma-separated set of month numbers (1–12) AND-combined with the
+// year range to keep only games released in those months, across all
+// years in range ("历年三月发售"). Returns a deduped, ascending slice.
+//
+//	""        → nil   (no month filter)
+//	"3,7,12"  → [3 7 12]
+//	"12,3,3"  → [3 12]  (dedupe + sort)
+//
+// Any non-1–12 / non-numeric token → error (caller maps to 400), so a
+// malformed set fails loudly rather than silently widening results.
+func ParseMonthSet(s string) ([]int, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	seen := map[int]bool{}
+	for _, tok := range strings.Split(s, ",") {
+		tok = strings.TrimSpace(tok)
+		if tok == "" {
+			continue
+		}
+		m, err := strconv.Atoi(tok)
+		if err != nil || m < 1 || m > 12 {
+			return nil, fmt.Errorf("非法的月份 %q（应为 1-12 的逗号分隔列表）", tok)
+		}
+		seen[m] = true
+	}
+	if len(seen) == 0 {
+		return nil, nil
+	}
+	out := make([]int, 0, len(seen))
+	for m := range seen {
+		out = append(out, m)
+	}
+	sort.Ints(out)
+	return out, nil
 }

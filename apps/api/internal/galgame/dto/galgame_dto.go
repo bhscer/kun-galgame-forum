@@ -21,6 +21,9 @@ type GalgameListRequest struct {
 	// malformed input → 400.
 	ReleasedFrom string `query:"releasedFrom"`
 	ReleasedTo   string `query:"releasedTo"`
+	// Discontinuous month set, wiki §17.10: csv of 1–12 (e.g. "3,7").
+	// AND-combined with the year range. Malformed → 400.
+	ReleasedMonths string `query:"releasedMonths"`
 }
 
 // ──────────────────────────────────────────

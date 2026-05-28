@@ -131,6 +131,13 @@ func applyReleaseFilter(q *gorm.DB, f model.GalgameListFilter) *gorm.DB {
 	if f.ReleasedTo != "" {
 		q = q.Where("g.release_date <= ?", f.ReleasedTo)
 	}
+	// Discontinuous month set (wiki §17.10), AND-combined with the year
+	// range. Non-sargable EXTRACT, but it only rechecks the candidate set
+	// the release_date btree range scan already narrowed. NULL release_date
+	// → EXTRACT(NULL) → NULL → not IN → dropped, consistent with §17.4.
+	if len(f.ReleasedMonths) > 0 {
+		q = q.Where("EXTRACT(MONTH FROM g.release_date)::int IN ?", f.ReleasedMonths)
+	}
 	return q
 }
 
