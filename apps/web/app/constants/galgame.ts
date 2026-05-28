@@ -118,7 +118,8 @@ export const KUN_RESOURCE_PLATFORM_CONST = [
 export const KUN_GALGAME_RESOURCE_SORT_FIELD_MAP: Record<string, string> = {
   views: '浏览顺序',
   time: '更新顺序',
-  created: '创建顺序'
+  created: '创建顺序',
+  release_date: '发售日期'
 }
 
 export const kunGalgameSortFieldOptions: KunSelectOption[] = [

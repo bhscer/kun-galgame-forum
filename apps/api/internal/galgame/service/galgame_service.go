@@ -15,6 +15,7 @@ import (
 	userRepo "kun-galgame-api/internal/user/repository"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
+	"kun-galgame-api/pkg/utils"
 
 	"gorm.io/gorm"
 )
@@ -387,6 +388,18 @@ func (s *GalgameService) GetList(
 		sortOrder = "desc"
 	}
 
+	// Resolve the release-date filter (wiki §17 "YYYY"/"YYYY-MM") to
+	// inclusive date boundaries. Malformed input is a client error, not
+	// a silently-ignored param.
+	releasedFrom, err := utils.ParseReleaseLowerBound(req.ReleasedFrom)
+	if err != nil {
+		return nil, errors.ErrBadRequest(err.Error())
+	}
+	releasedTo, err := utils.ParseReleaseUpperBound(req.ReleasedTo)
+	if err != nil {
+		return nil, errors.ErrBadRequest(err.Error())
+	}
+
 	filter := model.GalgameListFilter{
 		Type:                 req.Type,
 		Language:             req.Language,
@@ -395,6 +408,8 @@ func (s *GalgameService) GetList(
 		SortOrder:            sortOrder,
 		IncludeProviders:     splitCSV(req.IncludeProviders),
 		ExcludeOnlyProviders: splitCSV(req.ExcludeOnlyProviders),
+		ReleasedFrom:         releasedFrom,
+		ReleasedTo:           releasedTo,
 		Page:                 req.Page,
 		Limit:                req.Limit,
 	}

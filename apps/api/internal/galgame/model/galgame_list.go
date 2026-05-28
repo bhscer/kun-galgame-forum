@@ -9,8 +9,14 @@ type GalgameListFilter struct {
 	SortOrder            string
 	IncludeProviders     []string
 	ExcludeOnlyProviders []string
-	Page                 int
-	Limit                int
+	// Release-date range, already resolved to inclusive "YYYY-MM-DD"
+	// boundaries by utils.ParseReleaseLowerBound/UpperBound (empty =
+	// no bound on that side). Compared against galgame.release_date;
+	// NULL rows drop out once either bound is set (wiki §17.4).
+	ReleasedFrom string
+	ReleasedTo   string
+	Page         int
+	Limit        int
 }
 
 // GalgameResourceMeta holds a platform/language tuple from galgame_resource,

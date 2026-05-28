@@ -38,17 +38,31 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 		sortCol = "g.created"
 	case "view":
 		sortCol = "g.view"
+	case "release_date":
+		sortCol = "g.release_date"
+	}
+
+	// release_date is the only nullable sort column. PG's default places
+	// NULLs FIRST on DESC — i.e. unknown-date rows would crowd the top of
+	// a "newest first" view. Pin NULLS LAST so unknowns always sink to the
+	// bottom regardless of direction. (With a released_from/to filter set,
+	// NULL rows are already excluded, so this only affects the unfiltered
+	// release_date sort.)
+	orderClause := sortCol + " " + f.SortOrder
+	if sortCol == "g.release_date" {
+		orderClause += " NULLS LAST"
 	}
 
 	if !hasResourceFilter(f) {
-		r.db.Table("galgame g").Select("COUNT(*)").Scan(&total)
+		countQ := applyReleaseFilter(r.db.Table("galgame g"), f)
+		countQ.Select("COUNT(*)").Scan(&total)
 		type idRow struct {
 			ID int `gorm:"column:id"`
 		}
 		var rows []idRow
-		r.db.Table("galgame g").
+		applyReleaseFilter(r.db.Table("galgame g"), f).
 			Select("g.id").
-			Order(sortCol + " " + f.SortOrder).
+			Order(orderClause).
 			Offset((f.Page - 1) * f.Limit).Limit(f.Limit).
 			Scan(&rows)
 		ids = make([]int, len(rows))
@@ -63,6 +77,7 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 		Select("DISTINCT g.id").
 		Joins("JOIN galgame_resource gr ON gr.galgame_id = g.id")
 
+	inner = applyReleaseFilter(inner, f)
 	if f.Type != "" && f.Type != "all" {
 		inner = inner.Where("gr.type = ?", f.Type)
 	}
@@ -93,7 +108,7 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 		Joins("JOIN galgame_resource gr ON gr.galgame_id = g.id").
 		Where("gr.galgame_id IN (?)", inner).
 		Group("g.id, " + sortCol).
-		Order(sortCol + " " + f.SortOrder).
+		Order(orderClause).
 		Offset((f.Page - 1) * f.Limit).Limit(f.Limit).
 		Scan(&rows)
 
@@ -102,6 +117,21 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 		ids[i] = row.ID
 	}
 	return
+}
+
+// applyReleaseFilter adds inclusive release_date bounds when present.
+// Bounds are pre-resolved "YYYY-MM-DD" strings (PG casts the literal to
+// date). Setting either bound drops NULL release_date rows automatically
+// — PG evaluates the comparison to UNKNOWN for NULL, excluding them
+// (wiki §17.4). Both empty → no-op, returns the query unchanged.
+func applyReleaseFilter(q *gorm.DB, f model.GalgameListFilter) *gorm.DB {
+	if f.ReleasedFrom != "" {
+		q = q.Where("g.release_date >= ?", f.ReleasedFrom)
+	}
+	if f.ReleasedTo != "" {
+		q = q.Where("g.release_date <= ?", f.ReleasedTo)
+	}
+	return q
 }
 
 func hasResourceFilter(f model.GalgameListFilter) bool {

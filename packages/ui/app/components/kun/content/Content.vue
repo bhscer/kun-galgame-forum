@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import DOMPurify from 'isomorphic-dompurify'
 import { useSpoilerContent } from '../../../composables/topic/useSpoilerContent'
-import 'katex/dist/katex.min.css'
+import { useContentLightbox } from '../../../composables/topic/useContentLightbox'
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     content: string
     className?: string
@@ -17,29 +17,18 @@ const articleRef = ref<HTMLElement | null>(null)
 
 useSpoilerContent(articleRef)
 
+// Inline-image lightbox. Delegated click on the prose container → opens
+// KunLightbox at the clicked image, cycling through this block's images.
+// Works for images added after mount (pagination / async render) because
+// the img set is scanned live on each click. Every <KunContent> gets this
+// for free — no per-consumer wiring.
+const { isLightboxOpen, images, currentImageIndex } =
+  useContentLightbox(articleRef)
+
 const sanitizeConfig = {
   ADD_TAGS: ['div', 'span', 'button'],
   ADD_ATTR: ['class', 'title', 'line']
 }
-
-// Click-to-zoom for every `data-kun-lazy-image` <img> the backend
-// renders into this prose block. KunContent is the single markdown
-// surface site-wide, so wiring the lightbox here gives every consumer
-// (topic body + replies, galgame intro, comments, toolset, doc
-// article, user galgame comments…) zoomable images for free.
-//
-// scope = this article ref → one logical gallery per prose block (a
-// reply's screenshots stay separate from another reply's). watchSource
-// = content → rebind when the markdown swaps, which also covers
-// async-loaded replies/comments that mount their own KunContent.
-const {
-  images: lightboxImages,
-  isLightboxOpen,
-  currentImageIndex: lightboxIndex
-} = useKunLightbox({
-  scope: articleRef,
-  watchSource: () => props.content
-})
 </script>
 
 <template>
@@ -49,23 +38,22 @@ const {
       :class="cn('kun-prose', className)"
       v-html="DOMPurify.sanitize(content, sanitizeConfig)"
     />
-
-    <!-- Only mount the dialog when this prose actually has images.
-         Topic pages render dozens of KunContent instances (every reply
-         + comment); skipping the empty ones avoids dozens of idle
-         <dialog> nodes. SSR + client-initial both see [] (the scan runs
-         in onMounted, client-only), so there's no hydration mismatch. -->
     <KunLightbox
-      v-if="lightboxImages.length"
-      :images="lightboxImages"
       v-model:is-open="isLightboxOpen"
-      :initial-index="lightboxIndex"
+      :images="images"
+      :initial-index="currentImageIndex"
     />
   </div>
 </template>
 
 <style scoped>
 .kun-prose {
+  /* Inline images are clickable (open the lightbox) — hint it. Excludes
+   * images inside a spoiler (those are gated by the spoiler reveal first). */
+  & :deep(img) {
+    cursor: zoom-in;
+  }
+
   & :deep(.kun-spoiler) {
     position: relative;
     display: inline-block;

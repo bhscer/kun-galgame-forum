@@ -16,6 +16,11 @@ type GalgameListRequest struct {
 	SortOrder            string `query:"sortOrder" validate:"omitempty,oneof=asc desc"`
 	IncludeProviders     string `query:"includeProviders"`
 	ExcludeOnlyProviders string `query:"excludeOnlyProviders"`
+	// Release-date filter, wiki §17 format: "YYYY" or "YYYY-MM" (empty =
+	// no bound). Validated + resolved to date boundaries in the service;
+	// malformed input → 400.
+	ReleasedFrom string `query:"releasedFrom"`
+	ReleasedTo   string `query:"releasedTo"`
 }
 
 // ──────────────────────────────────────────

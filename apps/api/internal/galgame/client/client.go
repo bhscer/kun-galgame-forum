@@ -40,9 +40,23 @@ type GalgameClient struct {
 // imageCDNBase must match the wiki's KUN_IMAGE_PUBLIC_BASE_URL so
 // hash-backed banners resolve to the same CDN URLs the wiki would build.
 func NewGalgameClient(baseURL, imageCDNBase string) *GalgameClient {
+	// Clone the default transport and lift the per-host idle-connection
+	// cap. net/http defaults MaxIdleConnsPerHost to 2, which throttles a
+	// single-host service-to-service client: concurrent callers (runtime
+	// list hydration, the release-date backfill's worker pool) can't reuse
+	// keep-alive connections beyond 2 and pay a fresh dial per request.
+	// Lifting it lets concurrent requests to the one wiki host reuse the
+	// pool instead of churning connections.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConns = 100
+	transport.MaxIdleConnsPerHost = 64
+
 	return &GalgameClient{
-		baseURL:      baseURL,
-		httpClient:   &http.Client{Timeout: 10 * time.Second},
+		baseURL: baseURL,
+		httpClient: &http.Client{
+			Timeout:   10 * time.Second,
+			Transport: transport,
+		},
 		imageCDNBase: imageCDNBase,
 	}
 }

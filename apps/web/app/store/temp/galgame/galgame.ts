@@ -13,6 +13,8 @@ export const useTempGalgameStore = defineStore(
     const platform = ref<GalgameStoreTemp['platform']>('all')
     const sortField = ref<GalgameStoreTemp['sortField']>('time')
     const sortOrder = ref<GalgameStoreTemp['sortOrder']>('desc')
+    const releasedFrom = ref<GalgameStoreTemp['releasedFrom']>('')
+    const releasedTo = ref<GalgameStoreTemp['releasedTo']>('')
 
     return {
       page,
@@ -21,7 +23,9 @@ export const useTempGalgameStore = defineStore(
       language,
       platform,
       sortField,
-      sortOrder
+      sortOrder,
+      releasedFrom,
+      releasedTo
     }
   },
   {
