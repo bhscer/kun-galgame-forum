@@ -38,7 +38,6 @@ const platformLabels = computed(() => {
     <div class="grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-5">
       <div class="relative aspect-video md:col-span-2">
         <KunImage
-          data-kun-lazy-image="true"
           class="size-full rounded-lg object-cover"
           :src="getEffectiveBanner(galgame)"
           loading="lazy"

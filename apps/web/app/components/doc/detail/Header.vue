@@ -49,14 +49,26 @@ const handleDelete = async () => {
 <template>
   <KunCard :is-hoverable="false" class-name="border-none">
     <div class="relative mb-6 aspect-video h-full w-full">
-      <KunImage
-        :alt="metadata.title"
-        class="size-full rounded-lg object-cover"
-        :src="metadata.banner || '/kungalgame.webp'"
-        width="100%"
-        height="100%"
-        data-kun-lazy-image
-      />
+      <!-- Declarative lightbox on the cover (real <KunImage>, not
+           v-html). wrap=false so the bare <KunImage> stays the layout
+           box that fills the aspect-video container. -->
+      <KunLightboxGallery>
+        <KunLightboxGalleryItem
+          :src="metadata.banner || '/kungalgame.webp'"
+          :alt="metadata.title"
+          :wrap="false"
+          v-slot="{ open }"
+        >
+          <KunImage
+            :alt="metadata.title"
+            class="size-full cursor-zoom-in rounded-lg object-cover"
+            :src="metadata.banner || '/kungalgame.webp'"
+            width="100%"
+            height="100%"
+            @click="open"
+          />
+        </KunLightboxGalleryItem>
+      </KunLightboxGallery>
     </div>
 
     <div class="flex flex-col gap-3">

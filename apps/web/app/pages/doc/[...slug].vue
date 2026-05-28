@@ -3,8 +3,6 @@ const route = useRoute()
 
 const docSlug = computed(() => (route.params.slug as string) || '')
 
-const { images, isLightboxOpen, currentImageIndex } = useKunLightbox()
-
 const { data } = await useKunFetch<DocArticleDetail>(
   `/doc/article/${docSlug.value}`
 )
@@ -34,12 +32,6 @@ if (data.value) {
       <DocDetailCategoryTree />
 
       <article class="flex-1 space-y-6 pl-0 lg:pr-67 xl:pl-67">
-        <KunLightbox
-          :images="images"
-          v-model:is-open="isLightboxOpen"
-          :initial-index="currentImageIndex"
-        />
-
         <DocDetailHeader :metadata="data" />
         <KunContent :content="data.contentHtml ?? ''" />
         <DocDetailFooter />

@@ -104,13 +104,28 @@ onMounted(async () => {
     <div
       className="relative rounded-lg w-full h-full overflow-hidden md:col-span-1 aspect-video md:rounded-l-xl"
     >
-      <KunImage
-        data-kun-lazy-image="true"
-        class="size-full cursor-pointer object-cover"
-        :src="getEffectiveBanner(galgame)"
-        loading="lazy"
-        :alt="getPreferredLanguageText(galgame.name)"
-      />
+      <!-- Banner is a real <KunImage>, so use the declarative
+           Gallery/Item rather than the document-scan composable.
+           wrap=false + v-slot lets the overlay chip / change-image
+           button stay as siblings that DON'T trigger the lightbox —
+           only the image itself opens it. Full-res src (no `mini`
+           variant) so the zoomed view is sharp. -->
+      <KunLightboxGallery>
+        <KunLightboxGalleryItem
+          :src="getEffectiveBanner(galgame)"
+          :alt="getPreferredLanguageText(galgame.name)"
+          :wrap="false"
+          v-slot="{ open }"
+        >
+          <KunImage
+            class="size-full cursor-zoom-in object-cover"
+            :src="getEffectiveBanner(galgame)"
+            loading="lazy"
+            :alt="getPreferredLanguageText(galgame.name)"
+            @click="open"
+          />
+        </KunLightboxGalleryItem>
+      </KunLightboxGallery>
 
       <KunModal
         :model-value="isShowUpload"

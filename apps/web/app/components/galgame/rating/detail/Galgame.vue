@@ -23,7 +23,6 @@ const getLanguageName = (langCode: string) => {
       className="relative rounded-lg w-full h-full overflow-hidden md:col-span-1 aspect-video"
     >
       <KunImage
-        data-kun-lazy-image="true"
         class="size-full rounded-lg object-cover"
         :src="getEffectiveBanner(galgame)"
         loading="lazy"

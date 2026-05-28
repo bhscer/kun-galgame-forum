@@ -3,8 +3,6 @@ const props = defineProps<{
   galgame: GalgameDetail
 }>()
 
-const { images, isLightboxOpen, currentImageIndex } = useKunLightbox()
-
 provide<GalgameDetail>('galgame', props.galgame)
 
 const ratings = ref([...props.galgame.ratings])
@@ -21,12 +19,6 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
 
 <template>
   <div class="space-y-3">
-    <KunLightbox
-      :images="images"
-      v-model:is-open="isLightboxOpen"
-      :initial-index="currentImageIndex"
-    />
-
     <GalgameHeader
       :galgame="galgame"
       @on-rating-created="handleRatingCreated"
