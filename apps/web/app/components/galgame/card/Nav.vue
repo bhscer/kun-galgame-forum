@@ -37,11 +37,14 @@ const {
   releasedTo,
   releasedMonths,
   includeProviders,
-  excludeOnlyProviders
+  excludeOnlyProviders,
+  minRatingCount,
+  minRating
 } = useGalgameFilters()
 
 const showAdvanced = ref(false)
 const showReleaseFilter = ref(false)
+const showRatingFilter = ref(false)
 
 watch(
   () => [
@@ -53,12 +56,31 @@ watch(
     releasedFrom.value,
     releasedMonths.value,
     includeProviders.value,
-    excludeOnlyProviders.value
+    excludeOnlyProviders.value,
+    minRatingCount.value,
+    minRating.value
   ],
   () => {
     page.value = 1
   }
 )
+
+// ── Bayesian rating filter ──────────────────────────────────────────
+// Two single-select chip rows: minimum rating count (high-confidence
+// gate) and minimum Bayesian score. 0 = 不限.
+const minCountOptions = [
+  { value: 0, label: '不限' },
+  { value: 5, label: '≥5' },
+  { value: 10, label: '≥10' },
+  { value: 20, label: '≥20' },
+  { value: 50, label: '≥50' }
+]
+const minRatingOptions = [
+  { value: 0, label: '不限' },
+  { value: 7, label: '7 分+' },
+  { value: 8, label: '8 分+' },
+  { value: 9, label: '9 分+' }
+]
 
 // ── CSV set helpers (shared by month + provider multi-selects) ──────
 const csvToSet = (csv: string) => new Set(csv.split(',').filter(Boolean))
@@ -176,7 +198,9 @@ const hasActiveFilter = computed(
     !!releasedTo.value ||
     !!releasedMonths.value ||
     !!includeProviders.value ||
-    !!excludeOnlyProviders.value
+    !!excludeOnlyProviders.value ||
+    minRatingCount.value > 0 ||
+    minRating.value > 0
 )
 
 const resetFilters = () => {
@@ -190,6 +214,8 @@ const resetFilters = () => {
   releasedMonths.value = ''
   includeProviders.value = ''
   excludeOnlyProviders.value = ''
+  minRatingCount.value = 0
+  minRating.value = 0
 }
 </script>
 
@@ -254,7 +280,8 @@ const resetFilters = () => {
             : 'text-default-600 hover:bg-default-100'
         "
         @click="
-          sortField = opt.value as 'time' | 'view' | 'created' | 'release_date'
+          sortField =
+            opt.value as 'time' | 'view' | 'created' | 'release_date' | 'rating'
         "
       >
         {{ opt.label }}
@@ -306,6 +333,16 @@ const resetFilters = () => {
       </button>
 
       <button
+        v-if="isShowAdvanced"
+        class="text-default-500 hover:text-primary flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors"
+        :class="(minRatingCount || minRating) && 'text-warning'"
+        @click="showRatingFilter = !showRatingFilter"
+      >
+        <KunIcon name="lucide:star" class="text-inherit" />
+        <span>评分筛选</span>
+      </button>
+
+      <button
         v-if="hasActiveFilter"
         class="text-default-500 hover:text-danger flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors"
         @click="resetFilters"
@@ -313,6 +350,55 @@ const resetFilters = () => {
         <KunIcon name="lucide:rotate-ccw" class="text-inherit" />
         <span>重置筛选</span>
       </button>
+    </div>
+
+    <div
+      v-if="showRatingFilter"
+      class="bg-default-50 space-y-3 rounded-lg border p-3"
+    >
+      <div>
+        <div class="text-default-700 mb-1.5 text-xs font-medium">
+          最低评分人数
+          <span class="text-default-400 font-normal">(过滤小样本)</span>
+        </div>
+        <KunScrollShadow>
+          <button
+            v-for="opt in minCountOptions"
+            :key="`mc-${opt.value}`"
+            class="cursor-pointer rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors"
+            :class="
+              minRatingCount === opt.value
+                ? 'bg-primary/15 text-primary font-medium'
+                : 'text-default-600 hover:bg-default-100'
+            "
+            @click="minRatingCount = opt.value"
+          >
+            {{ opt.label }}
+          </button>
+        </KunScrollShadow>
+      </div>
+
+      <div>
+        <div class="text-default-700 mb-1.5 text-xs font-medium">
+          最低评分
+          <span class="text-default-400 font-normal">(贝叶斯平滑后)</span>
+        </div>
+        <KunScrollShadow>
+          <button
+            v-for="opt in minRatingOptions"
+            :key="`mr-${opt.value}`"
+            class="cursor-pointer rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors"
+            :class="
+              minRating === opt.value
+                ? 'bg-primary/15 text-primary font-medium'
+                : 'text-default-600 hover:bg-default-100'
+            "
+            @click="minRating = opt.value"
+          >
+            {{ opt.label }}
+          </button>
+        </KunScrollShadow>
+      </div>
     </div>
 
     <div

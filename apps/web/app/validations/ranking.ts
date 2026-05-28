@@ -25,6 +25,6 @@ export const getTopicRankingSchema = z.object({
 export const getGalgameRankingSchema = z.object({
   page: z.coerce.number<number>().min(1).max(9999999),
   limit: z.coerce.number<number>().min(1).max(100),
-  sortField: z.enum(['view', 'like', 'favorite', 'resource']),
+  sortField: z.enum(['view', 'like', 'favorite', 'resource', 'rating']),
   sortOrder: z.enum(['asc', 'desc'])
 })

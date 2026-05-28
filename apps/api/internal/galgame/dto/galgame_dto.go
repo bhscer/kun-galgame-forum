@@ -24,6 +24,11 @@ type GalgameListRequest struct {
 	// Discontinuous month set, wiki §17.10: csv of 1–12 (e.g. "3,7").
 	// AND-combined with the year range. Malformed → 400.
 	ReleasedMonths string `query:"releasedMonths"`
+	// Bayesian-rating advanced filters. minRatingCount = high-confidence
+	// gate (>= N votes); minRating = Bayesian score >= X (0–10). Sort by
+	// rating is driven by sortField=rating.
+	MinRatingCount int     `query:"minRatingCount" validate:"omitempty,min=0"`
+	MinRating      float64 `query:"minRating" validate:"omitempty,min=0,max=10"`
 }
 
 // ──────────────────────────────────────────

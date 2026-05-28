@@ -19,6 +19,14 @@ type GalgameListFilter struct {
 	// (wiki §17.10): keep only games whose release month ∈ this set,
 	// across all in-range years. Empty = no month filter.
 	ReleasedMonths []int
+	// Bayesian-rating advanced filters (Design A — computed live from a
+	// galgame_rating aggregation join; no denormalized column). The
+	// smoothing constants (prior C, global mean m) live inside the repo.
+	//   MinRatingCount — keep galgames with at least this many ratings
+	//   MinRating      — keep galgames whose Bayesian score >= this (0–10)
+	// Zero = filter inactive. Rating SORT is driven by SortField=="rating".
+	MinRatingCount int
+	MinRating      float64
 	Page           int
 	Limit          int
 }

@@ -15,7 +15,9 @@ const {
   releasedTo,
   releasedMonths,
   includeProviders,
-  excludeOnlyProviders
+  excludeOnlyProviders,
+  minRatingCount,
+  minRating
 } = useGalgameFilters()
 
 const { data, status } = await useKunFetch<{
@@ -35,7 +37,9 @@ const { data, status } = await useKunFetch<{
     releasedTo,
     releasedMonths,
     includeProviders,
-    excludeOnlyProviders
+    excludeOnlyProviders,
+    minRatingCount,
+    minRating
   }
 })
 </script>

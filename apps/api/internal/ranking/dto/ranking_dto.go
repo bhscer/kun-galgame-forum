@@ -4,10 +4,15 @@ package dto
 // Requests
 // ──────────────────────────────────────────
 
+// SortField uses the FE's short names (the established API surface); the
+// repo maps them to the actual galgame columns. `rating` is special-cased
+// to a Bayesian average (see FindGalgameLocal). Previously the oneof
+// listed raw column names (like_count …) the FE never sends, so every
+// non-view galgame sort 400'd — aligned to the short names here.
 type GalgameRankingRequest struct {
 	Page      int    `query:"page" validate:"min=1"`
 	Limit     int    `query:"limit" validate:"min=1,max=50"`
-	SortField string `query:"sortField" validate:"required,oneof=view like_count favorite_count resource_count"`
+	SortField string `query:"sortField" validate:"required,oneof=view like favorite resource rating"`
 	SortOrder string `query:"sortOrder" validate:"required,oneof=asc desc"`
 }
 
@@ -43,12 +48,15 @@ type LocaleName struct {
 }
 
 type GalgameRankingItem struct {
-	ID        int        `json:"id"`
-	Name      LocaleName `json:"name"`
-	User      UserBrief  `json:"user"`
-	Banner    string     `json:"banner"`
-	Value     int        `json:"value"`
-	SortField string     `json:"sortField"`
+	ID   int        `json:"id"`
+	Name LocaleName `json:"name"`
+	User UserBrief  `json:"user"`
+	Banner string   `json:"banner"`
+	// float64 so the `rating` sort can carry a Bayesian score (e.g. 8.4);
+	// count sorts (view/like…) are whole numbers and marshal without a
+	// trailing `.0`.
+	Value     float64 `json:"value"`
+	SortField string  `json:"sortField"`
 	// U2: derived banner so FE `getEffectiveBanner` can pick `_mini` for
 	// covers-only galgames; without these the ranking card falls back to
 	// the legacy `banner` URL which is empty for post-PR5 entries.

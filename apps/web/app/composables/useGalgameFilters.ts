@@ -5,7 +5,7 @@ import type {
   KunGalgameResourcePlatformOptions
 } from '~/constants/galgame'
 
-type SortField = 'time' | 'created' | 'view' | 'release_date'
+type SortField = 'time' | 'created' | 'view' | 'release_date' | 'rating'
 
 // Single source of truth for the galgame browse filters, backed by the
 // URL query rather than a Pinia store. Every component that calls this
@@ -67,6 +67,15 @@ export const useGalgameFilters = () => {
   const includeProviders = useRouteQuery('includeProviders', '', opts)
   const excludeOnlyProviders = useRouteQuery('excludeOnlyProviders', '', opts)
 
+  // Bayesian-rating advanced filters. minRatingCount = high-confidence
+  // gate (>= N votes); minRating = Bayesian score >= X (0–10). 0 = off
+  // (omitted from the URL). Sort by rating uses sortField='rating'.
+  const minRatingCount = useRouteQuery('minRatingCount', 0, {
+    ...opts,
+    transform: Number
+  })
+  const minRating = useRouteQuery('minRating', 0, { ...opts, transform: Number })
+
   // Fixed page size — not user-facing, kept off the URL.
   const limit = 24
 
@@ -82,6 +91,8 @@ export const useGalgameFilters = () => {
     releasedTo,
     releasedMonths,
     includeProviders,
-    excludeOnlyProviders
+    excludeOnlyProviders,
+    minRatingCount,
+    minRating
   }
 }

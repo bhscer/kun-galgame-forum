@@ -8,7 +8,12 @@ export type RankingTopicSortField =
   | 'reply'
   | 'comment'
 
-export type RankingGalgameSortField = 'view' | 'like' | 'favorite' | 'resource'
+export type RankingGalgameSortField =
+  | 'view'
+  | 'like'
+  | 'favorite'
+  | 'resource'
+  | 'rating'
 
 export type RankingUserSortField =
   | 'moemoepoint'
@@ -111,6 +116,13 @@ export const galgameSortItem: RankingGalgame[] = [
     name: 'resource',
     sortField: 'resource',
     label: '资源数'
+  },
+  {
+    index: 5,
+    icon: 'lucide:star',
+    name: 'rating',
+    sortField: 'rating',
+    label: '评分'
   }
 ]
 

@@ -1,8 +1,24 @@
 package repository
 
 import (
+	"strconv"
+
 	"gorm.io/gorm"
 )
+
+// rankingBayesianPriorC mirrors galgame/repository.bayesianPriorC — the
+// confidence prior for the rating Bayesian average. Kept in sync by hand
+// (the two modules don't share a package); tune both together.
+const rankingBayesianPriorC = 10.0
+
+// galgameSortColumn maps the FE's short sort names to the real galgame
+// columns. `rating` is NOT here — it's special-cased to a Bayesian score.
+var galgameSortColumn = map[string]string{
+	"view":     "view",
+	"like":     "like_count",
+	"favorite": "favorite_count",
+	"resource": "resource_count",
+}
 
 type RankingRepository struct {
 	db *gorm.DB
@@ -16,9 +32,11 @@ func NewRankingRepository(db *gorm.DB) *RankingRepository {
 // Row projections
 // ──────────────────────────────────────────
 
+// Value is float64 so the `rating` sort can carry a Bayesian score; count
+// sorts produce whole numbers.
 type GalgameLocalRow struct {
-	ID    int `gorm:"column:id"`
-	Value int `gorm:"column:value"`
+	ID    int     `gorm:"column:id"`
+	Value float64 `gorm:"column:value"`
 }
 
 // TopicRankingRow returns a topic ranking row. Identity is hydrated by the
@@ -42,13 +60,38 @@ type UserRankingRow struct {
 // Queries
 // ──────────────────────────────────────────
 
-// FindGalgameLocal returns (id, sort_value) pairs from the galgame table
-// sorted by the requested field.
+// FindGalgameLocal returns (id, sort_value) pairs sorted by the requested
+// field. `rating` is a Bayesian average over galgame_rating (rated games
+// only — a rating leaderboard shouldn't list unrated titles); the other
+// fields map to galgame columns. sortField/sortOrder are validator-
+// constrained, so the column interpolation is safe.
 func (r *RankingRepository) FindGalgameLocal(sortField, sortOrder string, page, limit int) []GalgameLocalRow {
 	var rows []GalgameLocalRow
+
+	if sortField == "rating" {
+		var m float64
+		r.db.Table("galgame_rating").Select("COALESCE(AVG(overall), 0)").Scan(&m)
+		c := strconv.FormatFloat(rankingBayesianPriorC, 'f', -1, 64)
+		ms := strconv.FormatFloat(m, 'f', 6, 64)
+		bayes := "(" + c + " * " + ms + " + rt.rsum) / (" + c + " + rt.rcnt)"
+		r.db.Table("galgame g").
+			Joins("JOIN (SELECT galgame_id, SUM(overall) AS rsum, COUNT(*) AS rcnt " +
+				"FROM galgame_rating GROUP BY galgame_id) rt ON rt.galgame_id = g.id").
+			Select("g.id, ROUND((" + bayes + ")::numeric, 2) AS value").
+			Order(bayes + " " + sortOrder).
+			Offset((page - 1) * limit).
+			Limit(limit).
+			Scan(&rows)
+		return rows
+	}
+
+	col := galgameSortColumn[sortField]
+	if col == "" {
+		col = "view"
+	}
 	r.db.Table("galgame").
-		Select("id, "+sortField+" AS value").
-		Order(sortField + " " + sortOrder).
+		Select("id, "+col+" AS value").
+		Order(col + " " + sortOrder).
 		Offset((page - 1) * limit).
 		Limit(limit).
 		Scan(&rows)

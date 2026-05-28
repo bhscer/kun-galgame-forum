@@ -1,12 +1,27 @@
 package repository
 
 import (
+	"strconv"
 	"strings"
 
 	"kun-galgame-api/internal/galgame/model"
 
 	"gorm.io/gorm"
 )
+
+// bayesianPriorC is the confidence prior ("virtual votes") for the
+// galgame rating Bayesian average: score = (C·m + Σoverall) / (C + n).
+// Higher C pulls low-vote-count games harder toward the global mean.
+// 10 is a sane default for kungal's modest rating volume — tune here.
+const bayesianPriorC = 10.0
+
+// ratingAggJoin pre-aggregates galgame_rating to one row per galgame
+// (Σoverall, n). LEFT JOIN so unrated galgames still appear (rt.rsum /
+// rt.rcnt NULL). Alias `rt` to avoid clashing with the `gr` galgame_
+// resource alias used in the resource-filter branch.
+const ratingAggJoin = "LEFT JOIN (SELECT galgame_id, SUM(overall) AS rsum, " +
+	"COUNT(*) AS rcnt FROM galgame_rating GROUP BY galgame_id) rt " +
+	"ON rt.galgame_id = g.id"
 
 // GalgameListRepository owns the paginated list query with resource-filter
 // support (type/language/platform + include/exclude provider sets).
@@ -42,25 +57,49 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 		sortCol = "g.release_date"
 	}
 
-	// release_date is the only nullable sort column. PG's default places
-	// NULLs FIRST on DESC — i.e. unknown-date rows would crowd the top of
-	// a "newest first" view. Pin NULLS LAST so unknowns always sink to the
-	// bottom regardless of direction. (With a released_from/to filter set,
-	// NULL rows are already excluded, so this only affects the unfiltered
-	// release_date sort.)
+	ratingSort := f.SortField == "rating"
+	ratingFilter := f.MinRatingCount > 0 || f.MinRating > 0
+
+	// Bayesian score expression (computed once: pulls the live global mean
+	// m). Built only when a rating sort/filter is active so the AVG query
+	// isn't paid otherwise.
+	var bayes string
+	if ratingSort || ratingFilter {
+		bayes = r.bayesianExpr()
+	}
+
+	// ORDER BY clause.
+	//   rating       → rated first (unrated rt.rcnt IS NULL sinks), then
+	//                  the Bayesian score by direction.
+	//   release_date → the only other nullable sort col; pin NULLS LAST so
+	//                  unknown-date rows don't crowd a "newest first" view.
 	orderClause := sortCol + " " + f.SortOrder
-	if sortCol == "g.release_date" {
+	switch {
+	case ratingSort:
+		orderClause = "(rt.rcnt IS NULL), " + bayes + " " + f.SortOrder
+	case sortCol == "g.release_date":
 		orderClause += " NULLS LAST"
 	}
 
+	type idRow struct {
+		ID int `gorm:"column:id"`
+	}
+
 	if !hasResourceFilter(f) {
-		countQ := applyReleaseFilter(r.db.Table("galgame g"), f)
-		countQ.Select("COUNT(*)").Scan(&total)
-		type idRow struct {
-			ID int `gorm:"column:id"`
+		build := func() *gorm.DB {
+			q := r.db.Table("galgame g")
+			if ratingSort || ratingFilter {
+				q = q.Joins(ratingAggJoin)
+			}
+			q = applyReleaseFilter(q, f)
+			if ratingFilter {
+				q = applyRatingFilter(q, f, bayes)
+			}
+			return q
 		}
+		build().Select("COUNT(*)").Scan(&total)
 		var rows []idRow
-		applyReleaseFilter(r.db.Table("galgame g"), f).
+		build().
 			Select("g.id").
 			Order(orderClause).
 			Offset((f.Page - 1) * f.Limit).Limit(f.Limit).
@@ -72,10 +111,15 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 		return
 	}
 
-	// Join with galgame_resource and apply filters
+	// Join with galgame_resource and apply filters. The rating filter lives
+	// in `inner` (it decides which ids qualify); the rating SORT needs the
+	// join on the outer query too (to ORDER by it).
 	inner := r.db.Table("galgame g").
 		Select("DISTINCT g.id").
 		Joins("JOIN galgame_resource gr ON gr.galgame_id = g.id")
+	if ratingFilter {
+		inner = inner.Joins(ratingAggJoin)
+	}
 
 	inner = applyReleaseFilter(inner, f)
 	if f.Type != "" && f.Type != "all" {
@@ -96,18 +140,25 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 			inner = inner.Where("gr.provider && ?", providerArrayLit(allowed))
 		}
 	}
+	if ratingFilter {
+		inner = applyRatingFilter(inner, f, bayes)
+	}
 
 	r.db.Table("(?) AS sub", inner).Select("COUNT(*)").Scan(&total)
 
-	type idRow struct {
-		ID int `gorm:"column:id"`
-	}
-	var rows []idRow
-	r.db.Table("galgame g").
+	main := r.db.Table("galgame g").
 		Select("g.id").
-		Joins("JOIN galgame_resource gr ON gr.galgame_id = g.id").
+		Joins("JOIN galgame_resource gr ON gr.galgame_id = g.id")
+	groupBy := "g.id, " + sortCol
+	if ratingSort {
+		main = main.Joins(ratingAggJoin)
+		groupBy = "g.id, rt.rsum, rt.rcnt"
+	}
+
+	var rows []idRow
+	main.
 		Where("gr.galgame_id IN (?)", inner).
-		Group("g.id, " + sortCol).
+		Group(groupBy).
 		Order(orderClause).
 		Offset((f.Page - 1) * f.Limit).Limit(f.Limit).
 		Scan(&rows)
@@ -117,6 +168,38 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 		ids[i] = row.ID
 	}
 	return
+}
+
+// bayesianExpr builds the SQL fragment for the galgame Bayesian rating
+// average using the LIVE global mean m (cheap: AVG over the small
+// galgame_rating table) and the const prior C. m and C are server-owned
+// numbers (never user input), so formatting them straight into the
+// fragment is injection-safe and avoids pgx param-type inference issues
+// in ORDER BY / arithmetic contexts.
+//
+// References rt.rsum / rt.rcnt from ratingAggJoin; COALESCE handles the
+// unrated (LEFT JOIN NULL) case → score = (C·m)/C = m. C>0 guarantees a
+// non-zero denominator.
+func (r *GalgameListRepository) bayesianExpr() string {
+	var m float64
+	r.db.Table("galgame_rating").Select("COALESCE(AVG(overall), 0)").Scan(&m)
+	c := strconv.FormatFloat(bayesianPriorC, 'f', -1, 64)
+	ms := strconv.FormatFloat(m, 'f', 6, 64)
+	return "(" + c + " * " + ms + " + COALESCE(rt.rsum, 0)) / (" +
+		c + " + COALESCE(rt.rcnt, 0))"
+}
+
+// applyRatingFilter adds the advanced rating WHEREs. minRatingCount is a
+// high-confidence gate (only games with enough votes); minRating filters
+// on the smoothed Bayesian score so a lone 10/10 doesn't slip through.
+func applyRatingFilter(q *gorm.DB, f model.GalgameListFilter, bayes string) *gorm.DB {
+	if f.MinRatingCount > 0 {
+		q = q.Where("COALESCE(rt.rcnt, 0) >= ?", f.MinRatingCount)
+	}
+	if f.MinRating > 0 {
+		q = q.Where(bayes+" >= ?", f.MinRating)
+	}
+	return q
 }
 
 // applyReleaseFilter adds inclusive release_date bounds when present.
