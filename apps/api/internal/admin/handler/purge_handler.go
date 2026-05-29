@@ -39,7 +39,7 @@ func (h *PurgeHandler) PurgeUserContent(c *fiber.Ctx) error {
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
-	stats, appErr := h.purgeService.PurgeUserContent(userID)
+	stats, appErr := h.purgeService.PurgeUserContent(c.Context(), userID)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

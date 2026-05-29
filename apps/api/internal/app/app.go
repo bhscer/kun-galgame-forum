@@ -266,7 +266,7 @@ func New(cfg *config.Config) *App {
 	// Admin
 	adminOverviewRepo := adminRepo.NewOverviewRepository(db)
 	adminOverviewSvc := adminService.NewOverviewService(adminOverviewRepo, gc)
-	adminPurgeSvc := adminService.NewPurgeService(adminRepo.NewPurgeRepository(db))
+	adminPurgeSvc := adminService.NewPurgeService(adminRepo.NewPurgeRepository(db), uc)
 
 	// Doc
 	docArticleRepo := docRepo.NewArticleRepository(db)

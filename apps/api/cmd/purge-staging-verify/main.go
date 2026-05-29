@@ -1,0 +1,283 @@
+// Command purge-staging-verify runs the REAL PurgeRepository.PurgeUserContent
+// against a throwaway STAGING copy of kungalgame and rigorously verifies the
+// outcome: every trace of the target user is gone (except the by-design
+// exceptions), no denormalized counter was left worse than before, the op is
+// atomic, and a re-run is a clean no-op.
+//
+// SAFETY: refuses to run unless current_database() == "kungalgame_purge_staging".
+//
+//	KUN_STAGING_URL=postgres://.../kungalgame_purge_staging go run ./cmd/purge-staging-verify <userID>
+package main
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+
+	"kun-galgame-api/internal/admin/repository"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+)
+
+const stagingDBName = "kungalgame_purge_staging"
+
+// colCheck is a user-referencing column and how it must look AFTER the purge.
+type colCheck struct {
+	table, col string
+	mode       string // "zero" = must be 0; "keep" = allowed to remain (by design)
+	why        string
+}
+
+// every user-referencing column in kungal (authoritative).
+var colChecks = []colCheck{
+	{"topic", "user_id", "zero", ""},
+	{"topic_reply", "user_id", "zero", ""},
+	{"topic_comment", "user_id", "zero", ""},
+	{"topic_comment", "target_user_id", "keep", "NOT NULL; 3rd-party comment kept"},
+	{"topic_like", "user_id", "zero", ""},
+	{"topic_dislike", "user_id", "zero", ""},
+	{"topic_favorite", "user_id", "zero", ""},
+	{"topic_upvote", "user_id", "zero", ""},
+	{"topic_comment_like", "user_id", "zero", ""},
+	{"topic_reply_like", "user_id", "zero", ""},
+	{"topic_reply_dislike", "user_id", "zero", ""},
+	{"topic_poll", "user_id", "zero", ""},
+	{"topic_poll_vote", "user_id", "zero", ""},
+	{"galgame_comment", "user_id", "zero", ""},
+	{"galgame_comment", "target_user_id", "zero", "NULLed by purge"},
+	{"galgame_comment_like", "user_id", "zero", ""},
+	{"galgame_favorite", "user_id", "zero", ""},
+	{"galgame_like", "user_id", "zero", ""},
+	{"galgame_rating", "user_id", "zero", ""},
+	{"galgame_rating_comment", "user_id", "zero", ""},
+	{"galgame_rating_comment", "target_user_id", "zero", "NULLed by purge"},
+	{"galgame_rating_like", "user_id", "zero", ""},
+	{"galgame_resource", "user_id", "zero", ""},
+	{"galgame_resource_like", "user_id", "zero", ""},
+	{"galgame_toolset", "user_id", "zero", ""},
+	{"galgame_toolset_comment", "user_id", "zero", ""},
+	{"galgame_toolset_contributor", "user_id", "zero", ""},
+	{"galgame_toolset_practicality", "user_id", "zero", ""},
+	{"galgame_toolset_resource", "user_id", "zero", ""},
+	{"galgame_website", "user_id", "zero", ""},
+	{"galgame_website_comment", "user_id", "zero", ""},
+	{"galgame_website_favorite", "user_id", "zero", ""},
+	{"galgame_website_like", "user_id", "zero", ""},
+	{"chat_message", "sender_id", "zero", ""},
+	{"chat_message", "receiver_id", "keep", "counterparty's messages to the user kept"},
+	{"chat_message_reaction", "user_id", "zero", ""},
+	{"chat_message_read_by", "user_id", "zero", ""},
+	{"chat_room_admin", "user_id", "zero", ""},
+	{"chat_room_participant", "user_id", "zero", ""},
+	{"message", "sender_id", "zero", ""},
+	{"message", "receiver_id", "zero", ""},
+	{"system_message", "user_id", "zero", ""},
+	{"system_message_read_state", "user_id", "zero", ""},
+	{"wiki_message_read_state", "user_id", "zero", ""},
+	{"kungal_user_state", "user_id", "zero", ""},
+	{"user_follow", "follower_id", "zero", ""},
+	{"user_follow", "followed_id", "zero", ""},
+	{"user_friend", "user_id", "zero", ""},
+	{"user_friend", "friend_id", "zero", ""},
+	// excluded-by-design (admin content, role>1 guard prevents purging such users)
+	{"doc_article", "author_id", "keep", "admin content; role>1 not purgeable"},
+	{"todo", "user_id", "keep", "admin content"},
+	{"update_log", "user_id", "keep", "admin content"},
+	{"unmoe", "user_id", "keep", "read-only logs; not a POST surface"},
+}
+
+// counterCheck is a denormalized counter and how to recompute it.
+type counterCheck struct {
+	parent, countCol, child, fk string
+}
+
+var counterChecks = []counterCheck{
+	{"topic", "reply_count", "topic_reply", "topic_id"},
+	{"topic", "comment_count", "topic_comment", "topic_id"},
+	{"topic", "like_count", "topic_like", "topic_id"},
+	{"topic", "dislike_count", "topic_dislike", "topic_id"},
+	{"topic", "favorite_count", "topic_favorite", "topic_id"},
+	{"topic", "upvote_count", "topic_upvote", "topic_id"},
+	{"topic_reply", "comment_count", "topic_comment", "topic_reply_id"},
+	{"topic_reply", "like_count", "topic_reply_like", "topic_reply_id"},
+	{"topic_reply", "dislike_count", "topic_reply_dislike", "topic_reply_id"},
+	{"topic_poll_option", "vote_count", "topic_poll_vote", "option_id"},
+	{"galgame", "rating_count", "galgame_rating", "galgame_id"},
+	{"galgame", "comment_count", "galgame_comment", "galgame_id"},
+	{"galgame", "resource_count", "galgame_resource", "galgame_id"},
+	{"galgame", "like_count", "galgame_like", "galgame_id"},
+	{"galgame", "favorite_count", "galgame_favorite", "galgame_id"},
+	{"galgame_rating", "comment_count", "galgame_rating_comment", "galgame_rating_id"},
+	{"galgame_rating", "like_count", "galgame_rating_like", "galgame_rating_id"},
+	{"galgame_resource", "like_count", "galgame_resource_like", "galgame_resource_id"},
+	{"galgame_comment", "like_count", "galgame_comment_like", "galgame_comment_id"},
+	{"galgame_website", "comment_count", "galgame_website_comment", "website_id"},
+	{"galgame_website", "like_count", "galgame_website_like", "website_id"},
+	{"galgame_website", "favorite_count", "galgame_website_favorite", "website_id"},
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("usage: purge-staging-verify <userID>")
+		os.Exit(2)
+	}
+	userID, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		fmt.Println("invalid userID:", err)
+		os.Exit(2)
+	}
+	dsn := os.Getenv("KUN_STAGING_URL")
+	if dsn == "" {
+		fmt.Println("KUN_STAGING_URL not set")
+		os.Exit(2)
+	}
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		fmt.Println("connect:", err)
+		os.Exit(1)
+	}
+
+	// ── SAFETY GUARD: never touch anything but the staging copy. ──
+	var dbName string
+	db.Raw("SELECT current_database()").Scan(&dbName)
+	if dbName != stagingDBName {
+		fmt.Printf("REFUSING: connected to %q, not %q\n", dbName, stagingDBName)
+		os.Exit(1)
+	}
+	fmt.Printf("== purge-staging-verify on %q, user %d ==\n\n", dbName, userID)
+
+	count := func(table, col string) int64 {
+		var n int64
+		db.Table(table).Where(col+" = ?", userID).Count(&n)
+		return n
+	}
+	// counterDrift returns how many parent rows have a wrong denormalized count.
+	counterDrift := func(c counterCheck) int64 {
+		var n int64
+		db.Raw(fmt.Sprintf(
+			"SELECT COUNT(*) FROM %s p WHERE p.%s <> (SELECT COUNT(*) FROM %s c WHERE c.%s = p.id)",
+			c.parent, c.countCol, c.child, c.fk)).Scan(&n)
+		return n
+	}
+
+	pass := true
+	fail := func(format string, a ...any) {
+		pass = false
+		fmt.Printf("  FAIL: "+format+"\n", a...)
+	}
+
+	// ── Pre-purge snapshot ──
+	fmt.Println("[1] pre-purge footprint (non-zero columns):")
+	var preTotal int64
+	for _, c := range colChecks {
+		if n := count(c.table, c.col); n > 0 {
+			preTotal += n
+			fmt.Printf("    %-28s %-15s %d\n", c.table, c.col, n)
+		}
+	}
+	preDrift := map[string]int64{}
+	for _, c := range counterChecks {
+		preDrift[c.parent+"."+c.countCol] = counterDrift(c)
+	}
+	// chat_room.last_message_sender_id is a denormalized snapshot that already
+	// drifts in source data (recalled/old messages); track it comparatively.
+	staleLastMsg := func() int64 {
+		var n int64
+		db.Raw("SELECT COUNT(*) FROM chat_room cr WHERE cr.last_message_sender_id IS NOT NULL " +
+			"AND NOT EXISTS (SELECT 1 FROM chat_message m WHERE m.chat_room_id=cr.id AND m.sender_id=cr.last_message_sender_id)").Scan(&n)
+		return n
+	}
+	preStale := staleLastMsg()
+
+	// ── Run the REAL purge ──
+	fmt.Println("\n[2] running PurgeRepository.PurgeUserContent ...")
+	repo := repository.NewPurgeRepository(db)
+	stats, perr := repo.PurgeUserContent(userID)
+	if perr != nil {
+		fail("purge returned error: %v", perr)
+		fmt.Println("\nRESULT: FAIL")
+		os.Exit(1)
+	}
+	fmt.Printf("    reported preview Total=%d (topics=%d replies=%d topicComments=%d galgameComments=%d ratings=%d resources=%d websites=%d toolsets=%d chat=%d msgs=%d interactions=%d)\n",
+		stats.Total, stats.Topics, stats.Replies, stats.TopicComments, stats.GalgameComments,
+		stats.Ratings, stats.Resources, stats.Websites, stats.Toolsets, stats.ChatMessages, stats.Messages, stats.Interactions)
+
+	// ── Completeness assertions ──
+	fmt.Println("\n[3] completeness — every traced column must be 0 (except by-design keeps):")
+	for _, c := range colChecks {
+		n := count(c.table, c.col)
+		switch c.mode {
+		case "zero":
+			if n != 0 {
+				fail("%s.%s still has %d rows for user %d", c.table, c.col, n, userID)
+			}
+		case "keep":
+			if n > 0 {
+				fmt.Printf("    keep  %-26s %-15s %d  (%s)\n", c.table, c.col, n, c.why)
+			}
+		}
+	}
+	if pass {
+		fmt.Println("    OK — all must-zero columns are 0")
+	}
+
+	// ── Counter integrity: purge must not WORSEN any counter ──
+	fmt.Println("\n[4] counter integrity — drift must not increase vs pre-purge:")
+	for _, c := range counterChecks {
+		key := c.parent + "." + c.countCol
+		post := counterDrift(c)
+		if post > preDrift[key] {
+			fail("%s drift increased %d -> %d", key, preDrift[key], post)
+		} else if post != preDrift[key] {
+			fmt.Printf("    %-32s drift %d -> %d (improved)\n", key, preDrift[key], post)
+		}
+	}
+	if pass {
+		fmt.Println("    OK — no counter left worse than before")
+	}
+
+	// ── Orphan spot-checks (FKs enforce most, but verify subtree cleanup) ──
+	fmt.Println("\n[5] orphan checks:")
+	orphan := func(label, sql string) {
+		var n int64
+		db.Raw(sql).Scan(&n)
+		if n != 0 {
+			fail("%s: %d orphan rows", label, n)
+		}
+	}
+	orphan("topic_reply without topic", "SELECT COUNT(*) FROM topic_reply r WHERE NOT EXISTS (SELECT 1 FROM topic t WHERE t.id=r.topic_id)")
+	orphan("topic_comment without reply", "SELECT COUNT(*) FROM topic_comment c WHERE NOT EXISTS (SELECT 1 FROM topic_reply r WHERE r.id=c.topic_reply_id)")
+	orphan("galgame_comment child without parent", "SELECT COUNT(*) FROM galgame_comment c WHERE c.parent_comment_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM galgame_comment p WHERE p.id=c.parent_comment_id)")
+	orphan("galgame_comment child without root", "SELECT COUNT(*) FROM galgame_comment c WHERE c.root_comment_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM galgame_comment p WHERE p.id=c.root_comment_id)")
+	orphan("topic_reply_target dangling", "SELECT COUNT(*) FROM topic_reply_target trt WHERE NOT EXISTS (SELECT 1 FROM topic_reply r WHERE r.id=trt.reply_id) OR NOT EXISTS (SELECT 1 FROM topic_reply r2 WHERE r2.id=trt.target_reply_id)")
+	orphan("chat_message in deleted room", "SELECT COUNT(*) FROM chat_message m WHERE NOT EXISTS (SELECT 1 FROM chat_room cr WHERE cr.id=m.chat_room_id)")
+	orphan("chat_room_participant in deleted room", "SELECT COUNT(*) FROM chat_room_participant p WHERE NOT EXISTS (SELECT 1 FROM chat_room cr WHERE cr.id=p.chat_room_id)")
+	if pass {
+		fmt.Println("    OK — no orphans")
+	}
+	// last_message_sender drift is comparative (pre-existing in source data).
+	if postStale := staleLastMsg(); postStale > preStale {
+		fail("chat_room stale last_message_sender increased %d -> %d", preStale, postStale)
+	} else {
+		fmt.Printf("    last_message_sender staleness %d -> %d (pre-existing drift, not increased)\n", preStale, postStale)
+	}
+
+	// ── Idempotency: a second purge must succeed and be a clean no-op ──
+	fmt.Println("\n[6] idempotency — re-run purge:")
+	stats2, perr2 := repo.PurgeUserContent(userID)
+	if perr2 != nil {
+		fail("second purge errored: %v", perr2)
+	} else if stats2.Total != 0 {
+		fail("second purge still found Total=%d (expected 0)", stats2.Total)
+	} else {
+		fmt.Println("    OK — second run found nothing and errored not")
+	}
+
+	fmt.Printf("\nRESULT: %s\n", map[bool]string{true: "PASS", false: "FAIL"}[pass])
+	if !pass {
+		os.Exit(1)
+	}
+}

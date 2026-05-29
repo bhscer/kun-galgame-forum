@@ -16,6 +16,8 @@ const STAT_LABELS: { key: keyof AdminUserContentStats; label: string }[] = [
   { key: 'toolsets', label: '工具' },
   { key: 'toolsetResources', label: '工具资源' },
   { key: 'toolsetComments', label: '工具评论' },
+  { key: 'chatMessages', label: '私聊消息' },
+  { key: 'messages', label: '通知消息' },
   { key: 'interactions', label: '互动' }
 ]
 
@@ -39,7 +41,7 @@ const handlePurge = async () => {
   const s = stats.value
   const confirmed = await useComponentMessageStore().alert(
     `确认清除用户 ${props.user.name} 的全部内容吗`,
-    `🚨 将永久删除该用户在本站的 ${s.total} 项内容: 话题 ${s.topics} / 回复 ${s.replies} / 话题评论 ${s.topicComments} / Galgame 评论 ${s.galgameComments} / 评分 ${s.ratings} / 资源 ${s.resources} / 网站 ${s.websites} / 工具 ${s.toolsets} / 互动 ${s.interactions} 等。此操作不可撤销, 仅用于清理广告与 spam 账号, 请谨慎使用!`
+    `🚨 将永久删除该用户在本站的 ${s.total} 项内容: 话题 ${s.topics} / 回复 ${s.replies} / 话题评论 ${s.topicComments} / Galgame 评论 ${s.galgameComments} / 评分 ${s.ratings} / 资源 ${s.resources} / 网站 ${s.websites} / 工具 ${s.toolsets} / 私聊 ${s.chatMessages} / 通知 ${s.messages} / 互动 ${s.interactions} 等 (含其下全部嵌套回复与关联数据)。此操作不可撤销, 仅用于清理广告与 spam 账号, 请谨慎使用!`
   )
   if (!confirmed) {
     return

@@ -8,16 +8,32 @@ import (
 	"gorm.io/gorm"
 )
 
-// PurgeRepository hard-deletes every piece of content + interaction a user
-// has produced in kungal, in one transaction, fixing the denormalized
-// counters on any surviving parent rows afterwards.
+// PurgeRepository hard-deletes every trace a user has produced in kungal, in
+// one all-or-nothing transaction, then fixes the denormalized counters on any
+// surviving parent rows.
 //
-// Scope note: this only touches kungal-owned tables. Galgame *entries*
-// (the wiki owns those — local `galgame` has no user_id) and account
-// identity (OAuth) are out of reach by design. Collateral is deliberately
-// minimized: other users' replies/comments that merely *referenced* the
-// purged user are kept (their dangling "in reply to" link is dropped), we
-// only remove rows that cannot survive without the purged parent.
+// Design — relies on the DB's ON DELETE CASCADE graph (verified against the
+// live schema): every child→parent and *_id→user FK in kungal is ON DELETE
+// CASCADE. So for OWNED ROOT entities (topic / galgame_website /
+// galgame_toolset) we delete just the root by user_id and let the DB cascade
+// the entire subtree — guaranteed complete, and immune to "forgot a child
+// table" bugs. We do NOT delete the local `user` row (it mirrors the OAuth
+// store and has no FK from kungal_user_state, so deleting it would desync
+// OAuth and orphan state); that is why the user_id cascades never fire on
+// their own and every table must be cleared explicitly by user_id here. The
+// kungal-local state row itself IS deleted explicitly (phase F2).
+//
+// Counters: cascades do NOT maintain denormalized counts (no triggers), so
+// after deleting the user's content on OTHER users' entities we recompute the
+// affected parents' counters from the surviving rows.
+//
+// Scope: account identity is owned by OAuth; galgame ENTRIES are wiki-owned
+// (local `galgame` has no user_id) — both out of reach by design. Admin-only
+// content (doc_article / todo / update_log / unmoe, all RequireRole>=2) is
+// intentionally NOT handled here because the service refuses to purge any
+// user with role > 1, so such rows can never belong to a purgeable user.
+// For private chat we delete only the user's OWN sent messages (keeping the
+// counterparty's), then repair / remove the affected rooms.
 type PurgeRepository struct {
 	db *gorm.DB
 }
@@ -26,48 +42,52 @@ func NewPurgeRepository(db *gorm.DB) *PurgeRepository {
 	return &PurgeRepository{db: db}
 }
 
-// CountUserContent returns a read-only breakdown of what a purge would
-// delete — used to preview before the admin confirms.
+// CountUserContent returns a read-only breakdown used to preview a purge.
+// NOTE: this counts the user's directly-authored rows + cast interactions; the
+// actual delete also removes cascaded descendants (sub-replies, likes, links,
+// reactions, …), so the real deleted row count is higher than Total.
 func (r *PurgeRepository) CountUserContent(userID int) dto.UserContentStats {
 	return r.counts(r.db, userID)
 }
 
-// counts runs the per-type COUNTs (works on either the base DB or a tx).
 func (r *PurgeRepository) counts(q *gorm.DB, userID int) dto.UserContentStats {
 	var s dto.UserContentStats
-	countBy := func(table string) int64 {
+	countBy := func(table, col string) int64 {
 		var n int64
-		q.Table(table).Where("user_id = ?", userID).Count(&n)
+		q.Table(table).Where(col+" = ?", userID).Count(&n)
 		return n
 	}
 
-	s.Topics = countBy("topic")
-	s.Replies = countBy("topic_reply")
-	s.TopicComments = countBy("topic_comment")
-	s.GalgameComments = countBy("galgame_comment")
-	s.Ratings = countBy("galgame_rating")
-	s.RatingComments = countBy("galgame_rating_comment")
-	s.Resources = countBy("galgame_resource")
-	s.Websites = countBy("galgame_website")
-	s.WebsiteComments = countBy("galgame_website_comment")
-	s.Toolsets = countBy("galgame_toolset")
-	s.ToolsetResources = countBy("galgame_toolset_resource")
-	s.ToolsetComments = countBy("galgame_toolset_comment")
+	s.Topics = countBy("topic", "user_id")
+	s.Replies = countBy("topic_reply", "user_id")
+	s.TopicComments = countBy("topic_comment", "user_id")
+	s.GalgameComments = countBy("galgame_comment", "user_id")
+	s.Ratings = countBy("galgame_rating", "user_id")
+	s.RatingComments = countBy("galgame_rating_comment", "user_id")
+	s.Resources = countBy("galgame_resource", "user_id")
+	s.Websites = countBy("galgame_website", "user_id")
+	s.WebsiteComments = countBy("galgame_website_comment", "user_id")
+	s.Toolsets = countBy("galgame_toolset", "user_id")
+	s.ToolsetResources = countBy("galgame_toolset_resource", "user_id")
+	s.ToolsetComments = countBy("galgame_toolset_comment", "user_id")
+	s.ChatMessages = countBy("chat_message", "sender_id")
+	// Notifications the user generated for others + their own inbox.
+	s.Messages = countBy("message", "sender_id") + countBy("message", "receiver_id")
 
-	// Interactions: every like/dislike/favorite/upvote/vote the user cast.
 	for _, t := range interactionTables {
-		s.Interactions += countBy(t)
+		s.Interactions += countBy(t, "user_id")
 	}
 
 	s.Total = s.Topics + s.Replies + s.TopicComments + s.GalgameComments +
 		s.Ratings + s.RatingComments + s.Resources + s.Websites +
 		s.WebsiteComments + s.Toolsets + s.ToolsetResources +
-		s.ToolsetComments + s.Interactions
+		s.ToolsetComments + s.ChatMessages + s.Messages + s.Interactions
 	return s
 }
 
-// interactionTables are the user-cast interaction rows cleared in the purge.
-// (Order doesn't matter for counting.)
+// interactionTables are the user-cast interaction rows cleared in the purge
+// (used for the preview count). parent-counter recompute is driven separately
+// by interactionDeletes.
 var interactionTables = []string{
 	"topic_like", "topic_dislike", "topic_favorite", "topic_upvote",
 	"topic_reply_like", "topic_reply_dislike", "topic_comment_like",
@@ -78,157 +98,214 @@ var interactionTables = []string{
 	"galgame_toolset_practicality", "galgame_toolset_contributor",
 }
 
-// PurgeUserContent deletes everything (content + interactions) authored/cast
-// by userID and returns the pre-delete breakdown of what was removed.
+// PurgeUserContent deletes everything authored/cast by userID and returns the
+// pre-delete preview breakdown. The whole operation is one transaction: any
+// error aborts and rolls back (no partial purge).
 func (r *PurgeRepository) PurgeUserContent(userID int) (dto.UserContentStats, error) {
 	stats := r.counts(r.db, userID)
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		// Accumulators for surviving parents whose denormalized counts must
-		// be recomputed after their child rows are removed.
-		var affTopics, affReplies, affGalgames, affRatings, affWebsites []int
-
-		// ── A. Topics authored by the user (delete the whole subtree) ──
-		ownTopics := pluck(tx, "SELECT id FROM topic WHERE user_id = ?", userID)
-		if len(ownTopics) > 0 {
-			ownReplies := pluck(tx, "SELECT id FROM topic_reply WHERE topic_id IN ?", ownTopics)
-			ownPolls := pluck(tx, "SELECT id FROM topic_poll WHERE topic_id IN ?", ownTopics)
-
-			execIn(tx, "DELETE FROM topic_comment_like WHERE topic_comment_id IN (SELECT id FROM topic_comment WHERE topic_id IN ?)", ownTopics)
-			execIn(tx, "DELETE FROM topic_comment WHERE topic_id IN ?", ownTopics)
-			if len(ownReplies) > 0 {
-				execIn(tx, "DELETE FROM topic_reply_target WHERE reply_id IN ? OR target_reply_id IN ?", ownReplies, ownReplies)
-				execIn(tx, "DELETE FROM topic_reply_like WHERE topic_reply_id IN ?", ownReplies)
-				execIn(tx, "DELETE FROM topic_reply_dislike WHERE topic_reply_id IN ?", ownReplies)
+		// ── Capture surviving-parent id sets BEFORE deleting, for the
+		// post-delete counter recompute (these are bounded by the number of
+		// distinct parents the user touched — small, safe for an IN list). ──
+		var affTopics, affReplies, affGalgames, affRatings, affWebsites, affChatRooms []int
+		captures := []struct {
+			dst *[]int
+			sql string
+		}{
+			{&affTopics, `SELECT DISTINCT topic_id FROM topic_reply WHERE user_id = ?
+				UNION SELECT DISTINCT topic_id FROM topic_comment WHERE user_id = ?`},
+			{&affReplies, `SELECT DISTINCT topic_reply_id FROM topic_comment WHERE user_id = ?`},
+			{&affGalgames, `SELECT DISTINCT galgame_id FROM galgame_rating WHERE user_id = ?
+				UNION SELECT DISTINCT galgame_id FROM galgame_comment WHERE user_id = ?
+				UNION SELECT DISTINCT galgame_id FROM galgame_resource WHERE user_id = ?`},
+			{&affRatings, `SELECT DISTINCT galgame_rating_id FROM galgame_rating_comment WHERE user_id = ?`},
+			{&affWebsites, `SELECT DISTINCT website_id FROM galgame_website_comment WHERE user_id = ?`},
+			// Rooms the user sent messages in OR merely joined — so the
+			// empty-room cleanup below also removes rooms they joined but
+			// never spoke in (otherwise their participant row is deleted yet
+			// the room lingers).
+			{&affChatRooms, `SELECT DISTINCT chat_room_id FROM chat_message WHERE sender_id = ?
+				UNION SELECT chat_room_id FROM chat_room_participant WHERE user_id = ?`},
+		}
+		for _, c := range captures {
+			// each ? in the fragment binds the same userID
+			args := make([]any, countPlaceholders(c.sql))
+			for i := range args {
+				args[i] = userID
 			}
-			execIn(tx, "DELETE FROM topic_reply WHERE topic_id IN ?", ownTopics)
-			if len(ownPolls) > 0 {
-				execIn(tx, "DELETE FROM topic_poll_vote WHERE poll_id IN ?", ownPolls)
-				execIn(tx, "DELETE FROM topic_poll_option WHERE poll_id IN ?", ownPolls)
-				execIn(tx, "DELETE FROM topic_poll WHERE id IN ?", ownPolls)
+			if err := tx.Raw(c.sql, args...).Scan(c.dst).Error; err != nil {
+				return err
 			}
-			execIn(tx, "DELETE FROM topic_like WHERE topic_id IN ?", ownTopics)
-			execIn(tx, "DELETE FROM topic_dislike WHERE topic_id IN ?", ownTopics)
-			execIn(tx, "DELETE FROM topic_favorite WHERE topic_id IN ?", ownTopics)
-			execIn(tx, "DELETE FROM topic_upvote WHERE topic_id IN ?", ownTopics)
-			execIn(tx, "DELETE FROM topic_tag_relation WHERE topic_id IN ?", ownTopics)
-			execIn(tx, "DELETE FROM topic_section_relation WHERE topic_id IN ?", ownTopics)
-			execIn(tx, "DELETE FROM topic WHERE id IN ?", ownTopics)
 		}
 
-		// ── B. Replies authored by the user on OTHER topics ──
-		affTopics = append(affTopics, pluck(tx, "SELECT DISTINCT topic_id FROM topic_reply WHERE user_id = ?", userID)...)
-		myReplies := pluck(tx, "SELECT id FROM topic_reply WHERE user_id = ?", userID)
-		if len(myReplies) > 0 {
-			// surviving topics also lose the comments that lived on these replies
-			execIn(tx, "DELETE FROM topic_comment_like WHERE topic_comment_id IN (SELECT id FROM topic_comment WHERE topic_reply_id IN ?)", myReplies)
-			execIn(tx, "DELETE FROM topic_comment WHERE topic_reply_id IN ?", myReplies)
-			// drop both directions of the target link (keep the targeting reply)
-			execIn(tx, "DELETE FROM topic_reply_target WHERE reply_id IN ? OR target_reply_id IN ?", myReplies, myReplies)
-			execIn(tx, "DELETE FROM topic_reply_like WHERE topic_reply_id IN ?", myReplies)
-			execIn(tx, "DELETE FROM topic_reply_dislike WHERE topic_reply_id IN ?", myReplies)
-			execIn(tx, "DELETE FROM topic_reply WHERE id IN ?", myReplies)
+		// ── A. Owned ROOT entities — CASCADE removes their whole subtree. ──
+		// topic → replies, comments, likes/dislikes/favorites/upvotes, polls
+		//   (+options+votes), tag/section relations.
+		// galgame_website → comments(+subtree), likes, favorites, tag relations.
+		// galgame_toolset → resources, comments(+subtree), contributors,
+		//   practicality, aliases, category relations.
+		// topic_poll WHERE user_id: polls the user created on OTHER users'
+		//   topics (own-topic polls already went with the topic above).
+		for _, q := range []string{
+			"DELETE FROM topic WHERE user_id = ?",
+			"DELETE FROM galgame_website WHERE user_id = ?",
+			"DELETE FROM galgame_toolset WHERE user_id = ?",
+			"DELETE FROM topic_poll WHERE user_id = ?",
+		} {
+			if err := del(tx, q, userID); err != nil {
+				return err
+			}
 		}
 
-		// ── C. Topic comments authored by the user on surviving replies ──
-		affTopics = append(affTopics, pluck(tx, "SELECT DISTINCT topic_id FROM topic_comment WHERE user_id = ?", userID)...)
-		affReplies = append(affReplies, pluck(tx, "SELECT DISTINCT topic_reply_id FROM topic_comment WHERE user_id = ?", userID)...)
-		myComments := pluck(tx, "SELECT id FROM topic_comment WHERE user_id = ?", userID)
-		if len(myComments) > 0 {
-			execIn(tx, "DELETE FROM topic_comment_like WHERE topic_comment_id IN ?", myComments)
-			execIn(tx, "DELETE FROM topic_comment WHERE id IN ?", myComments)
+		// ── B. The user's content on OTHER users' entities. Each row's own
+		// children (likes, targets, sub-replies, links, providers) cascade;
+		// galgame_comment / *_comment subtrees cascade via parent/root FKs. ──
+		for _, q := range []string{
+			"DELETE FROM topic_reply WHERE user_id = ?", // SET NULL clears any topic best_answer/pin pointing here
+			"DELETE FROM topic_comment WHERE user_id = ?",
+			"DELETE FROM galgame_rating WHERE user_id = ?",
+			"DELETE FROM galgame_rating_comment WHERE user_id = ?",
+			"DELETE FROM galgame_comment WHERE user_id = ?",
+			"DELETE FROM galgame_resource WHERE user_id = ?",
+			"DELETE FROM galgame_website_comment WHERE user_id = ?",
+			"DELETE FROM galgame_toolset_resource WHERE user_id = ?",
+			"DELETE FROM galgame_toolset_comment WHERE user_id = ?",
+		} {
+			if err := del(tx, q, userID); err != nil {
+				return err
+			}
 		}
 
-		// Recompute topic-domain counts on surviving parents.
-		recount(tx, "topic", "reply_count", "topic_reply", "topic_id", affTopics)
-		recount(tx, "topic", "comment_count", "topic_comment", "topic_id", affTopics)
-		recount(tx, "topic_reply", "comment_count", "topic_comment", "topic_reply_id", affReplies)
-
-		// ── E. Galgame ratings authored by the user ──
-		affGalgames = append(affGalgames, pluck(tx, "SELECT DISTINCT galgame_id FROM galgame_rating WHERE user_id = ?", userID)...)
-		myRatings := pluck(tx, "SELECT id FROM galgame_rating WHERE user_id = ?", userID)
-		if len(myRatings) > 0 {
-			execIn(tx, "DELETE FROM galgame_rating_like WHERE galgame_rating_id IN ?", myRatings)
-			execIn(tx, "DELETE FROM galgame_rating_comment WHERE galgame_rating_id IN ?", myRatings)
-			execIn(tx, "DELETE FROM galgame_rating WHERE id IN ?", myRatings)
-		}
-
-		// ── F. Rating comments authored by the user on surviving ratings ──
-		affRatings = append(affRatings, pluck(tx, "SELECT DISTINCT galgame_rating_id FROM galgame_rating_comment WHERE user_id = ?", userID)...)
-		execIn(tx, "DELETE FROM galgame_rating_comment WHERE user_id = ?", userID)
-
-		// ── G. Galgame comments by the user, plus every nested reply
-		// beneath them (the whole subtree) so no orphaned child is left
-		// pointing at a deleted parent — spam threads vanish entirely. ──
-		galCommentIDs := subtreeIDs(tx, "galgame_comment", "parent_comment_id", userID)
-		if len(galCommentIDs) > 0 {
-			affGalgames = append(affGalgames, pluck(tx, "SELECT DISTINCT galgame_id FROM galgame_comment WHERE id IN ?", galCommentIDs)...)
-			execIn(tx, "DELETE FROM galgame_comment_like WHERE galgame_comment_id IN ?", galCommentIDs)
-			execIn(tx, "DELETE FROM galgame_comment WHERE id IN ?", galCommentIDs)
-		}
-
-		// ── H. Galgame resources authored by the user ──
-		affGalgames = append(affGalgames, pluck(tx, "SELECT DISTINCT galgame_id FROM galgame_resource WHERE user_id = ?", userID)...)
-		myResources := pluck(tx, "SELECT id FROM galgame_resource WHERE user_id = ?", userID)
-		if len(myResources) > 0 {
-			execIn(tx, "DELETE FROM galgame_resource_link WHERE galgame_resource_id IN ?", myResources)
-			execIn(tx, "DELETE FROM galgame_resource_like WHERE galgame_resource_id IN ?", myResources)
-			execIn(tx, "DELETE FROM galgame_resource WHERE id IN ?", myResources)
-		}
-
-		// Recompute galgame-domain counts on surviving parents.
-		recount(tx, "galgame", "rating_count", "galgame_rating", "galgame_id", affGalgames)
-		recount(tx, "galgame", "comment_count", "galgame_comment", "galgame_id", affGalgames)
-		recount(tx, "galgame", "resource_count", "galgame_resource", "galgame_id", affGalgames)
-		recount(tx, "galgame_rating", "comment_count", "galgame_rating_comment", "galgame_rating_id", affRatings)
-
-		// ── J. Websites authored by the user (whole subtree) ──
-		ownWebsites := pluck(tx, "SELECT id FROM galgame_website WHERE user_id = ?", userID)
-		if len(ownWebsites) > 0 {
-			execIn(tx, "DELETE FROM galgame_website_comment WHERE website_id IN ?", ownWebsites)
-			execIn(tx, "DELETE FROM galgame_website_like WHERE website_id IN ?", ownWebsites)
-			execIn(tx, "DELETE FROM galgame_website_favorite WHERE website_id IN ?", ownWebsites)
-			execIn(tx, "DELETE FROM galgame_website_tag_relation WHERE galgame_website_id IN ?", ownWebsites)
-			execIn(tx, "DELETE FROM galgame_website WHERE id IN ?", ownWebsites)
-		}
-
-		// ── K. Website comments by the user + their nested sub-comment
-		// subtree (galgame_website_comment.parent_id). ──
-		wcIDs := subtreeIDs(tx, "galgame_website_comment", "parent_id", userID)
-		if len(wcIDs) > 0 {
-			affWebsites = append(affWebsites, pluck(tx, "SELECT DISTINCT website_id FROM galgame_website_comment WHERE id IN ?", wcIDs)...)
-			execIn(tx, "DELETE FROM galgame_website_comment WHERE id IN ?", wcIDs)
-		}
-		recount(tx, "galgame_website", "comment_count", "galgame_website_comment", "website_id", affWebsites)
-
-		// ── L. Toolsets authored by the user (whole subtree) ──
-		ownToolsets := pluck(tx, "SELECT id FROM galgame_toolset WHERE user_id = ?", userID)
-		if len(ownToolsets) > 0 {
-			execIn(tx, "DELETE FROM galgame_toolset_resource WHERE toolset_id IN ?", ownToolsets)
-			execIn(tx, "DELETE FROM galgame_toolset_comment WHERE toolset_id IN ?", ownToolsets)
-			execIn(tx, "DELETE FROM galgame_toolset_contributor WHERE toolset_id IN ?", ownToolsets)
-			execIn(tx, "DELETE FROM galgame_toolset_practicality WHERE toolset_id IN ?", ownToolsets)
-			execIn(tx, "DELETE FROM galgame_toolset_alias WHERE toolset_id IN ?", ownToolsets)
-			execIn(tx, "DELETE FROM galgame_toolset_category_relation WHERE toolset_id IN ?", ownToolsets)
-			execIn(tx, "DELETE FROM galgame_toolset WHERE id IN ?", ownToolsets)
-		}
-
-		// ── M. Toolset resources authored on surviving toolsets ──
-		execIn(tx, "DELETE FROM galgame_toolset_resource WHERE user_id = ?", userID)
-		// ── N. Toolset comments by the user + their nested sub-comment
-		// subtree (galgame_toolset_comment.parent_id). ──
-		if tcIDs := subtreeIDs(tx, "galgame_toolset_comment", "parent_id", userID); len(tcIDs) > 0 {
-			execIn(tx, "DELETE FROM galgame_toolset_comment WHERE id IN ?", tcIDs)
-		}
-
-		// ── O. Interactions cast by the user (recompute each parent count) ──
+		// ── C. Interactions cast by the user, recomputing each parent count. ──
 		for _, it := range interactionDeletes {
-			ids := pluck(tx, "SELECT DISTINCT "+it.parentCol+" FROM "+it.table+" WHERE user_id = ?", userID)
-			if err := tx.Exec("DELETE FROM "+it.table+" WHERE user_id = ?", userID).Error; err != nil {
+			var ids []int
+			if it.parentTable != "" {
+				if err := tx.Raw(
+					"SELECT DISTINCT "+it.parentCol+" FROM "+it.table+" WHERE user_id = ?", userID,
+				).Scan(&ids).Error; err != nil {
+					return err
+				}
+			}
+			if err := del(tx, "DELETE FROM "+it.table+" WHERE user_id = ?", userID); err != nil {
 				return err
 			}
 			if it.parentTable != "" {
-				recount(tx, it.parentTable, it.countCol, it.table, it.parentCol, ids)
+				if err := recount(tx, it.parentTable, it.countCol, it.table, it.parentCol, ids); err != nil {
+					return err
+				}
+			}
+		}
+
+		// ── D. Private chat: only the user's OWN sent messages (the
+		// counterparty's are kept). Deleting them cascades to reactions /
+		// read receipts ON those messages; we separately clear the user's
+		// reactions / reads / membership on OTHER messages & rooms. ──
+		for _, q := range []string{
+			"DELETE FROM chat_message WHERE sender_id = ?",
+			"DELETE FROM chat_message_reaction WHERE user_id = ?",
+			"DELETE FROM chat_message_read_by WHERE user_id = ?",
+			"DELETE FROM chat_room_admin WHERE user_id = ?",
+			"DELETE FROM chat_room_participant WHERE user_id = ?",
+		} {
+			if err := del(tx, q, userID); err != nil {
+				return err
+			}
+		}
+		if len(affChatRooms) > 0 {
+			// Repair the denormalized last-message snapshot from the latest
+			// surviving message (sender_name can't be recomputed in SQL — the
+			// name lives in OAuth — so blank it; the FE hydrates by id).
+			if err := del(tx, `UPDATE chat_room cr SET
+					last_message_content = lm.content,
+					last_message_time = lm.created,
+					last_message_sender_id = lm.sender_id,
+					last_message_sender_name = ''
+				FROM (
+					SELECT DISTINCT ON (chat_room_id) chat_room_id, content, created, sender_id
+					FROM chat_message WHERE chat_room_id IN ?
+					ORDER BY chat_room_id, created DESC
+				) lm
+				WHERE cr.id = lm.chat_room_id`, affChatRooms); err != nil {
+				return err
+			}
+			// Rooms left with no messages at all (spam-only DMs) are removed
+			// entirely; CASCADE clears their participants / admins.
+			if err := del(tx, `DELETE FROM chat_room WHERE id IN ?
+				AND NOT EXISTS (SELECT 1 FROM chat_message m WHERE m.chat_room_id = chat_room.id)`,
+				affChatRooms); err != nil {
+				return err
+			}
+		}
+
+		// ── E. Notification inbox + system messages + read cursors. The
+		// `message` table is system-generated notifications (not free DMs);
+		// clear both the ones the user's actions generated for others
+		// (sender_id) and the user's own inbox (receiver_id) — this one has
+		// TWO placeholders, the rest have one, so they can't share a loop. ──
+		if err := del(tx, "DELETE FROM message WHERE sender_id = ? OR receiver_id = ?", userID, userID); err != nil {
+			return err
+		}
+		for _, q := range []string{
+			"DELETE FROM system_message WHERE user_id = ?",
+			"DELETE FROM system_message_read_state WHERE user_id = ?",
+			"DELETE FROM wiki_message_read_state WHERE user_id = ?",
+		} {
+			if err := del(tx, q, userID); err != nil {
+				return err
+			}
+		}
+
+		// ── F. Social graph, both directions. ──
+		for _, q := range []string{
+			"DELETE FROM user_follow WHERE follower_id = ? OR followed_id = ?",
+			"DELETE FROM user_friend WHERE user_id = ? OR friend_id = ?",
+		} {
+			if err := del(tx, q, userID, userID); err != nil {
+				return err
+			}
+		}
+
+		// ── F2. The user's own kungal-local account state (moemoepoint
+		// balance, check-in / daily counters). It has NO FK, so nothing
+		// cascades it — it must be deleted explicitly to truly erase the
+		// user. Safe: StateRepository.Ensure lazily recreates a default row
+		// if a (non-banned) user ever returns. ──
+		if err := del(tx, "DELETE FROM kungal_user_state WHERE user_id = ?", userID); err != nil {
+			return err
+		}
+
+		// ── G. Back-pointers in OTHER users' surviving comments that named
+		// the purged user ("回复 @user"). NULL them so the mention disappears.
+		// (topic_comment.target_user_id is NOT NULL — left as-is rather than
+		// delete a third party's comment.) ──
+		for _, q := range []string{
+			"UPDATE galgame_comment SET target_user_id = NULL WHERE target_user_id = ?",
+			"UPDATE galgame_rating_comment SET target_user_id = NULL WHERE target_user_id = ?",
+		} {
+			if err := del(tx, q, userID); err != nil {
+				return err
+			}
+		}
+
+		// ── H. Recompute counters on SURVIVING parents whose children were
+		// removed in phases B above (interaction counters handled in C). ──
+		recounts := []struct {
+			parentTable, countCol, childTable, parentCol string
+			ids                                          []int
+		}{
+			{"topic", "reply_count", "topic_reply", "topic_id", affTopics},
+			{"topic", "comment_count", "topic_comment", "topic_id", affTopics},
+			{"topic_reply", "comment_count", "topic_comment", "topic_reply_id", affReplies},
+			{"galgame", "rating_count", "galgame_rating", "galgame_id", affGalgames},
+			{"galgame", "comment_count", "galgame_comment", "galgame_id", affGalgames},
+			{"galgame", "resource_count", "galgame_resource", "galgame_id", affGalgames},
+			{"galgame_rating", "comment_count", "galgame_rating_comment", "galgame_rating_id", affRatings},
+			{"galgame_website", "comment_count", "galgame_website_comment", "website_id", affWebsites},
+		}
+		for _, rc := range recounts {
+			if err := recount(tx, rc.parentTable, rc.countCol, rc.childTable, rc.parentCol, rc.ids); err != nil {
+				return err
 			}
 		}
 
@@ -238,9 +315,8 @@ func (r *PurgeRepository) PurgeUserContent(userID int) (dto.UserContentStats, er
 	return stats, err
 }
 
-// interactionDelete describes one interaction table and the parent counter to
-// recompute after the user's rows are removed. parentTable == "" means the
-// parent has no denormalized counter (just delete).
+// interactionDelete: an interaction table the user casts rows into, plus the
+// parent counter to recompute after removal. parentTable == "" → no counter.
 type interactionDelete struct {
 	table       string
 	parentCol   string
@@ -268,44 +344,34 @@ var interactionDeletes = []interactionDelete{
 	{"galgame_toolset_contributor", "toolset_id", "", ""},
 }
 
-// pluck runs a single-int-column SELECT and returns the ids (nil on empty).
-func pluck(tx *gorm.DB, query string, args ...any) []int {
-	var ids []int
-	tx.Raw(query, args...).Scan(&ids)
-	return ids
+// del runs a DELETE/UPDATE and PROPAGATES the error (unlike a fire-and-forget
+// Exec) so any mid-transaction failure aborts and rolls back the whole purge.
+func del(tx *gorm.DB, query string, args ...any) error {
+	return tx.Exec(query, args...).Error
 }
 
-// subtreeIDs returns the ids of every comment authored by userID in a
-// self-referential comment table PLUS all descendants nested beneath them
-// (children of any author), walked via parentCol. Used so purging a spammer
-// removes whole comment threads rather than leaving children orphaned at a
-// deleted parent. table/parentCol are caller constants — never user input.
-func subtreeIDs(tx *gorm.DB, table, parentCol string, userID int) []int {
-	q := fmt.Sprintf(`WITH RECURSIVE tree AS (
-		SELECT id FROM %s WHERE user_id = ?
-		UNION
-		SELECT c.id FROM %s c JOIN tree t ON c.%s = t.id
-	) SELECT id FROM tree`, table, table, parentCol)
-	var ids []int
-	tx.Raw(q, userID).Scan(&ids)
-	return ids
-}
-
-// execIn runs a DELETE; ignored when the caller already guards the id slice.
-func execIn(tx *gorm.DB, query string, args ...any) {
-	tx.Exec(query, args...)
-}
-
-// recount sets parentTable.countCol = COUNT(childTable WHERE childTable.parentCol = parentTable.id)
-// for the given (surviving) parent ids. Table/column names are caller-owned
-// constants — never user input — so the fmt.Sprintf is injection-safe.
-func recount(tx *gorm.DB, parentTable, countCol, childTable, parentCol string, ids []int) {
+// recount sets parentTable.countCol = COUNT(child rows) for the given surviving
+// parent ids. Identifiers are caller-owned constants — never user input — so
+// the fmt.Sprintf is injection-safe; values bind as parameters.
+func recount(tx *gorm.DB, parentTable, countCol, childTable, parentCol string, ids []int) error {
 	if len(ids) == 0 {
-		return
+		return nil
 	}
 	sql := fmt.Sprintf(
 		"UPDATE %s SET %s = (SELECT COUNT(*) FROM %s WHERE %s.%s = %s.id) WHERE %s.id IN ?",
 		parentTable, countCol, childTable, childTable, parentCol, parentTable, parentTable,
 	)
-	tx.Exec(sql, ids)
+	return tx.Exec(sql, ids).Error
+}
+
+// countPlaceholders counts '?' bind markers in a SQL fragment so a single
+// repeated userID can be expanded to the right arity.
+func countPlaceholders(sql string) int {
+	n := 0
+	for _, c := range sql {
+		if c == '?' {
+			n++
+		}
+	}
+	return n
 }

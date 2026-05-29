@@ -15,6 +15,8 @@ type UserContentStats struct {
 	Toolsets         int64 `json:"toolsets"`
 	ToolsetResources int64 `json:"toolsetResources"`
 	ToolsetComments  int64 `json:"toolsetComments"`
+	ChatMessages     int64 `json:"chatMessages"`
+	Messages         int64 `json:"messages"`
 	Interactions     int64 `json:"interactions"`
 	Total            int64 `json:"total"`
 }

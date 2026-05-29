@@ -18,6 +18,8 @@ export interface AdminUserContentStats {
   toolsets: number
   toolsetResources: number
   toolsetComments: number
+  chatMessages: number
+  messages: number
   interactions: number
   total: number
 }
