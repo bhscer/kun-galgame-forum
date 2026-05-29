@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"math/rand/v2"
+	"strconv"
+	"time"
 
 	galgameClient "kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/middleware"
+	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/internal/user/dto"
 	"kun-galgame-api/internal/user/repository"
 	"kun-galgame-api/pkg/errors"
@@ -114,18 +117,24 @@ func (s *UserService) GetUserProfile(ctx context.Context, userID int) (*dto.User
 // ──────────────────────────────────────────
 
 func (s *UserService) CheckIn(ctx context.Context, userID int) (int, *errors.AppError) {
-	// Atomic once-per-day gate: CheckIn only applies when daily_check_in = 0
+	// Atomic once-per-day gate: CheckIn flips daily_check_in only when it's 0
 	// (reset at calendar midnight by the daily cron). No read-then-write race
-	// and no external rate limiter — a repeat attempt today simply applies
-	// nothing and we report "已签到".
-	points := rand.IntN(8) // 0-7
-	applied, err := s.stateRepo.CheckIn(userID, points)
+	// and no rate limiter — a repeat attempt today applies nothing → "已签到".
+	applied, err := s.stateRepo.CheckIn(userID)
 	if err != nil {
 		return 0, errors.ErrInternal("签到失败")
 	}
 	if !applied {
 		return 0, errors.ErrBadRequest("您今天已经签到过了")
 	}
+
+	// Reward via OAuth (single source). The per-user-per-day idempotency key
+	// makes it replay-safe; the daily flag is already set so a failed award
+	// doesn't let the user re-check. Awarder mirrors the authoritative balance
+	// into the local cache. points==0 is a no-op (Awarder skips zero delta).
+	points := rand.IntN(8) // 0-7
+	moemoepoint.Award(userID, points, moemoepoint.ReasonDailyCheckin, "",
+		moemoepoint.Key("checkin", strconv.Itoa(userID), time.Now().Format("2006-01-02")))
 	return points, nil
 }
 

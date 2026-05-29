@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kun-galgame-api/internal/infrastructure/storage"
+	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/internal/toolset/dto"
 	"kun-galgame-api/internal/toolset/model"
 	"kun-galgame-api/internal/toolset/repository"
@@ -92,7 +93,8 @@ func (s *ResourceService) CreateResource(
 		}
 
 		// Moemoepoint +3
-		adjustMoemoepoint(tx, userID, 3)
+		adjustMoemoepoint(tx, userID, 3,
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("toolset", toolsetID))
 
 		// Add contributor (ignore duplicate)
 		s.toolsetRepo.AddContributor(tx, toolsetID, userID)
@@ -182,7 +184,8 @@ func (s *ResourceService) DeleteResource(
 	s.resourceRepo.Delete(resource)
 
 	// Moemoepoint -3 on the resource owner
-	adjustMoemoepoint(s.resourceRepo.DB(), resource.UserID, -3)
+	adjustMoemoepoint(s.resourceRepo.DB(), resource.UserID, -3,
+		moemoepoint.ReasonContentRemoved, moemoepoint.Ref("toolset_resource", resource.ID))
 
 	return nil
 }
@@ -191,14 +194,11 @@ func (s *ResourceService) DeleteResource(
 // Shared helpers
 // ──────────────────────────────────────────
 
-// adjustMoemoepoint atomically bumps the user's moemoepoint by delta.
-// Duplicated here (rather than imported from galgame/service) to avoid a
-// cross-module cycle; see internal/galgame/service/interaction.go for the
-// original pattern.
-func adjustMoemoepoint(db *gorm.DB, userID, delta int) {
-	if userID <= 0 || delta == 0 {
-		return
-	}
-	db.Model(&userModel.KungalUserState{}).Where("user_id = ?", userID).
-		Update("moemoepoint", gorm.Expr("moemoepoint + ?", delta))
+// adjustMoemoepoint applies a moemoepoint change via the OAuth single source
+// (terminal state — NO local +=). The Awarder mirrors the authoritative
+// balance into kungal_user_state; async/best-effort, never blocks. `db` is
+// unused (kept for call-style uniformity); the award doesn't touch the caller's
+// transaction.
+func adjustMoemoepoint(_ *gorm.DB, userID, delta int, reason, ref string) {
+	moemoepoint.Award(userID, delta, reason, ref, moemoepoint.KeyNonce(reason, ref))
 }

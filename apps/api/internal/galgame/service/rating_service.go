@@ -11,6 +11,7 @@ import (
 	"kun-galgame-api/internal/galgame/dto"
 	"kun-galgame-api/internal/galgame/model"
 	"kun-galgame-api/internal/galgame/repository"
+	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
 
@@ -224,7 +225,8 @@ func (s *RatingService) CreateRating(
 		if err := s.ratingRepo.Create(tx, rating); err != nil {
 			return err
 		}
-		s.helpers.AdjustMoemoepoint(tx, userID, reward)
+		s.helpers.AdjustMoemoepoint(tx, userID, reward,
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame_rating", rating.ID))
 		return nil
 	})
 	if txErr != nil {
@@ -301,7 +303,8 @@ func (s *RatingService) UpdateRating(
 		if err := s.ratingRepo.Update(tx, req.GalgameRatingID, fields); err != nil {
 			return err
 		}
-		s.helpers.AdjustMoemoepoint(tx, userID, pointDiff)
+		s.helpers.AdjustMoemoepoint(tx, userID, pointDiff,
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame_rating", req.GalgameRatingID))
 		return nil
 	})
 	if txErr != nil {
@@ -332,7 +335,8 @@ func (s *RatingService) DeleteRating(
 		if err := s.ratingRepo.DeleteByID(tx, ratingID); err != nil {
 			return err
 		}
-		s.helpers.AdjustMoemoepoint(tx, rating.UserID, refund)
+		s.helpers.AdjustMoemoepoint(tx, rating.UserID, refund,
+			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("galgame_rating", ratingID))
 		return nil
 	})
 	if txErr != nil {
@@ -377,7 +381,8 @@ func (s *RatingService) ToggleRatingLike(
 		if err := s.ratingRepo.AdjustLikeCount(tx, req.GalgameRatingID, delta); err != nil {
 			return err
 		}
-		s.helpers.AdjustMoemoepoint(tx, rating.UserID, delta)
+		s.helpers.AdjustMoemoepoint(tx, rating.UserID, delta,
+			moemoepoint.ReasonLiked, moemoepoint.Ref("galgame_rating", req.GalgameRatingID))
 		s.helpers.CreateGalgameMessageWithContent(
 			tx, userID, rating.UserID, "liked", preview, rating.GalgameID,
 		)

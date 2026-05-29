@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	msgModel "kun-galgame-api/internal/message/model"
-	userModel "kun-galgame-api/internal/user/model"
+	"kun-galgame-api/internal/moemoepoint"
 
 	"gorm.io/gorm"
 )
@@ -16,15 +16,16 @@ import (
 // so the caller controls atomicity.
 type InteractionHelpers struct{}
 
-// AdjustMoemoepoint adds `delta` to the target user's moemoepoint in the
-// kungal_user_state table (the post-OAuth-migration source of truth). The
-// legacy user.moemoepoint column is no longer authoritative.
-func (InteractionHelpers) AdjustMoemoepoint(tx *gorm.DB, userID int, delta int) {
-	if userID <= 0 || delta == 0 {
-		return
-	}
-	tx.Model(&userModel.KungalUserState{}).Where("user_id = ?", userID).
-		Update("moemoepoint", gorm.Expr("moemoepoint + ?", delta))
+// AdjustMoemoepoint applies a moemoepoint change for `userID` via the OAuth
+// single source (terminal state — NO local +=). The Awarder calls OAuth and
+// mirrors the returned authoritative balance into kungal_user_state; it's
+// async/best-effort and never blocks the caller. `reason` is an s2s
+// moemoepoint.Reason*; `ref` is the entity (e.g. moemoepoint.Ref("galgame",
+// id)). Per-action nonce key (user-initiated, non-replayed → no false dedup).
+// The `tx` param is unused (kept so the messaging helpers' call style is
+// uniform); the award deliberately does NOT join the caller's transaction.
+func (InteractionHelpers) AdjustMoemoepoint(_ *gorm.DB, userID, delta int, reason, ref string) {
+	moemoepoint.Award(userID, delta, reason, ref, moemoepoint.KeyNonce(reason, ref))
 }
 
 // CreateGalgameMessage creates a notification from `senderID` → `receiverID`

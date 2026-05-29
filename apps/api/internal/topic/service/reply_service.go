@@ -9,6 +9,7 @@ import (
 	"kun-galgame-api/internal/constants"
 	"kun-galgame-api/internal/infrastructure/markdown"
 	"kun-galgame-api/internal/middleware"
+	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/internal/topic/dto"
 	topicModel "kun-galgame-api/internal/topic/model"
 	"kun-galgame-api/internal/topic/repository"
@@ -187,14 +188,16 @@ func (s *ReplyService) CreateReply(
 		preview := truncate(req.Content, constants.TextPreviewLength)
 
 		for targetUserID := range targetUserSet {
-			s.helpers.AdjustMoemoepoint(tx, targetUserID, constants.RewardReply)
+			s.helpers.AdjustMoemoepoint(tx, targetUserID, constants.RewardReply,
+				moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic", req.TopicID))
 			s.helpers.CreateReplyMessage(tx, userID, targetUserID, "replied", preview, req.TopicID)
 		}
 
 		// Reward topic owner (matches original: always creates an extra
 		// "replied" message even if owner is already a target recipient).
 		if strings.TrimSpace(req.Content) != "" && topic.UserID != userID {
-			s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardReply)
+			s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardReply,
+				moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic", req.TopicID))
 			s.helpers.CreateReplyMessage(tx, userID, topic.UserID, "replied", preview, req.TopicID)
 		}
 
@@ -318,7 +321,8 @@ func (s *ReplyService) DeleteReply(
 			return err
 		}
 
-		s.helpers.AdjustMoemoepoint(tx, reply.UserID, -penalty)
+		s.helpers.AdjustMoemoepoint(tx, reply.UserID, -penalty,
+			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("topic_reply", replyID))
 		return nil
 	})
 
@@ -354,7 +358,8 @@ func (s *ReplyService) ToggleReplyLike(ctx context.Context, userID, replyID int)
 			if err := s.replyRepo.AdjustReplyLikeCount(tx, replyID, 1); err != nil {
 				return err
 			}
-			s.helpers.AdjustMoemoepoint(tx, reply.UserID, 1)
+			s.helpers.AdjustMoemoepoint(tx, reply.UserID, 1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("topic_reply", replyID))
 
 			link := fmt.Sprintf("/topic/%d", reply.TopicID)
 			preview := truncate(reply.Content, constants.TextPreviewLength)
@@ -366,7 +371,8 @@ func (s *ReplyService) ToggleReplyLike(ctx context.Context, userID, replyID int)
 			if err := s.replyRepo.AdjustReplyLikeCount(tx, replyID, -1); err != nil {
 				return err
 			}
-			s.helpers.AdjustMoemoepoint(tx, reply.UserID, -1)
+			s.helpers.AdjustMoemoepoint(tx, reply.UserID, -1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("topic_reply", replyID))
 		} else {
 			return findErr
 		}

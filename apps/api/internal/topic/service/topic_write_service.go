@@ -6,6 +6,7 @@ import (
 
 	"kun-galgame-api/internal/constants"
 	msgService "kun-galgame-api/internal/message/service"
+	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/internal/topic/dto"
 	topicModel "kun-galgame-api/internal/topic/model"
 	"kun-galgame-api/internal/topic/repository"
@@ -115,10 +116,13 @@ func (s *TopicWriteService) Create(
 		}
 
 		pointsDelta := constants.RewardCreateTopic
+		mpReason := moemoepoint.ReasonContentApproved
 		if hasConsumeSection {
+			// Posting in a paid section is a net deduction (cost > reward).
 			pointsDelta = -constants.CostConsumeSection
+			mpReason = moemoepoint.ReasonContentRemoved
 		}
-		s.helpers.AdjustMoemoepoint(tx, userID, pointsDelta)
+		s.helpers.AdjustMoemoepoint(tx, userID, pointsDelta, mpReason, moemoepoint.Ref("topic", topic.ID))
 		return nil
 	})
 
@@ -221,7 +225,8 @@ func (s *TopicWriteService) ToggleLike(ctx context.Context, userID, topicID int)
 			if err := s.topicRepo.AdjustLikeCount(tx, topicID, 1); err != nil {
 				return err
 			}
-			s.helpers.AdjustMoemoepoint(tx, topic.UserID, 1)
+			s.helpers.AdjustMoemoepoint(tx, topic.UserID, 1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
 			s.helpers.CreateTopicMessage(tx, userID, topic.UserID, "liked", topicID)
 		} else if findErr == nil {
 			if err := s.topicRepo.DeleteTopicLike(tx, existing); err != nil {
@@ -230,7 +235,8 @@ func (s *TopicWriteService) ToggleLike(ctx context.Context, userID, topicID int)
 			if err := s.topicRepo.AdjustLikeCount(tx, topicID, -1); err != nil {
 				return err
 			}
-			s.helpers.AdjustMoemoepoint(tx, topic.UserID, -1)
+			s.helpers.AdjustMoemoepoint(tx, topic.UserID, -1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
 		} else {
 			return findErr
 		}
@@ -314,8 +320,10 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int) *er
 			return err
 		}
 
-		s.helpers.AdjustMoemoepoint(tx, userID, -constants.CostUpvoteSender)
-		s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardUpvoteOwner)
+		s.helpers.AdjustMoemoepoint(tx, userID, -constants.CostUpvoteSender,
+			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("topic", topicID))
+		s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardUpvoteOwner,
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic", topicID))
 		s.helpers.CreateTopicMessage(tx, userID, topic.UserID, "upvoted", topicID)
 		return nil
 	})
@@ -355,7 +363,8 @@ func (s *TopicWriteService) ToggleFavorite(ctx context.Context, userID, topicID 
 				return err
 			}
 			if userID != topic.UserID {
-				s.helpers.AdjustMoemoepoint(tx, topic.UserID, 1)
+				s.helpers.AdjustMoemoepoint(tx, topic.UserID, 1,
+					moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
 				s.helpers.CreateTopicMessage(tx, userID, topic.UserID, "favorite", topicID)
 			}
 		} else if findErr == nil {
@@ -366,7 +375,8 @@ func (s *TopicWriteService) ToggleFavorite(ctx context.Context, userID, topicID 
 				return err
 			}
 			if userID != topic.UserID {
-				s.helpers.AdjustMoemoepoint(tx, topic.UserID, -1)
+				s.helpers.AdjustMoemoepoint(tx, topic.UserID, -1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
 			}
 		} else {
 			return findErr
@@ -448,7 +458,11 @@ func (s *TopicWriteService) SetBestAnswer(ctx context.Context, userID, role, top
 		// SET moemoepoint = ...` — migration 007 dropped that column from
 		// the identity table, so the legacy SQL was PG-erroring out and
 		// silently rolling back the entire set-best-answer transaction.
-		s.helpers.AdjustMoemoepoint(tx, reply.UserID, delta)
+		bestReason := moemoepoint.ReasonContentApproved
+		if delta < 0 {
+			bestReason = moemoepoint.ReasonContentRemoved
+		}
+		s.helpers.AdjustMoemoepoint(tx, reply.UserID, delta, bestReason, moemoepoint.Ref("topic_reply", reply.ID))
 		// Only notify on set (not on clear) — matches legacy Nitro.
 		if !isCurrentBest {
 			return s.notifier.Emit(tx, msgService.Spec{

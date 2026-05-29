@@ -3,16 +3,15 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"net/url"
+	"strconv"
 
 	"kun-galgame-api/internal/constants"
 	"kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/galgame/repository"
+	"kun-galgame-api/internal/moemoepoint"
 	userRepo "kun-galgame-api/internal/user/repository"
 	"kun-galgame-api/pkg/errors"
-
-	"gorm.io/gorm"
 )
 
 // SubmissionService handles the user-driven submission lifecycle for new
@@ -80,17 +79,13 @@ func (s *SubmissionService) Claim(
 		return nil, appErr
 	}
 
-	txErr := s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
-		if _, lockErr := s.stateRepo.LockForUpdate(tx, userID); lockErr != nil {
-			return lockErr
-		}
-		s.galgameRepo.CreateLocalStub(tx, gid)
-		return s.stateRepo.AdjustMoemoepointTx(tx, userID, constants.RewardCreateGalgame)
-	})
-	if txErr != nil {
-		slog.Warn("claim 本地副作用失败 (wiki 已成功)",
-			"gid", gid, "userID", userID, "error", txErr)
-	}
+	// Local stub so the claimed galgame appears in kungal's list query.
+	s.galgameRepo.CreateLocalStub(s.galgameRepo.DB(), gid)
+	// Award +3 via OAuth (no local +=). Stable key per (galgame, claimer) so a
+	// re-claim can't double-award.
+	moemoepoint.Award(userID, constants.RewardCreateGalgame,
+		moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", gid),
+		moemoepoint.Key("claim", strconv.Itoa(gid), strconv.Itoa(userID)))
 	return data, nil
 }
 

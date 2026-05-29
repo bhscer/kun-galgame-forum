@@ -8,6 +8,7 @@ import (
 	"kun-galgame-api/internal/galgame/dto"
 	"kun-galgame-api/internal/galgame/model"
 	"kun-galgame-api/internal/galgame/repository"
+	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
 	"kun-galgame-api/pkg/utils"
@@ -234,7 +235,8 @@ func (s *ResourceService) CreateResource(
 		if err := s.resourceRepo.AdjustLocalResourceCount(tx, req.GalgameID, 1); err != nil {
 			return err
 		}
-		s.helpers.AdjustMoemoepoint(tx, userID, constants.RewardCreateResource)
+		s.helpers.AdjustMoemoepoint(tx, userID, constants.RewardCreateResource,
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", req.GalgameID))
 		return nil
 	})
 	if txErr != nil {
@@ -311,7 +313,8 @@ func (s *ResourceService) DeleteResource(
 	}
 
 	txErr := s.resourceRepo.DB().Transaction(func(tx *gorm.DB) error {
-		s.helpers.AdjustMoemoepoint(tx, row.UserID, -(row.LikeCount + 5))
+		s.helpers.AdjustMoemoepoint(tx, row.UserID, -(row.LikeCount + 5),
+			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("galgame_resource", resourceID))
 		if err := s.resourceRepo.DeleteByID(tx, resourceID); err != nil {
 			return err
 		}
@@ -364,7 +367,8 @@ func (s *ResourceService) ToggleLike(
 		if err := s.resourceRepo.AdjustLikeCount(tx, req.GalgameResourceID, delta); err != nil {
 			return err
 		}
-		s.helpers.AdjustMoemoepoint(tx, userID, delta)
+		s.helpers.AdjustMoemoepoint(tx, userID, delta,
+			moemoepoint.ReasonLiked, moemoepoint.Ref("galgame_resource", req.GalgameResourceID))
 		s.helpers.CreateGalgameMessageWithContent(
 			tx, userID, row.UserID, "liked", preview, row.GalgameID,
 		)

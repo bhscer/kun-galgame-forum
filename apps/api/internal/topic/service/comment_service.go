@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kun-galgame-api/internal/constants"
+	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/internal/topic/dto"
 	topicModel "kun-galgame-api/internal/topic/model"
 	"kun-galgame-api/internal/topic/repository"
@@ -67,7 +68,8 @@ func (s *CommentService) CreateComment(
 		}
 
 		if userID != targetUserID {
-			s.helpers.AdjustMoemoepoint(tx, targetUserID, constants.RewardReply)
+			s.helpers.AdjustMoemoepoint(tx, targetUserID, constants.RewardReply,
+				moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic_reply", replyID))
 
 			preview := truncate(content, constants.TextPreviewLength)
 			s.helpers.CreateReplyMessage(tx, userID, targetUserID, "commented", preview, topicID)
@@ -171,7 +173,8 @@ func (s *CommentService) ToggleCommentLike(ctx context.Context, userID, commentI
 			if err := s.commentRepo.CreateCommentLike(tx, userID, commentID); err != nil {
 				return err
 			}
-			s.helpers.AdjustMoemoepoint(tx, comment.UserID, 1)
+			s.helpers.AdjustMoemoepoint(tx, comment.UserID, 1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("topic_comment", commentID))
 
 			link := fmt.Sprintf("/topic/%d", comment.TopicID)
 			preview := truncate(comment.Content, constants.TextPreviewLength)
@@ -180,7 +183,8 @@ func (s *CommentService) ToggleCommentLike(ctx context.Context, userID, commentI
 			if err := s.commentRepo.DeleteCommentLike(tx, existing); err != nil {
 				return err
 			}
-			s.helpers.AdjustMoemoepoint(tx, comment.UserID, -1)
+			s.helpers.AdjustMoemoepoint(tx, comment.UserID, -1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("topic_comment", commentID))
 		} else {
 			return findErr
 		}
@@ -231,7 +235,8 @@ func (s *CommentService) DeleteComment(ctx context.Context, userID, role, commen
 			return err
 		}
 
-		s.helpers.AdjustMoemoepoint(tx, comment.UserID, -penalty)
+		s.helpers.AdjustMoemoepoint(tx, comment.UserID, -penalty,
+			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("topic_comment", commentID))
 		return nil
 	})
 

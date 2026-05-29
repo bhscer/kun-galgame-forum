@@ -9,6 +9,7 @@ import (
 	"kun-galgame-api/internal/constants"
 	"kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/galgame/repository"
+	"kun-galgame-api/internal/moemoepoint"
 	userRepo "kun-galgame-api/internal/user/repository"
 
 	"github.com/redis/go-redis/v9"
@@ -165,8 +166,15 @@ func (s *WikiMessageSync) applyMessage(ctx context.Context, msg client.WikiMessa
 		target := *msg.TargetUserID
 		s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
 			s.galgameRepo.CreateLocalStub(tx, msg.GalgameID)
-			return s.stateRepo.AdjustMoemoepointTx(tx, target, constants.RewardCreateGalgame)
+			return nil
 		})
+		// Award +3 via OAuth (no local +=). STABLE idempotency key per wiki
+		// message: this is a cron-replayed path (every 10 min), so the key
+		// dedups re-processed messages — a replay never double-awards. See
+		// 06-moemoepoint.md §4.
+		moemoepoint.Award(target, constants.RewardCreateGalgame,
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", msg.GalgameID),
+			moemoepoint.Key("wiki_approved", strconv.FormatInt(msg.ID, 10)))
 
 	case "banned":
 		s.galgameRepo.DeleteLocalStub(msg.GalgameID)

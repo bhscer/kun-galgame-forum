@@ -9,6 +9,7 @@ import (
 
 	"kun-galgame-api/internal/infrastructure/markdown"
 	"kun-galgame-api/internal/infrastructure/storage"
+	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/internal/toolset/dto"
 	"kun-galgame-api/internal/toolset/model"
 	"kun-galgame-api/internal/toolset/repository"
@@ -134,7 +135,8 @@ func (s *ToolsetService) Create(
 		s.toolsetRepo.AddContributor(tx, toolset.ID, userID)
 
 		// Moemoepoint +3
-		adjustMoemoepoint(tx, userID, 3)
+		adjustMoemoepoint(tx, userID, 3,
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("toolset", toolset.ID))
 
 		return nil
 	})
@@ -311,7 +313,8 @@ func (s *ToolsetService) Delete(userID, userRole, id int) *errors.AppError {
 		s.toolsetRepo.DeleteByID(tx, id)
 
 		// Moemoepoint -3 on the owner
-		adjustMoemoepoint(tx, toolset.UserID, -3)
+		adjustMoemoepoint(tx, toolset.UserID, -3,
+			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("toolset", id))
 		return nil
 	})
 	if txErr != nil {

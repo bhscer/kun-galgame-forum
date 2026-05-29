@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	msgModel "kun-galgame-api/internal/message/model"
-	userModel "kun-galgame-api/internal/user/model"
+	"kun-galgame-api/internal/moemoepoint"
 
 	"gorm.io/gorm"
 )
@@ -16,15 +16,19 @@ import (
 // transaction) so the caller controls atomicity.
 type InteractionHelpers struct{}
 
-// AdjustMoemoepoint adds `delta` to the target user's moemoepoint in the
-// kungal_user_state table (the OAuth-migration successor to the deleted
-// user.moemoepoint column). No-op when userID<=0 or delta==0.
-func (InteractionHelpers) AdjustMoemoepoint(tx *gorm.DB, userID int, delta int) {
-	if userID <= 0 || delta == 0 {
-		return
-	}
-	tx.Model(&userModel.KungalUserState{}).Where("user_id = ?", userID).
-		Update("moemoepoint", gorm.Expr("moemoepoint + ?", delta))
+// AdjustMoemoepoint applies a moemoepoint change for `userID`. During the OAuth
+// dual-write transition it does BOTH: (1) the local in-tx update on
+// kungal_user_state (still authoritative for reads/gating), and (2) a
+// non-blocking push to the OAuth single source carrying `reason` (an s2s
+// moemoepoint.Reason*) and `ref` (entity, e.g. moemoepoint.Ref("topic", id)).
+// The push is async, idempotency-keyed per action, and never blocks/fails the
+// caller. No-op when userID<=0 or delta==0. See internal/moemoepoint.
+func (InteractionHelpers) AdjustMoemoepoint(_ *gorm.DB, userID, delta int, reason, ref string) {
+	// Terminal state: NO local +=. The Awarder calls OAuth (single source) and
+	// mirrors the authoritative balance into kungal_user_state; async/best-
+	// effort, never blocks. `tx` is unused (kept for call-style uniformity with
+	// the messaging helpers); the award does not join the caller's transaction.
+	moemoepoint.Award(userID, delta, reason, ref, moemoepoint.KeyNonce(reason, ref))
 }
 
 // CreateTopicMessage creates a notification for a topic-level action

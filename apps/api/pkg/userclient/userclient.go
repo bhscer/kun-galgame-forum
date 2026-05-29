@@ -15,6 +15,7 @@
 package userclient
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -282,6 +283,92 @@ func (c *Client) do(ctx context.Context, method, endpoint string, v any) error {
 		return nil
 	}
 	return json.Unmarshal(env.Data, v)
+}
+
+// doJSON is do() with a JSON request body (POST/PUT). It surfaces the OAuth
+// envelope code in the returned *OAuthError so callers can branch on business
+// codes (e.g. 16004 idempotency conflict).
+func (c *Client) doJSON(ctx context.Context, method, endpoint string, body, v any) error {
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(buf))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", c.authHd)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("userclient: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var env envelope
+	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
+		return fmt.Errorf("userclient: decode envelope: %w", err)
+	}
+	if env.Code != 0 {
+		return &OAuthError{Code: env.Code, Message: env.Message}
+	}
+	if v == nil {
+		return nil
+	}
+	return json.Unmarshal(env.Data, v)
+}
+
+// OAuthError carries the OAuth business code from a non-zero envelope.
+type OAuthError struct {
+	Code    int
+	Message string
+}
+
+func (e *OAuthError) Error() string {
+	return fmt.Sprintf("oauth code=%d msg=%q", e.Code, e.Message)
+}
+
+// MoemoepointResult mirrors POST /users/:id/moemoepoint's data field
+// (06-moemoepoint.md §3.1). Applied=false means the idempotency key matched
+// an existing entry and nothing was re-applied.
+type MoemoepointResult struct {
+	UserID  int  `json:"user_id"`
+	Balance int  `json:"balance"`
+	Applied bool `json:"applied"`
+}
+
+// AdjustMoemoepoint adjusts a user's unified moemoepoint balance on the OAuth
+// single source (06-moemoepoint.md §3.1). `delta` is signed, non-zero,
+// |delta| ≤ 1,000,000. `reason` must be an s2s reason (daily_checkin / liked /
+// content_approved / content_removed — admin_*/migration are OAuth-reserved).
+// `idempotencyKey` is a caller-generated stable key per business event.
+// `source_app` is derived server-side from the authenticated client.
+func (c *Client) AdjustMoemoepoint(
+	ctx context.Context,
+	userID, delta int,
+	reason, ref, idempotencyKey string,
+) (MoemoepointResult, error) {
+	var out MoemoepointResult
+	endpoint := fmt.Sprintf("%s/users/%d/moemoepoint", c.cfg.BaseURL, userID)
+	err := c.doJSON(ctx, "POST", endpoint, map[string]any{
+		"delta":           delta,
+		"reason":          reason,
+		"ref":             ref,
+		"idempotency_key": idempotencyKey,
+	}, &out)
+	return out, err
+}
+
+// GetMoemoepoint reads a user's unified balance from OAuth (06 §3.2).
+func (c *Client) GetMoemoepoint(ctx context.Context, userID int) (int, error) {
+	var out struct {
+		Balance int `json:"balance"`
+	}
+	endpoint := fmt.Sprintf("%s/users/%d/moemoepoint", c.cfg.BaseURL, userID)
+	if err := c.do(ctx, "GET", endpoint, &out); err != nil {
+		return 0, err
+	}
+	return out.Balance, nil
 }
 
 // cacheStore writes the batch result into hot + miss caches.

@@ -31,6 +31,7 @@ import (
 	msgHandler "kun-galgame-api/internal/message/handler"
 	msgRepo "kun-galgame-api/internal/message/repository"
 	msgService "kun-galgame-api/internal/message/service"
+	"kun-galgame-api/internal/moemoepoint"
 	rankingHandler "kun-galgame-api/internal/ranking/handler"
 	rankingRepo "kun-galgame-api/internal/ranking/repository"
 	rankingService "kun-galgame-api/internal/ranking/service"
@@ -176,6 +177,12 @@ func New(cfg *config.Config) *App {
 		ClientID:     cfg.OAuth.ClientID,
 		ClientSecret: cfg.OAuth.ClientSecret,
 	})
+
+	// Install the process-wide moemoepoint Awarder: OAuth is the single source
+	// of truth; every change goes through it and the returned authoritative
+	// balance is mirrored into the local kungal_user_state cache (no local +=).
+	// See internal/moemoepoint + docs/oauth/06-moemoepoint.md.
+	moemoepoint.SetDefault(moemoepoint.NewAwarder(uc, db))
 
 	// image_service client — covers/screenshots multi-image upload path
 	// (U2 / K-PR3a). ONLY construct when credentials are present, so the

@@ -41,27 +41,11 @@ func (r *StateRepository) FindByID(userID int) (*model.KungalUserState, error) {
 	return &s, err
 }
 
-// IncrementMoemoepoint adds delta (may be negative) to the user's balance.
-func (r *StateRepository) IncrementMoemoepoint(userID, delta int) error {
-	if delta == 0 || userID <= 0 {
-		return nil
-	}
-	return r.db.Model(&model.KungalUserState{}).
-		Where("user_id = ?", userID).
-		Update("moemoepoint", gorm.Expr("moemoepoint + ?", delta)).Error
-}
-
-// AdjustMoemoepointTx is a tx-scoped variant of IncrementMoemoepoint used by
-// callers that need atomicity with surrounding writes (likes, dislikes, etc.).
-// No-op when userID<=0 or delta==0.
-func (r *StateRepository) AdjustMoemoepointTx(tx *gorm.DB, userID, delta int) error {
-	if userID <= 0 || delta == 0 {
-		return nil
-	}
-	return tx.Model(&model.KungalUserState{}).
-		Where("user_id = ?", userID).
-		Update("moemoepoint", gorm.Expr("moemoepoint + ?", delta)).Error
-}
+// moemoepoint mutations no longer live here: OAuth is the single source of
+// truth and changes flow through internal/moemoepoint.Awarder (which mirrors
+// the authoritative balance back into this table's moemoepoint cache column).
+// kungal_user_state.moemoepoint is now a READ cache only — gating/ranking read
+// it; nothing increments it locally.
 
 // LockForUpdate acquires a SELECT ... FOR UPDATE lock on the state row, used
 // by interaction paths that read-then-write moemoepoint inside a tx. Replaces
@@ -74,19 +58,17 @@ func (r *StateRepository) LockForUpdate(tx *gorm.DB, userID int) (*model.KungalU
 	return &s, err
 }
 
-// CheckIn atomically records today's check-in and grants `points` moemoepoint,
-// but ONLY when the user hasn't already checked in today (daily_check_in = 0).
-// The conditional WHERE makes it race-safe with no external lock/rate-limiter —
-// concurrent double-clicks can't double-award. Returns whether the check-in was
-// applied (false = already checked in today). daily_check_in is reset to 0 at
-// calendar midnight by the daily cron, so it is the per-day gate.
-func (r *StateRepository) CheckIn(userID, points int) (bool, error) {
+// CheckIn atomically marks today's check-in, but ONLY when the user hasn't
+// already checked in today (daily_check_in = 0). The conditional WHERE makes it
+// race-safe with no external lock — concurrent double-clicks can't both pass.
+// Returns whether it was applied (false = already checked in). daily_check_in
+// is reset to 0 at calendar midnight by the daily cron, so it's the per-day
+// gate. The points reward is granted via OAuth (the Awarder), NOT here — this
+// only flips the flag (no local moemoepoint +=).
+func (r *StateRepository) CheckIn(userID int) (bool, error) {
 	res := r.db.Model(&model.KungalUserState{}).
 		Where("user_id = ? AND daily_check_in = 0", userID).
-		Updates(map[string]any{
-			"daily_check_in": 1,
-			"moemoepoint":    gorm.Expr("moemoepoint + ?", points),
-		})
+		Update("daily_check_in", 1)
 	if res.Error != nil {
 		return false, res.Error
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"strconv"
 
 	"kun-galgame-api/internal/constants"
@@ -12,6 +11,7 @@ import (
 	"kun-galgame-api/internal/galgame/dto"
 	"kun-galgame-api/internal/galgame/model"
 	"kun-galgame-api/internal/galgame/repository"
+	"kun-galgame-api/internal/moemoepoint"
 	userRepo "kun-galgame-api/internal/user/repository"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
@@ -107,25 +107,14 @@ func (s *GalgameService) Create(
 	_ = json.Unmarshal(data, &created)
 
 	if created.ID > 0 {
-		txErr := s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
-			// Lock the kungal_user_state row so a concurrent create on the
-			// same account can't both pass the check above AND both award +3.
-			if _, lockErr := s.stateRepo.LockForUpdate(tx, userID); lockErr != nil {
-				return lockErr
-			}
-			s.galgameRepo.CreateLocalStub(tx, created.ID)
-			if pErr := s.stateRepo.AdjustMoemoepointTx(tx, userID, constants.RewardCreateGalgame); pErr != nil {
-				return pErr
-			}
-			return nil
-		})
-		if txErr != nil {
-			// Wiki already accepted the create; leaving the user without the
-			// +3 reward is preferable to half-rolling-back wiki state.
-			// Surface as a soft error in logs but return the wiki response.
-			slog.Warn("galgame 创建本地副作用失败 (wiki 已成功)",
-				"gid", created.ID, "userID", userID, "error", txErr)
-		}
+		// Local stub so the galgame appears in kungal's list query. Idempotent
+		// (OnConflict DoNothing), so no row lock needed.
+		s.galgameRepo.CreateLocalStub(s.galgameRepo.DB(), created.ID)
+		// Award +3 via OAuth post-commit. Stable key per galgame → a retried
+		// create can't double-award (no local += to roll back).
+		moemoepoint.Award(userID, constants.RewardCreateGalgame,
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", created.ID),
+			moemoepoint.Key("create_galgame", strconv.Itoa(created.ID)))
 	}
 	return data, nil
 }
@@ -158,7 +147,8 @@ func (s *GalgameService) MergePR(
 	if submitter > 0 && submitter != mergerID {
 		gidInt, _ := strconv.Atoi(gid)
 		s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
-			s.helpers.AdjustMoemoepoint(tx, submitter, constants.RewardPRMerge)
+			s.helpers.AdjustMoemoepoint(tx, submitter, constants.RewardPRMerge,
+				moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", gidInt))
 			s.helpers.CreateGalgameMessage(tx, mergerID, submitter, "merged", gidInt)
 			return nil
 		})
@@ -184,10 +174,12 @@ func (s *GalgameService) ToggleLike(
 	s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
 		liked := s.interactionRepo.ToggleLike(tx, userID, galgameID)
 		if liked {
-			s.helpers.AdjustMoemoepoint(tx, ownerID, 1)
+			s.helpers.AdjustMoemoepoint(tx, ownerID, 1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("galgame", galgameID))
 			s.helpers.CreateGalgameMessage(tx, userID, ownerID, "liked", galgameID)
 		} else {
-			s.helpers.AdjustMoemoepoint(tx, ownerID, -1)
+			s.helpers.AdjustMoemoepoint(tx, ownerID, -1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("galgame", galgameID))
 		}
 		return nil
 	})
@@ -207,10 +199,12 @@ func (s *GalgameService) ToggleFavorite(ctx context.Context, userID, galgameID i
 			return nil
 		}
 		if favorited {
-			s.helpers.AdjustMoemoepoint(tx, ownerID, 1)
+			s.helpers.AdjustMoemoepoint(tx, ownerID, 1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("galgame", galgameID))
 			s.helpers.CreateGalgameMessage(tx, userID, ownerID, "favorite", galgameID)
 		} else {
-			s.helpers.AdjustMoemoepoint(tx, ownerID, -1)
+			s.helpers.AdjustMoemoepoint(tx, ownerID, -1,
+				moemoepoint.ReasonLiked, moemoepoint.Ref("galgame", galgameID))
 		}
 		return nil
 	})

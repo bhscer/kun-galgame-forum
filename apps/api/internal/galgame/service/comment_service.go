@@ -9,6 +9,7 @@ import (
 	"kun-galgame-api/internal/galgame/repository"
 	"kun-galgame-api/internal/infrastructure/markdown"
 	msgModel "kun-galgame-api/internal/message/model"
+	"kun-galgame-api/internal/moemoepoint"
 	userRepo "kun-galgame-api/internal/user/repository"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
@@ -325,9 +326,10 @@ func (s *CommentService) CreateComment(
 		}
 
 		if targetUserID != nil && *targetUserID != userID {
-			if err := s.stateRepo.AdjustMoemoepointTx(tx, *targetUserID, 1); err != nil {
-				return err
-			}
+			// Award via OAuth (no local +=). Comment engagement → content_approved.
+			moemoepoint.Award(*targetUserID, 1, moemoepoint.ReasonContentApproved,
+				moemoepoint.Ref("galgame", galgameID),
+				moemoepoint.KeyNonce(moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame_comment", galgameID)))
 
 			link := fmt.Sprintf("/galgame/%d", galgameID)
 			if err := tx.Create(&msgModel.Message{
@@ -495,9 +497,9 @@ func (s *CommentService) ToggleCommentLike(userID, commentID int) *errors.AppErr
 			tx.Model(&model.GalgameComment{}).Where("id = ?", commentID).
 				Update("like_count", gorm.Expr("like_count + 1"))
 			if comment.UserID != userID {
-				if err := s.stateRepo.AdjustMoemoepointTx(tx, comment.UserID, 1); err != nil {
-					return err
-				}
+				moemoepoint.Award(comment.UserID, 1, moemoepoint.ReasonLiked,
+					moemoepoint.Ref("galgame_comment", commentID),
+					moemoepoint.KeyNonce(moemoepoint.ReasonLiked, moemoepoint.Ref("galgame_comment", commentID)))
 				s.helpers.CreateGalgameMessageWithContent(
 					tx, userID, comment.UserID, "liked",
 					truncate(comment.Content, 233),
@@ -509,9 +511,9 @@ func (s *CommentService) ToggleCommentLike(userID, commentID int) *errors.AppErr
 			tx.Model(&model.GalgameComment{}).Where("id = ?", commentID).
 				Update("like_count", gorm.Expr("like_count - 1"))
 			if comment.UserID != userID {
-				if err := s.stateRepo.AdjustMoemoepointTx(tx, comment.UserID, -1); err != nil {
-					return err
-				}
+				moemoepoint.Award(comment.UserID, -1, moemoepoint.ReasonLiked,
+					moemoepoint.Ref("galgame_comment", commentID),
+					moemoepoint.KeyNonce(moemoepoint.ReasonLiked, moemoepoint.Ref("galgame_comment", commentID)))
 			}
 		}
 		return nil
