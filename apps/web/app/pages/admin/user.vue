@@ -19,7 +19,10 @@ const handleSearch = async () => {
   isSearching.value = true
   const res = await kunFetch<{ items: SearchResultUser[]; total: number }>(
     '/search',
-    { method: 'GET', query: { keywords, type: 'user', page: 1, limit: 30 } }
+    // limit must stay <= the /search endpoint cap (SearchRequest max=12),
+    // else the request 400s. Username search rarely needs more; refine the
+    // query for a narrower match.
+    { method: 'GET', query: { keywords, type: 'user', page: 1, limit: 12 } }
   )
   isSearching.value = false
   users.value = res?.items ?? []

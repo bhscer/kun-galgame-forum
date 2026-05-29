@@ -15,6 +15,7 @@
 | `KunFileInput` | [kun-file-input.md](./kun-file-input.md) | v0.4.2 新增，与 useFilePicker + KunUpload 形成三层文件交互 API |
 | `KunDrawer` | [kun-drawer.md](./kun-drawer.md) | v0.5.1 新增；v0.5.2 加 responsive（默认桌面右、手机底） |
 | `KunLightbox` + `KunLightboxGallery` + `KunLightboxGalleryItem` | [kun-lightbox.md](./kun-lightbox.md) | v0.6.0 全面重写：`<dialog>` 底座 + view-transitions + 滑动切图 + 左/右旋按钮 + 工具条按截图重排 + 手势 bug 全清 + dark mode 修复；新增声明式 Gallery/Item 子组件 |
+| `KunDropdown` | [kun-dropdown.md](./kun-dropdown.md) | v0.6.2 新增：click 触发的操作菜单（WAI-ARIA menu button），wrap floating-ui，复用 KunContextMenu item 模型 + 完整键盘导航 |
 
 ## 没单独立文件的组件
 
@@ -23,3 +24,7 @@
 - KunButton / KunChip / KunBadge / KunCard / KunInput / KunTextarea / KunCheckBox / KunSwitch / KunSlider / KunAvatar / KunPopover / KunTooltip / KunDatePicker / KunUpload / KunProgress / KunInfo / KunAlert / KunPagination / KunContextMenu / KunHeader / KunBrand / KunLink / KunDivider / KunIcon / KunCopy
 
 这些组件在 [changelog/](../changelog/) 各版本文件里有具体改动记录。
+
+## KunContent（markdown prose 渲染入口）
+
+`KunContent` 是所有 markdown HTML 的统一渲染组件：DOMPurify sanitize + `kun-prose` class + 注入 DOM 级交互（spoiler 揭示 `useSpoilerContent` / 图片 lightbox `useContentLightbox`）。下游论坛的评论 / 回复 / 正文应统一走 `<KunContent :content="html" />` 而非手搓 `<div class="kun-prose" v-html>` —— 后者拿不到 spoiler + lightbox。详见 [changelog/v0.6.1.md](../changelog/v0.6.1.md)。
