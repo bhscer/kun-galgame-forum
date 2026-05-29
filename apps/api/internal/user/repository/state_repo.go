@@ -74,15 +74,23 @@ func (r *StateRepository) LockForUpdate(tx *gorm.DB, userID int) (*model.KungalU
 	return &s, err
 }
 
-// CheckIn flips daily_check_in to 1 and grants `points` moemoepoint in a
-// single UPDATE. Caller is responsible for rate-limit / once-per-day logic
-// before calling.
-func (r *StateRepository) CheckIn(userID, points int) error {
-	return r.db.Model(&model.KungalUserState{}).Where("user_id = ?", userID).
+// CheckIn atomically records today's check-in and grants `points` moemoepoint,
+// but ONLY when the user hasn't already checked in today (daily_check_in = 0).
+// The conditional WHERE makes it race-safe with no external lock/rate-limiter —
+// concurrent double-clicks can't double-award. Returns whether the check-in was
+// applied (false = already checked in today). daily_check_in is reset to 0 at
+// calendar midnight by the daily cron, so it is the per-day gate.
+func (r *StateRepository) CheckIn(userID, points int) (bool, error) {
+	res := r.db.Model(&model.KungalUserState{}).
+		Where("user_id = ? AND daily_check_in = 0", userID).
 		Updates(map[string]any{
 			"daily_check_in": 1,
 			"moemoepoint":    gorm.Expr("moemoepoint + ?", points),
-		}).Error
+		})
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
 }
 
 // IncrementDailyCounter bumps a single daily_* column by 1; used by image /

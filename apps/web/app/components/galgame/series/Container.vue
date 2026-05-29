@@ -1,17 +1,18 @@
 <script setup lang="ts">
+import { useRouteQuery } from '@vueuse/router'
 import type { UpdateGalgameSeriesPayload } from '../types'
 
-const pageData = reactive({
-  page: 1,
-  limit: 12
-})
+// Page lives in the URL (?page=N) so the list is shareable / survives
+// refresh + back-forward. Default 1 is omitted from the URL. limit is fixed.
+const page = useRouteQuery('page', 1, { mode: 'replace', transform: Number })
+const limit = 12
 
 const { data, status } = await useKunFetch<{
   series: GalgameSeries[]
   total: number
 }>('/galgame-series', {
   method: 'GET',
-  query: pageData
+  query: { page, limit }
 })
 
 const showSeriesModal = ref(false)
@@ -70,9 +71,9 @@ const handleCreateSeries = async (data: UpdateGalgameSeriesPayload) => {
     </div>
 
     <KunPagination
-      v-if="data && data.total > pageData.limit"
-      v-model:current-page="pageData.page"
-      :total-page="Math.ceil(data.total / pageData.limit)"
+      v-if="data && data.total > limit"
+      v-model:current-page="page"
+      :total-page="Math.ceil(data.total / limit)"
       :is-loading="status === 'pending'"
     />
   </KunCard>

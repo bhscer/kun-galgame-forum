@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { watchDebounced } from '@vueuse/core'
+import { useRouteQuery } from '@vueuse/router'
 
-const pageData = reactive({
-  page: 1,
-  limit: 100
-})
+// Page lives in the URL (?page=N) so the list is shareable / survives
+// refresh + back-forward. Default 1 is omitted from the URL. limit is fixed.
+const page = useRouteQuery('page', 1, { mode: 'replace', transform: Number })
+const limit = 100
 
 const { data, status } = await useKunFetch<{
   officials: GalgameOfficialItem[]
   total: number
 }>(`/galgame-official`, {
   method: 'GET',
-  query: pageData
+  query: { page, limit }
 })
 
 const searchResult = ref<GalgameOfficialItem[]>([])
@@ -90,9 +91,9 @@ watchDebounced(
     <KunLoading v-if="isSearching" />
 
     <KunPagination
-      v-if="data && data.total > pageData.limit && !searchQuery.trim()"
-      v-model:current-page="pageData.page"
-      :total-page="Math.ceil(data.total / pageData.limit)"
+      v-if="data && data.total > limit && !searchQuery.trim()"
+      v-model:current-page="page"
+      :total-page="Math.ceil(data.total / limit)"
       :is-loading="status === 'pending'"
     />
   </KunCard>

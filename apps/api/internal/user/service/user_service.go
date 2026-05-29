@@ -114,17 +114,17 @@ func (s *UserService) GetUserProfile(ctx context.Context, userID int) (*dto.User
 // ──────────────────────────────────────────
 
 func (s *UserService) CheckIn(ctx context.Context, userID int) (int, *errors.AppError) {
-	state, err := s.stateRepo.FindByID(userID)
-	if err != nil {
-		return 0, errors.ErrNotFound("未找到用户")
-	}
-	if state.DailyCheckIn != 0 {
-		return 0, errors.ErrBadRequest("您今天已经签到过了")
-	}
-
+	// Atomic once-per-day gate: CheckIn only applies when daily_check_in = 0
+	// (reset at calendar midnight by the daily cron). No read-then-write race
+	// and no external rate limiter — a repeat attempt today simply applies
+	// nothing and we report "已签到".
 	points := rand.IntN(8) // 0-7
-	if err := s.stateRepo.CheckIn(userID, points); err != nil {
+	applied, err := s.stateRepo.CheckIn(userID, points)
+	if err != nil {
 		return 0, errors.ErrInternal("签到失败")
+	}
+	if !applied {
+		return 0, errors.ErrBadRequest("您今天已经签到过了")
 	}
 	return points, nil
 }

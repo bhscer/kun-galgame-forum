@@ -2,7 +2,6 @@ package app
 
 import (
 	"strings"
-	"time"
 
 	"kun-galgame-api/internal/middleware"
 
@@ -32,8 +31,12 @@ func (a *App) setupRoutes() {
 	// User (authenticated, fixed paths — registered before :id to avoid conflicts).
 	// Bio / username / email / ban / delete were here pre-OAuth; all moved to OAuth.
 	userAuth := middleware.Auth(a.Redis, a.OAuthClient)
-	checkInRL := middleware.RateLimit(a.Redis, "checkin", 1, 24*time.Hour)
-	api.Post("/user/check-in", userAuth, checkInRL, a.UserHandler.CheckIn)
+	// No rate limiter: the once-per-day gate is the `daily_check_in` flag
+	// (reset at calendar midnight by the daily cron) enforced atomically in
+	// StateRepository.CheckIn. A 24h-rolling rate limiter here used to block
+	// legitimate next-day check-ins (its window spilled past midnight) and
+	// masked the real "已签到" message with a generic "操作过于频繁" 400.
+	api.Post("/user/check-in", userAuth, a.UserHandler.CheckIn)
 	api.Get("/user/status", userAuth, a.UserHandler.GetStatus)
 
 	// Self-edit endpoints — proxy to OAuth /auth/me family, the session-
