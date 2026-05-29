@@ -17,11 +17,10 @@ func TestToWikiPath(t *testing.T) {
 		{"tag revert", "/api/galgame-tag/5/revert", "/tag/5/revert"},
 		{"official revisions list", "/api/galgame-official/9/revisions", "/official/9/revisions"},
 		{"engine revert", "/api/galgame-engine/2/revert", "/engine/2/revert"},
-		// Note: galgame-series intentionally has no revision routes —
-		// series membership changes live in galgame-side revisions, so
-		// the per-series revision panel doesn't exist. path_mapper still
-		// supports the mapping if a downstream re-introduces it, but no
-		// route registration calls into it from kungal anymore.
+		// Series revisions are now wired too (name/alias/description edits;
+		// membership changes still live in galgame-side revisions).
+		{"series revisions list", "/api/galgame-series/4/revisions", "/series/4/revisions"},
+		{"series revert", "/api/galgame-series/4/revert", "/series/4/revert"},
 
 		// Regression: existing top-level endpoints on the SAME entities
 		// must keep the bare single-word path (we only namespace revs).

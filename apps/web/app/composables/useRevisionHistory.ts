@@ -23,12 +23,18 @@
 // galgame (kungal handler) but snake_case verbatim for taxonomies
 // (ProxyGet) — `Revision` is normalised to a shared shape for the UI.
 
-// Series intentionally excluded: per K-PR series-revision design note,
-// membership changes are written as galgame-side revisions (each
-// affected galgame gets a `series_id` change record), so a per-series
-// revision history would always be empty/misleading. The /galgame-series/:id
-// page therefore does not mount the revision panel.
-export type RevisionEntity = 'galgame' | 'tag' | 'official' | 'engine'
+// All four taxonomy entities (tag / official / engine / series) support
+// revision history. Series surfaces only its own name/alias/description
+// edits — membership changes (a galgame joining/leaving) are recorded as
+// galgame-side revisions, not here — but that's still useful history, so
+// series is included (an earlier version excluded it; that decision is
+// removed).
+export type RevisionEntity =
+  | 'galgame'
+  | 'tag'
+  | 'official'
+  | 'engine'
+  | 'series'
 
 export interface GalgameRevisionListItem {
   id: number
@@ -119,22 +125,32 @@ export const useRevisionHistory = (
   const items = computed<GalgameRevisionListItem[]>(() => {
     const d = data.value
     if (!d) return []
-    if (Array.isArray(d)) {
-      return d.map((r) => ({
+    // Response may be a bare array (older wiki passthrough) or {items,total}
+    // (galgame history + the hydrated taxonomy endpoint). Normalise EITHER
+    // shape, and defensively fabricate a user stub for any row that lacks an
+    // embedded `user` (a raw snake_case wiki row) — otherwise the list
+    // renderer throws on `rev.user.name`.
+    const rows = (Array.isArray(d) ? d : (d.items ?? [])) as Array<
+      GalgameRevisionListItem & Partial<WikiTaxonomyRevisionRow>
+    >
+    return rows.map((r) => {
+      if (r.user) {
+        return r as GalgameRevisionListItem
+      }
+      return {
         id: r.id,
         revision: r.revision,
         action: r.action,
         note: r.note ?? '',
-        isMinor: false,
+        isMinor: r.isMinor ?? false,
         created: r.created,
         user: {
           id: r.user_id ?? 0,
           name: r.user_id ? `#${r.user_id}` : '',
           avatar: ''
         } as KunUser
-      }))
-    }
-    return d.items ?? []
+      }
+    })
   })
 
   const total = computed(() => {
@@ -181,34 +197,47 @@ export const useRevisionHistory = (
         if (res) diffCache[rev] = res
         return res ?? null
       }
-      // taxonomy: fetch the picked revision + current state (= latest
-      // revision in the list — assumes list page 1 has it). Build a
-      // diff by comparing the full snapshots; changed_keys = every
-      // key whose JSON representation differs.
-      const target = await kunFetch<{ snapshot: Record<string, unknown> }>(
-        ep.value.rev(rev),
-        { method: 'GET' }
-      )
+      // taxonomy: no server-side diff endpoint, so synthesise "what THIS
+      // revision changed" = this revision's snapshot vs the PREVIOUS
+      // revision's snapshot (the next-older entry in the newest-first list).
+      //
+      // The previous code compared against the LATEST revision instead, so
+      // clicking the newest (or the only) revision diffed a snapshot against
+      // itself → always "无字段变化". The wiki already reports `changed_fields`
+      // per revision, so we trust that for the changed-key set (it's the
+      // authoritative "what changed here", and avoids flagging every field as
+      // new on the first revision where there's no prior snapshot); we fall
+      // back to a snapshot compare if it's absent.
+      const target = await kunFetch<{
+        snapshot?: Record<string, unknown>
+        changed_fields?: string[]
+      }>(ep.value.rev(rev), { method: 'GET' })
       if (!target) return null
-      const latestRev = items.value[0]?.revision ?? rev
-      const latest =
-        latestRev === rev
-          ? target
-          : await kunFetch<{ snapshot: Record<string, unknown> }>(
-              ep.value.rev(latestRev),
-              { method: 'GET' }
-            )
-      if (!latest) return null
-      const oldSnap = target.snapshot ?? {}
-      const newSnap = latest.snapshot ?? {}
-      const allKeys = new Set([
-        ...Object.keys(oldSnap),
-        ...Object.keys(newSnap)
-      ])
+      const newSnap = target.snapshot ?? {}
+
+      const idx = items.value.findIndex((it) => it.revision === rev)
+      const prevItem = idx >= 0 ? items.value[idx + 1] : undefined
+      const prevRev = prevItem ? prevItem.revision : null
+      let oldSnap: Record<string, unknown> = {}
+      if (prevRev !== null) {
+        const prev = await kunFetch<{ snapshot?: Record<string, unknown> }>(
+          ep.value.rev(prevRev),
+          { method: 'GET' }
+        )
+        oldSnap = prev?.snapshot ?? {}
+      }
+
       const changed_keys: Record<string, boolean> = {}
-      for (const k of allKeys) {
-        if (JSON.stringify(oldSnap[k]) !== JSON.stringify(newSnap[k])) {
-          changed_keys[k] = true
+      if (target.changed_fields?.length) {
+        for (const k of target.changed_fields) changed_keys[k] = true
+      } else {
+        for (const k of new Set([
+          ...Object.keys(oldSnap),
+          ...Object.keys(newSnap)
+        ])) {
+          if (JSON.stringify(oldSnap[k]) !== JSON.stringify(newSnap[k])) {
+            changed_keys[k] = true
+          }
         }
       }
       const diff = { changed_keys, old: oldSnap, new: newSnap }

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"time"
 
 	"kun-galgame-api/internal/middleware"
@@ -352,23 +353,26 @@ func (a *App) setupRoutes() {
 	authed.Post("/galgame-engine", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
 	authed.Delete("/galgame-engine/:id", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
 
-	// U3 taxonomy revisions + revert (K-PR5). ToWikiPath has a
-	// suffix-aware rule that keeps these under the /galgame/<entity>/
-	// namespace on the wiki side; the bare prefix mapping
-	// (/galgame-tag → /tag) does NOT apply here.
-	// GETs are public — list + single revision snapshot. POST revert
-	// is authed; wiki gates creator/admin authorization.
+	// U3 taxonomy revisions + revert (K-PR5). ToWikiPath's kebab prefix
+	// rewrite (/galgame-tag → /tag, /galgame-series → /series) maps these
+	// to the wiki's per-entity revision endpoints.
 	//
-	// `galgame-series` is intentionally excluded — series membership
-	// changes are recorded as galgame-side revisions (each affected
-	// galgame gets its own `series_id` change), so a per-series
-	// revision feed would be empty / misleading. The /galgame-series/:id
-	// page does not mount the revision panel and these proxy routes
-	// would be unreachable from the UI. Re-add only if a downstream
-	// brings the panel back.
-	for _, ent := range []string{"galgame-tag", "galgame-official", "galgame-engine"} {
-		api.Get("/"+ent+"/:id/revisions", a.GalgameWikiHandler.ProxyGet)
-		api.Get("/"+ent+"/:id/revisions/:rev", a.GalgameWikiHandler.ProxyGet)
+	// Revision GETs forward the caller's bearer (via optAuth) — the wiki
+	// gates taxonomy revision history behind auth (02-revisions §"后端透传
+	// Bearer 代理"), so a token-less GET 401's for everyone.
+	//
+	// All four entities (tag / official / engine / series) are included.
+	// Series only surfaces its own name/alias/description edits — membership
+	// changes (a galgame joining/leaving) are recorded as galgame-side
+	// revisions — but that is still useful history, so it is no longer
+	// excluded (the prior exclusion was a stale earlier-version decision).
+	for _, ent := range []string{"galgame-tag", "galgame-official", "galgame-engine", "galgame-series"} {
+		wikiEnt := strings.TrimPrefix(ent, "galgame-")
+		// LIST is hydrated (real user name/avatar, camelCase {items,total});
+		// the single-revision snapshot stays a raw proxy (the FE diff builder
+		// consumes the wiki's verbatim snake_case snapshot).
+		optAuth.Get("/"+ent+"/:id/revisions", a.GalgameWikiHandler.GetTaxonomyRevisions(wikiEnt))
+		optAuth.Get("/"+ent+"/:id/revisions/:rev", a.GalgameWikiHandler.ProxyGetWithToken)
 		authed.Post("/"+ent+"/:id/revert", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
 	}
 	authed.Post("/galgame-series", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))

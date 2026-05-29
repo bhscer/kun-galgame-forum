@@ -104,7 +104,13 @@ const handleDeleteSeries = async () => {
             </span>
           </div>
 
-          <div class="flex justify-end gap-1">
+          <div class="flex flex-wrap justify-end gap-1">
+            <GalgameRevisionModal
+              entity="series"
+              :id="data.id"
+              :entity-label="`系列「${data.name}」`"
+              :can-revert="role >= 2"
+            />
             <KunButton
               v-if="role > 2"
               variant="light"

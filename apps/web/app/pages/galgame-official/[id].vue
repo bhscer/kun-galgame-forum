@@ -163,16 +163,24 @@ if (data.value) {
               {{ a }}
             </KunChip>
           </div>
-          <div v-if="role >= 2" class="flex justify-end gap-2">
-            <KunButton @click="openEditOfficialModal">编辑会社</KunButton>
-            <KunButton
-              variant="flat"
-              color="danger"
-              :loading="isDeleting"
-              @click="handleDeleteOfficial"
-            >
-              删除会社
-            </KunButton>
+          <div class="flex flex-wrap justify-end gap-2">
+            <GalgameRevisionModal
+              entity="official"
+              :id="officialId"
+              :entity-label="`会社「${data.name}」`"
+              :can-revert="role >= 2"
+            />
+            <template v-if="role >= 2">
+              <KunButton @click="openEditOfficialModal">编辑会社</KunButton>
+              <KunButton
+                variant="flat"
+                color="danger"
+                :loading="isDeleting"
+                @click="handleDeleteOfficial"
+              >
+                删除会社
+              </KunButton>
+            </template>
           </div>
         </div>
       </template>
@@ -202,13 +210,6 @@ if (data.value) {
     <KunNull
       v-if="!data.galgameCount"
       :description="`${data.name} 会社下暂无 Galgame`"
-    />
-
-    <GalgameRevisionList
-      entity="official"
-      :id="officialId"
-      :entity-label="`会社「${data.name}」`"
-      :can-revert="role >= 2"
     />
   </KunCard>
 </template>

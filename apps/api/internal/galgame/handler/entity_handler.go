@@ -87,7 +87,7 @@ func (h *EntityHandler) GetOfficialDetail(c *fiber.Ctx) error {
 	detail, appErr := h.officialService.GetDetail(
 		c.Context(),
 		c.Params("name"),
-		collectQueryWithRenames(c, entityDetailRenames("officialId", "official_id")),
+		normalizeTaxonomySortField(collectQueryWithRenames(c, entityDetailRenames("officialId", "official_id"))),
 		utils.IsSFW(c),
 	)
 	if appErr != nil {
@@ -114,7 +114,7 @@ func (h *EntityHandler) GetEngineDetail(c *fiber.Ctx) error {
 	detail, appErr := h.engineService.GetDetail(
 		c.Context(),
 		c.Params("name"),
-		collectQueryWithRenames(c, entityDetailRenames("engineId", "engine_id")),
+		normalizeTaxonomySortField(collectQueryWithRenames(c, entityDetailRenames("engineId", "engine_id"))),
 		utils.IsSFW(c),
 	)
 	if appErr != nil {
@@ -159,7 +159,7 @@ func (h *EntityHandler) GetTagDetail(c *fiber.Ctx) error {
 	detail, appErr := h.tagService.GetDetail(
 		c.Context(),
 		c.Params("name"),
-		collectQueryWithRenames(c, entityDetailRenames("tagId", "tag_id")),
+		normalizeTaxonomySortField(collectQueryWithRenames(c, entityDetailRenames("tagId", "tag_id"))),
 		utils.IsSFW(c),
 	)
 	if appErr != nil {
@@ -213,4 +213,35 @@ func entityDetailRenames(idFrom, idTo string) map[string]string {
 		"sortField": "sort_field",
 		"sortOrder": "sort_order",
 	}
+}
+
+// wikiTaxonomySortFields is the closed set of sort_field values the wiki
+// taxonomy detail endpoints (/tag, /official, /engine) accept — see
+// docs/galgame_wiki/04-taxonomy.md.
+var wikiTaxonomySortFields = map[string]bool{
+	"created":              true,
+	"updated":              true,
+	"view":                 true,
+	"resource_update_time": true,
+	"release_date":         true,
+}
+
+// normalizeTaxonomySortField rewrites the FE's sort_field VALUE to one the
+// wiki taxonomy endpoint understands. The detail pages reuse useGalgameFilters
+// (shared with the local /galgame list), whose default `time` (= local
+// "updated order") and `rating` (Bayesian, a kungal-local-only sort) values
+// the wiki does NOT accept — it 500s on them, which broke the whole detail
+// page on first load (default sortField=time). Map `time` to the documented
+// `resource_update_time` and fold any other unsupported value (e.g. `rating`)
+// to it as well, so a stray sort never takes the page down. Empty is left as
+// is (the wiki applies its own default).
+func normalizeTaxonomySortField(q url.Values) url.Values {
+	sf := q.Get("sort_field")
+	if sf == "" {
+		return q
+	}
+	if !wikiTaxonomySortFields[sf] {
+		q.Set("sort_field", "resource_update_time")
+	}
+	return q
 }

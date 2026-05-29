@@ -76,7 +76,7 @@ const handleRevert = async (rev: number) => {
 </script>
 
 <template>
-  <div class="flex flex-col space-y-3" v-if="items.length || status === 'pending'">
+  <div class="flex flex-col space-y-3">
     <KunHeader
       name="版本历史"
       description="该实体的所有更改历史(创建 / 编辑 / 合并 / 回滚等)"
@@ -84,6 +84,11 @@ const handleRevert = async (rev: number) => {
     />
 
     <KunLoading v-if="status === 'pending'" />
+
+    <KunNull
+      v-else-if="!items.length"
+      description="暂无编辑历史记录"
+    />
 
     <div
       v-for="rev in items"

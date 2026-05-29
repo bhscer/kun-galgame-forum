@@ -34,6 +34,36 @@ func (h *WikiHandler) ProxyGet(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"code": 0, "message": "成功", "data": data})
 }
 
+// ProxyGetWithToken forwards a GET to wiki WITH the caller's session OAuth
+// token (attached by OptionalAuth — empty for anonymous callers). Needed for
+// endpoints the wiki gates behind auth even on read (taxonomy revision
+// history), where the plain token-less ProxyGet 401s.
+func (h *WikiHandler) ProxyGetWithToken(c *fiber.Ctx) error {
+	token := middleware.GetAccessToken(c)
+	data, appErr := h.wikiService.ProxyGetWithToken(c.Context(), c.Path(), token, collectQuery(c))
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return c.JSON(fiber.Map{"code": 0, "message": "成功", "data": data})
+}
+
+// GetTaxonomyRevisions returns a handler that lists a taxonomy entity's
+// revision history, hydrated (real user name/avatar). `entity` is the wiki
+// resource name (tag/official/engine), bound per-route. Token forwarded via
+// OptionalAuth (the wiki gates these GETs behind auth).
+func (h *WikiHandler) GetTaxonomyRevisions(entity string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		token := middleware.GetAccessToken(c)
+		page, appErr := h.wikiService.GetTaxonomyRevisions(
+			c.Context(), entity, c.Params("id"), token, collectQuery(c),
+		)
+		if appErr != nil {
+			return response.Error(c, appErr)
+		}
+		return response.Paginated(c, page.Items, page.Total)
+	}
+}
+
 // ProxyWriteWithToken returns a Fiber handler that forwards a POST/PUT/DELETE
 // to wiki with the session-stored OAuth access token. The token is taken
 // from the Redis session (attached by middleware.Auth) — NOT from a

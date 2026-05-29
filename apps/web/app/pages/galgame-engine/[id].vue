@@ -143,16 +143,24 @@ if (data.value) {
               {{ a }}
             </KunChip>
           </div>
-          <div v-if="role >= 2" class="flex justify-end gap-2">
-            <KunButton @click="openEditEngineModal">编辑引擎</KunButton>
-            <KunButton
-              variant="flat"
-              color="danger"
-              :loading="isDeleting"
-              @click="handleDeleteEngine"
-            >
-              删除引擎
-            </KunButton>
+          <div class="flex flex-wrap justify-end gap-2">
+            <GalgameRevisionModal
+              entity="engine"
+              :id="engineId"
+              :entity-label="`引擎「${data.name}」`"
+              :can-revert="role >= 2"
+            />
+            <template v-if="role >= 2">
+              <KunButton @click="openEditEngineModal">编辑引擎</KunButton>
+              <KunButton
+                variant="flat"
+                color="danger"
+                :loading="isDeleting"
+                @click="handleDeleteEngine"
+              >
+                删除引擎
+              </KunButton>
+            </template>
           </div>
         </div>
       </template>
@@ -180,13 +188,6 @@ if (data.value) {
     <KunNull
       v-if="!data.galgameCount"
       :description="`${data.name} 引擎下暂无 Galgame`"
-    />
-
-    <GalgameRevisionList
-      entity="engine"
-      :id="engineId"
-      :entity-label="`引擎「${data.name}」`"
-      :can-revert="role >= 2"
     />
   </KunCard>
 </template>

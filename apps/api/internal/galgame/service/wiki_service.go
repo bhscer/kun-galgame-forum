@@ -90,6 +90,62 @@ func (s *WikiService) ProxyGet(
 	return s.wikiClient.Get(ctx, client.ToWikiPath(gatewayPath), query)
 }
 
+// GetTaxonomyRevisions lists a taxonomy entity's (tag/official/engine)
+// revision history, hydrating each row's user_id into a full user object —
+// exactly like GetGalgameHistory does for galgame revisions, so the FE sees
+// one camelCase {items,total} shape with a real name/avatar instead of a raw
+// snake_case wiki row (whose missing `user` field otherwise crashed the list
+// renderer). `entity` is the wiki resource name (tag/official/engine); the
+// bearer is forwarded because the wiki gates these GETs behind auth.
+func (s *WikiService) GetTaxonomyRevisions(
+	ctx context.Context,
+	entity, id, token string,
+	query url.Values,
+) (*dto.GalgameRevisionListPage, *errors.AppError) {
+	data, appErr := s.wikiClient.GetWithToken(ctx, "/"+entity+"/"+id+"/revisions", token, query)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	var parsed wikiRevisionListResp
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return &dto.GalgameRevisionListPage{Items: []dto.GalgameRevision{}, Total: 0}, nil
+	}
+
+	ids := make([]int, len(parsed.Items))
+	for i, r := range parsed.Items {
+		ids[i] = r.UserID
+	}
+	userMap := s.userClient.Hydrate(ctx, ids)
+
+	items := make([]dto.GalgameRevision, len(parsed.Items))
+	for i, r := range parsed.Items {
+		items[i] = dto.GalgameRevision{
+			ID:       r.ID,
+			Revision: r.Revision,
+			Action:   r.Action,
+			Note:     r.Note,
+			User:     userBriefToDTO(userMap[r.UserID]),
+			IsMinor:  r.IsMinor,
+			Created:  r.Created,
+		}
+	}
+	return &dto.GalgameRevisionListPage{Items: items, Total: parsed.Total}, nil
+}
+
+// ProxyGetWithToken is ProxyGet but forwards the caller's wiki bearer token
+// (empty = anonymous). Used by the taxonomy revision-history GETs: the wiki
+// gates `/tag|official|engine/:id/revisions` behind auth (per the 02-revisions
+// "后端透传 Bearer 代理" contract), so a token-less ProxyGet 401s for everyone.
+// Empty token still works for any endpoint the wiki actually serves publicly.
+func (s *WikiService) ProxyGetWithToken(
+	ctx context.Context,
+	gatewayPath, token string,
+	query url.Values,
+) (json.RawMessage, *errors.AppError) {
+	return s.wikiClient.GetWithToken(ctx, client.ToWikiPath(gatewayPath), token, query)
+}
+
 // ProxyWrite forwards a write request (POST/PUT/DELETE) with OAuth token.
 //
 // contentType is the original Content-Type from the gateway request — kept

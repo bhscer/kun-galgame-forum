@@ -1,9 +1,8 @@
 <script setup lang="ts">
-// Series detail intentionally does NOT show revision history — series
-// membership changes are recorded as galgame-side revisions (each
-// affected galgame gets its own `series_id` change), so a per-series
-// revision feed would be empty/misleading. See K-PR series-revision
-// design note for context.
+// Series detail shows revision history (the "编辑历史" button in
+// GalgameSeriesDetail) — its name/alias/description edits. Membership
+// changes (a galgame joining/leaving) are recorded as galgame-side
+// revisions, so they show on each galgame's history rather than here.
 const route = useRoute()
 
 const seriesId = computed(() => {

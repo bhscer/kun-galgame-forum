@@ -119,8 +119,16 @@ if (data.value) {
               {{ a }}
             </KunChip>
           </div>
-          <div v-if="role > 2" class="flex justify-end">
-            <KunButton @click="openEditTagModal">编辑标签</KunButton>
+          <div class="flex flex-wrap justify-end gap-2">
+            <GalgameRevisionModal
+              entity="tag"
+              :id="tagId"
+              :entity-label="`标签「${data.name}」`"
+              :can-revert="role >= 2"
+            />
+            <KunButton v-if="role > 2" @click="openEditTagModal">
+              编辑标签
+            </KunButton>
           </div>
         </div>
       </template>
