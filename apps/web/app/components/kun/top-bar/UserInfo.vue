@@ -1,10 +1,29 @@
 <script setup lang="ts">
-const { id, name, moemoepoint, isCheckIn } = storeToRefs(usePersistUserStore())
-const { messageStatus } = storeToRefs(useTempSettingStore())
+// Emitted whenever a menu item is activated so the parent popover (Avatar.vue)
+// can dismiss itself — KunPopover stays open on inside-clicks by design.
+const emit = defineEmits<{ close: [] }>()
+
+const { id, name, moemoepoint, role, isCheckIn } = storeToRefs(
+  usePersistUserStore()
+)
+const { messageStatus, showKUNGalgameMoemoepointLog } = storeToRefs(
+  useTempSettingStore()
+)
 
 const isShowMessageDot = computed(() => messageStatus.value === 'new')
+// role > 1 = 管理员 / 版主 (the /admin route is server-gated too; this just
+// hides the entry from regular users, matching moyu's isModerator check).
+const isAdmin = computed(() => role.value > 1)
+
+// Opens the 萌萌点明细 modal, which is mounted at the stable Avatar.vue level
+// (this menu lives inside a popover that unmounts on click-away).
+const openMoemoepointLog = () => {
+  emit('close')
+  showKUNGalgameMoemoepointLog.value = true
+}
 
 const handleCheckIn = async () => {
+  emit('close')
   isCheckIn.value = true
 
   const result = await kunFetch<number>('/user/check-in', {
@@ -30,6 +49,7 @@ const handleCheckIn = async () => {
 }
 
 const logOut = async () => {
+  emit('close')
   const res = await useComponentMessageStore().alert('您确定退出登录吗？')
   if (res) {
     useMessage(10110, 'success')
@@ -40,65 +60,90 @@ const logOut = async () => {
 </script>
 
 <template>
-  <div class="flex w-30 flex-col gap-2 p-2">
-    <div class="flex flex-col items-center gap-1">
-      <p class="font-lg">{{ name }}</p>
-      <p class="flex items-center justify-between gap-1 font-bold">
-        <KunIcon class="icon text-secondary" name="lucide:lollipop" />
-        <span class="text-secondary">{{ moemoepoint }}</span>
-      </p>
+  <div class="flex flex-col gap-1">
+    <div class="px-2 py-1">
+      <p class="truncate font-semibold">{{ name }}</p>
     </div>
 
-    <div class="func flex flex-col">
-      <KunButton
-        variant="light"
-        class-name="text-base p-1 text-foreground"
-        :href="`/user/${id}/info`"
-      >
-        个人主页
-      </KunButton>
+    <!-- 萌萌点 row doubles as the entry to the 明细 modal: "🍭 萌萌点 …… 8888 >"
+         guides the user to click to view the full ledger. -->
+    <button
+      type="button"
+      class="hover:bg-default-100 flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm transition-colors"
+      @click="openMoemoepointLog"
+    >
+      <span class="flex items-center gap-2">
+        <KunIcon class="text-secondary size-4" name="lucide:lollipop" />
+        萌萌点
+      </span>
+      <span class="flex items-center gap-1">
+        <span class="text-secondary font-bold tabular-nums">
+          {{ moemoepoint }}
+        </span>
+        <KunIcon class="text-foreground/40 size-4" name="lucide:chevron-right" />
+      </span>
+    </button>
 
-      <KunButton
-        variant="light"
-        class-name="text-base p-1 text-foreground"
-        href="/message"
-      >
-        我的消息
-        <span
-          v-if="isShowMessageDot"
-          class="bg-secondary-500 absolute right-1 bottom-3 size-2 rounded-full"
-        />
-      </KunButton>
+    <NuxtLink
+      :to="`/user/${id}/info`"
+      class="hover:bg-default-100 flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors"
+      @click="emit('close')"
+    >
+      <KunIcon class="size-4" name="lucide:user-round" />
+      个人主页
+    </NuxtLink>
 
-      <KunButton
-        variant="light"
-        class-name="text-base p-1 text-foreground"
-        href="/admin/overview"
-      >
-        管理系统
-      </KunButton>
+    <NuxtLink
+      to="/message"
+      class="hover:bg-default-100 flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors"
+      @click="emit('close')"
+    >
+      <KunIcon class="size-4" name="lucide:mail" />
+      我的消息
+      <span
+        v-if="isShowMessageDot"
+        class="bg-secondary-500 ml-auto size-2 rounded-full"
+      />
+    </NuxtLink>
 
-      <KunButton
-        variant="light"
-        color="secondary"
-        v-if="!isCheckIn"
-        @click="handleCheckIn"
-        class-name="text-base p-1"
-      >
+    <NuxtLink
+      v-if="isAdmin"
+      to="/admin/overview"
+      class="hover:bg-default-100 flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors"
+      @click="emit('close')"
+    >
+      <KunIcon class="size-4" name="lucide:shield-check" />
+      管理系统
+    </NuxtLink>
+
+    <KunButton
+      v-if="!isCheckIn"
+      variant="light"
+      color="secondary"
+      size="sm"
+      :full-width="true"
+      rounded="md"
+      class-name="justify-between"
+      @click="handleCheckIn"
+    >
+      <span class="flex items-center gap-2">
+        <KunIcon class="size-4" name="lucide:calendar-check" />
         每日签到
-        <span
-          class="bg-secondary-500 absolute right-1 bottom-3 size-2 rounded-full"
-        />
-      </KunButton>
+      </span>
+      <KunIcon class="text-secondary-500 size-5" name="lucide:sparkles" />
+    </KunButton>
 
-      <KunButton
-        variant="light"
-        color="danger"
-        class-name="text-base p-1 hover:bg-danger hover:text-white text-foreground"
-        @click="logOut"
-      >
-        退出登录
-      </KunButton>
-    </div>
+    <KunButton
+      variant="light"
+      color="danger"
+      size="sm"
+      :full-width="true"
+      rounded="md"
+      class-name="justify-start"
+      @click="logOut"
+    >
+      <KunIcon class="size-4" name="lucide:log-out" />
+      退出登录
+    </KunButton>
   </div>
 </template>

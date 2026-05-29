@@ -371,6 +371,55 @@ func (c *Client) GetMoemoepoint(ctx context.Context, userID int) (int, error) {
 	return out.Balance, nil
 }
 
+// MoemoepointLogEntry is the s2s slim view of one ledger row from
+// GET /users/:id/moemoepoint/log (06-moemoepoint.md §3.2). `note` and
+// `actor_user_id` are intentionally absent from the s2s view (they may carry
+// admin penalty notes), so they're omitted here too.
+type MoemoepointLogEntry struct {
+	ID        int64  `json:"id"`
+	Delta     int    `json:"delta"`
+	Reason    string `json:"reason"`
+	SourceApp string `json:"source_app"`
+	Ref       string `json:"ref"`
+	CreatedAt string `json:"created_at"`
+}
+
+// MoemoepointLogPage is one page of the ledger as OAuth returns it
+// (data = {items, has_more}). HasMore drives cursor pagination without an
+// extra empty fetch.
+type MoemoepointLogPage struct {
+	Items   []MoemoepointLogEntry `json:"items"`
+	HasMore bool                  `json:"has_more"`
+}
+
+// MoemoepointLog pulls one page of a user's unified moemoepoint ledger from
+// OAuth (06 §3.2). Cursor pagination: beforeID=0 fetches the newest page, then
+// pass the last returned entry's ID for older pages. reason="" = no filter.
+func (c *Client) MoemoepointLog(
+	ctx context.Context,
+	userID, limit, beforeID int,
+	reason string,
+) (MoemoepointLogPage, error) {
+	q := url.Values{}
+	q.Set("limit", strconv.Itoa(limit))
+	if beforeID > 0 {
+		q.Set("before_id", strconv.Itoa(beforeID))
+	}
+	if reason != "" {
+		q.Set("reason", reason)
+	}
+	endpoint := fmt.Sprintf("%s/users/%d/moemoepoint/log?%s", c.cfg.BaseURL, userID, q.Encode())
+
+	var page MoemoepointLogPage
+	if err := c.do(ctx, "GET", endpoint, &page); err != nil {
+		return MoemoepointLogPage{}, err
+	}
+	if page.Items == nil {
+		page.Items = []MoemoepointLogEntry{}
+	}
+	return page, nil
+}
+
 // cacheStore writes the batch result into hot + miss caches.
 func (c *Client) cacheStore(bd batchData, now time.Time) {
 	hotExp := now.Add(c.hotTTL)

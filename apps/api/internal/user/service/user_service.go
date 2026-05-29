@@ -138,6 +138,22 @@ func (s *UserService) CheckIn(ctx context.Context, userID int) (int, *errors.App
 	return points, nil
 }
 
+// GetMoemoepointLog returns one cursor-paginated page of the user's unified
+// moemoepoint ledger, proxied from OAuth (the single source). The ledger spans
+// ALL sites (a like earned on moyu shows up here too), since the balance is
+// unified. Scoped to the caller — the handler passes the session user's id.
+func (s *UserService) GetMoemoepointLog(
+	ctx context.Context,
+	userID, limit, beforeID int,
+	reason string,
+) (userclient.MoemoepointLogPage, *errors.AppError) {
+	page, err := s.userClient.MoemoepointLog(ctx, userID, limit, beforeID, reason)
+	if err != nil {
+		return userclient.MoemoepointLogPage{}, errors.ErrInternal("获取萌萌点明细失败")
+	}
+	return page, nil
+}
+
 func (s *UserService) GetUserStatus(ctx context.Context, userID int) (*dto.UserStatusResponse, *errors.AppError) {
 	// A freshly-registered user may not have a state row yet (the
 	// callback flow creates it lazily). Treat that case as zero-state

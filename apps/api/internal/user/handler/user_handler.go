@@ -77,6 +77,28 @@ func (h *UserHandler) GetStatus(c *fiber.Ctx) error {
 	return response.OK(c, status)
 }
 
+// GetMoemoepointLog returns the session user's unified moemoepoint ledger
+// (cursor-paginated, newest first). Scoped to the caller — there is no :id
+// param, so a user can only read their OWN ledger.
+// GET /api/user/moemoepoint/log?limit=&before_id=&reason=
+func (h *UserHandler) GetMoemoepointLog(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	limit := c.QueryInt("limit", 20)
+	if limit < 1 || limit > 50 {
+		limit = 20
+	}
+	beforeID := max(c.QueryInt("before_id", 0), 0)
+	page, appErr := h.userService.GetMoemoepointLog(
+		c.Context(), user.ID, limit, beforeID, c.Query("reason"))
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, page)
+}
+
 // GetFloatingCard returns lightweight user info for hover card.
 // GET /api/user/:userID/floating — target user is read from ?userId=N (legacy).
 func (h *UserHandler) GetFloatingCard(c *fiber.Ctx) error {

@@ -17,5 +17,6 @@ export interface TempSettingStore {
   showKUNGalgameUserPanel: boolean
 
   showKUNGalgameMessageBox: boolean
+  showKUNGalgameMoemoepointLog: boolean
   messageStatus: MessageStatus
 }

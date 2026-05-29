@@ -38,6 +38,8 @@ func (a *App) setupRoutes() {
 	// masked the real "已签到" message with a generic "操作过于频繁" 400.
 	api.Post("/user/check-in", userAuth, a.UserHandler.CheckIn)
 	api.Get("/user/status", userAuth, a.UserHandler.GetStatus)
+	// Unified moemoepoint ledger (own only) — fixed path, before /user/:id.
+	api.Get("/user/moemoepoint/log", userAuth, a.UserHandler.GetMoemoepointLog)
 
 	// Self-edit endpoints — proxy to OAuth /auth/me family, the session-
 	// stored bearer is attached inside each handler. See

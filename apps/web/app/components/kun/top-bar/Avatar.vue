@@ -11,6 +11,11 @@ const { showKUNGalgamePanel, messageStatus } = storeToRefs(
 // by OAuth account-center anyway.
 const isAuthModalOpen = ref(false)
 
+// KunPopover stays open on inside-clicks by design (it's a generic overlay).
+// For this menu we want item clicks to dismiss it, so we hold a ref and call
+// the exposed close() when UserInfo signals an item was activated.
+const userMenu = ref<{ close: () => void } | null>(null)
+
 const onKeydown = async (event: KeyboardEvent) => {
   if (event.ctrlKey && event.key.toLowerCase() === 'k') {
     event.preventDefault()
@@ -59,7 +64,7 @@ const statusClasses = computed(() => {
       <KunIcon name="lucide:settings" />
     </KunButton>
 
-    <KunPopover position="bottom-end">
+    <KunPopover ref="userMenu" position="bottom-end" inner-class="p-2 min-w-60">
       <template v-if="id" #trigger>
         <div>
           <KunAvatar
@@ -75,7 +80,7 @@ const statusClasses = computed(() => {
         </div>
       </template>
 
-      <LazyKunTopBarUserInfo />
+      <LazyKunTopBarUserInfo @close="userMenu?.close()" />
     </KunPopover>
 
     <template v-if="!id">
@@ -89,6 +94,11 @@ const statusClasses = computed(() => {
     </template>
 
     <KunAuthModal v-model="isAuthModalOpen" />
+
+    <!-- 萌萌点明细 modal — mounted here (not inside the avatar popover, which
+         v-if-unmounts its content on click-away). Self-binds to the temp
+         store flag set by the menu in UserInfo.vue. -->
+    <LazyKunTopBarMoemoepointLog v-if="id" />
   </div>
 </template>
 

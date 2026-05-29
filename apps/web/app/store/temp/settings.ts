@@ -13,6 +13,8 @@ export const useTempSettingStore = defineStore(
       ref<TempSettingStore['showKUNGalgameUserPanel']>(false)
     const showKUNGalgameMessageBox =
       ref<TempSettingStore['showKUNGalgameMessageBox']>(false)
+    const showKUNGalgameMoemoepointLog =
+      ref<TempSettingStore['showKUNGalgameMoemoepointLog']>(false)
     const messageStatus = ref<TempSettingStore['messageStatus']>('offline')
 
     const reset = () => {
@@ -20,6 +22,7 @@ export const useTempSettingStore = defineStore(
       showKUNGalgamePanel.value = false
       showKUNGalgameUserPanel.value = false
       showKUNGalgameMessageBox.value = false
+      showKUNGalgameMoemoepointLog.value = false
     }
 
     return {
@@ -27,6 +30,7 @@ export const useTempSettingStore = defineStore(
       showKUNGalgamePanel,
       showKUNGalgameUserPanel,
       showKUNGalgameMessageBox,
+      showKUNGalgameMoemoepointLog,
       messageStatus,
       reset
     }
