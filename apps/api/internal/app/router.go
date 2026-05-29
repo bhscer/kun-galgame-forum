@@ -399,9 +399,12 @@ func (a *App) setupRoutes() {
 	admin.Get("/admin/overview/all", a.AdminOverviewHandler.GetOverview)
 	admin.Get("/admin/overview/stats", a.AdminOverviewHandler.GetStats)
 
-	// Website settings (register toggle, etc.) and user management
-	// (ban / delete / list / search) are owned by the OAuth admin UI
-	// post-migration — kungal no longer brokers identity or register ops.
+	// Content moderation: kungal no longer brokers identity (account
+	// ban/delete/register all live in the OAuth admin UI), but it DOES own
+	// every piece of content a user publishes here — so an admin can preview
+	// and one-shot purge a spam user's entire kungal footprint.
+	admin.Get("/admin/user/:id/content-stats", a.AdminPurgeHandler.GetUserContentStats)
+	admin.Delete("/admin/user/:id/content", a.AdminPurgeHandler.PurgeUserContent)
 
 	// Galgame admin (role >= 2): wiki submission review queue +
 	// approve/decline/ban actions. Wiki requires admin/moderator on these

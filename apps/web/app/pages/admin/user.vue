@@ -1,99 +1,59 @@
 <script setup lang="ts">
 import { watchDebounced } from '@vueuse/core'
 
-useKunDisableSeo('用户管理')
+useKunDisableSeo('用户内容管理')
 
-const pageData = reactive({
-  page: 1,
-  limit: 100
-})
-
-const { data, status } = await useKunFetch<AdminUserList>('/admin/user', {
-  query: pageData
-})
-
-const searchResult = ref<AdminUser[]>([])
+// Account details (ban / delete / profile) live in the OAuth admin UI now.
+// This page only manages the CONTENT a user has published on kungal — find
+// a user, then purge everything they posted here (for spam / ad accounts).
 const searchQuery = ref('')
+const users = ref<SearchResultUser[]>([])
 const isSearching = ref(false)
-const displayUsers = computed<AdminUser[]>(() =>
-  searchQuery.value.trim()
-    ? searchResult.value
-    : data.value
-      ? data.value.users
-      : []
-)
 
 const handleSearch = async () => {
-  if (!searchQuery.value.trim()) {
-    searchResult.value = []
+  const keywords = searchQuery.value.trim()
+  if (!keywords) {
+    users.value = []
     return
   }
   isSearching.value = true
-  const res = await kunFetch<AdminUser[]>('/admin/user/search', {
-    method: 'GET',
-    query: { q: searchQuery.value.split(' ') }
-  })
+  const res = await kunFetch<{ items: SearchResultUser[]; total: number }>(
+    '/search',
+    { method: 'GET', query: { keywords, type: 'user', page: 1, limit: 30 } }
+  )
   isSearching.value = false
-
-  searchResult.value = res ?? []
+  users.value = res?.items ?? []
 }
 
-watchDebounced(
-  () => searchQuery.value,
-  () => {
-    handleSearch()
-  },
-  { debounce: 500, maxWait: 1000 }
-)
+watchDebounced(() => searchQuery.value, handleSearch, {
+  debounce: 500,
+  maxWait: 1000
+})
 </script>
 
 <template>
-  <KunCard
-    v-if="data"
-    :is-hoverable="false"
-    :is-transparent="false"
-  >
+  <KunCard :is-hoverable="false" :is-transparent="false">
     <KunHeader
-      name="用户管理"
-      description="您可以在此处管理所有的网站用户, 有时会有广告或者发真人色情的用户, 这时直接将该用户删除即可, 目前的管理系统仅临时使用, 非必要请不要删除用户"
+      name="用户内容管理"
+      description="账号本身的封禁 / 删除已迁移至 OAuth 管理后台。此处用于管理用户在本站发布的内容: 搜索用户后, 可一键清除其在 kungal 的全部内容 (话题 / 回复 / 评论 / 评分 / 资源 / 网站 / 工具及一切互动), 主要用于清理广告与 spam 账号。单条内容的编辑与删除请直接在对应页面操作。"
     >
       <template #endContent>
-        <div class="space-y-3">
-          <KunInput
-            v-model="searchQuery"
-            type="text"
-            placeholder="输入用户名以搜索用户"
-          />
-
-          <div class="text-default-600 mt-4 flex items-center gap-4 text-sm">
-            <span v-if="!searchQuery.trim()">
-              {{ `总计 ${data?.total || 0} 个用户` }}
-            </span>
-            <span v-else>{{ `搜索结果: ${searchResult.length} 个用户` }}</span>
-          </div>
-        </div>
+        <KunInput
+          v-model="searchQuery"
+          type="text"
+          placeholder="输入用户名以搜索用户"
+        />
       </template>
     </KunHeader>
 
     <div class="mt-6 flex flex-col gap-3">
-      <AdminUserCard
-        v-for="(user, index) in displayUsers"
-        :key="index"
-        :user="user"
-      />
+      <AdminUserCard v-for="user in users" :key="user.id" :user="user" />
     </div>
 
-    <KunNull
-      v-if="!isSearching && !displayUsers.length && searchQuery.trim()"
-    />
-
     <KunLoading v-if="isSearching" />
-
-    <KunPagination
-      v-if="data.total > pageData.limit && !searchQuery.trim()"
-      v-model:current-page="pageData.page"
-      :total-page="Math.ceil(data.total / pageData.limit)"
-      :is-loading="status === 'pending'"
+    <KunNull
+      v-if="!isSearching && !users.length && searchQuery.trim()"
+      description="未找到匹配的用户"
     />
   </KunCard>
 </template>

@@ -1,91 +1,119 @@
 <script setup lang="ts">
-import { KUN_USER_STATUS_MAP } from '~/constants/user'
-
 const props = defineProps<{
-  user: AdminUser
+  user: SearchResultUser
 }>()
 
+const STAT_LABELS: { key: keyof AdminUserContentStats; label: string }[] = [
+  { key: 'topics', label: '话题' },
+  { key: 'replies', label: '回复' },
+  { key: 'topicComments', label: '话题评论' },
+  { key: 'galgameComments', label: 'Galgame 评论' },
+  { key: 'ratings', label: '评分' },
+  { key: 'ratingComments', label: '评分评论' },
+  { key: 'resources', label: '资源' },
+  { key: 'websites', label: '网站' },
+  { key: 'websiteComments', label: '网站评论' },
+  { key: 'toolsets', label: '工具' },
+  { key: 'toolsetResources', label: '工具资源' },
+  { key: 'toolsetComments', label: '工具评论' },
+  { key: 'interactions', label: '互动' }
+]
+
+const stats = ref<AdminUserContentStats | null>(null)
 const isLoading = ref(false)
+const purged = ref(false)
 
-const handleDeleteUser = async () => {
-  const res = await useComponentMessageStore().alert(
-    `要永久删除用户 ${props.user.name} 吗`,
-    '严重注意! 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨 该操作会彻底删除用户, 删除用户发布的话题, 评论, Galgame, Galgame 资源, 删除用户的一切存在, 不可撤销, 您真的要删除吗, 这个操作只是为了针对广告和违法用户存在的, 非必要请勿使用'
-  )
-  if (!res) {
-    return
-  }
-
+const loadStats = async () => {
   isLoading.value = true
-
-  await kunFetch(`/user/${props.user.id}`, {
-    method: 'DELETE'
-  })
-
+  stats.value =
+    (await kunFetch<AdminUserContentStats>(
+      `/admin/user/${props.user.id}/content-stats`
+    )) ?? null
   isLoading.value = false
 }
 
-const handleBanUser = async () => {
-  const res = await useComponentMessageStore().alert(
-    `要 ${props.user.status ? '解封' : '封禁'} 用户 ${props.user.name} 吗`,
-    props.user.status
-      ? '解封将恢复该用户的所有操作权限'
-      : '封禁将禁止该用户在本论坛进行任何操作, 可以解封'
+const handlePurge = async () => {
+  if (!stats.value || !stats.value.total) {
+    return
+  }
+  const s = stats.value
+  const confirmed = await useComponentMessageStore().alert(
+    `确认清除用户 ${props.user.name} 的全部内容吗`,
+    `🚨 将永久删除该用户在本站的 ${s.total} 项内容: 话题 ${s.topics} / 回复 ${s.replies} / 话题评论 ${s.topicComments} / Galgame 评论 ${s.galgameComments} / 评分 ${s.ratings} / 资源 ${s.resources} / 网站 ${s.websites} / 工具 ${s.toolsets} / 互动 ${s.interactions} 等。此操作不可撤销, 仅用于清理广告与 spam 账号, 请谨慎使用!`
   )
-  if (!res) {
+  if (!confirmed) {
     return
   }
 
   isLoading.value = true
-
-  await kunFetch(`/user/${props.user.id}/ban`, {
-    method: 'PUT',
-    body: { status: props.user.status ? 0 : 1 }
-  })
-  useMessage(`${props.user.status ? '解封' : '封禁'} 用户成功`, 'success')
-
+  const deleted = await kunFetch<AdminUserContentStats>(
+    `/admin/user/${props.user.id}/content`,
+    { method: 'DELETE' }
+  )
   isLoading.value = false
+
+  if (deleted) {
+    stats.value = deleted
+    purged.value = true
+    useMessage(`已清除用户 ${props.user.name} 的 ${deleted.total} 项内容`, 'success')
+  }
 }
 </script>
 
 <template>
   <div
-    class="dark:border-default-200 relative flex flex-col gap-3 rounded-lg border border-transparent p-3 backdrop-blur-none transition-all duration-200"
+    class="dark:border-default-200 flex flex-col gap-3 rounded-lg border border-transparent p-3"
   >
-    <div class="flex items-center gap-3">
+    <div class="flex items-center justify-between gap-3">
       <KunUser :user="user" />
-      <KunChip
-        size="xs"
-        :variant="user.status ? 'solid' : 'flat'"
-        :color="user.status ? 'danger' : 'success'"
-      >
-        {{ KUN_USER_STATUS_MAP[user.status] }}
-      </KunChip>
-    </div>
-
-    <div class="mt-2 flex items-center justify-between text-sm">
-      <span class="text-default-700">
-        {{ formatDate(user.created, { isShowYear: true, isPrecise: true }) }}
-      </span>
 
       <KunButton
-        color="danger"
-        @click="handleDeleteUser"
-        :loading="isLoading"
-        :disabled="isLoading"
-      >
-        彻底删除用户
-      </KunButton>
-
-      <KunButton
+        v-if="!stats"
         size="sm"
-        :color="user.status ? 'success' : 'danger'"
-        @click="handleBanUser"
+        variant="flat"
+        @click="loadStats"
         :loading="isLoading"
         :disabled="isLoading"
       >
-        {{ user.status ? '解封' : '封禁' }}
+        查看内容
       </KunButton>
     </div>
+
+    <div v-if="user.bio" class="text-default-500 line-clamp-2 text-sm">
+      {{ user.bio }}
+    </div>
+
+    <template v-if="stats">
+      <div class="flex flex-wrap gap-2 text-sm">
+        <KunChip
+          v-for="item in STAT_LABELS"
+          :key="item.key"
+          size="sm"
+          variant="flat"
+          :color="stats[item.key] ? 'primary' : 'default'"
+        >
+          {{ item.label }} {{ stats[item.key] }}
+        </KunChip>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <span class="text-default-700 text-sm">
+          {{
+            purged
+              ? `已清除 ${stats.total} 项内容`
+              : `共 ${stats.total} 项内容`
+          }}
+        </span>
+
+        <KunButton
+          color="danger"
+          @click="handlePurge"
+          :loading="isLoading"
+          :disabled="isLoading || purged || !stats.total"
+        >
+          一键清除全部内容
+        </KunButton>
+      </div>
+    </template>
   </div>
 </template>

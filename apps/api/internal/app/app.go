@@ -95,6 +95,7 @@ type App struct {
 	MessageHandler             *msgHandler.MessageHandler
 	MessageChatHandler         *msgHandler.ChatHandler
 	AdminOverviewHandler       *adminHandler.OverviewHandler
+	AdminPurgeHandler          *adminHandler.PurgeHandler
 	RankingHandler             *rankingHandler.RankingHandler
 	SectionHandler             *sectionHandler.SectionHandler
 	DocArticleHandler          *docHandler.ArticleHandler
@@ -265,6 +266,7 @@ func New(cfg *config.Config) *App {
 	// Admin
 	adminOverviewRepo := adminRepo.NewOverviewRepository(db)
 	adminOverviewSvc := adminService.NewOverviewService(adminOverviewRepo, gc)
+	adminPurgeSvc := adminService.NewPurgeService(adminRepo.NewPurgeRepository(db))
 
 	// Doc
 	docArticleRepo := docRepo.NewArticleRepository(db)
@@ -304,6 +306,7 @@ func New(cfg *config.Config) *App {
 		MessageHandler:         msgHandler.NewMessageHandler(messageSvc),
 		MessageChatHandler:     msgHandler.NewChatHandler(chatSvc),
 		AdminOverviewHandler:   adminHandler.NewOverviewHandler(adminOverviewSvc),
+		AdminPurgeHandler:      adminHandler.NewPurgeHandler(adminPurgeSvc),
 		RankingHandler:         rankingHandler.NewRankingHandler(rankingService.NewRankingService(rankingRepo.NewRankingRepository(db), gc, uc)),
 		SectionHandler:         sectionHandler.NewSectionHandler(sectionService.NewSectionService(sectionRepo.NewSectionRepository(db), uc)),
 		DocArticleHandler:      docHandler.NewArticleHandler(docArticleSvc),

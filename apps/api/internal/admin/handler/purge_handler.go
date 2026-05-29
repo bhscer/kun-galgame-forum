@@ -1,0 +1,55 @@
+package handler
+
+import (
+	"strconv"
+
+	"kun-galgame-api/internal/admin/service"
+	"kun-galgame-api/internal/middleware"
+	"kun-galgame-api/pkg/errors"
+	"kun-galgame-api/pkg/response"
+
+	"github.com/gofiber/fiber/v2"
+)
+
+type PurgeHandler struct {
+	purgeService *service.PurgeService
+}
+
+func NewPurgeHandler(purgeService *service.PurgeService) *PurgeHandler {
+	return &PurgeHandler{purgeService: purgeService}
+}
+
+// GetUserContentStats previews how much content a user has (for the purge
+// confirmation). GET /api/admin/user/:id/content-stats
+func (h *PurgeHandler) GetUserContentStats(c *fiber.Ctx) error {
+	userID, appErr := parseUserID(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, h.purgeService.GetUserContentStats(userID))
+}
+
+// PurgeUserContent hard-deletes all of a user's kungal content + interactions.
+// DELETE /api/admin/user/:id/content
+func (h *PurgeHandler) PurgeUserContent(c *fiber.Ctx) error {
+	if _, appErr := middleware.MustGetUser(c); appErr != nil {
+		return response.Error(c, appErr)
+	}
+	userID, appErr := parseUserID(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	stats, appErr := h.purgeService.PurgeUserContent(userID)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, stats)
+}
+
+func parseUserID(c *fiber.Ctx) (int, *errors.AppError) {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil || id <= 0 {
+		return 0, errors.ErrBadRequest("非法的用户 ID")
+	}
+	return id, nil
+}
