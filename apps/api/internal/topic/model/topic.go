@@ -215,6 +215,10 @@ type TopicComment struct {
 	UserID       int    `gorm:"column:user_id;not null" json:"user_id"`
 	TargetUserID int    `gorm:"column:target_user_id;not null" json:"target_user_id"`
 
+	// Edited is set only when the author rewrites the content (PUT), so the
+	// UI can show "(编辑于 …)". nil = never edited. See migration 014.
+	Edited *time.Time `gorm:"column:edited" json:"edited"`
+
 	CreatedAt time.Time `gorm:"column:created" json:"created"`
 	UpdatedAt time.Time `gorm:"column:updated" json:"updated"`
 }

@@ -41,6 +41,7 @@ type CommentRow struct {
 	TargetAvatar   string
 	LikeCount      int
 	CreatedAt      time.Time
+	Edited         *time.Time
 }
 
 func (r *CommentRepository) FindCommentsByReplyIDs(replyIDs []int) (map[int][]CommentRow, error) {
@@ -52,7 +53,7 @@ func (r *CommentRepository) FindCommentsByReplyIDs(replyIDs []int) (map[int][]Co
 		Select(`tc.id, tc.topic_reply_id, tc.topic_id, tc.content,
 			tc.user_id, tc.target_user_id,
 			(SELECT COUNT(*) FROM topic_comment_like WHERE topic_comment_id = tc.id) AS like_count,
-			tc.created AS created_at`).
+			tc.created AS created_at, tc.edited`).
 		Where("tc.topic_reply_id IN ?", replyIDs).
 		Order("tc.created ASC").
 		Find(&rows).Error
@@ -91,6 +92,12 @@ func (r *CommentRepository) CountCommentLikes(commentID int) (int64, error) {
 // CreateComment inserts a TopicComment inside the caller tx.
 func (r *CommentRepository) CreateComment(tx *gorm.DB, c *model.TopicComment) error {
 	return tx.Create(c).Error
+}
+
+// UpdateCommentContent updates content + edited timestamp for a comment
+// (mirrors ReplyRepository.UpdateReplyContent).
+func (r *CommentRepository) UpdateCommentContent(tx *gorm.DB, commentID int, fields map[string]any) error {
+	return tx.Model(&model.TopicComment{}).Where("id = ?", commentID).Updates(fields).Error
 }
 
 // FindCommentByIDTx loads a TopicComment inside a transaction.

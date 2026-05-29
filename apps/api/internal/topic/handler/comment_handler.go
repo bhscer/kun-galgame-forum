@@ -48,6 +48,28 @@ func (h *CommentHandler) CreateComment(c *fiber.Ctx) error {
 	return response.OK(c, created)
 }
 
+// UpdateComment lets the author edit their comment's content.
+// PUT /api/topic/:tid/comment
+func (h *CommentHandler) UpdateComment(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	var req dto.UpdateCommentRequest
+	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	updated, appErr := h.commentService.UpdateComment(c.Context(), user.ID, &req)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	// Return the full updated DTO so the FE can replace the comment in place.
+	return response.OK(c, updated)
+}
+
 // ToggleCommentLike toggles like on a comment.
 // PUT /api/topic/:tid/comment/like
 func (h *CommentHandler) ToggleCommentLike(c *fiber.Ctx) error {

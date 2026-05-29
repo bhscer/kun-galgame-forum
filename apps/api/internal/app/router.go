@@ -227,6 +227,7 @@ func (a *App) setupRoutes() {
 
 	// Comment (authenticated)
 	authed.Post("/topic/:tid/comment", a.TopicCommentHandler.CreateComment)
+	authed.Put("/topic/:tid/comment", a.TopicCommentHandler.UpdateComment)
 	authed.Put("/topic/:tid/comment/like", a.TopicCommentHandler.ToggleCommentLike)
 	authed.Delete("/topic/:tid/comment", a.TopicCommentHandler.DeleteComment)
 

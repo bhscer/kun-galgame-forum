@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"kun-galgame-api/internal/constants"
 	"kun-galgame-api/internal/topic/dto"
@@ -94,6 +95,59 @@ func (s *CommentService) CreateComment(
 		IsLiked:    false,
 		LikeCount:  0,
 		Created:    comment.CreatedAt,
+	}, nil
+}
+
+// ──────────────────────────────────────────
+// Update (edit) comment
+// ──────────────────────────────────────────
+
+// UpdateComment lets the AUTHOR rewrite their comment's content and stamps
+// `edited` (drives the "(编辑于 …)" UI). Mirrors ReplyService.UpdateReply:
+// only the author may edit; admins moderate via delete, not edit.
+func (s *CommentService) UpdateComment(
+	ctx context.Context,
+	userID int,
+	req *dto.UpdateCommentRequest,
+) (*dto.TopicCommentResponse, *errors.AppError) {
+	comment, err := s.commentRepo.FindCommentByID(req.CommentID)
+	if err != nil {
+		return nil, errors.ErrNotFound("未找到该评论")
+	}
+	if comment.UserID != userID {
+		return nil, errors.ErrForbidden("您没有权限编辑此评论")
+	}
+
+	now := time.Now()
+	txErr := s.replyRepo.DB().Transaction(func(tx *gorm.DB) error {
+		return s.commentRepo.UpdateCommentContent(tx, req.CommentID, map[string]any{
+			"content": req.Content,
+			"edited":  &now,
+		})
+	})
+	if txErr != nil {
+		return nil, errors.ErrInternal("编辑评论失败")
+	}
+
+	// Refresh the full DTO so the FE can replace the comment in place. The
+	// editor is the author, who can't like their own comment, so isLiked is
+	// always false; like_count is unchanged but re-read to stay exact.
+	likeCount, _ := s.commentRepo.CountCommentLikes(req.CommentID)
+	userMap := s.userClient.Hydrate(ctx, []int{comment.UserID, comment.TargetUserID})
+	author := userMap[comment.UserID]
+	target := userMap[comment.TargetUserID]
+
+	return &dto.TopicCommentResponse{
+		ID:         comment.ID,
+		ReplyID:    comment.TopicReplyID,
+		TopicID:    comment.TopicID,
+		User:       dto.KunUser{ID: author.ID, Name: author.Name, Avatar: author.Avatar},
+		TargetUser: dto.KunUser{ID: target.ID, Name: target.Name, Avatar: target.Avatar},
+		Content:    req.Content,
+		IsLiked:    false,
+		LikeCount:  int(likeCount),
+		Created:    comment.CreatedAt,
+		Edited:     &now,
 	}, nil
 }
 

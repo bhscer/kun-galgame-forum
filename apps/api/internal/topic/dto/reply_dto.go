@@ -91,6 +91,11 @@ type CommentInteractionRequest struct {
 	CommentID int `json:"commentId" validate:"required,min=1"`
 }
 
+type UpdateCommentRequest struct {
+	CommentID int    `json:"commentId" validate:"required,min=1"`
+	Content   string `json:"content" validate:"required,min=1,max=1007"`
+}
+
 // ──────────────────────────────────────────
 // Comment responses
 // ──────────────────────────────────────────
@@ -101,8 +106,9 @@ type TopicCommentResponse struct {
 	TopicID    int       `json:"topicId"`
 	User       KunUser   `json:"user"`
 	TargetUser KunUser   `json:"targetUser"`
-	Content    string    `json:"content"`
-	IsLiked    bool      `json:"isLiked"`
-	LikeCount  int       `json:"likeCount"`
-	Created    time.Time `json:"created"`
+	Content    string     `json:"content"`
+	IsLiked    bool       `json:"isLiked"`
+	LikeCount  int        `json:"likeCount"`
+	Created    time.Time  `json:"created"`
+	Edited     *time.Time `json:"edited"`
 }

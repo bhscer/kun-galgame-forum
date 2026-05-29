@@ -8,4 +8,6 @@ export interface TopicComment {
   isLiked: boolean
   likeCount: number
   created: Date | string
+  // set only when the author edits the comment; drives the "(编辑于 …)" hint
+  edited?: Date | string | null
 }
