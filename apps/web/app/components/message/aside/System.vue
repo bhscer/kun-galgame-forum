@@ -1,7 +1,18 @@
 <script setup lang="ts">
-defineProps<{
+import DOMPurify from 'isomorphic-dompurify'
+
+const props = defineProps<{
   message: MessageSystemMessage
 }>()
+
+// Defense-in-depth: admin/system broadcast content is rendered as HTML, so
+// sanitize before binding to v-html (consistent with SnapshotDiff.vue and
+// moyu's message sinks). Even though the write path is admin-only today, an
+// unsanitized v-html here would be a stored-XSS the moment any user-influenced
+// text reaches a system message.
+const sanitizedContent = computed(() =>
+  DOMPurify.sanitize(props.message.content['zh-cn'] ?? '')
+)
 </script>
 
 <template>
@@ -28,6 +39,6 @@ defineProps<{
       </span>
     </div>
 
-    <div class="leading-8 break-all" v-html="message.content['zh-cn']" />
+    <div class="leading-8 break-all" v-html="sanitizedContent" />
   </div>
 </template>

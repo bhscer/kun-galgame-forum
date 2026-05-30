@@ -5,6 +5,7 @@ import (
 
 	"kun-galgame-api/internal/section/dto"
 	"kun-galgame-api/internal/section/repository"
+	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
 )
 
@@ -23,8 +24,11 @@ func NewSectionService(
 // GetSectionTopics returns topics filtered by section name. Identity is
 // hydrated from OAuth via userclient since the repo no longer joins on the
 // user table; banned authors are dropped from the listing.
-func (s *SectionService) GetSectionTopics(ctx context.Context, req *dto.SectionTopicsRequest) *dto.SectionTopicsResponse {
-	rows, total := s.repo.FindSectionTopics(req.Section, req.SortOrder, req.Page, req.Limit)
+func (s *SectionService) GetSectionTopics(ctx context.Context, req *dto.SectionTopicsRequest) (*dto.SectionTopicsResponse, *errors.AppError) {
+	rows, total, err := s.repo.FindSectionTopics(req.Section, req.SortOrder, req.Page, req.Limit)
+	if err != nil {
+		return nil, errors.ErrInternal("获取板块话题失败")
+	}
 
 	uids := userclient.CollectIDs(rows, func(r repository.SectionTopicRow) int { return r.UserID })
 	userMap := s.userClient.Hydrate(ctx, uids)
@@ -44,13 +48,16 @@ func (s *SectionService) GetSectionTopics(ctx context.Context, req *dto.SectionT
 		})
 	}
 
-	return &dto.SectionTopicsResponse{Topics: items, Total: total}
+	return &dto.SectionTopicsResponse{Topics: items, Total: total}, nil
 }
 
 // GetCategoryStats returns section stats (topic count + view count + latest topic)
 // filtered by category.
-func (s *SectionService) GetCategoryStats(category string) []dto.SectionStat {
-	rows := s.repo.FindCategoryStats(category)
+func (s *SectionService) GetCategoryStats(category string) ([]dto.SectionStat, *errors.AppError) {
+	rows, err := s.repo.FindCategoryStats(category)
+	if err != nil {
+		return nil, errors.ErrInternal("获取板块统计失败")
+	}
 
 	stats := make([]dto.SectionStat, len(rows))
 	for i, r := range rows {
@@ -68,5 +75,5 @@ func (s *SectionService) GetCategoryStats(category string) []dto.SectionStat {
 			}
 		}
 	}
-	return stats
+	return stats, nil
 }

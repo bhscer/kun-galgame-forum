@@ -23,12 +23,9 @@ import (
 //
 // Side effects per type (matches the kungal/wiki integration decision matrix):
 //
-//	approved    +3 moemoepoint to TargetUserID (the submitter).
-//	            Idempotent via Redis SETNX guard so a re-run of the same
-//	            cursor doesn't double-award.
-//	            Also creates the local galgame stub — approved is the moment
-//	            a galgame becomes publicly visible and needs a row to
-//	            anchor the list query.
+//	approved    Creates the local galgame stub (approved is the moment a
+//	            galgame becomes publicly visible and needs a row to anchor the
+//	            list query), then awards +3 moemoepoint to TargetUserID.
 //	banned      Delete the local galgame stub (CASCADE cleans interactions).
 //	            Lazy-loaded stubs from prior likes/comments become orphan
 //	            references after a ban; this cron is what tidies them up.
@@ -39,6 +36,16 @@ import (
 //	            ban-then-unban).
 //
 // galgame=null (hard-deleted) → treated like banned (DELETE stub).
+//
+// Delivery semantics (at-least-once + idempotent = effectively exactly-once):
+// the durable cursor only advances PAST a message once its side effects have
+// landed. applyMessage signals a TRANSIENT failure (DB / OAuth network) by
+// returning retry=true, which holds the cursor so the next tick re-attempts —
+// safe because every side effect is idempotent (OnConflict stub + the STABLE
+// per-message OAuth award key dedups replays). A PERMANENT OAuth rejection is
+// logged and skipped (returns retry=false) so one poison message can't wedge
+// the whole feed. This replaces the old "Redis SETNX before award" guard, which
+// made the award at-MOST-once (a crash between guard-set and award lost the +3).
 type WikiMessageSync struct {
 	wikiClient  *client.GalgameClient
 	galgameRepo *repository.GalgameRepository
@@ -65,11 +72,6 @@ const (
 	// Single global cursor (server-wide), so storing in Redis rather than
 	// a kungal SQL row keeps the cron stateless across restarts.
 	cronCursorKey = "wiki:msg:cron:since"
-
-	// processedGuardTTL is the per-message idempotency window. 30 days is
-	// far larger than the cursor would ever realistically rewind, but
-	// cheap (small Redis keys, no scan).
-	processedGuardTTL = 30 * 24 * time.Hour
 
 	// messagesFeedBatch is the max number of messages requested per page.
 	// Matches the wiki's stated 1000 limit.
@@ -108,11 +110,20 @@ func (s *WikiMessageSync) Run() {
 			return
 		}
 
+		holding := false
 		for _, msg := range feed.Items {
-			s.applyMessage(ctx, msg)
+			if s.applyMessage(ctx, msg) {
+				// Transient failure: hold the cursor BEFORE this message so the
+				// next tick re-fetches from here and retries (idempotent).
+				holding = true
+				break
+			}
 			if msg.ID > maxSeen {
 				maxSeen = msg.ID
 			}
+		}
+		if holding {
+			break
 		}
 
 		if !feed.HasMore || len(feed.Items) == 0 {
@@ -128,62 +139,64 @@ func (s *WikiMessageSync) Run() {
 	}
 }
 
-func (s *WikiMessageSync) applyMessage(ctx context.Context, msg client.WikiMessage) {
-	// Per-message idempotency. Concurrent runs of this cron (e.g. cron tick
-	// during a restart) would otherwise double-award moemoe.
-	guardKey := "wiki:msg:processed:" + strconv.FormatInt(msg.ID, 10)
-	acquired, err := s.rdb.SetNX(ctx, guardKey, "1", processedGuardTTL).Result()
-	if err != nil {
-		slog.Warn("处理 wiki 消息时获取去重锁失败",
-			"msg_id", msg.ID, "error", err)
-		return
-	}
-	if !acquired {
-		return
-	}
-
-	// Hard-deleted galgame: clean any orphan stub.
+// applyMessage applies one wiki feed message's kungal-side side effects.
+// retry=true means a TRANSIENT failure (DB / OAuth network) — the caller holds
+// the cursor and re-attempts next tick; this is safe because every side effect
+// here is idempotent (OnConflict stub, idempotent DeleteLocalStub, and the
+// STABLE per-message OAuth award key). retry=false means done (success, no-op,
+// or a PERMANENT failure already logged — never wedge the feed on poison).
+func (s *WikiMessageSync) applyMessage(_ context.Context, msg client.WikiMessage) (retry bool) {
+	// Hard-deleted galgame: clean any orphan stub. Idempotent.
 	if msg.Galgame == nil {
 		s.galgameRepo.DeleteLocalStub(msg.GalgameID)
-		return
+		return false
 	}
 
 	switch msg.Type {
 	case "approved":
-		// approved is the moment a galgame becomes publicly visible —
-		// seed the kungal stub here so the list query has something to
-		// anchor on. Award the submitter +3 atomically in the same tx
-		// so a partial failure rolls back both.
+		// approved is the moment a galgame becomes publicly visible — seed the
+		// kungal stub (idempotent) so the list query has an anchor.
+		if err := s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
+			return s.galgameRepo.CreateLocalStub(tx, msg.GalgameID)
+		}); err != nil {
+			slog.Warn("approved: 创建本地 stub 失败, 将重试",
+				"msg_id", msg.ID, "gid", msg.GalgameID, "error", err)
+			return true // transient DB — hold cursor
+		}
 		if msg.TargetUserID == nil || *msg.TargetUserID <= 0 {
 			slog.Warn("approved 消息缺少 target_user_id, 仅创建 stub 跳过奖励",
 				"msg_id", msg.ID, "gid", msg.GalgameID)
-			s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
-				s.galgameRepo.CreateLocalStub(tx, msg.GalgameID)
-				return nil
-			})
-			return
+			return false
 		}
-		target := *msg.TargetUserID
-		s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
-			s.galgameRepo.CreateLocalStub(tx, msg.GalgameID)
-			return nil
-		})
-		// Award +3 via OAuth (no local +=). STABLE idempotency key per wiki
-		// message: this is a cron-replayed path (every 10 min), so the key
-		// dedups re-processed messages — a replay never double-awards. See
-		// 06-moemoepoint.md §4.
-		moemoepoint.Award(target, constants.RewardCreateGalgame,
+		// Award +3 via OAuth SYNCHRONOUSLY so we know it landed before the
+		// cursor advances. STABLE per-message key dedups cron replays (a retry
+		// is a safe no-op). Transient failure → hold cursor; permanent OAuth
+		// rejection → log + skip so one poison message can't wedge the feed.
+		if err := moemoepoint.AwardSync(*msg.TargetUserID, constants.RewardCreateGalgame,
 			moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", msg.GalgameID),
-			moemoepoint.Key("wiki_approved", strconv.FormatInt(msg.ID, 10)))
+			moemoepoint.Key("wiki_approved", strconv.FormatInt(msg.ID, 10))); err != nil {
+			if moemoepoint.IsPermanentAwardError(err) {
+				slog.Error("approved: 发奖被 OAuth 永久拒绝, 跳过该消息",
+					"msg_id", msg.ID, "target", *msg.TargetUserID, "error", err)
+				return false
+			}
+			slog.Warn("approved: 发奖瞬时失败, 将重试",
+				"msg_id", msg.ID, "target", *msg.TargetUserID, "error", err)
+			return true
+		}
+		return false
 
 	case "banned":
 		s.galgameRepo.DeleteLocalStub(msg.GalgameID)
+		return false
 
 	case "declined", "unbanned":
 		// No kungal-side action — see type-doc above.
+		return false
 	default:
 		slog.Warn("收到未识别的 wiki 消息类型, 跳过",
 			"type", msg.Type, "msg_id", msg.ID)
+		return false
 	}
 }
 

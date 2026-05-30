@@ -307,6 +307,17 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int) *er
 		if err != nil {
 			return err
 		}
+		// Once-per-user: reject a repeat upvote. The FOR UPDATE lock above
+		// serializes concurrent upvotes by the same user, so this check is
+		// race-safe even without a unique constraint on (topic_id, user_id) —
+		// it stops the unbounded upvote_count inflation + repeated owner credit.
+		upvoted, err := s.topicRepo.HasUserUpvotedTx(tx, userID, topicID)
+		if err != nil {
+			return err
+		}
+		if upvoted {
+			return gorm.ErrDuplicatedKey
+		}
 		if state.Moemoepoint < constants.CostUpvoteSender {
 			return gorm.ErrCheckConstraintViolated
 		}
@@ -333,6 +344,9 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int) *er
 	}
 	if err == gorm.ErrInvalidData {
 		return errors.ErrBadRequest("您不能推自己的话题")
+	}
+	if err == gorm.ErrDuplicatedKey {
+		return errors.ErrBadRequest("您已经推过该话题了")
 	}
 	if err == gorm.ErrCheckConstraintViolated {
 		return errors.ErrBadRequest("萌萌点不足, 推话题需要 7 萌萌点")

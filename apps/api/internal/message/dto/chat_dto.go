@@ -14,7 +14,7 @@ type GetChatHistoryRequest struct {
 // SendChatMessageRequest is the body for POST /api/message/chat/send.
 type SendChatMessageRequest struct {
 	ReceiverID int    `json:"receiverId" validate:"required,min=1"`
-	Content     string `json:"content" validate:"required,min=1,max=1007"`
+	Content     string `json:"content" validate:"required,min=1,max=1000"`
 }
 
 // RecallChatMessageRequest is the body for POST /api/message/chat/recall.

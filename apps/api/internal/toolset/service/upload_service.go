@@ -31,6 +31,12 @@ const (
 	ChunkSize        = 5 * 1024 * 1024        // 5MB
 	UploadTTL        = 3600 * time.Second
 	PresignExpires   = 3600 * time.Second
+
+	// UserDailyUploadLimit is the per-user per-day total upload BYTE budget,
+	// enforced server-side at upload init. Mirrors the frontend hint
+	// apps/web/app/config/upload.ts USER_DAILY_UPLOAD_LIMIT — which, on its
+	// own, a direct API caller could bypass.
+	UserDailyUploadLimit = 100 * 1024 * 1024 // 100MB/day
 )
 
 var allowedArchiveExts = map[string]bool{
@@ -70,6 +76,24 @@ func NewUploadService(s3 *storage.S3Client, rdb *redis.Client, db *gorm.DB) *Upl
 // InitSmall — POST /toolset/:id/upload/small
 // ──────────────────────────────────────────
 
+// checkDailyUploadBudget rejects an upload that would push the user past the
+// daily byte budget. Read against the committed daily total; the per-upload
+// increment happens at Complete with the verified actual size. A missing state
+// row (brand-new user) reads as 0. Soft quota: concurrent inits can each pass
+// before any commits, but the per-file cap bounds the overshoot.
+func (s *UploadService) checkDailyUploadBudget(userID int, incoming int64) *errors.AppError {
+	var state userModel.KungalUserState
+	err := s.db.Select("daily_toolset_upload_bytes").
+		Where("user_id = ?", userID).First(&state).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return errors.ErrInternal("校验上传额度失败")
+	}
+	if state.DailyToolsetUploadBytes+incoming > UserDailyUploadLimit {
+		return errors.ErrBadRequest("超出今日上传额度 (每日 100MB), 请明天再试")
+	}
+	return nil
+}
+
 func (s *UploadService) InitSmall(
 	ctx context.Context,
 	toolsetID, userID int,
@@ -77,6 +101,9 @@ func (s *UploadService) InitSmall(
 ) (*dto.UploadSmallResponse, *errors.AppError) {
 	if req.FileSize > MaxSmallFileSize {
 		return nil, errors.ErrBadRequest("小文件上传大小不能超过 50MB")
+	}
+	if appErr := s.checkDailyUploadBudget(userID, req.FileSize); appErr != nil {
+		return nil, appErr
 	}
 
 	ext, base, appErr := parseArchiveFilename(req.Filename)
@@ -122,6 +149,9 @@ func (s *UploadService) InitLarge(
 ) (*dto.UploadLargeResponse, *errors.AppError) {
 	if req.FileSize > MaxLargeFileSize {
 		return nil, errors.ErrBadRequest("文件大小不能超过 2GB")
+	}
+	if appErr := s.checkDailyUploadBudget(userID, req.FileSize); appErr != nil {
+		return nil, appErr
 	}
 
 	ext, base, appErr := parseArchiveFilename(req.Filename)
@@ -207,18 +237,29 @@ func (s *UploadService) Complete(
 		}
 	}
 
-	// Verify size via HeadObject (best-effort).
+	// Verify size via HeadObject. A mismatch means the client declared a small
+	// size (which passed the per-file + daily-budget checks at init) but
+	// uploaded something larger — reject and delete so the quota can't be
+	// evaded by lying about the size.
 	actualSize, err := s.s3.HeadObject(context.Background(), entry.Key)
 	if err != nil {
+		// Can't verify — fall back to the declared size for accounting.
 		slog.Warn("HeadObject 失败", "key", entry.Key, "error", err)
+		actualSize = entry.FileSize
 	} else if actualSize != entry.FileSize {
-		slog.Warn("文件大小不匹配",
+		slog.Warn("文件大小与声明不符, 拒绝并删除",
 			"expected", entry.FileSize, "actual", actualSize, "key", entry.Key)
+		s.s3.Delete(context.Background(), entry.Key)
+		s.rdb.Del(ctx, cacheKey(req.Salt))
+		return nil, errors.ErrBadRequest("文件大小与声明不符, 上传已被拒绝")
 	}
 
-	// Update daily upload count on the kungal-state table (post-OAuth migration).
+	// Accrue the daily upload count + byte budget on the kungal-state table.
 	s.db.Model(&userModel.KungalUserState{}).Where("user_id = ?", userID).
-		Update("daily_toolset_upload_count", gorm.Expr("daily_toolset_upload_count + 1"))
+		Updates(map[string]any{
+			"daily_toolset_upload_count": gorm.Expr("daily_toolset_upload_count + 1"),
+			"daily_toolset_upload_bytes": gorm.Expr("daily_toolset_upload_bytes + ?", actualSize),
+		})
 
 	// Clean up Redis cache
 	s.rdb.Del(ctx, cacheKey(req.Salt))

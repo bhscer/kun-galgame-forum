@@ -22,6 +22,7 @@ package moemoepoint
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -97,6 +98,52 @@ func (a *Awarder) Award(userID, delta int, reason, ref, idempotencyKey string) {
 	}()
 }
 
+// AwardSync is the SYNCHRONOUS variant of Award for replayable cron paths
+// (notably wiki-approve) that must know whether the OAuth call landed before
+// advancing their durable cursor — otherwise a transient failure would be
+// silently lost (the cron would move past the message and never retry). Same
+// terminal-state contract as Award (NO local +=, mirrors the authoritative
+// balance). Returns the OAuth error on failure so the caller can decide to
+// retry (transient) or skip (permanent, see IsPermanentAwardError). The stable
+// idempotency key makes a later retry a safe no-op (OAuth returns applied=false).
+func (a *Awarder) AwardSync(userID, delta int, reason, ref, idempotencyKey string) error {
+	if a == nil || a.client == nil || userID <= 0 || delta == 0 {
+		return nil
+	}
+	if delta > maxDelta {
+		delta = maxDelta
+	} else if delta < -maxDelta {
+		delta = -maxDelta
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), a.timeout)
+	defer cancel()
+	res, err := a.client.AdjustMoemoepoint(ctx, userID, delta, reason, ref, idempotencyKey)
+	if err != nil {
+		return err
+	}
+	if a.db != nil {
+		if err := a.db.WithContext(ctx).
+			Exec(`UPDATE kungal_user_state SET moemoepoint = ? WHERE user_id = ?`, res.Balance, userID).Error; err != nil {
+			slog.Warn("moemoepoint cache mirror failed",
+				"user_id", userID, "balance", res.Balance, "err", err)
+		}
+	}
+	return nil
+}
+
+// IsPermanentAwardError reports whether an AwardSync error is a definitive OAuth
+// rejection (a business-code envelope: bad/reserved reason, user not found,
+// idempotency-body conflict) rather than a transient network/timeout/5xx. A
+// permanent error must NOT wedge a cron forever — the caller logs and skips it;
+// a transient one should hold the cursor and retry.
+func IsPermanentAwardError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var oerr *userclient.OAuthError
+	return errors.As(err, &oerr)
+}
+
 // maxDelta is the OAuth ±cap (06 §3.1); we clamp-guard locally too.
 const maxDelta = 1_000_000
 
@@ -112,6 +159,11 @@ func SetDefault(a *Awarder) { defaultAwarder = a }
 // Award emits via the package default (no-op if unset). See Awarder.Award.
 func Award(userID, delta int, reason, ref, idempotencyKey string) {
 	defaultAwarder.Award(userID, delta, reason, ref, idempotencyKey)
+}
+
+// AwardSync emits synchronously via the package default. See Awarder.AwardSync.
+func AwardSync(userID, delta int, reason, ref, idempotencyKey string) error {
+	return defaultAwarder.AwardSync(userID, delta, reason, ref, idempotencyKey)
 }
 
 // Key builds a kungal-namespaced idempotency key: "kungal:<part>:<part>:…".

@@ -46,13 +46,15 @@ func (s *CategoryService) Create(req *dto.CreateCategoryRequest) (*model.DocCate
 
 // Update — PUT /doc/category
 func (s *CategoryService) Update(req *dto.UpdateCategoryRequest) *errors.AppError {
-	s.categoryRepo.UpdateFields(req.CategoryID, map[string]any{
+	if err := s.categoryRepo.UpdateFields(req.CategoryID, map[string]any{
 		"slug":        req.Slug,
 		"title":       req.Title,
 		"description": req.Description,
 		"icon":        req.Icon,
 		"sort_order":  req.SortOrder,
-	})
+	}); err != nil {
+		return errors.ErrInternal("更新分类失败")
+	}
 	return nil
 }
 
@@ -68,6 +70,8 @@ func (s *CategoryService) Delete(categoryID int) *errors.AppError {
 			fmt.Sprintf("该分类下还有 %d 篇文章, 请先移动或删除文章后再删除分类", count),
 		)
 	}
-	s.categoryRepo.DeleteByID(categoryID)
+	if err := s.categoryRepo.DeleteByID(categoryID); err != nil {
+		return errors.ErrInternal("删除分类失败")
+	}
 	return nil
 }

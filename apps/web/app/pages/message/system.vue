@@ -7,10 +7,13 @@ useKunSeoMeta({
   title: '系统消息'
 })
 
+// NOTE: /message/admin (GetSystemMessages) returns a fixed order and accepts
+// no sort param, so none is sent here. (The sibling /message endpoint DOES
+// honor `sortOrder` — see notice.vue.) A dead `order: 'desc'` used to live
+// here and silently did nothing.
 const pageData = reactive({
   page: 1,
-  limit: 30,
-  order: 'desc'
+  limit: 30
 })
 
 const { data } = await useKunFetch<MessageSystemMessage[]>('/message/admin', {

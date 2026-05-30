@@ -43,8 +43,8 @@ func (r *CategoryRepository) Create(category *model.DocCategory) error {
 }
 
 // UpdateFields updates arbitrary fields on a category row.
-func (r *CategoryRepository) UpdateFields(id int, updates map[string]any) {
-	r.db.Model(&model.DocCategory{}).Where("id = ?", id).Updates(updates)
+func (r *CategoryRepository) UpdateFields(id int, updates map[string]any) error {
+	return r.db.Model(&model.DocCategory{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // CountArticles returns how many articles reference the given category.
@@ -61,6 +61,6 @@ func (r *CategoryRepository) CountArticles(categoryID int) int64 {
 }
 
 // DeleteByID deletes a category row.
-func (r *CategoryRepository) DeleteByID(id int) {
-	r.db.Delete(&model.DocCategory{}, id)
+func (r *CategoryRepository) DeleteByID(id int) error {
+	return r.db.Delete(&model.DocCategory{}, id).Error
 }

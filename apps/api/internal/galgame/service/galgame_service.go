@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strconv"
 
 	"kun-galgame-api/internal/constants"
@@ -108,8 +109,12 @@ func (s *GalgameService) Create(
 
 	if created.ID > 0 {
 		// Local stub so the galgame appears in kungal's list query. Idempotent
-		// (OnConflict DoNothing), so no row lock needed.
-		s.galgameRepo.CreateLocalStub(s.galgameRepo.DB(), created.ID)
+		// (OnConflict DoNothing), so no row lock needed. Log-only on failure:
+		// the wiki create already succeeded; a missing stub self-heals on the
+		// first interaction (lazy stub) and the approved-cron stub seed.
+		if err := s.galgameRepo.CreateLocalStub(s.galgameRepo.DB(), created.ID); err != nil {
+			slog.Warn("创建本地 galgame stub 失败", "gid", created.ID, "error", err)
+		}
 		// Award +3 via OAuth post-commit. Stable key per galgame → a retried
 		// create can't double-award (no local += to roll back).
 		moemoepoint.Award(userID, constants.RewardCreateGalgame,

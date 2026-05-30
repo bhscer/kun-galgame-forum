@@ -16,6 +16,7 @@ import (
 	"kun-galgame-api/pkg/userclient"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type RatingService struct {
@@ -222,6 +223,15 @@ func (s *RatingService) CreateRating(
 	reward := ratingReward(len(req.ShortSummary))
 
 	txErr := s.ratingRepo.DB().Transaction(func(tx *gorm.DB) error {
+		// Lazy-create the local stub before the rating INSERT. galgame_rating
+		// has an ON DELETE RESTRICT FK to the local galgame stub table, which
+		// is sparse (only created on interactions); rating a galgame nobody
+		// has otherwise touched would FK-violate → opaque 500. Matches the
+		// comment / resource / like / favorite paths.
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).
+			Create(&model.GalgameLocal{ID: req.GalgameID}).Error; err != nil {
+			return err
+		}
 		if err := s.ratingRepo.Create(tx, rating); err != nil {
 			return err
 		}

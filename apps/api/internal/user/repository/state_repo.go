@@ -90,10 +90,12 @@ func (r *StateRepository) ResetDailyCounters() (int64, error) {
 		UPDATE kungal_user_state SET
 			daily_check_in = 0,
 			daily_image_count = 0,
-			daily_toolset_upload_count = 0
+			daily_toolset_upload_count = 0,
+			daily_toolset_upload_bytes = 0
 		WHERE daily_check_in != 0
 		   OR daily_image_count != 0
 		   OR daily_toolset_upload_count != 0
+		   OR daily_toolset_upload_bytes != 0
 	`)
 	return res.RowsAffected, res.Error
 }

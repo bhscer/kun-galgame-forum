@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"kun-galgame-api/internal/infrastructure/storage"
@@ -92,9 +93,11 @@ func (s *ResourceService) CreateResource(
 			return err
 		}
 
-		// Moemoepoint +3
+		// Moemoepoint +3 — stable key per created resource so an HTTP retry
+		// dedups instead of double-awarding.
 		adjustMoemoepoint(tx, userID, 3,
-			moemoepoint.ReasonContentApproved, moemoepoint.Ref("toolset", toolsetID))
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("toolset", toolsetID),
+			moemoepoint.Key("resource_create", strconv.Itoa(resource.ID)))
 
 		// Add contributor (ignore duplicate)
 		s.toolsetRepo.AddContributor(tx, toolsetID, userID)
@@ -183,9 +186,10 @@ func (s *ResourceService) DeleteResource(
 
 	s.resourceRepo.Delete(resource)
 
-	// Moemoepoint -3 on the resource owner
+	// Moemoepoint -3 on the resource owner — stable key per deleted resource.
 	adjustMoemoepoint(s.resourceRepo.DB(), resource.UserID, -3,
-		moemoepoint.ReasonContentRemoved, moemoepoint.Ref("toolset_resource", resource.ID))
+		moemoepoint.ReasonContentRemoved, moemoepoint.Ref("toolset_resource", resource.ID),
+		moemoepoint.Key("resource_delete", strconv.Itoa(resource.ID)))
 
 	return nil
 }
@@ -199,6 +203,6 @@ func (s *ResourceService) DeleteResource(
 // balance into kungal_user_state; async/best-effort, never blocks. `db` is
 // unused (kept for call-style uniformity); the award doesn't touch the caller's
 // transaction.
-func adjustMoemoepoint(_ *gorm.DB, userID, delta int, reason, ref string) {
-	moemoepoint.Award(userID, delta, reason, ref, moemoepoint.KeyNonce(reason, ref))
+func adjustMoemoepoint(_ *gorm.DB, userID, delta int, reason, ref, idempotencyKey string) {
+	moemoepoint.Award(userID, delta, reason, ref, idempotencyKey)
 }

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -140,20 +141,29 @@ func (r *ChatRepository) FindPrivateRoomBetween(uid1, uid2 int) RoomRef {
 // CreatePrivateRoom inserts a new private chat room with both users as
 // participants. Returns the new room (id + name); id will be 0 if creation
 // failed.
-func (r *ChatRepository) CreatePrivateRoom(roomName string, uid1, uid2 int) RoomRef {
-	r.db.Exec(
-		`INSERT INTO chat_room (name, type, created, updated) VALUES (?, 'private', NOW(), NOW())`,
-		roomName,
-	)
+func (r *ChatRepository) CreatePrivateRoom(roomName string, uid1, uid2 int) (RoomRef, error) {
 	var room RoomRef
-	r.db.Raw(`SELECT id, name FROM chat_room WHERE name = ?`, roomName).Scan(&room)
-	if room.ID > 0 {
-		r.db.Exec(
-			`INSERT INTO chat_room_participant (chat_room_id, user_id, created, updated) VALUES (?, ?, NOW(), NOW()), (?, ?, NOW(), NOW())`,
-			room.ID, uid1, room.ID, uid2,
-		)
-	}
-	return room
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(
+			`INSERT INTO chat_room (name, type, created, updated) VALUES (?, 'private', NOW(), NOW())`,
+			roomName,
+		).Error; err != nil {
+			return err
+		}
+		if err := tx.Raw(`SELECT id, name FROM chat_room WHERE name = ?`, roomName).Scan(&room).Error; err != nil {
+			return err
+		}
+		if room.ID > 0 {
+			if err := tx.Exec(
+				`INSERT INTO chat_room_participant (chat_room_id, user_id, created, updated) VALUES (?, ?, NOW(), NOW()), (?, ?, NOW(), NOW())`,
+				room.ID, uid1, room.ID, uid2,
+			).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return room, err
 }
 
 // ──────────────────────────────────────────
@@ -225,29 +235,41 @@ func (r *ChatRepository) IsLatestMessageInRoom(roomID, msgID int) bool {
 
 // MarkMessagesRead inserts (chat_message_id, user_id) rows into
 // chat_message_read_by, ignoring duplicates. A no-op if msgIDs is empty.
-func (r *ChatRepository) MarkMessagesRead(msgIDs []int, userID int) {
-	for _, mid := range msgIDs {
-		r.db.Exec(
-			`INSERT INTO chat_message_read_by (chat_message_id, user_id, created, updated) VALUES (?, ?, NOW(), NOW()) ON CONFLICT DO NOTHING`,
-			mid, userID,
-		)
+// MarkMessagesRead upserts read-receipts for the given messages in ONE
+// multi-row INSERT (was a per-message round-trip in a loop). Errors are
+// returned so the caller can log; read-receipts are non-critical so the
+// caller may choose to continue.
+func (r *ChatRepository) MarkMessagesRead(msgIDs []int, userID int) error {
+	if len(msgIDs) == 0 {
+		return nil
 	}
+	placeholders := make([]string, 0, len(msgIDs))
+	args := make([]any, 0, len(msgIDs)*2)
+	for _, mid := range msgIDs {
+		placeholders = append(placeholders, "(?, ?, NOW(), NOW())")
+		args = append(args, mid, userID)
+	}
+	sql := `INSERT INTO chat_message_read_by (chat_message_id, user_id, created, updated) VALUES ` +
+		strings.Join(placeholders, ", ") + ` ON CONFLICT DO NOTHING`
+	return r.db.Exec(sql, args...).Error
 }
 
-// InsertChatMessage writes a new chat message to chat_message.
-func (r *ChatRepository) InsertChatMessage(roomID int, roomName string, senderID, receiverID int, content string, now time.Time) {
-	r.db.Exec(
+// InsertChatMessage / UpdateRoomLastMessage take an explicit executor (the base
+// db or a tx) and return their error, so the send path can run both in one
+// transaction and surface failures instead of reporting a false "发送成功".
+func (r *ChatRepository) InsertChatMessage(db *gorm.DB, roomID int, roomName string, senderID, receiverID int, content string, now time.Time) error {
+	return db.Exec(
 		`INSERT INTO chat_message (chat_room_id, chatroom_name, sender_id, receiver_id, content, created, updated)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		roomID, roomName, senderID, receiverID, content, now, now,
-	)
+	).Error
 }
 
 // UpdateRoomLastMessage refreshes chat_room.last_message_* fields.
-func (r *ChatRepository) UpdateRoomLastMessage(roomID int, content string, senderID int, senderName string, now time.Time) {
-	r.db.Exec(
+func (r *ChatRepository) UpdateRoomLastMessage(db *gorm.DB, roomID int, content string, senderID int, senderName string, now time.Time) error {
+	return db.Exec(
 		`UPDATE chat_room SET last_message_content = ?, last_message_time = ?,
 		last_message_sender_id = ?, last_message_sender_name = ?, updated = ? WHERE id = ?`,
 		content, now, senderID, senderName, now, roomID,
-	)
+	).Error
 }

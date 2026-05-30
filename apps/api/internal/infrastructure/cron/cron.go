@@ -3,11 +3,18 @@ package cron
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 )
+
+// scheduleTZ pins all cron schedules to a fixed zone so the daily-reset /
+// check-in boundary tracks the users' calendar day, not the host's local TZ
+// (servers commonly run UTC). Without this, "0 0 * * *" fires at host midnight,
+// shifting every user's daily window.
+const scheduleTZ = "Asia/Shanghai"
 
 // Start creates and starts all scheduled tasks. Returns a stop function.
 //
@@ -18,7 +25,12 @@ import (
 // moemoepoint within a normal page-refresh window after admin approves
 // their submission).
 func Start(db *gorm.DB, rdb *redis.Client, wikiMessageSync func()) func() {
-	c := cron.New()
+	loc, err := time.LoadLocation(scheduleTZ)
+	if err != nil {
+		slog.Warn("加载定时任务时区失败, 回退到进程本地时区", "tz", scheduleTZ, "error", err)
+		loc = time.Local
+	}
+	c := cron.New(cron.WithLocation(loc))
 
 	// Daily reset at midnight: clear daily check-in, image count, toolset upload count
 	c.AddFunc("0 0 * * *", func() {
@@ -61,10 +73,12 @@ func resetDaily(db *gorm.DB) {
 		UPDATE kungal_user_state SET
 			daily_check_in = 0,
 			daily_image_count = 0,
-			daily_toolset_upload_count = 0
+			daily_toolset_upload_count = 0,
+			daily_toolset_upload_bytes = 0
 		WHERE daily_check_in != 0
 		   OR daily_image_count != 0
 		   OR daily_toolset_upload_count != 0
+		   OR daily_toolset_upload_bytes != 0
 	`)
 	if result.Error != nil {
 		slog.Error("每日重置失败", "error", result.Error)

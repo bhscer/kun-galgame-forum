@@ -43,9 +43,12 @@ func (r *TagRepository) Create(tag *model.DocTag) error {
 }
 
 // DeleteByID deletes a tag and any related article-tag rows.
-func (r *TagRepository) DeleteByID(id int) {
-	r.db.Where("doc_tag_id = ?", id).Delete(&model.DocArticleTagRelation{})
-	r.db.Delete(&model.DocTag{}, id)
+func (r *TagRepository) DeleteByID(id int) error {
+	if err := r.db.Where("doc_tag_id = ?", id).
+		Delete(&model.DocArticleTagRelation{}).Error; err != nil {
+		return err
+	}
+	return r.db.Delete(&model.DocTag{}, id).Error
 }
 
 // Update applies the provided fields to a tag and returns the refreshed row.

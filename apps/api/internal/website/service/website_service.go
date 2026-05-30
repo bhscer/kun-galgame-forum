@@ -216,7 +216,9 @@ func (s *WebsiteService) Update(req *dto.UpdateWebsiteRequest) *errors.AppError 
 // ──────────────────────────────────────────
 
 func (s *WebsiteService) Delete(websiteID int) *errors.AppError {
-	s.websiteRepo.DeleteByID(websiteID)
+	if err := s.websiteRepo.DeleteByID(websiteID); err != nil {
+		return errors.ErrInternal("删除网站失败")
+	}
 	return nil
 }
 

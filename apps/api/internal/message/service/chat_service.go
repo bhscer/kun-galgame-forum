@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 	"kun-galgame-api/internal/message/repository"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
+
+	"gorm.io/gorm"
 )
 
 type ChatService struct {
@@ -111,14 +114,18 @@ func (s *ChatService) GetChatHistory(
 		return nil, errors.ErrBadRequest("不能给自己发送消息")
 	}
 
-	roomID, roomName := s.findOrCreatePrivateRoom(userID, req.ReceiverID)
+	roomID, roomName, err := s.findOrCreatePrivateRoom(userID, req.ReceiverID)
+	if err != nil {
+		return nil, errors.ErrInternal("查询聊天室失败")
+	}
 	if roomID == 0 {
 		return []dto.ChatMessageItem{}, nil
 	}
 
 	rows := s.chatRepo.FindMessagesByRoom(roomID, roomName, req.Page, req.Limit)
 
-	// Mark messages received (not sent by current user) as read.
+	// Mark messages received (not sent by current user) as read. Read-receipts
+	// are non-critical — log on failure but still return the history.
 	if len(rows) > 0 {
 		msgIDs := make([]int, 0, len(rows))
 		for _, m := range rows {
@@ -126,7 +133,9 @@ func (s *ChatService) GetChatHistory(
 				msgIDs = append(msgIDs, m.ID)
 			}
 		}
-		s.chatRepo.MarkMessagesRead(msgIDs, userID)
+		if err := s.chatRepo.MarkMessagesRead(msgIDs, userID); err != nil {
+			slog.Warn("标记聊天消息已读失败", "user_id", userID, "room_id", roomID, "error", err)
+		}
 	}
 
 	// Hydrate sender identity in one batch.
@@ -170,14 +179,23 @@ func (s *ChatService) SendChatMessage(
 		return errors.ErrBadRequest("不能给自己发送消息")
 	}
 
-	roomID, roomName := s.findOrCreatePrivateRoom(senderUserID, req.ReceiverID)
-	if roomID == 0 {
+	roomID, roomName, err := s.findOrCreatePrivateRoom(senderUserID, req.ReceiverID)
+	if err != nil || roomID == 0 {
 		return errors.ErrInternal("创建聊天室失败")
 	}
 
 	now := time.Now()
-	s.chatRepo.InsertChatMessage(roomID, roomName, senderUserID, req.ReceiverID, req.Content, now)
-	s.chatRepo.UpdateRoomLastMessage(roomID, req.Content, senderUserID, senderName, now)
+	// Atomic: the message insert and the room-preview update either both land
+	// or neither does. Surface the error instead of a false "发送成功".
+	txErr := s.chatRepo.DB().Transaction(func(tx *gorm.DB) error {
+		if err := s.chatRepo.InsertChatMessage(tx, roomID, roomName, senderUserID, req.ReceiverID, req.Content, now); err != nil {
+			return err
+		}
+		return s.chatRepo.UpdateRoomLastMessage(tx, roomID, req.Content, senderUserID, senderName, now)
+	})
+	if txErr != nil {
+		return errors.ErrInternal("发送消息失败")
+	}
 	return nil
 }
 
@@ -220,7 +238,9 @@ func (s *ChatService) RecallMessage(
 			senderName = u.Name
 		}
 		preview := fmt.Sprintf("%s撤回了一条消息", senderName)
-		s.chatRepo.UpdateRoomLastMessage(header.ChatRoomID, preview, userID, senderName, now)
+		if err := s.chatRepo.UpdateRoomLastMessage(s.chatRepo.DB(), header.ChatRoomID, preview, userID, senderName, now); err != nil {
+			slog.Warn("撤回后刷新聊天室预览失败", "room_id", header.ChatRoomID, "error", err)
+		}
 	}
 	return nil
 }
@@ -233,13 +253,16 @@ func (s *ChatService) RecallMessage(
 // between two users, creating it if it doesn't exist. Look-up is by
 // participant table (NOT by generated room name, which may be stale after the
 // OAuth migration changed user IDs).
-func (s *ChatService) findOrCreatePrivateRoom(uid1, uid2 int) (int, string) {
+func (s *ChatService) findOrCreatePrivateRoom(uid1, uid2 int) (int, string, error) {
 	room := s.chatRepo.FindPrivateRoomBetween(uid1, uid2)
 	if room.ID > 0 {
-		return room.ID, room.Name
+		return room.ID, room.Name, nil
 	}
-	newRoom := s.chatRepo.CreatePrivateRoom(generateRoomID(uid1, uid2), uid1, uid2)
-	return newRoom.ID, newRoom.Name
+	newRoom, err := s.chatRepo.CreatePrivateRoom(generateRoomID(uid1, uid2), uid1, uid2)
+	if err != nil {
+		return 0, "", err
+	}
+	return newRoom.ID, newRoom.Name, nil
 }
 
 // generateRoomID produces a deterministic "smaller-larger" name for a private

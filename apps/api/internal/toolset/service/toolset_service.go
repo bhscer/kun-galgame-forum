@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -134,9 +135,10 @@ func (s *ToolsetService) Create(
 		// Creator → contributor
 		s.toolsetRepo.AddContributor(tx, toolset.ID, userID)
 
-		// Moemoepoint +3
+		// Moemoepoint +3 — stable key per created toolset (replay-safe).
 		adjustMoemoepoint(tx, userID, 3,
-			moemoepoint.ReasonContentApproved, moemoepoint.Ref("toolset", toolset.ID))
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("toolset", toolset.ID),
+			moemoepoint.Key("toolset_create", strconv.Itoa(toolset.ID)))
 
 		return nil
 	})
@@ -312,9 +314,10 @@ func (s *ToolsetService) Delete(userID, userRole, id int) *errors.AppError {
 		// Delete toolset itself
 		s.toolsetRepo.DeleteByID(tx, id)
 
-		// Moemoepoint -3 on the owner
+		// Moemoepoint -3 on the owner — stable key per deleted toolset.
 		adjustMoemoepoint(tx, toolset.UserID, -3,
-			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("toolset", id))
+			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("toolset", id),
+			moemoepoint.Key("toolset_delete", strconv.Itoa(id)))
 		return nil
 	})
 	if txErr != nil {

@@ -42,7 +42,9 @@ func (s *TagService) Create(req *dto.CreateTagRequest) (*model.DocTag, *errors.A
 
 // Delete — DELETE /doc/tag
 func (s *TagService) Delete(tagID int) *errors.AppError {
-	s.tagRepo.DeleteByID(tagID)
+	if err := s.tagRepo.DeleteByID(tagID); err != nil {
+		return errors.ErrInternal("删除标签失败")
+	}
 	return nil
 }
 

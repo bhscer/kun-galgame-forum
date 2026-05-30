@@ -59,7 +59,9 @@ func (r *UserContentRepository) FindUserGalgameIDs(userID int, queryType string,
 		return []int{}, 0, nil
 	}
 
-	baseQuery.Count(&total)
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 
 	type idRow struct {
 		ID int `gorm:"column:id"`
@@ -129,7 +131,9 @@ func (r *UserContentRepository) FindUserGalgameComments(
 		return []UserGalgameCommentRow{}, 0, nil
 	}
 
-	baseQuery.Count(&total)
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 
 	var rows []UserGalgameCommentRow
 	err := baseQuery.Order("galgame_comment.created DESC").
@@ -181,7 +185,9 @@ func (r *UserContentRepository) FindUserTopics(userID int, queryType string, pag
 		baseQuery = baseQuery.Where("topic.is_nsfw = false")
 	}
 
-	baseQuery.Count(&total)
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := baseQuery.Order("topic.created DESC").Offset(offset).Limit(limit).Find(&results).Error
 	return results, total, err
 }
@@ -239,7 +245,9 @@ func (r *UserContentRepository) FindUserReplies(userID int, queryType string, pa
 			Where("topic.is_nsfw = false")
 	}
 
-	baseQuery.Count(&total)
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := baseQuery.Order("topic_reply.created DESC").Offset(offset).Limit(limit).Find(&results).Error
 	return results, total, err
 }
@@ -281,7 +289,9 @@ func (r *UserContentRepository) FindUserComments(userID int, queryType string, p
 			Where("topic.is_nsfw = false")
 	}
 
-	baseQuery.Count(&total)
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := baseQuery.Order("topic_comment.created DESC").Offset(offset).Limit(limit).Find(&results).Error
 	return results, total, err
 }
@@ -328,7 +338,9 @@ func (r *UserContentRepository) FindUserResources(userID int, queryType string, 
 		baseQuery = baseQuery.Where("galgame_resource.user_id = ? AND galgame_resource.status = 0", userID)
 	}
 
-	baseQuery.Count(&total)
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := baseQuery.Order("galgame_resource.created DESC").Offset(offset).Limit(limit).Scan(&results).Error
 	return results, total, err
 }
@@ -385,7 +397,9 @@ func (r *UserContentRepository) FindUserRatings(userID int, page, limit int) ([]
 	var results []UserRating
 	var total int64
 
-	r.db.Table("galgame_rating").Where("user_id = ?", userID).Count(&total)
+	if err := r.db.Table("galgame_rating").Where("user_id = ?", userID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 
 	err := r.db.Table("galgame_rating").
 		Select(`galgame_rating.id, galgame_rating.galgame_id, galgame_rating.recommend, galgame_rating.overall, galgame_rating.view,

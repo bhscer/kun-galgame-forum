@@ -487,15 +487,24 @@ func (s *CommentService) UpdateComment(
 func (s *CommentService) ToggleCommentLike(userID, commentID int) *errors.AppError {
 	txErr := s.commentRepo.DB().Transaction(func(tx *gorm.DB) error {
 		var comment model.GalgameComment
-		tx.First(&comment, commentID)
+		if err := tx.First(&comment, commentID).Error; err != nil {
+			return err // not-found → reported as 404 below; no like on a ghost comment
+		}
 
 		var existing model.GalgameCommentLike
 		result := tx.Where("user_id = ? AND galgame_comment_id = ?", userID, commentID).First(&existing)
+		if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+			return result.Error
+		}
 
 		if result.Error == gorm.ErrRecordNotFound {
-			tx.Create(&model.GalgameCommentLike{UserID: userID, CommentID: commentID})
-			tx.Model(&model.GalgameComment{}).Where("id = ?", commentID).
-				Update("like_count", gorm.Expr("like_count + 1"))
+			if err := tx.Create(&model.GalgameCommentLike{UserID: userID, CommentID: commentID}).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&model.GalgameComment{}).Where("id = ?", commentID).
+				Update("like_count", gorm.Expr("like_count + 1")).Error; err != nil {
+				return err
+			}
 			if comment.UserID != userID {
 				moemoepoint.Award(comment.UserID, 1, moemoepoint.ReasonLiked,
 					moemoepoint.Ref("galgame_comment", commentID),
@@ -507,9 +516,13 @@ func (s *CommentService) ToggleCommentLike(userID, commentID int) *errors.AppErr
 				)
 			}
 		} else {
-			tx.Delete(&existing)
-			tx.Model(&model.GalgameComment{}).Where("id = ?", commentID).
-				Update("like_count", gorm.Expr("like_count - 1"))
+			if err := tx.Delete(&existing).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&model.GalgameComment{}).Where("id = ?", commentID).
+				Update("like_count", gorm.Expr("like_count - 1")).Error; err != nil {
+				return err
+			}
 			if comment.UserID != userID {
 				moemoepoint.Award(comment.UserID, -1, moemoepoint.ReasonLiked,
 					moemoepoint.Ref("galgame_comment", commentID),
@@ -519,6 +532,9 @@ func (s *CommentService) ToggleCommentLike(userID, commentID int) *errors.AppErr
 		return nil
 	})
 	if txErr != nil {
+		if txErr == gorm.ErrRecordNotFound {
+			return errors.ErrNotFound("评论不存在")
+		}
 		return errors.ErrInternal("操作失败")
 	}
 

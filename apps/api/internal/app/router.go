@@ -165,7 +165,7 @@ func (a *App) setupRoutes() {
 	// OPTIONAL AUTH routes (public but attach user if logged in)
 	// ════════════════════════════════════════════
 
-	optAuth := api.Group("", middleware.OptionalAuth(a.Redis))
+	optAuth := api.Group("", middleware.OptionalAuth(a.Redis, a.OAuthClient))
 	// Galgame resource list + detail family — all need optionalUID for
 	// the per-row `isLiked` flag (batch query via FindLikedSet on lists,
 	// single query on detail).

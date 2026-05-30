@@ -89,6 +89,15 @@ func (r *TopicRepository) HasUserUpvoted(userID, topicID int) (bool, error) {
 	return count > 0, err
 }
 
+// HasUserUpvotedTx is the in-transaction guard for Upvote: reads within the
+// caller's tx so the once-per-user check is consistent with the FOR UPDATE lock
+// on the user-state row (which serializes concurrent upvotes by the same user).
+func (r *TopicRepository) HasUserUpvotedTx(tx *gorm.DB, userID, topicID int) (bool, error) {
+	var count int64
+	err := tx.Model(&model.TopicUpvote{}).Where("user_id = ? AND topic_id = ?", userID, topicID).Count(&count).Error
+	return count > 0, err
+}
+
 // ──────────────────────────────────────────
 // Daily limit
 // ──────────────────────────────────────────

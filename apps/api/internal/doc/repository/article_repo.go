@@ -93,45 +93,57 @@ func (r *ArticleRepository) UpdateFields(tx *gorm.DB, id int, updates map[string
 }
 
 // DeleteByID deletes an article row.
-func (r *ArticleRepository) DeleteByID(id int) {
-	r.db.Delete(&model.DocArticle{}, id)
+func (r *ArticleRepository) DeleteByID(id int) error {
+	return r.db.Delete(&model.DocArticle{}, id).Error
 }
 
 // ReplaceTagRelations deletes existing tag relations and inserts the new set
 // atomically inside the given tx.
-func (r *ArticleRepository) ReplaceTagRelations(tx *gorm.DB, articleID int, tagIDs []int) {
-	tx.Where("doc_article_id = ?", articleID).Delete(&model.DocArticleTagRelation{})
-	for _, tagID := range tagIDs {
-		tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&model.DocArticleTagRelation{
-			DocArticleID: articleID, DocTagID: tagID,
-		})
+func (r *ArticleRepository) ReplaceTagRelations(tx *gorm.DB, articleID int, tagIDs []int) error {
+	if err := tx.Where("doc_article_id = ?", articleID).
+		Delete(&model.DocArticleTagRelation{}).Error; err != nil {
+		return err
 	}
+	for _, tagID := range tagIDs {
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&model.DocArticleTagRelation{
+			DocArticleID: articleID, DocTagID: tagID,
+		}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // InsertTagRelations inserts tag relations for a newly created article.
-func (r *ArticleRepository) InsertTagRelations(tx *gorm.DB, articleID int, tagIDs []int) {
+func (r *ArticleRepository) InsertTagRelations(tx *gorm.DB, articleID int, tagIDs []int) error {
 	for _, tagID := range tagIDs {
-		tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&model.DocArticleTagRelation{
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&model.DocArticleTagRelation{
 			DocArticleID: articleID, DocTagID: tagID,
-		})
+		}).Error; err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // DeleteTagRelationsByArticleID deletes all tag relations for an article.
-func (r *ArticleRepository) DeleteTagRelationsByArticleID(articleID int) {
-	r.db.Where("doc_article_id = ?", articleID).Delete(&model.DocArticleTagRelation{})
+func (r *ArticleRepository) DeleteTagRelationsByArticleID(articleID int) error {
+	return r.db.Where("doc_article_id = ?", articleID).
+		Delete(&model.DocArticleTagRelation{}).Error
 }
 
 // FindTagIDsByArticleID returns the list of tag IDs attached to an
 // article. Always returns a non-nil slice (empty when no tags) so the
 // JSON response is `[]` rather than `null`.
-func (r *ArticleRepository) FindTagIDsByArticleID(articleID int) []int {
+func (r *ArticleRepository) FindTagIDsByArticleID(articleID int) ([]int, error) {
 	var ids []int
-	r.db.Model(&model.DocArticleTagRelation{}).
+	if err := r.db.Model(&model.DocArticleTagRelation{}).
 		Where("doc_article_id = ?", articleID).
-		Pluck("doc_tag_id", &ids)
-	if ids == nil {
-		return []int{}
+		Pluck("doc_tag_id", &ids).Error; err != nil {
+		return nil, err
 	}
-	return ids
+	if ids == nil {
+		return []int{}, nil
+	}
+	return ids, nil
 }

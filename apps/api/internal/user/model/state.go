@@ -14,6 +14,7 @@ type KungalUserState struct {
 	DailyCheckIn            int       `gorm:"column:daily_check_in;default:0" json:"-"`
 	DailyImageCount         int       `gorm:"column:daily_image_count;default:0" json:"-"`
 	DailyToolsetUploadCount int       `gorm:"column:daily_toolset_upload_count;default:0" json:"-"`
+	DailyToolsetUploadBytes int64     `gorm:"column:daily_toolset_upload_bytes;default:0" json:"-"`
 	CreatedAt               time.Time `gorm:"column:created" json:"created"`
 	UpdatedAt               time.Time `gorm:"column:updated" json:"updated"`
 }

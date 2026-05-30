@@ -52,7 +52,7 @@ type LatestTopicRow struct {
 // FindSectionTopics returns paginated topics for a section plus total count.
 func (r *SectionRepository) FindSectionTopics(
 	section, sortOrder string, page, limit int,
-) (rows []SectionTopicRow, total int64) {
+) (rows []SectionTopicRow, total int64, err error) {
 	query := r.db.Table("topic t").
 		Select(`t.id, t.title, SUBSTRING(t.content, 1, 233) AS content,
 			t.view, t.like_count, t.reply_count, t.status, t.is_nsfw,
@@ -61,19 +61,21 @@ func (r *SectionRepository) FindSectionTopics(
 		Joins("JOIN topic_section ts ON ts.id = tsr.topic_section_id").
 		Where("ts.name = ? AND t.status != 1", section)
 
-	query.Count(&total)
+	if err = query.Count(&total).Error; err != nil {
+		return
+	}
 
-	query.Order("t.created " + sortOrder).
+	err = query.Order("t.created " + sortOrder).
 		Offset((page - 1) * limit).
 		Limit(limit).
-		Find(&rows)
+		Find(&rows).Error
 	return
 }
 
 // FindCategoryStats returns per-section topic count + view count filtered by category.
-func (r *SectionRepository) FindCategoryStats(category string) []SectionStatRow {
+func (r *SectionRepository) FindCategoryStats(category string) ([]SectionStatRow, error) {
 	var rows []SectionStatRow
-	r.db.Raw(`
+	err := r.db.Raw(`
 		SELECT ts.id AS section_id, ts.name AS section_name,
 			COUNT(DISTINCT t.id) AS topic_count,
 			COALESCE(SUM(t.view), 0) AS view_count
@@ -83,8 +85,8 @@ func (r *SectionRepository) FindCategoryStats(category string) []SectionStatRow 
 			AND t.category = ?
 		GROUP BY ts.id, ts.name
 		ORDER BY ts.id
-	`, category).Scan(&rows)
-	return rows
+	`, category).Scan(&rows).Error
+	return rows, err
 }
 
 // FindLatestTopicInSection returns the most recent topic in a section for the given category.

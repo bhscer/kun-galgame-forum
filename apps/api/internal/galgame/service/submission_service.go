@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/url"
 	"strconv"
 
@@ -58,12 +59,13 @@ func (s *SubmissionService) Submit(
 }
 
 // Claim flips a VNDB-source draft (status=2) directly to published
-// (status=0) on the wiki, then in a separate local transaction:
+// (status=0) on the wiki, then runs two best-effort local side effects:
 //   - creates the local stub so the galgame appears in kungal's list query;
-//   - awards the claimer +3 moemoepoint, atomic with a FOR UPDATE lock on
-//     kungal_user_state so concurrent claims by the same user can't both
-//     pass through (the wiki side also makes claim idempotent at the row
-//     level by checking status=2).
+//   - awards the claimer +3 moemoepoint via OAuth.
+//
+// Idempotency does NOT rely on a local lock (there is none): re-claiming is
+// blocked wiki-side (it only accepts status=2), and the OAuth award uses a
+// STABLE key per (galgame, claimer) so even a retried claim can't double-award.
 //
 // Wiki failure → no local side effect runs (correct).
 // Local failure after wiki success → log; the +3 is forfeited but the
@@ -80,7 +82,9 @@ func (s *SubmissionService) Claim(
 	}
 
 	// Local stub so the claimed galgame appears in kungal's list query.
-	s.galgameRepo.CreateLocalStub(s.galgameRepo.DB(), gid)
+	if err := s.galgameRepo.CreateLocalStub(s.galgameRepo.DB(), gid); err != nil {
+		slog.Warn("claim: 创建本地 galgame stub 失败", "gid", gid, "error", err)
+	}
 	// Award +3 via OAuth (no local +=). Stable key per (galgame, claimer) so a
 	// re-claim can't double-award.
 	moemoepoint.Award(userID, constants.RewardCreateGalgame,

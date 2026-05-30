@@ -25,7 +25,10 @@ func (h *SectionHandler) GetSectionTopics(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	resp := h.sectionService.GetSectionTopics(c.Context(), &req)
+	resp, appErr := h.sectionService.GetSectionTopics(c.Context(), &req)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
 	return response.OK(c, fiber.Map{
 		"topics": resp.Topics,
 		"total":  resp.Total,
@@ -39,5 +42,9 @@ func (h *SectionHandler) GetCategories(c *fiber.Ctx) error {
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return response.OK(c, h.sectionService.GetCategoryStats(req.Category))
+	stats, appErr := h.sectionService.GetCategoryStats(req.Category)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, stats)
 }

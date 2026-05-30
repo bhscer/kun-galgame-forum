@@ -155,7 +155,7 @@ func Auth(rdb *redis.Client, oauthClient *oauth.Client) fiber.Handler {
 
 // OptionalAuth is like Auth but does not fail if no session is present.
 // If a valid session exists, UserInfo is attached; otherwise the request proceeds.
-func OptionalAuth(rdb *redis.Client) fiber.Handler {
+func OptionalAuth(rdb *redis.Client, oauthClient *oauth.Client) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := c.Cookies(SessionCookieName)
 		if token == "" {
@@ -171,6 +171,29 @@ func OptionalAuth(rdb *redis.Client) fiber.Handler {
 		var session SessionData
 		if err := json.Unmarshal([]byte(val), &session); err != nil {
 			return c.Next()
+		}
+
+		// Best-effort refresh. optAuth read paths forward the session's OAuth
+		// access token to the wiki service; without a refresh an EXPIRED token
+		// would be forwarded and rejected as anonymous (a logged-in user could
+		// not read their own drafts until some mandatory-Auth request happened
+		// to refresh). Unlike Auth(), failure here is NON-fatal: if the token
+		// can't be refreshed we serve the read as ANONYMOUS rather than 205 —
+		// public reads are unaffected, and we never forward a dead token.
+		const refreshSkew = 30 * time.Second
+		if session.OAuthExpiresAt > 0 &&
+			time.Now().Add(refreshSkew).Unix() > session.OAuthExpiresAt {
+			var refreshErr *errors.AppError
+			lockKey := "refresh_lock:" + token
+			if locked, _ := rdb.SetNX(ctx, lockKey, "1", 15*time.Second).Result(); locked {
+				refreshErr = refreshSession(ctx, rdb, oauthClient, token, &session)
+				rdb.Del(ctx, lockKey)
+			} else {
+				refreshErr = waitForRefresh(ctx, rdb, lockKey, token, &session)
+			}
+			if refreshErr != nil {
+				return c.Next() // serve anonymous; don't forward a stale token
+			}
 		}
 
 		c.Locals(string(UserInfoKey), &session.UserInfo)
@@ -260,6 +283,21 @@ func refreshSession(
 	session.OAuthAccessToken = refreshed.AccessToken
 	session.OAuthRefreshToken = refreshed.RefreshToken
 	session.OAuthExpiresAt = time.Now().Unix() + int64(refreshed.ExpiresIn)
+
+	// Re-derive Role from fresh userinfo so an upstream role change (a demoted
+	// admin / promoted mod) takes effect at the next token refresh instead of
+	// being frozen at login for the whole 7-day session. A ban surfaced here is
+	// enforced immediately; a transient userinfo failure is non-fatal — the
+	// tokens already refreshed, so we keep the previously cached Role.
+	if info, uErr := oauthClient.FetchUserInfo(refreshed.AccessToken); uErr == nil {
+		session.Role = RoleFromOAuthRoles(info.Roles)
+	} else if oauth.IsBanned(uErr) {
+		slog.Warn("刷新后 userinfo 返回账号封禁, 清除 session", "error", uErr)
+		rdb.Del(ctx, SessionKey(token))
+		return errors.ErrAccountBanned()
+	} else {
+		slog.Warn("刷新后拉取 userinfo 失败, 保留旧 Role", "error", uErr)
+	}
 
 	data, mErr := json.Marshal(session)
 	if mErr != nil {

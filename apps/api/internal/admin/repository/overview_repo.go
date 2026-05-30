@@ -30,20 +30,20 @@ type DailyStat struct {
 
 // CountTable returns the row count of a given table. The table name is
 // produced internally by the service and is safe to interpolate.
-func (r *OverviewRepository) CountTable(table string) int64 {
+func (r *OverviewRepository) CountTable(table string) (int64, error) {
 	var count int64
-	r.db.Table(table).Count(&count)
-	return count
+	err := r.db.Table(table).Count(&count).Error
+	return count, err
 }
 
 // DailyCountsSince returns per-day counts for a given table since the given
 // `since` timestamp. The table name is produced internally by the service and
 // is safe to interpolate.
-func (r *OverviewRepository) DailyCountsSince(table string, since any) []DailyStat {
+func (r *OverviewRepository) DailyCountsSince(table string, since any) ([]DailyStat, error) {
 	var stats []DailyStat
-	r.db.Raw(fmt.Sprintf(`
+	err := r.db.Raw(fmt.Sprintf(`
 		SELECT date_trunc('day', created)::date::text AS date, COUNT(*) AS count
 		FROM %s WHERE created >= ? GROUP BY 1 ORDER BY 1
-	`, table), since).Scan(&stats)
-	return stats
+	`, table), since).Scan(&stats).Error
+	return stats, err
 }

@@ -78,9 +78,9 @@ func (r *GalgameRepository) IncrementView(id int) {
 // transition a galgame to a publicly visible status (admin direct create,
 // claim, approved cron event) so it shows up in the kungal list query
 // driven by the local table.
-func (r *GalgameRepository) CreateLocalStub(tx *gorm.DB, galgameID int) {
-	tx.Clauses(clause.OnConflict{DoNothing: true}).
-		Create(&model.GalgameLocal{ID: galgameID})
+func (r *GalgameRepository) CreateLocalStub(tx *gorm.DB, galgameID int) error {
+	return tx.Clauses(clause.OnConflict{DoNothing: true}).
+		Create(&model.GalgameLocal{ID: galgameID}).Error
 }
 
 // EnsureLocalStub idempotently INSERTs a zero-stat row. Called from
@@ -89,9 +89,9 @@ func (r *GalgameRepository) CreateLocalStub(tx *gorm.DB, galgameID int) {
 // (per decision 2 in the kungal/wiki integration plan), so the first
 // interaction must create one or the subsequent counter UPDATE would
 // silently affect 0 rows.
-func (r *GalgameRepository) EnsureLocalStub(tx *gorm.DB, galgameID int) {
-	tx.Clauses(clause.OnConflict{DoNothing: true}).
-		Create(&model.GalgameLocal{ID: galgameID})
+func (r *GalgameRepository) EnsureLocalStub(tx *gorm.DB, galgameID int) error {
+	return tx.Clauses(clause.OnConflict{DoNothing: true}).
+		Create(&model.GalgameLocal{ID: galgameID}).Error
 }
 
 // DeleteLocalStub removes the local row for a galgame and lets CASCADE

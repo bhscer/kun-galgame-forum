@@ -94,10 +94,13 @@ func (r *WebsiteRepository) FindByIDs(ids []int, isSFW bool) []WebsiteListRow {
 	return rows
 }
 
-// FindByDomain returns a single website whose URL contains the given substring.
+// FindByDomain returns the website with exactly this URL. The FE always passes
+// back the full stored url (card.domain is mapped from url), and url has a
+// unique index — so this is an identifier lookup. The previous substring ILIKE
+// could resolve to the WRONG website when one url was a substring of another.
 func (r *WebsiteRepository) FindByDomain(domain string) (*model.GalgameWebsite, error) {
 	var website model.GalgameWebsite
-	if err := r.db.Where("url ILIKE ?", "%"+domain+"%").First(&website).Error; err != nil {
+	if err := r.db.Where("url = ?", domain).First(&website).Error; err != nil {
 		return nil, err
 	}
 	return &website, nil
@@ -123,9 +126,10 @@ func (r *WebsiteRepository) UpdateFields(tx *gorm.DB, id int, updates map[string
 	tx.Model(&model.GalgameWebsite{}).Where("id = ?", id).Updates(updates)
 }
 
-// DeleteByID deletes a website row.
-func (r *WebsiteRepository) DeleteByID(id int) {
-	r.db.Delete(&model.GalgameWebsite{}, id)
+// DeleteByID deletes a website row, returning the DB error so the caller can
+// surface a failure instead of reporting a false "deleted".
+func (r *WebsiteRepository) DeleteByID(id int) error {
+	return r.db.Delete(&model.GalgameWebsite{}, id).Error
 }
 
 // AdjustLikeCount bumps like_count by delta (inside a tx).

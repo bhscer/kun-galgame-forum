@@ -130,6 +130,11 @@ func (s *ArticleService) GetBySlug(slug string) (*dto.ArticleDetailResponse, *er
 	// Bump view asynchronously to preserve the old fire-and-forget behavior.
 	go s.articleRepo.IncrementView(article.ID)
 
+	tagIDs, err := s.articleRepo.FindTagIDsByArticleID(article.ID)
+	if err != nil {
+		return nil, errors.ErrInternal("获取文章标签失败")
+	}
+
 	html, toc := markdown.RenderWithTOC(article.ContentMarkdown)
 
 	var cat dto.ArticleCategoryBrief
@@ -161,7 +166,7 @@ func (s *ArticleService) GetBySlug(slug string) (*dto.ArticleDetailResponse, *er
 		Category:        cat,
 		// Tag IDs let the FE rewrite flow re-populate the tag picker
 		// without a second round-trip. See ArticleDetailResponse.
-		TagIDs:  s.articleRepo.FindTagIDsByArticleID(article.ID),
+		TagIDs:  tagIDs,
 		Created: article.CreatedAt,
 		Updated: article.UpdatedAt,
 	}, nil
@@ -191,8 +196,7 @@ func (s *ArticleService) Create(userID int, req *dto.CreateArticleRequest) (*mod
 		if err := s.articleRepo.Create(tx, &article); err != nil {
 			return err
 		}
-		s.articleRepo.InsertTagRelations(tx, article.ID, req.TagIDs)
-		return nil
+		return s.articleRepo.InsertTagRelations(tx, article.ID, req.TagIDs)
 	})
 	if txErr != nil {
 		return nil, errors.ErrInternal("创建文章失败")
@@ -224,8 +228,7 @@ func (s *ArticleService) Update(req *dto.UpdateArticleRequest) *errors.AppError 
 		if err := s.articleRepo.UpdateFields(tx, req.ArticleID, updates); err != nil {
 			return err
 		}
-		s.articleRepo.ReplaceTagRelations(tx, req.ArticleID, req.TagIDs)
-		return nil
+		return s.articleRepo.ReplaceTagRelations(tx, req.ArticleID, req.TagIDs)
 	})
 	if txErr != nil {
 		return errors.ErrInternal("更新文章失败")
@@ -239,7 +242,11 @@ func (s *ArticleService) Update(req *dto.UpdateArticleRequest) *errors.AppError 
 // ──────────────────────────────────────────
 
 func (s *ArticleService) Delete(articleID int) *errors.AppError {
-	s.articleRepo.DeleteTagRelationsByArticleID(articleID)
-	s.articleRepo.DeleteByID(articleID)
+	if err := s.articleRepo.DeleteTagRelationsByArticleID(articleID); err != nil {
+		return errors.ErrInternal("删除文章失败")
+	}
+	if err := s.articleRepo.DeleteByID(articleID); err != nil {
+		return errors.ErrInternal("删除文章失败")
+	}
 	return nil
 }

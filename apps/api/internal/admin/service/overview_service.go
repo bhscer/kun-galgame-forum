@@ -8,6 +8,7 @@ import (
 	"kun-galgame-api/internal/admin/dto"
 	"kun-galgame-api/internal/admin/repository"
 	galgameClient "kun-galgame-api/internal/galgame/client"
+	"kun-galgame-api/pkg/errors"
 )
 
 // OverviewService produces admin overview/stats responses by combining local
@@ -67,16 +68,20 @@ func wikiModels() []wikiModel {
 // GetOverview — GET /admin/overview/all
 // ──────────────────────────────────────────
 
-func (s *OverviewService) GetOverview(ctx context.Context) []dto.OverviewItem {
+func (s *OverviewService) GetOverview(ctx context.Context) ([]dto.OverviewItem, *errors.AppError) {
 	locals := localModels()
 	wikis := wikiModels()
 
 	items := make([]dto.OverviewItem, 0, len(locals)+len(wikis))
 	for _, m := range locals {
+		count, err := s.overviewRepo.CountTable(m.Table)
+		if err != nil {
+			return nil, errors.ErrInternal("获取统计概览失败")
+		}
 		items = append(items, dto.OverviewItem{
 			Name:  m.Name,
 			Label: m.Label,
-			Count: s.overviewRepo.CountTable(m.Table),
+			Count: count,
 		})
 	}
 
@@ -93,18 +98,26 @@ func (s *OverviewService) GetOverview(ctx context.Context) []dto.OverviewItem {
 		})
 	}
 
-	return items
+	return items, nil
 }
 
 // ──────────────────────────────────────────
 // GetStats — GET /admin/overview/stats
 // ──────────────────────────────────────────
 
-func (s *OverviewService) GetStats(ctx context.Context, days int) []dto.DailyStatRow {
+func (s *OverviewService) GetStats(ctx context.Context, days int) ([]dto.DailyStatRow, *errors.AppError) {
 	if days == 0 {
 		days = 30
 	}
+	// Truncate the lower bound to start-of-day so the oldest bucket is counted
+	// in full. The repo groups by date_trunc('day', created) in the DSN-pinned
+	// Asia/Shanghai zone; a mid-day wall-clock `since` would clip that day's
+	// rows created before "now-of-day", under-counting the oldest bucket.
 	since := time.Now().AddDate(0, 0, -days)
+	if loc, err := time.LoadLocation("Asia/Shanghai"); err == nil {
+		since = since.In(loc)
+	}
+	since = time.Date(since.Year(), since.Month(), since.Day(), 0, 0, 0, 0, since.Location())
 
 	locals := localModels()
 	wikis := wikiModels()
@@ -113,7 +126,10 @@ func (s *OverviewService) GetStats(ctx context.Context, days int) []dto.DailySta
 	dateMap := make(map[string]map[string]int64)
 
 	for _, t := range locals {
-		stats := s.overviewRepo.DailyCountsSince(t.Table, since)
+		stats, err := s.overviewRepo.DailyCountsSince(t.Table, since)
+		if err != nil {
+			return nil, errors.ErrInternal("获取统计数据失败")
+		}
 		for _, row := range stats {
 			if dateMap[row.Date] == nil {
 				dateMap[row.Date] = make(map[string]int64)
@@ -171,5 +187,5 @@ func (s *OverviewService) GetStats(ctx context.Context, days int) []dto.DailySta
 		result[i] = row
 	}
 
-	return result
+	return result, nil
 }
