@@ -46,10 +46,10 @@ const sizeDisplay = computed(() => {
   return formData.size
 })
 
-const onSizeInput = (value: string) => {
+const onSizeInput = (value: string | number) => {
   // s3 mode field is disabled — only user mode writes back to formData.
   if (props.type === 'user') {
-    formData.size = value
+    formData.size = String(value)
   }
 }
 

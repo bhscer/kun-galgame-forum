@@ -35,13 +35,16 @@ const submitEdit = async () => {
     useMessage('请输入评论内容', 'warn')
     return
   }
-  const res = await kunFetch(`/galgame-rating/${props.ratingId}/comment`, {
-    method: 'PUT',
-    body: {
-      galgameRatingCommentId: props.comment.id,
-      content: text
+  const res = await kunFetch<GalgameRatingComment>(
+    `/galgame-rating/${props.ratingId}/comment`,
+    {
+      method: 'PUT',
+      body: {
+        galgameRatingCommentId: props.comment.id,
+        content: text
+      }
     }
-  })
+  )
   if (res) {
     useMessage('更新成功', 'success')
     cancelEdit()

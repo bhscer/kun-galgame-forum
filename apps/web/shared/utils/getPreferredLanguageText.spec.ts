@@ -23,7 +23,14 @@ describe('getPreferredLanguageText', () => {
 
   it('default locale is zh-cn (when caller omits)', () => {
     expect(getPreferredLanguageText(full)).toBe('CN')
-    expect(getPreferredLanguageText({ 'zh-cn': '', 'zh-tw': 'TW' })).toBe('TW')
+    expect(
+      getPreferredLanguageText({
+        'en-us': '',
+        'ja-jp': '',
+        'zh-cn': '',
+        'zh-tw': 'TW'
+      })
+    ).toBe('TW')
   })
 
   it('falls back through the locale-priority chain when picked field empty', () => {

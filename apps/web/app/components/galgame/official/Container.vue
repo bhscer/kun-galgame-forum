@@ -28,13 +28,16 @@ const handleSearch = async () => {
     return
   }
   isSearching.value = true
-  const res = await kunFetch(`/galgame-official/search`, {
-    method: 'GET',
-    query: { q: searchQuery.value.split(' ') }
-  })
+  const res = await kunFetch<GalgameOfficialItem[]>(
+    `/galgame-official/search`,
+    {
+      method: 'GET',
+      query: { q: searchQuery.value.split(' ') }
+    }
+  )
   isSearching.value = false
 
-  searchResult.value = res
+  searchResult.value = res ?? []
 }
 
 watchDebounced(

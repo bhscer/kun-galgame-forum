@@ -11,7 +11,11 @@ import { clipboard } from '@milkdown/kit/plugin/clipboard'
 import { indent } from '@milkdown/kit/plugin/indent'
 import { trailing } from '@milkdown/kit/plugin/trailing'
 import { usePluginViewFactory } from '@prosemirror-adapter/vue'
-import { upload, uploadConfig } from '@milkdown/kit/plugin/upload'
+import {
+  upload,
+  uploadConfig,
+  type Uploader
+} from '@milkdown/kit/plugin/upload'
 
 // Custom plugins
 import { activeTab } from './atom'
@@ -99,7 +103,11 @@ const editorInfo = useEditor((root) =>
 
       ctx.update(uploadConfig.key, (prev) => ({
         ...prev,
-        uploader: kunUploader,
+        // kunUploader is typed against @milkdown/plugin-upload's Uploader, whose
+        // Ctx resolves to a different (duplicated) @milkdown/ctx copy than kit's
+        // re-export. The two Ctx types are runtime-identical but nominally
+        // distinct (private brand), so go through `unknown` to unify them.
+        uploader: kunUploader as unknown as Uploader,
         uploadWidgetFactory: kunUploadWidgetFactory
       }))
 

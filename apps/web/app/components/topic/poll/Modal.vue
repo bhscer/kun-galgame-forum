@@ -102,8 +102,9 @@ const removeOption = (index: number) => {
     useMessage('至少需要2个选项', 'warn')
     return
   }
-  if (isEditing.value && formData.options[index].id) {
-    formData.options[index]._status = 'deleted'
+  const option = formData.options[index]
+  if (isEditing.value && option?.id) {
+    option._status = 'deleted'
   } else {
     formData.options.splice(index, 1)
   }

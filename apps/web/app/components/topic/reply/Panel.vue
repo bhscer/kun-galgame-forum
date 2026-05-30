@@ -16,7 +16,10 @@ watch(
     if (editing && Array.isArray(targets)) {
       if (targets.length > 0) {
         const lastTarget = targets[targets.length - 1]
-        if (!targets.some((t) => t.targetReplyId === activeTab.value)) {
+        if (
+          lastTarget &&
+          !targets.some((t) => t.targetReplyId === activeTab.value)
+        ) {
           activeTab.value = lastTarget.targetReplyId
         }
       } else {

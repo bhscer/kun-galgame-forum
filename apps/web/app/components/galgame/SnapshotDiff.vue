@@ -240,7 +240,7 @@ const rows = computed<Row[]>(() => {
     }
 
     const scalar = renderScalar(key, o, n)
-    if (scalar.oldHtml.length > 0 || scalar.newHtml.length > 0) {
+    if (scalar && (scalar.oldHtml.length > 0 || scalar.newHtml.length > 0)) {
       out.push({ key, label: label(key), kind: 'scalar', scalar })
     }
   }
@@ -268,7 +268,10 @@ const inlineRow = (item: Record<string, unknown>): string =>
           <div
             class="text-default-600 border-danger-200/60 dark:border-danger-500/20 flex items-center gap-1.5 border-b px-3 py-1.5 text-xs font-medium"
           >
-            <KunIcon name="lucide:minus-circle" class="text-danger-500 h-3.5 w-3.5" />
+            <KunIcon
+              name="lucide:minus-circle"
+              class="text-danger-500 h-3.5 w-3.5"
+            />
             原版
           </div>
           <div class="px-3 py-2 text-sm">
@@ -277,7 +280,10 @@ const inlineRow = (item: Record<string, unknown>): string =>
               v-if="row.kind === 'scalar' && row.scalar"
               class="text-default-700 break-words"
               :class="{ 'whitespace-pre-wrap': row.scalar.preWrap }"
-              v-html="row.scalar.oldHtml || '<span class=\'text-default-400 italic\'>(空)</span>'"
+              v-html="
+                row.scalar.oldHtml ||
+                '<span class=\'text-default-400 italic\'>(空)</span>'
+              "
             />
 
             <!-- ARRAY OF SCALARS — removed items.
@@ -316,12 +322,14 @@ const inlineRow = (item: Record<string, unknown>): string =>
                 class="space-y-1"
               >
                 <div class="flex items-center gap-1.5">
-                  <KunChip color="warning" size="sm" variant="flat">✏️ 修改</KunChip>
+                  <KunChip color="warning" size="sm" variant="flat"
+                    >✏️ 修改</KunChip
+                  >
                   <span class="text-default-500 text-xs">
                     {{ ch.fields.join(' / ') }}
                   </span>
                 </div>
-                <code class="text-default-600 block break-all text-xs">
+                <code class="text-default-600 block text-xs break-all">
                   {{ inlineRow(ch.old) }}
                 </code>
               </div>
@@ -330,8 +338,10 @@ const inlineRow = (item: Record<string, unknown>): string =>
                 :key="`rm-${i}`"
                 class="space-y-1"
               >
-                <KunChip color="danger" size="sm" variant="flat">➖ 删除</KunChip>
-                <code class="text-default-600 block break-all text-xs">
+                <KunChip color="danger" size="sm" variant="flat"
+                  >➖ 删除</KunChip
+                >
+                <code class="text-default-600 block text-xs break-all">
                   {{ inlineRow(item) }}
                 </code>
               </div>
@@ -354,7 +364,10 @@ const inlineRow = (item: Record<string, unknown>): string =>
           <div
             class="text-default-600 border-success-200/60 dark:border-success-500/20 flex items-center gap-1.5 border-b px-3 py-1.5 text-xs font-medium"
           >
-            <KunIcon name="lucide:plus-circle" class="text-success-500 h-3.5 w-3.5" />
+            <KunIcon
+              name="lucide:plus-circle"
+              class="text-success-500 h-3.5 w-3.5"
+            />
             新版
           </div>
           <div class="px-3 py-2 text-sm">
@@ -363,7 +376,10 @@ const inlineRow = (item: Record<string, unknown>): string =>
               v-if="row.kind === 'scalar' && row.scalar"
               class="text-default-700 break-words"
               :class="{ 'whitespace-pre-wrap': row.scalar.preWrap }"
-              v-html="row.scalar.newHtml || '<span class=\'text-default-400 italic\'>(空)</span>'"
+              v-html="
+                row.scalar.newHtml ||
+                '<span class=\'text-default-400 italic\'>(空)</span>'
+              "
             />
 
             <!-- ARRAY OF SCALARS — added items.
@@ -400,12 +416,14 @@ const inlineRow = (item: Record<string, unknown>): string =>
                 class="space-y-1"
               >
                 <div class="flex items-center gap-1.5">
-                  <KunChip color="warning" size="sm" variant="flat">✏️ 修改</KunChip>
+                  <KunChip color="warning" size="sm" variant="flat"
+                    >✏️ 修改</KunChip
+                  >
                   <span class="text-default-500 text-xs">
                     {{ ch.fields.join(' / ') }}
                   </span>
                 </div>
-                <code class="text-default-700 block break-all text-xs">
+                <code class="text-default-700 block text-xs break-all">
                   {{ inlineRow(ch.new) }}
                 </code>
               </div>
@@ -414,8 +432,10 @@ const inlineRow = (item: Record<string, unknown>): string =>
                 :key="`add-${i}`"
                 class="space-y-1"
               >
-                <KunChip color="success" size="sm" variant="flat">➕ 新增</KunChip>
-                <code class="text-default-700 block break-all text-xs">
+                <KunChip color="success" size="sm" variant="flat"
+                  >➕ 新增</KunChip
+                >
+                <code class="text-default-700 block text-xs break-all">
                   {{ inlineRow(item) }}
                 </code>
               </div>
@@ -448,7 +468,11 @@ const inlineRow = (item: Record<string, unknown>): string =>
   /* <b> = added (lives on the RIGHT/new column) */
   :deep(b) {
     color: var(--color-success);
-    background-color: color-mix(in oklab, var(--color-success) 22%, transparent);
+    background-color: color-mix(
+      in oklab,
+      var(--color-success) 22%,
+      transparent
+    );
     border-radius: 2px;
     padding: 0 1px;
   }

@@ -23,14 +23,17 @@ const handlePublishComment = async () => {
   }
 
   isPublishing.value = true
-  const result = await kunFetch(`/galgame-rating/${props.ratingId}/comment`, {
-    method: 'POST',
-    body: {
-      galgameRatingId: props.ratingId,
-      targetUserId: props.targetUserId,
-      content: text
+  const result = await kunFetch<GalgameRatingComment>(
+    `/galgame-rating/${props.ratingId}/comment`,
+    {
+      method: 'POST',
+      body: {
+        galgameRatingId: props.ratingId,
+        targetUserId: props.targetUserId,
+        content: text
+      }
     }
-  })
+  )
   isPublishing.value = false
 
   if (result) {

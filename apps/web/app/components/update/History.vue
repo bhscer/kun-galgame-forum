@@ -27,7 +27,9 @@ const openEditUpdateLogModal = (log: UpdateLog) => {
   editingUpdateLog.value = {
     version: log.version,
     content_en_us: log.content_en_us,
+    content_ja_jp: log.content_ja_jp,
     content_zh_cn: log.content_zh_cn,
+    content_zh_tw: log.content_zh_tw,
     type: log.type,
     updateLogId: log.id
   } satisfies UpdateUpdateLogPayload

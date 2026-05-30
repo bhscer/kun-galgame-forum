@@ -47,13 +47,13 @@ const handleSearch = async () => {
     return
   }
   isSearching.value = true
-  const res = await kunFetch(`/galgame-tag/search`, {
+  const res = await kunFetch<GalgameTagItem[]>(`/galgame-tag/search`, {
     method: 'GET',
     query: { q: searchQuery.value }
   })
   isSearching.value = false
 
-  searchResult.value = res
+  searchResult.value = res ?? []
 }
 
 watchDebounced(
@@ -84,14 +84,17 @@ const fetchGames = async () => {
     return
   }
   loadingGames.value = true
-  const res = await kunFetch(`/galgame-tag/multi`, {
-    method: 'GET',
-    query: {
-      page: gamesPage.value,
-      limit: gamesLimit,
-      tagIds: selectedTags.value.map((t) => t.id).join(',')
+  const res = await kunFetch<{ galgames: GalgameCard[]; total: number }>(
+    `/galgame-tag/multi`,
+    {
+      method: 'GET',
+      query: {
+        page: gamesPage.value,
+        limit: gamesLimit,
+        tagIds: selectedTags.value.map((t) => t.id).join(',')
+      }
     }
-  })
+  )
   loadingGames.value = false
   if (res) {
     resultGames.value = res.galgames

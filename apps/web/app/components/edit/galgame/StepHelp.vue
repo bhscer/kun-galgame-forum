@@ -26,7 +26,7 @@ const { isOpen, onOpenChange } = useKunDisclosure()
       </span>
       <KunIcon
         name="lucide:chevron-down"
-        :class="['transition-transform', isOpen ? 'rotate-180' : '']"
+        :class="`transition-transform ${isOpen ? 'rotate-180' : ''}`"
       />
     </button>
     <div

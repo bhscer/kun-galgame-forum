@@ -239,10 +239,13 @@ const submit = async () => {
     if (!valid) return
 
     isSubmitting.value = true
-    const res = await kunFetch('/galgame-rating', {
-      method: 'POST',
-      body
-    })
+    const res = await kunFetch<GalgameRatingCardOnGalgamePage>(
+      '/galgame-rating',
+      {
+        method: 'POST',
+        body
+      }
+    )
     isSubmitting.value = false
     if (res) {
       useMessage('发布成功', 'success')

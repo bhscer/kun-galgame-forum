@@ -14,7 +14,7 @@ describe('isValidTimestamp', () => {
   it('rejects other lengths', () => {
     expect(isValidTimestamp(0)).toBe(false)
     expect(isValidTimestamp(123)).toBe(false)
-    expect(isValidTimestamp(12345678901234567)).toBe(false)
+    expect(isValidTimestamp(99999999999999)).toBe(false)
   })
 })
 
@@ -60,8 +60,8 @@ describe('isValidName', () => {
   })
 
   it('rejects names containing zero-width / invisible characters', () => {
-    // ​ = ZWSP, ‌ = ZWNJ, ‍ = ZWJ, ﻿ = BOM,
-    //   = NBSP — all classic spoofing characters the
+    // The strings below embed (in order): U+200B ZWSP, U+200C ZWNJ,
+    // U+FEFF BOM, U+00A0 NBSP - classic spoofing characters the
     // invisibleChars list blocks against.
     expect(isValidName('user​ name')).toBe(false)
     expect(isValidName('a‌b')).toBe(false)

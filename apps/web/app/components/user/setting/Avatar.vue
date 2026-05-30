@@ -96,8 +96,8 @@ const submit = async () => {
     <div class="space-y-2">
       <span class="text-xl">更改头像</span>
       <p class="text-default-500 text-sm">
-        头像统一由 鲲 Galgame OAuth 账户中心管理,
-        在 {{ kungal.titleShort }} 直接上传图片即可生效。支持 PNG / JPEG / WebP /
+        头像统一由 鲲 Galgame OAuth 账户中心管理, 在
+        {{ kungal.titleShort }} 直接上传图片即可生效。支持 PNG / JPEG / WebP /
         GIF / AVIF, 不超过 4 MiB。
       </p>
       <p class="text-default-500 text-sm">
@@ -119,7 +119,11 @@ const submit = async () => {
 
     <div class="flex items-center gap-4">
       <KunAvatar
-        :user="{ avatar: previewUrl ?? userStore.avatar, name: userStore.name }"
+        :user="{
+          id: userStore.id,
+          avatar: previewUrl ?? userStore.avatar,
+          name: userStore.name
+        }"
         size="lg"
       />
       <div class="flex-1 text-sm">

@@ -14,7 +14,9 @@ const props = defineProps<{
 
 const { id: userId, role } = usePersistUserStore()
 const data = computed(() => props.toolset)
-const canManageToolset = computed(() => data.value.user.id === userId || role >= 2)
+const canManageToolset = computed(
+  () => data.value.user.id === userId || role >= 2
+)
 
 const isDeleting = ref(false)
 const handleDeleteToolset = async () => {
@@ -193,7 +195,7 @@ const handleResourceUpdated = (res: ToolsetResource) => {
             <p class="text-default-500 text-sm">点击以评分</p>
             <div v-if="practicalityData" class="flex items-center gap-2">
               <KunRating
-                :model-value="practicalityData.mine"
+                :model-value="practicalityData.mine ?? undefined"
                 @set="handleSetStar"
               />
               <KunChip size="sm" variant="flat">

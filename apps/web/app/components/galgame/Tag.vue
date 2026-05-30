@@ -71,11 +71,7 @@ const countColorByCategory = (category: string): string => {
       shadow-size="3rem"
       class-name="max-h-[200px] md:max-h-[400px]"
     >
-      <TransitionGroup
-        name="tag-list"
-        tag="div"
-        class="flex flex-wrap gap-1.5"
-      >
+      <TransitionGroup name="tag-list" tag="div" class="flex flex-wrap gap-1.5">
         <KunLink
           v-for="tag in filteredTags"
           :key="tag.id"
@@ -100,14 +96,9 @@ const countColorByCategory = (category: string): string => {
       />
     </KunScrollShadow>
 
-    <KunPopover position="top">
+    <KunPopover position="top-start">
       <template #trigger>
-        <KunButton
-          variant="flat"
-          color="primary"
-          size="sm"
-          full-width
-        >
+        <KunButton variant="flat" color="primary" size="sm" full-width>
           <KunIcon name="lucide:filter" />
           筛选标签
         </KunButton>

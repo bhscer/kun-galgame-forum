@@ -89,7 +89,7 @@ const handleGetResourceLink = async () => {
   if (detail.value) return
 
   isFetching.value = true
-  const result = await kunFetch(
+  const result = await kunFetch<GalgameResourceDetailLink>(
     `/galgame-resource/${props.resource.id}/detail`,
     {
       method: 'GET',

@@ -35,12 +35,10 @@ const mineIndex = computed(() =>
     : categories.value.indexOf(String(props.practicalityData.mine))
 )
 
-const series = computed(
-  (): ApexAxisChartSeries => [
-    { name: '评分人数', type: 'bar', data: countsArray.value },
-    { name: '累计人数', type: 'line', data: cumulative.value }
-  ]
-)
+const series = computed(() => [
+  { name: '评分人数', type: 'bar', data: countsArray.value },
+  { name: '累计人数', type: 'line', data: cumulative.value }
+])
 
 const colors = computed(() => [
   'var(--color-primary)',
@@ -91,7 +89,9 @@ const options = computed(
       shared: true,
       intersect: false,
       y: {
-        formatter: (y: number, { seriesIndex }) => {
+        formatter: (y: number, opts) => {
+          const seriesIndex = (opts as { seriesIndex?: number } | undefined)
+            ?.seriesIndex
           if (seriesIndex === 1) {
             const pct = total.value
               ? ((y / total.value) * 100).toFixed(1)
@@ -144,7 +144,7 @@ const options = computed(
         </div>
 
         <VueApexCharts
-          :key="practicalityData.mine"
+          :key="practicalityData.mine ?? 0"
           type="bar"
           height="260"
           :options="options"

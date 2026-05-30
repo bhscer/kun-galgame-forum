@@ -37,11 +37,7 @@ export const useGalgameFilters = () => {
   // 1 is omitted. Number transform so the ref is a number, not a string.
   const page = useRouteQuery('page', 1, { ...opts, transform: Number })
 
-  const type = useRouteQuery<KunGalgameResourceTypeOptions>(
-    'type',
-    'all',
-    opts
-  )
+  const type = useRouteQuery<KunGalgameResourceTypeOptions>('type', 'all', opts)
   const language = useRouteQuery<KunGalgameResourceLanguageOptions>(
     'language',
     'all',
@@ -58,14 +54,21 @@ export const useGalgameFilters = () => {
   // Release-date filter (wiki §17 / §17.10).
   //   releasedFrom / releasedTo — year bounds ('' | 'YYYY')
   //   releasedMonths           — discontinuous month set, CSV of 1-12
-  const releasedFrom = useRouteQuery('releasedFrom', '', opts)
-  const releasedTo = useRouteQuery('releasedTo', '', opts)
-  const releasedMonths = useRouteQuery('releasedMonths', '', opts)
+  // Explicit <string> generic: without it useRouteQuery infers the literal
+  // type `""` from the default, so assigning any other string (a picked year /
+  // CSV) fails to type-check.
+  const releasedFrom = useRouteQuery<string>('releasedFrom', '', opts)
+  const releasedTo = useRouteQuery<string>('releasedTo', '', opts)
+  const releasedMonths = useRouteQuery<string>('releasedMonths', '', opts)
 
   // Provider filters as CSV strings (BE splitCSV-friendly). Toggling is
   // done on the CSV in the UI, same pattern as releasedMonths.
-  const includeProviders = useRouteQuery('includeProviders', '', opts)
-  const excludeOnlyProviders = useRouteQuery('excludeOnlyProviders', '', opts)
+  const includeProviders = useRouteQuery<string>('includeProviders', '', opts)
+  const excludeOnlyProviders = useRouteQuery<string>(
+    'excludeOnlyProviders',
+    '',
+    opts
+  )
 
   // Bayesian-rating advanced filters. minRatingCount = high-confidence
   // gate (>= N votes); minRating = Bayesian score >= X (0–10). 0 = off
@@ -74,7 +77,10 @@ export const useGalgameFilters = () => {
     ...opts,
     transform: Number
   })
-  const minRating = useRouteQuery('minRating', 0, { ...opts, transform: Number })
+  const minRating = useRouteQuery('minRating', 0, {
+    ...opts,
+    transform: Number
+  })
 
   // Fixed page size — not user-facing, kept off the URL.
   const limit = 24

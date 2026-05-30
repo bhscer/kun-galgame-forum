@@ -21,8 +21,8 @@ export const replaceAsideItem = (message: ChatMessage) => {
   }
 
   asideItems.value.sort((a, b) => {
-    const timeA = new Date(a.lastMessageTime).getTime()
-    const timeB = new Date(b.lastMessageTime).getTime()
+    const timeA = new Date(a.lastMessageTime ?? 0).getTime()
+    const timeB = new Date(b.lastMessageTime ?? 0).getTime()
     return timeB - timeA
   })
 }
