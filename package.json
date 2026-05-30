@@ -1,6 +1,6 @@
 {
   "name": "kun-galgame-nuxt4-fiber",
-  "version": "5.3.30",
+  "version": "5.3.31",
   "private": true,
   "packageManager": "pnpm@10.12.1",
   "workspaces": [
@@ -51,7 +51,27 @@
       "safer-buffer": "npm:@nolyfill/safer-buffer@^1",
       "string.prototype.matchall": "npm:@nolyfill/string.prototype.matchall@^1",
       "which-typed-array": "npm:@nolyfill/which-typed-array@^1",
-      "prosemirror-model": "1.25.3"
+      "prosemirror-model": "1.25.3",
+      "@milkdown/components": "7.17.3",
+      "@milkdown/core": "7.17.3",
+      "@milkdown/ctx": "7.17.3",
+      "@milkdown/exception": "7.17.3",
+      "@milkdown/kit": "7.17.3",
+      "@milkdown/plugin-block": "7.17.3",
+      "@milkdown/plugin-clipboard": "7.17.3",
+      "@milkdown/plugin-cursor": "7.17.3",
+      "@milkdown/plugin-history": "7.17.3",
+      "@milkdown/plugin-indent": "7.17.3",
+      "@milkdown/plugin-listener": "7.17.3",
+      "@milkdown/plugin-slash": "7.17.3",
+      "@milkdown/plugin-tooltip": "7.17.3",
+      "@milkdown/plugin-trailing": "7.17.3",
+      "@milkdown/plugin-upload": "7.17.3",
+      "@milkdown/preset-commonmark": "7.17.3",
+      "@milkdown/preset-gfm": "7.17.3",
+      "@milkdown/prose": "7.17.3",
+      "@milkdown/transformer": "7.17.3",
+      "@milkdown/utils": "7.17.3"
     },
     "onlyBuiltDependencies": [
       "@parcel/watcher",
