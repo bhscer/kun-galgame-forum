@@ -10,11 +10,17 @@ const emits = defineEmits<{
   onSuccess: [ToolsetResource]
 }>()
 
-const { moemoepoint, dailyToolsetUploadCount } = storeToRefs(
+const { moemoepoint, dailyToolsetUploadBytes } = storeToRefs(
   usePersistUserStore()
 )
 
 const MB = 1024 * 1024
+
+// Daily byte budget = 100MB + moemoepoint·MB (server enforces the same; admins
+// are unbounded). Drives the gauge below.
+const dailyUploadBudget = computed(
+  () => USER_DAILY_UPLOAD_LIMIT + moemoepoint.value * MB
+)
 
 const mode = ref<'s3' | 'user'>('s3')
 const uploadResult = ref<ToolsetUploadResult>({
@@ -23,12 +29,12 @@ const uploadResult = ref<ToolsetUploadResult>({
   size: 0
 })
 
-// The API increments daily_toolset_upload_count by 1 (a count, not bytes)
-// on each successful complete — mirror that locally so the progress bar
-// reflects the new state without needing to refetch the user profile.
+// The API accrues daily_toolset_upload_bytes by the uploaded file size on each
+// successful complete — mirror that locally (by bytes, not a count) so the
+// gauge reflects the new state without refetching the profile.
 const handleUploadSuccess = (value: ToolsetUploadResult) => {
   uploadResult.value = value
-  dailyToolsetUploadCount.value += 1
+  dailyToolsetUploadBytes.value += value.size
 }
 </script>
 
@@ -44,11 +50,12 @@ const handleUploadSuccess = (value: ToolsetUploadResult) => {
       <p class="text-default-700 text-sm">
         您今日已使用存储量
         {{
-          `${(dailyToolsetUploadCount / MB).toFixed(3)} / ${USER_DAILY_UPLOAD_LIMIT / MB + moemoepoint} MB`
+          `${(dailyToolsetUploadBytes / MB).toFixed(3)} / ${(dailyUploadBudget / MB).toFixed(0)} MB`
         }}
       </p>
       <KunProgress
-        :value="Math.floor(dailyToolsetUploadCount / USER_DAILY_UPLOAD_LIMIT)"
+        :value="dailyToolsetUploadBytes"
+        :max="dailyUploadBudget"
         :show-label="true"
         size="lg"
       />

@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"kun-galgame-api/pkg/config"
@@ -12,6 +13,22 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// withTimeZone pins the Postgres session TimeZone to Asia/Shanghai when the DSN
+// doesn't already set one. Calendar-day logic (admin daily-stats date_trunc,
+// the midnight reset cron) must agree on the day boundary; without a pinned
+// zone, date_trunc('day', ...) buckets in the server's local zone (often UTC)
+// while the Go side truncates in Asia/Shanghai → off-by-one oldest bucket.
+func withTimeZone(dsn string) string {
+	if strings.Contains(dsn, "TimeZone=") || strings.Contains(dsn, "timezone=") {
+		return dsn
+	}
+	sep := "?"
+	if strings.Contains(dsn, "?") {
+		sep = "&"
+	}
+	return dsn + sep + "TimeZone=Asia/Shanghai"
+}
+
 func NewPostgres(cfg config.DatabaseConfig, mode string) *gorm.DB {
 	var logLevel logger.LogLevel
 	if mode == "dev" {
@@ -20,7 +37,7 @@ func NewPostgres(cfg config.DatabaseConfig, mode string) *gorm.DB {
 		logLevel = logger.Warn
 	}
 
-	db, err := gorm.Open(postgres.Open(cfg.URL), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(withTimeZone(cfg.URL)), &gorm.Config{
 		Logger:                 logger.Default.LogMode(logLevel),
 		SkipDefaultTransaction: true,
 	})

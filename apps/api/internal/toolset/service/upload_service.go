@@ -76,20 +76,29 @@ func NewUploadService(s3 *storage.S3Client, rdb *redis.Client, db *gorm.DB) *Upl
 // InitSmall — POST /toolset/:id/upload/small
 // ──────────────────────────────────────────
 
-// checkDailyUploadBudget rejects an upload that would push the user past the
-// daily byte budget. Read against the committed daily total; the per-upload
-// increment happens at Complete with the verified actual size. A missing state
-// row (brand-new user) reads as 0. Soft quota: concurrent inits can each pass
-// before any commits, but the per-file cap bounds the overshoot.
-func (s *UploadService) checkDailyUploadBudget(userID int, incoming int64) *errors.AppError {
+// uploadBytesPerMB scales the moemoepoint daily-budget bonus.
+const uploadBytesPerMB = 1024 * 1024
+
+// checkDailyUploadBudget rejects an upload that would push the user past their
+// daily byte budget. The budget is 100MB + moemoepoint·MB (matches the
+// frontend gauge and the "每日 (100 + 萌萌点) MB" policy); admins are bounded
+// only by the per-file cap. Read against the committed daily total; the
+// per-upload increment happens at Complete with the verified actual size. A
+// missing state row (brand-new user) reads as 0. Soft quota: concurrent inits
+// can each pass before any commits, but the per-file cap bounds the overshoot.
+func (s *UploadService) checkDailyUploadBudget(userID int, incoming int64, isAdmin bool) *errors.AppError {
+	if isAdmin {
+		return nil
+	}
 	var state userModel.KungalUserState
-	err := s.db.Select("daily_toolset_upload_bytes").
+	err := s.db.Select("daily_toolset_upload_bytes, moemoepoint").
 		Where("user_id = ?", userID).First(&state).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return errors.ErrInternal("校验上传额度失败")
 	}
-	if state.DailyToolsetUploadBytes+incoming > UserDailyUploadLimit {
-		return errors.ErrBadRequest("超出今日上传额度 (每日 100MB), 请明天再试")
+	budget := int64(UserDailyUploadLimit) + int64(state.Moemoepoint)*uploadBytesPerMB
+	if state.DailyToolsetUploadBytes+incoming > budget {
+		return errors.ErrBadRequest("超出今日上传额度, 请明天再试")
 	}
 	return nil
 }
@@ -97,12 +106,13 @@ func (s *UploadService) checkDailyUploadBudget(userID int, incoming int64) *erro
 func (s *UploadService) InitSmall(
 	ctx context.Context,
 	toolsetID, userID int,
+	isAdmin bool,
 	req *dto.UploadInitRequest,
 ) (*dto.UploadSmallResponse, *errors.AppError) {
 	if req.FileSize > MaxSmallFileSize {
 		return nil, errors.ErrBadRequest("小文件上传大小不能超过 50MB")
 	}
-	if appErr := s.checkDailyUploadBudget(userID, req.FileSize); appErr != nil {
+	if appErr := s.checkDailyUploadBudget(userID, req.FileSize, isAdmin); appErr != nil {
 		return nil, appErr
 	}
 
@@ -145,12 +155,13 @@ func (s *UploadService) InitSmall(
 func (s *UploadService) InitLarge(
 	ctx context.Context,
 	toolsetID, userID int,
+	isAdmin bool,
 	req *dto.UploadInitRequest,
 ) (*dto.UploadLargeResponse, *errors.AppError) {
 	if req.FileSize > MaxLargeFileSize {
 		return nil, errors.ErrBadRequest("文件大小不能超过 2GB")
 	}
-	if appErr := s.checkDailyUploadBudget(userID, req.FileSize); appErr != nil {
+	if appErr := s.checkDailyUploadBudget(userID, req.FileSize, isAdmin); appErr != nil {
 		return nil, appErr
 	}
 

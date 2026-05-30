@@ -82,9 +82,10 @@ type UpdateUsernameRequest struct {
 // ──────────────────────────────────────────
 
 type UserStatusResponse struct {
-	Moemoepoints  int  `json:"moemoepoints"`
-	IsCheckIn     bool `json:"isCheckIn"`
-	HasNewMessage bool `json:"hasNewMessage"`
+	Moemoepoints            int   `json:"moemoepoints"`
+	IsCheckIn               bool  `json:"isCheckIn"`
+	HasNewMessage           bool  `json:"hasNewMessage"`
+	DailyToolsetUploadBytes int64 `json:"dailyToolsetUploadBytes"`
 }
 
 type UserGalgamesRequest struct {

@@ -66,7 +66,7 @@ onMounted(async () => {
       moemoepoint: result.moemoepoint,
       role: result.role,
       isCheckIn: false,
-      dailyToolsetUploadCount: 0
+      dailyToolsetUploadBytes: 0
     })
 
     useKunLoliInfo(`登录成功! 欢迎来到 ${kungal.name}`)

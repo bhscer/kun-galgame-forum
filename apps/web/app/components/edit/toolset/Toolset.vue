@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { KunTagInputInvalidReason } from '@kun/ui/components/kun/tag-input/type'
 import {
   kunGalgameToolsetTypeOptions,
   kunGalgameToolsetLanguageOptions,

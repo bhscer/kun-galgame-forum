@@ -4,7 +4,9 @@ const route = useRoute()
 const { showKUNGalgameHamburger, messageStatus } = storeToRefs(
   useTempSettingStore()
 )
-const { id, moemoepoint, isCheckIn } = storeToRefs(usePersistUserStore())
+const { id, moemoepoint, isCheckIn, dailyToolsetUploadBytes } = storeToRefs(
+  usePersistUserStore()
+)
 const { showKUNGalgameSidebarCollapsed } = storeToRefs(
   usePersistSettingsStore()
 )
@@ -31,11 +33,13 @@ onMounted(async () => {
       moemoepoints: number
       isCheckIn: boolean
       hasNewMessage: boolean
+      dailyToolsetUploadBytes: number
     }>('/user/status')
     if (result) {
       isCheckIn.value = result.isCheckIn
       moemoepoint.value = result.moemoepoints
       messageStatus.value = result.hasNewMessage ? 'new' : 'online'
+      dailyToolsetUploadBytes.value = result.dailyToolsetUploadBytes
     }
   }
 

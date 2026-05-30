@@ -45,7 +45,7 @@ type ToolsetUploadPart = {
 const resolveContentType = (file: File): string =>
   file.type && file.type.length > 0 ? file.type : DEFAULT_BINARY_CONTENT_TYPE
 
-const { moemoepoint, dailyToolsetUploadCount, role } = storeToRefs(
+const { moemoepoint, dailyToolsetUploadBytes, role } = storeToRefs(
   usePersistUserStore()
 )
 const fileInput = ref<HTMLInputElement>()
@@ -65,9 +65,12 @@ const dailyUploadLimit = computed(() => {
     return MAX_LARGE_FILE_SIZE
   }
 
-  return (
-    Math.max(0, USER_DAILY_UPLOAD_LIMIT - dailyToolsetUploadCount.value) +
-    moemoepoint.value * MB
+  // Remaining daily budget = (100MB + moemoepoint·MB) − bytes already used today.
+  return Math.max(
+    0,
+    USER_DAILY_UPLOAD_LIMIT +
+      moemoepoint.value * MB -
+      dailyToolsetUploadBytes.value
   )
 })
 const maxSingleFileLimit = computed(() => {

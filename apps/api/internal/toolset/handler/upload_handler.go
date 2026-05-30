@@ -37,7 +37,7 @@ func (h *UploadHandler) UploadSmall(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	result, appErr := h.uploadService.InitSmall(c.Context(), id, user.ID, &req)
+	result, appErr := h.uploadService.InitSmall(c.Context(), id, user.ID, user.Role > 1, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -62,7 +62,7 @@ func (h *UploadHandler) UploadLarge(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	result, appErr := h.uploadService.InitLarge(c.Context(), id, user.ID, &req)
+	result, appErr := h.uploadService.InitLarge(c.Context(), id, user.ID, user.Role > 1, &req)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

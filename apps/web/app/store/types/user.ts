@@ -6,5 +6,5 @@ export interface UserStore {
   moemoepoint: number
   role: number
   isCheckIn: boolean
-  dailyToolsetUploadCount: number
+  dailyToolsetUploadBytes: number
 }

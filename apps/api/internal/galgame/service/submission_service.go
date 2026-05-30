@@ -11,7 +11,6 @@ import (
 	"kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/galgame/repository"
 	"kun-galgame-api/internal/moemoepoint"
-	userRepo "kun-galgame-api/internal/user/repository"
 	"kun-galgame-api/pkg/errors"
 )
 
@@ -27,18 +26,15 @@ import (
 type SubmissionService struct {
 	wikiClient  *client.GalgameClient
 	galgameRepo *repository.GalgameRepository
-	stateRepo   *userRepo.StateRepository
 }
 
 func NewSubmissionService(
 	wikiClient *client.GalgameClient,
 	galgameRepo *repository.GalgameRepository,
-	stateRepo *userRepo.StateRepository,
 ) *SubmissionService {
 	return &SubmissionService{
 		wikiClient:  wikiClient,
 		galgameRepo: galgameRepo,
-		stateRepo:   stateRepo,
 	}
 }
 

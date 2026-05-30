@@ -52,7 +52,7 @@ const sendMessage = async () => {
     useMessage(10401, 'warn')
     return
   }
-  if (messageInput.value.length > 1007) {
+  if (messageInput.value.length > 1000) {
     useMessage(10402, 'warn')
     return
   }

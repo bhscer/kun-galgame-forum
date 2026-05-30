@@ -249,7 +249,7 @@ func New(cfg *config.Config) *App {
 	)
 	// Submission flow: submit / claim / patch-draft / delete-draft proxies
 	// + local moemoepoint side effects. Per docs/galgame_wiki/07-submission.md.
-	galgameSubmissionSvc := galgameService.NewSubmissionService(gc, galgameLocalRepo, userStateRepo)
+	galgameSubmissionSvc := galgameService.NewSubmissionService(gc, galgameLocalRepo)
 
 	// Wiki message stream: user notifications + admin queue + per-user
 	// "read up to" cursor. The cron-driven ingestion lives in

@@ -13,7 +13,7 @@ export const usePersistUserStore = defineStore(
     const moemoepoint = ref<UserStore['moemoepoint']>(0)
     const role = ref<UserStore['role']>(0)
     const isCheckIn = ref<UserStore['isCheckIn']>(false)
-    const dailyToolsetUploadCount = ref<UserStore['dailyToolsetUploadCount']>(0)
+    const dailyToolsetUploadBytes = ref<UserStore['dailyToolsetUploadBytes']>(0)
 
     const setUserInfo = (user: UserStore) => {
       id.value = user.id
@@ -26,7 +26,7 @@ export const usePersistUserStore = defineStore(
       moemoepoint.value = user.moemoepoint
       role.value = user.role
       isCheckIn.value = user.isCheckIn
-      dailyToolsetUploadCount.value = user.dailyToolsetUploadCount
+      dailyToolsetUploadBytes.value = user.dailyToolsetUploadBytes
     }
 
     const resetUser = () => {
@@ -37,7 +37,7 @@ export const usePersistUserStore = defineStore(
       moemoepoint.value = 0
       role.value = 0
       isCheckIn.value = false
-      dailyToolsetUploadCount.value = 0
+      dailyToolsetUploadBytes.value = 0
     }
 
     return {
@@ -48,7 +48,7 @@ export const usePersistUserStore = defineStore(
       moemoepoint,
       role,
       isCheckIn,
-      dailyToolsetUploadCount,
+      dailyToolsetUploadBytes,
       setUserInfo,
       resetUser
     }

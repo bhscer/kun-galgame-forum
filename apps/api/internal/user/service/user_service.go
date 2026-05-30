@@ -163,9 +163,11 @@ func (s *UserService) GetUserStatus(ctx context.Context, userID int) (*dto.UserS
 	// time (which is itself gated behind reading moemoepoint…).
 	moe := 0
 	isCheckIn := false
+	var uploadBytes int64
 	if state, err := s.stateRepo.FindByID(userID); err == nil && state != nil {
 		moe = state.Moemoepoint
 		isCheckIn = state.DailyCheckIn == 1
+		uploadBytes = state.DailyToolsetUploadBytes
 	}
 
 	unreadMessage, _ := s.userStatsRepo.CountUnreadMessages(userID)
@@ -173,9 +175,10 @@ func (s *UserService) GetUserStatus(ctx context.Context, userID int) (*dto.UserS
 	unreadChat, _ := s.userStatsRepo.CountUnreadChatMessages(userID)
 
 	return &dto.UserStatusResponse{
-		Moemoepoints:  moe,
-		IsCheckIn:     isCheckIn,
-		HasNewMessage: (unreadMessage + unreadSystem + unreadChat) > 0,
+		Moemoepoints:            moe,
+		IsCheckIn:               isCheckIn,
+		HasNewMessage:           (unreadMessage + unreadSystem + unreadChat) > 0,
+		DailyToolsetUploadBytes: uploadBytes,
 	}, nil
 }
 
