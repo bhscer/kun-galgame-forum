@@ -7,7 +7,7 @@
 //
 //	HEALTHCHECK CMD ["/app", "healthcheck"]
 //
-// Mirrors kun-oauth-admin's pkg/health so the three repos share one pattern.
+// Mirrors kun-galgame-infra's pkg/health so the three repos share one pattern.
 package health
 
 import (

@@ -17,7 +17,7 @@ import (
 // downstream code never has to construct image URLs itself.
 //
 // URL layout mirrors the wiki's imageclient.MainURL exactly
-// (kun-oauth-admin/apps/api/pkg/imageclient/client.go):
+// (kun-galgame-infra/apps/api/pkg/imageclient/client.go):
 //
 //	{cdnBase}/{hash[:2]}/{hash[2:4]}/{hash}.webp
 //

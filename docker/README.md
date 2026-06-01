@@ -4,7 +4,7 @@ Container build + compose for **kungal** (`kun-galgame-nuxt4`): the Go Fiber API
 (`apps/api`) and the Nuxt 4 SSR site (`apps/web`).
 
 kungal is **not** the ecosystem hub. Postgres / Redis (and the OAuth, image, and
-wiki services) are owned by **kun-oauth-admin** and shared. So in production the
+wiki services) are owned by **kun-galgame-infra** and shared. So in production the
 umbrella `website/compose.yaml` provides those, and kungal only ships its own
 `api` + `web`. A `standalone` override is included for local self-test.
 

@@ -1,7 +1,7 @@
 # kungal (kun-galgame-nuxt4) — forum site (Go Fiber API + Nuxt 4 SSR).
 #
 # kungal is NOT the ecosystem hub: it CONNECTS to the shared Postgres / Redis
-# that kun-oauth-admin owns. So this file does NOT define postgres/redis — they
+# that kun-galgame-infra owns. So this file does NOT define postgres/redis — they
 # come from either:
 #   • the umbrella website/compose.yaml (oauth's services, via `include`), or
 #   • docker-compose.standalone.yml (local self-test pg/redis), composed in:
@@ -35,9 +35,11 @@ services:
     image: kungal/api
     env_file: [./docker/api.env]
     ports: ["15012:2334"]
-    depends_on:
-      postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
+    # No depends_on on postgres/redis here: this base file does NOT define them
+    # (the hub owns them; standalone.yml adds throwaway ones). Declaring the
+    # dependency here would make a bare `docker compose ...` (base alone, e.g.
+    # `docker compose build`) an invalid project. standalone.yml re-adds the
+    # ordering deps for the local self-test path.
     healthcheck:
       # distroless has no shell → the binary self-probes /healthz, exits 0/1.
       test: ["CMD", "/app", "healthcheck"]
@@ -89,6 +91,5 @@ services:
     image: kungal/migrate
     env_file: [./docker/api.env]
     profiles: ["jobs"]
-    depends_on:
-      postgres: { condition: service_healthy }
+    # depends_on omitted in base (see api note above); standalone.yml re-adds it.
     restart: "no"

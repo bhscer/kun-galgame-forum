@@ -49,7 +49,7 @@ func (s *ImageService) UploadGalgameImage(
 	if s.imgCli == nil {
 		// image_service credentials not configured. Surface a clear
 		// error instead of crashing — matches the wiki side's behaviour
-		// (see kun-oauth-admin's mapWriteBodyError fallback).
+		// (see kun-galgame-infra's mapWriteBodyError fallback).
 		return nil, errors.ErrBadRequest(
 			"图片上传服务未配置 (KUN_IMAGE_CLIENT_ID / KUN_IMAGE_CLIENT_SECRET)",
 		)

@@ -1,6 +1,6 @@
 # Standalone backing services — local self-test ONLY.
 #
-# kungal normally connects to the Postgres / Redis that kun-oauth-admin owns
+# kungal normally connects to the Postgres / Redis that kun-galgame-infra owns
 # (shared across the ecosystem). This override adds throwaway pg/redis so the
 # stack can run on its own, with no oauth repo checked out:
 #
@@ -13,6 +13,17 @@
 # the real shared postgres/redis (oauth must `CREATE DATABASE kungalgame;` in
 # its docker/initdb.d, since kungal's data lives in its own DB on that server).
 services:
+  # Re-add the ordering deps the base file intentionally omits (so a bare
+  # `docker compose` on the base alone stays a valid project). postgres/redis
+  # ARE defined below in this override, so the dependency resolves here.
+  api:
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+  migrate:
+    depends_on:
+      postgres: { condition: service_healthy }
+
   postgres:
     image: postgres:16-alpine
     environment:
