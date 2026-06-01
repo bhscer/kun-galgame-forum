@@ -1,0 +1,22 @@
+# Run kungal ALONGSIDE an already-running kun-oauth-admin hub.
+#
+# The base docker-compose.yml references `postgres`/`redis` in depends_on but
+# does not define them (they're the hub's). This override joins the hub network
+# so those service names resolve, and clears the depends_on (the hub owns their
+# lifecycle, not this project).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.hub.yml build
+#   docker compose -f docker-compose.yml -f docker-compose.hub.yml up -d api web
+#
+# (The other run modes — docker-compose.standalone.yml for throwaway pg/redis,
+#  or the umbrella website/compose.yaml — are unchanged.)
+services:
+  api:
+    depends_on: !reset []
+  migrate:
+    depends_on: !reset []
+
+networks:
+  default:
+    name: kun-oauth-admin_default
+    external: true

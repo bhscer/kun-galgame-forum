@@ -19,6 +19,10 @@ apps/api/build
 .env.goenv
 !.env.example
 
+# Docker runtime env (read via env_file). The *.env.example templates ARE
+# committed; the filled-in *.env files (may hold secrets) never are.
+docker/*.env
+
 # Dependencies
 node_modules
 **/node_modules

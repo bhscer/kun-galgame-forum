@@ -1,6 +1,6 @@
 {
   "name": "kun-galgame-nuxt4-fiber",
-  "version": "5.3.32",
+  "version": "5.3.33",
   "private": true,
   "packageManager": "pnpm@10.12.1",
   "workspaces": [
@@ -9,15 +9,15 @@
   ],
   "scripts": {
     "dev": "pnpm -F \"./apps/**\" --parallel --stream run dev",
-    "dev:web": "pnpm -F @apps/web run dev",
+    "dev:web": "pnpm -F web run dev",
     "dev:api": "pnpm -F @apps/api run dev",
     "build": "pnpm run build:api && pnpm run build:web",
-    "build:web": "pnpm -F @apps/web run build",
+    "build:web": "pnpm -F web run build",
     "build:api": "pnpm -F @apps/api run build",
     "format": "pnpm -F \"./apps/**\" --parallel run format",
-    "lint": "pnpm -F @apps/web run lint",
-    "lint:fix": "pnpm -F @apps/web run lint:fix",
-    "typecheck": "pnpm -F @apps/web run typecheck",
+    "lint": "pnpm -F web run lint",
+    "lint:fix": "pnpm -F web run lint:fix",
+    "typecheck": "pnpm -F web run typecheck",
     "vet": "pnpm -F @apps/api run vet",
     "test:api": "pnpm -F @apps/api run test",
     "migrate": "pnpm -F @apps/api run migrate",
@@ -71,7 +71,8 @@
       "@milkdown/preset-gfm": "7.17.3",
       "@milkdown/prose": "7.17.3",
       "@milkdown/transformer": "7.17.3",
-      "@milkdown/utils": "7.17.3"
+      "@milkdown/utils": "7.17.3",
+      "vue-router": "5.0.4"
     },
     "onlyBuiltDependencies": [
       "@parcel/watcher",
