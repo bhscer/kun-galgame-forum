@@ -13,7 +13,7 @@
 ARG GO_VERSION=1.26
 
 # ---- build ----
-FROM golang:${GO_VERSION}-bookworm AS build
+FROM golang:${GO_VERSION}-trixie AS build
 WORKDIR /src
 # Manifests first → module-download layer is cached until go.mod/sum change.
 COPY apps/api/go.mod apps/api/go.sum ./
@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
 # distroless/static: ~2MB base, no shell, nonroot (uid 65532). Bundles
 # ca-certificates (outbound HTTPS: OAuth, image_service, wiki, B2, SMTP TLS)
 # + tzdata (the daily reset cron / admin stats pin Asia/Shanghai).
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 COPY --from=build /out/app /app
 USER nonroot:nonroot
 ENTRYPOINT ["/app"]

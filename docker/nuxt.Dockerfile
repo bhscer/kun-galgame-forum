@@ -9,9 +9,9 @@
 # and baked. Any public key can still be overridden at RUNTIME via the
 # canonical NUXT_PUBLIC_* env names (build once, configure per env — see
 # docker/README.md).
-ARG NODE_VERSION=22
+ARG NODE_VERSION=24
 
-FROM node:${NODE_VERSION}-bookworm-slim AS base
+FROM node:${NODE_VERSION}-trixie-slim AS base
 RUN corepack enable
 WORKDIR /repo
 
@@ -58,7 +58,7 @@ RUN pnpm --filter @kun/ui run prepare
 RUN pnpm --filter web run build
 
 # ---- run: just Node + the self-contained .output (no pnpm, no sources) ----
-FROM node:${NODE_VERSION}-bookworm-slim AS run
+FROM node:${NODE_VERSION}-trixie-slim AS run
 ENV NODE_ENV=production HOST=0.0.0.0 NITRO_PORT=7777
 WORKDIR /app
 COPY --from=build /repo/apps/web/.output ./.output
