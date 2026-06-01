@@ -23,10 +23,10 @@ Both Dockerfiles take the **repo root** as build context (`apps/web` extends the
 
 | Service | Container | Host (compose) | Why 1xxxx |
 |---------|-----------|----------------|-----------|
-| api     | 2334      | **12334**      | coexist with a running `air` dev server (2334) |
-| web     | 7777      | **17777**      | coexist with `nuxt dev` (2333) |
-| postgres (standalone) | 5432 | 15432 | |
-| redis (standalone)    | 6379 | 16379 | |
+| api     | 2334      | **15012**      | coexist with a running `air` dev server (2334) |
+| web     | 7777      | **15013**      | coexist with `nuxt dev` (2333) |
+| postgres (standalone) | 5432 | 15000 | |
+| redis (standalone)    | 6379 | 15001 | |
 
 ## Configure
 
@@ -45,7 +45,7 @@ Nuxt SSR and the browser reach the API differently:
 - `NUXT_API_BASE_URL` → **SSR** (server). Internal docker network, by service
   name: `http://api:2334`.
 - `NUXT_PUBLIC_API_BASE_URL` → **browser**. Host port / public domain:
-  `http://localhost:12334` (or `https://www.kungal.com`).
+  `http://localhost:15012` (or `https://www.kungal.com`).
 
 Dev sets a single `API_BASE_URL` for both; in a container that breaks SSR. The
 `web.env.example` splits them — keep both.
@@ -60,8 +60,8 @@ $C build
 $C up -d postgres redis
 $C run --rm migrate            # default set — see migration order below
 $C up -d api web
-# api  → http://localhost:12334/healthz
-# web  → http://localhost:17777
+# api  → http://localhost:15012/healthz
+# web  → http://localhost:15013
 ```
 
 ## Run — production (umbrella)
