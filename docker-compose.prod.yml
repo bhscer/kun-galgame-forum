@@ -1,0 +1,69 @@
+# kungal (kun-galgame-nuxt4) — PRODUCTION compose (Dokploy + GHCR images).
+#
+# kungal is a downstream app: it owns NO backing services. It joins the shared
+# `dokploy-network` and reaches the infra stack by service name (postgres:5432,
+# redis:6379, http://oauth:9277, http://galgame:9280). Bring infra up first.
+#
+# vs docker-compose.yml (dev): `image:` not `build:` (CI pushes to GHCR), and
+# `expose:` not `ports:` (Traefik routes internally — no host ports in prod).
+# See docs/deploy/12-dokploy.md + 13-registry-ci.md.
+#
+# FRONTEND DOMAINS (build-once): kungal web reads its public config at RUNTIME
+# from docker/web.env's NUXT_PUBLIC_* names, so the SAME image works anywhere —
+# set the real https domains in web.env / Dokploy Environment per 12-dokploy
+# §12.2-C (keep NUXT_API_BASE_URL=http://api:2334 for SSR). Rotate all secrets.
+#
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml run --rm migrate   # ⚠ see docs/migration for ORDER
+#   docker compose -f docker-compose.prod.yml up -d api web
+name: kungal
+
+x-svc-health: &svc-health
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 15s
+
+services:
+  # ───────────────────────────── Go API (distroless) ─────────────────────────
+  api:
+    image: ghcr.io/kun1007/kungal-api:latest
+    env_file: [./docker/api.env]
+    expose: ["2334"]
+    # No depends_on: postgres/redis live in the infra app, not here.
+    # `restart: unless-stopped` reconnects once the infra stack is up.
+    healthcheck:
+      test: ["CMD", "/app", "healthcheck"]
+      <<: *svc-health
+    restart: unless-stopped
+
+  # ───────────────────────────── Nuxt 4 SSR frontend ─────────────────────────
+  web:
+    image: ghcr.io/kun1007/kungal-web:latest
+    env_file: [./docker/web.env]   # NUXT_API_BASE_URL (SSR) + NUXT_PUBLIC_* (browser, prod domains)
+    expose: ["7777"]
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('net').connect(7777,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
+      <<: *svc-health
+    restart: unless-stopped
+
+  # ─────────────────────── one-off job (profile: jobs) ───────────────────────
+  # kungal's migration ORDER is non-trivial (005/006/007/012/015 deferred, run
+  # AFTER infra's migrate-users). See docs/migration. Routine deploys: default set.
+  #   docker compose -f docker-compose.prod.yml run --rm migrate
+  migrate:
+    image: ghcr.io/kun1007/kungal-migrate:latest
+    env_file: [./docker/api.env]
+    profiles: ["jobs"]
+    restart: "no"
+
+networks:
+  default:
+    name: dokploy-network
+    external: true
