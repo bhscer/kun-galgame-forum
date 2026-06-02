@@ -25,7 +25,14 @@ const KUN_SITE_LIST = [
   { name: '鲲 Galgame 开发文档', url: KUN_SITE_DEVELOPMENT_DOCUMENTATION }
 ]
 const KUN_SITE_THEME_COLOR = '#006FEE'
-const KUN_SITE_VALID_DOMAIN_LIST = ['www.kungal.com', 'www.kungal.org']
+const KUN_SITE_VALID_DOMAIN_LIST = [
+  'www.kungal.com',
+  'www.kungal.org',
+  // local docker / dev so domainChecker.ts doesn't redirect the test deploy to
+  // production (it only redirects when NODE_ENV=production AND host not listed).
+  'localhost',
+  '127.0.0.1'
+]
 
 const KUN_SITE_KEYWORDS = [
   'Galgame',
