@@ -34,6 +34,60 @@ const providerName = computed(() => {
   return names && names.length > 0 ? names.join(' / ') : props.resource.linkDomain
 })
 
+// Long notes collapse behind a "展开全部" toggle: anything taller than this
+// (px) is clamped, and the full text is only shown once expanded.
+const NOTE_COLLAPSED_MAX_HEIGHT = 100
+const noteRef = ref<HTMLElement | null>(null)
+const isNoteExpanded = ref(false)
+const isNoteOverflowing = ref(false)
+let noteResizeObserver: ResizeObserver | null = null
+
+const measureNoteOverflow = () => {
+  const el = noteRef.value
+  if (!el) {
+    isNoteOverflowing.value = false
+    return
+  }
+  // scrollHeight reports the full content height even while max-height clamps
+  // the box, so this stays accurate in the collapsed state.
+  isNoteOverflowing.value = el.scrollHeight > NOTE_COLLAPSED_MAX_HEIGHT
+}
+
+// Clamp + fade the bottom edge only while collapsed. The mask fades the
+// element's own pixels, so it needs no background-colour matching.
+const noteStyle = computed(() => {
+  if (!isNoteOverflowing.value || isNoteExpanded.value) return undefined
+  const fade = 'linear-gradient(to bottom, #000 70%, transparent)'
+  return {
+    maxHeight: `${NOTE_COLLAPSED_MAX_HEIGHT}px`,
+    maskImage: fade,
+    WebkitMaskImage: fade
+  }
+})
+
+onMounted(() => {
+  if (!noteRef.value) return
+  // Re-measure on re-wrap (viewport resize, late font load) so the toggle
+  // appears / disappears as the height crosses the threshold.
+  noteResizeObserver = new ResizeObserver(() => measureNoteOverflow())
+  noteResizeObserver.observe(noteRef.value)
+  measureNoteOverflow()
+})
+
+onBeforeUnmount(() => {
+  noteResizeObserver?.disconnect()
+  noteResizeObserver = null
+})
+
+// The resource may be swapped in place on a parent refresh — reset + re-measure.
+watch(
+  () => props.resource.note,
+  () => {
+    isNoteExpanded.value = false
+    nextTick(measureNoteOverflow)
+  }
+)
+
 const isDetailOpen = ref(false)
 const isOpeningDetail = ref(false)
 const detailModalRef = ref<{ prefetch: () => Promise<unknown> } | null>(null)
@@ -131,12 +185,27 @@ const handleMarkValid = async () => {
       </KunChip>
     </div>
 
-    <p
-      v-if="resource.note"
-      class="text-default-700 bg-default-100/60 rounded-md px-3 py-2 text-sm whitespace-pre-line"
-    >
-      {{ resource.note }}
-    </p>
+    <div v-if="resource.note" class="space-y-1.5">
+      <p
+        ref="noteRef"
+        :style="noteStyle"
+        class="text-default-700 bg-default-100/60 overflow-hidden rounded-md px-3 py-2 text-sm whitespace-pre-line"
+      >
+        {{ resource.note }}
+      </p>
+
+      <button
+        v-if="isNoteOverflowing"
+        type="button"
+        class="text-default-500 hover:text-primary flex items-center gap-1 px-1 text-xs transition-colors"
+        @click="isNoteExpanded = !isNoteExpanded"
+      >
+        <KunIcon
+          :name="isNoteExpanded ? 'lucide:chevron-up' : 'lucide:chevron-down'"
+        />
+        {{ isNoteExpanded ? '收起' : '展开全部' }}
+      </button>
+    </div>
 
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="text-default-500 flex items-center gap-1.5 text-sm">
