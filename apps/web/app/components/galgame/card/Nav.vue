@@ -57,7 +57,8 @@ const {
   showLanguage,
   showNsfwBadge,
   showPublisher,
-  showJapaneseName
+  showJapaneseName,
+  isOpenInNewTab
 } = storeToRefs(usePersistGalgameCardStore())
 
 watch(
@@ -551,6 +552,7 @@ const resetFilters = () => {
         <KunSwitch v-model="showNsfwBadge" label="显示 NSFW 角标" />
         <KunSwitch v-model="showPublisher" label="底部发布者与时间" />
         <KunSwitch v-model="showJapaneseName" label="中文名下显示日语名" />
+        <KunSwitch v-model="isOpenInNewTab" label="在新页面打开卡片" />
       </div>
     </div>
   </div>

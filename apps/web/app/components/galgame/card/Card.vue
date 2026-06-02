@@ -8,7 +8,8 @@ defineProps<{
 }>()
 
 // Card layout is user-configurable (persisted): each banner corner, the
-// NSFW badge, the footer, and the secondary JP title toggle independently.
+// NSFW badge, the footer, the secondary JP title, and whether the card opens
+// in a new tab — all toggle independently.
 const {
   showPlatform,
   showRating,
@@ -16,7 +17,8 @@ const {
   showLanguage,
   showNsfwBadge,
   showPublisher,
-  showJapaneseName
+  showJapaneseName,
+  isOpenInNewTab
 } = storeToRefs(usePersistGalgameCardStore())
 </script>
 
@@ -30,6 +32,7 @@ const {
       v-for="galgame in galgames"
       :key="galgame.id"
       :href="`/galgame/${galgame.id}`"
+      :target="isOpenInNewTab ? '_blank' : undefined"
       class-name="p-0"
     >
       <div class="relative overflow-hidden">

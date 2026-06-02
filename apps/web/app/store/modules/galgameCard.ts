@@ -3,10 +3,11 @@ import { ref } from 'vue'
 
 // Per-user display preferences for the galgame list card, persisted to
 // localStorage. Controls which of the four banner corners show, plus the
-// NSFW badge, the footer (publisher + time), and the secondary Japanese
-// title. Read by components/galgame/card/Card.vue; toggled from the
-// "显示设置" panel in card/Nav.vue. Defaults reproduce the original
-// always-on layout (corners + NSFW badge + footer on; JP name opt-in).
+// NSFW badge, the footer (publisher + time), the secondary Japanese title,
+// and whether a card opens in a new tab. Read by
+// components/galgame/card/Card.vue; toggled from the "显示设置" panel in
+// card/Nav.vue. Defaults reproduce the original always-on layout (corners +
+// NSFW badge + footer on; JP name opt-in) and open cards in a new tab.
 export const usePersistGalgameCardStore = defineStore(
   'KUNGalgameCardDisplay',
   () => {
@@ -17,6 +18,7 @@ export const usePersistGalgameCardStore = defineStore(
     const showNsfwBadge = ref(true)
     const showPublisher = ref(true)
     const showJapaneseName = ref(false)
+    const isOpenInNewTab = ref(true) // click a card → open /galgame/:id in a new tab
 
     const reset = () => {
       showPlatform.value = true
@@ -26,6 +28,7 @@ export const usePersistGalgameCardStore = defineStore(
       showNsfwBadge.value = true
       showPublisher.value = true
       showJapaneseName.value = false
+      isOpenInNewTab.value = true
     }
 
     return {
@@ -36,6 +39,7 @@ export const usePersistGalgameCardStore = defineStore(
       showNsfwBadge,
       showPublisher,
       showJapaneseName,
+      isOpenInNewTab,
       reset
     }
   },
