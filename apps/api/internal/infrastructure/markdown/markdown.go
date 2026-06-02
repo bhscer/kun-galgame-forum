@@ -9,7 +9,6 @@ import (
 
 	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/yuin/goldmark"
-	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -41,10 +40,14 @@ func init() {
 		goldmark.WithExtensions(
 			extension.GFM,
 			mathjax.MathJax,
-			highlighting.NewHighlighting(
-				highlighting.WithStyle("monokai"),
-				highlighting.WithGuessLanguage(true),
-			),
+			// No server-side syntax highlighting. goldmark-highlighting (Chroma,
+			// style "monokai") stamps a hard-coded dark inline background onto
+			// <pre> — so code blocks render dark in BOTH light/dark mode — and it
+			// rewrites the markup to `<pre class="chroma">`, which bypasses the
+			// codeBlockRegex wrapper below. Emitting plain `<pre><code
+			// class="language-x">` lets every fence flow through the
+			// .kun-code-container wrapper and be themed by the shared prose.css
+			// (project color system), matching moyu / wiki.
 			&h1ToH2Extension{},
 			&lazyImageExtension{},
 		),
