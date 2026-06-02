@@ -31,74 +31,105 @@ https://www.kungal.com/kungalgame
 - **Resource Sharing** — Upload and share game patches, translations, voice packs, and other resources with provider tracking and platform/language filters
 - **Discussion Forum** — Full-featured topic system with rich Markdown editing (Milkdown + CodeMirror), replies, nested comments, polls, upvotes, and favorites
 - **Collaborative Editing** — Git-style PR (Pull Request) workflow for Galgame information edits, with edit history tracking and contributor credits
-- **Real-time Messaging** — Socket.IO powered chat system with private messaging and chat rooms
-- **Moemoepoint System** — Community reputation points earned through contributions (posting, sharing resources, editing Galgame info)
+- **Private Messaging & Chat** — Direct messages and contact list served by the Go API
+- **Moemoepoint System** — Community reputation points earned through contributions (posting, sharing resources, editing Galgame info), unified across the ecosystem via the shared OAuth service
 - **Rich Content Editing** — Milkdown Markdown editor with KaTeX math formulas, code highlighting, and image upload via drag & drop
 - **Dark / Light Theme** — System-aware color mode with customizable page transparency, fonts, and background images
 - **SEO Optimized** — Server-side rendering, structured data (Schema.org), sitemap generation, and RSS feeds for Galgames and topics
+
+## Architecture
+
+This is a **pnpm workspace monorepo** with a Go backend and a Nuxt frontend. It is a downstream app in the **`kun-galgame-infra`** ecosystem, which owns the shared PostgreSQL / Redis / Meilisearch and the OAuth, image, and Galgame-wiki services.
+
+| Package | Role |
+|---------|------|
+| `apps/api` | **Go (Fiber + GORM) REST API** — auth, forum, Galgame DB, resources, search, messaging, scheduled jobs |
+| `apps/web` | **Nuxt 4 SSR frontend** — Vue 3, calls the Go API; the Nitro server only serves RSS feeds |
+| `packages/ui` | **`@kun/ui`** — shared Nuxt layer (component library), consumed by `apps/web` via `extends` |
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | [Nuxt 4](https://nuxt.com/) (Vue 3 Composition API + Nitro Server) |
+| Frontend | [Nuxt 4](https://nuxt.com/) (Vue 3 SSR, Nitro node-server) |
+| UI Layer | `@kun/ui` — shared Nuxt layer (`packages/ui`) |
 | Styling | [Tailwind CSS 4](https://tailwindcss.com/) |
 | State Management | [Pinia](https://pinia.vuejs.org/) with persisted state |
-| Database | PostgreSQL + [Prisma 7](https://www.prisma.io/) ORM |
-| Cache | Redis |
-| Authentication | JWT (dual token — access + refresh) |
-| Real-time | [Socket.IO](https://socket.io/) |
-| File Storage | S3-compatible object storage (images + resources) |
-| Validation | [Zod](https://zod.dev/) |
 | Editor | [Milkdown](https://milkdown.dev/) + [CodeMirror](https://codemirror.net/) |
-| Deployment | PM2 |
+| Backend API | [Go 1.26](https://go.dev/) + [Fiber v2](https://gofiber.io/) |
+| Database | PostgreSQL via [GORM](https://gorm.io/) — raw-SQL migrations (no Prisma) |
+| Cache | Redis |
+| Search | [Meilisearch](https://www.meilisearch.com/) |
+| Authentication | JWT (dual token — access + refresh) + OAuth (`kun-galgame-infra`) |
+| Object Storage | S3-compatible (Cloudflare R2 image bed + Backblaze B2 for toolset uploads) |
+| Scheduler | [robfig/cron](https://github.com/robfig/cron) (daily resets, stats) |
+| Validation | [Zod](https://zod.dev/) (web) |
+| Deployment | Docker → GHCR → [Dokploy](https://dokploy.com/) (or PM2 via `scripts/`) |
 | Analytics | [Umami](https://umami.is/) |
 
 ## Project Structure
 
 ```
-├── app/                 # Frontend (pages, components, composables, stores, validations)
-├── server/              # Backend (API endpoints, plugins, WebSocket, scheduled tasks)
-├── shared/              # Shared code (TypeScript types, utility functions)
-├── prisma/schema/       # Database models (modular .prisma files)
-├── lib/                 # Libraries (S3 client, icon config)
-├── scripts/             # Build & migration scripts
-├── public/              # Static assets
-└── docs/                # Documentation
+├── apps/
+│   ├── api/                 # Go Fiber backend (REST API)
+│   │   ├── cmd/             # server, migrate, + one-off backfill/sync tools
+│   │   ├── internal/        # domain modules (user, topic, galgame, moemoepoint, message, search, …)
+│   │   ├── migrations/      # raw SQL migrations (.up.sql / .down.sql)
+│   │   └── pkg/             # cross-cutting (config, logger, health, …)
+│   └── web/                 # Nuxt 4 SSR frontend
+│       ├── app/             # pages, components, composables, store (Pinia), validations
+│       ├── server/          # Nitro routes (RSS feeds only)
+│       └── shared/          # shared TypeScript types & utils
+├── packages/
+│   └── ui/                  # @kun/ui — shared Nuxt layer (component library)
+├── docker/                  # Dockerfiles + env examples + Docker README
+├── docker-compose*.yml      # base / standalone / infra / prod
+├── scripts/                 # PM2 deploy scripts (deploy / start / stop / restart)
+└── docs/                    # documentation
 ```
 
 ## Getting Started
 
+**Prerequisites:** Node.js 22+ (with Corepack/pnpm), Go 1.26+, PostgreSQL, Redis, and (optionally) Meilisearch. Full functionality also needs the `kun-galgame-infra` services (OAuth, image, Galgame-wiki).
+
 ```bash
-# Install dependencies
+# Install workspace dependencies
 pnpm install
 
-# Copy and configure environment variables
-cp .env.example .env
+# Configure environment (per app)
+cp apps/api/.env.example apps/api/.env   # Go API: DB, Redis, OAuth, S3, mail, search, …
+cp apps/web/.env.example apps/web/.env   # Nuxt: API base URL, OAuth client, image/wiki URLs
 
-# Generate Prisma Client
-pnpm prisma:generate
+# Run database migrations (see docs/ for the cross-repo migration order)
+pnpm migrate
 
-# Push schema to database
-pnpm prisma:push
-
-# Start dev server (http://127.0.0.1:1007)
+# Start both apps in parallel — API on :2334, Web on :2333
 pnpm dev
+#   pnpm dev:api   # Go API only (air hot-reload) → http://127.0.0.1:2334
+#   pnpm dev:web   # Nuxt only                     → http://127.0.0.1:2333
+```
+
+Or run the whole stack in containers (see [`docker/README.md`](/docker/README.md)):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.standalone.yml up
 ```
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Start development server |
-| `pnpm build` | Production build |
-| `pnpm lint` | Run ESLint |
-| `pnpm format` | Run Prettier |
-| `pnpm typecheck` | TypeScript type checking |
-| `pnpm prisma:generate` | Generate Prisma Client |
-| `pnpm prisma:push` | Push schema changes to database |
-| `pnpm prisma:studio` | Open Prisma Studio GUI |
-| `pnpm start` / `pnpm stop` | PM2 production start / stop |
+| `pnpm dev` | Run API + Web together (parallel) |
+| `pnpm dev:web` / `pnpm dev:api` | Run a single app |
+| `pnpm build` | Production build — Go API then Nuxt web |
+| `pnpm lint` / `pnpm lint:fix` | ESLint (web) |
+| `pnpm typecheck` | `vue-tsc` type checking (web) |
+| `pnpm format` | Prettier / gofmt across apps |
+| `pnpm vet` | `go vet` (api) |
+| `pnpm test:api` | `go test` (api) |
+| `pnpm migrate` / `pnpm migrate:down` | Run / roll back DB migrations (api) |
+| `pnpm sitemap` | Generate the sitemap |
+| `pnpm prod:deploy` / `prod:start` / `prod:stop` / `prod:restart` | PM2 deployment scripts |
 
 ## Join / Contact Us
 

@@ -31,74 +31,105 @@ https://www.kungal.com/kungalgame
 - **资源分享** — 上传和分享游戏补丁、汉化、语音包和其他资源，具备提供者追踪及平台和语言筛选功能
 - **讨论论坛** — 功能齐全的话题系统，支持富文本 Markdown 编辑 (Milkdown + CodeMirror)、回复、子评论、投票、点赞和收藏
 - **协作编辑** — 采用 Git 风格的 PR (Pull Request) 工作流进行 Galgame 信息编辑，包含编辑历史记录及贡献者致谢
-- **实时消息** — 基于 Socket.IO 的聊天系统，支持私信和聊天室
-- **萌萌点系统** — 通过贡献（发帖、分享资源、编辑 Galgame 信息）获得的社区声望点数功能
+- **私信与聊天** — 由 Go 后端提供的私信与联系人列表
+- **萌萌点系统** — 通过贡献（发帖、分享资源、编辑 Galgame 信息）获得的社区声望点数，并通过共享的 OAuth 服务在整个生态中统一
 - **多媒体内容编辑** — 支持 KaTeX 数学公式、代码高亮和拖拽上传图片的 Milkdown Markdown 编辑器
 - **深色 / 浅色主题** — 系统自带的色彩模式切换，支持自定义页面透明度、字体和背景图片
 - **SEO 优化** — 服务端渲染，结构化数据 (Schema.org)、站点地图生成和 Galgame 及话题的 RSS 订阅
+
+## 架构
+
+本项目是一个 **pnpm workspace monorepo**，由 Go 后端与 Nuxt 前端组成。它是 **`kun-galgame-infra`** 生态中的下游应用——该生态拥有共享的 PostgreSQL / Redis / Meilisearch，以及 OAuth、图床、Galgame Wiki 等服务。
+
+| 包 | 职责 |
+|------|------|
+| `apps/api` | **Go (Fiber + GORM) REST API** — 鉴权、论坛、Galgame 库、资源、搜索、消息、定时任务 |
+| `apps/web` | **Nuxt 4 SSR 前端** — Vue 3，调用 Go API；Nitro 服务端只负责 RSS 订阅 |
+| `packages/ui` | **`@kun/ui`** — 共享 Nuxt layer（组件库），由 `apps/web` 通过 `extends` 引入 |
 
 ## 技术栈
 
 | 层 | 技术 |
 |-------|-----------|
-| 框架 | [Nuxt 4](https://nuxt.com/) (Vue 3 组合式 API + Nitro 服务器) |
+| 前端 | [Nuxt 4](https://nuxt.com/) (Vue 3 SSR + Nitro node-server) |
+| UI 层 | `@kun/ui` — 共享 Nuxt layer (`packages/ui`) |
 | 样式 | [Tailwind CSS 4](https://tailwindcss.com/) |
 | 状态管理 | [Pinia](https://pinia.vuejs.org/) (带持久化) |
-| 数据库 | PostgreSQL + [Prisma 7](https://www.prisma.io/) ORM |
-| 缓存 | Redis |
-| 身份验证 | JWT (双 token — access + refresh) |
-| 实时通讯 | [Socket.IO](https://socket.io/) |
-| 文件存储 | 兼容 S3 的对象存储服务 (图片与资源) |
-| 数据验证 | [Zod](https://zod.dev/) |
 | 文本编辑器 | [Milkdown](https://milkdown.dev/) + [CodeMirror](https://codemirror.net/) |
-| 部署管理 | PM2 |
+| 后端 API | [Go 1.26](https://go.dev/) + [Fiber v2](https://gofiber.io/) |
+| 数据库 | PostgreSQL + [GORM](https://gorm.io/)，原生 SQL 迁移（不再使用 Prisma） |
+| 缓存 | Redis |
+| 搜索 | [Meilisearch](https://www.meilisearch.com/) |
+| 身份验证 | JWT (双 token — access + refresh) + OAuth (`kun-galgame-infra`) |
+| 对象存储 | 兼容 S3（图床用 Cloudflare R2，工具集上传用 Backblaze B2） |
+| 定时任务 | [robfig/cron](https://github.com/robfig/cron)（每日重置、统计等） |
+| 数据验证 | [Zod](https://zod.dev/)（前端） |
+| 部署 | Docker → GHCR → [Dokploy](https://dokploy.com/)（或通过 `scripts/` 使用 PM2） |
 | 流量分析 | [Umami](https://umami.is/) |
 
 ## 项目结构
 
 ```text
-├── app/                 # 前端目录 (页面、组件、组合式函数、状态、校验)
-├── server/              # 后端目录 (API 路由、插件、WebSocket、定时任务)
-├── shared/              # 共享代码 (TypeScript 类型、工具函数)
-├── prisma/schema/       # 数据库模型设计 (模块化 .prisma 文件)
-├── lib/                 # 核心库 (S3 客户端、图标配置等)
-├── scripts/             # 构建与数据库迁移脚本
-├── public/              # 静态资源存放点
-└── docs/                # 开发文档
+├── apps/
+│   ├── api/                 # Go Fiber 后端 (REST API)
+│   │   ├── cmd/             # server、migrate 及若干一次性 backfill/sync 工具
+│   │   ├── internal/        # 领域模块 (user、topic、galgame、moemoepoint、message、search…)
+│   │   ├── migrations/      # 原生 SQL 迁移 (.up.sql / .down.sql)
+│   │   └── pkg/             # 横切关注点 (config、logger、health…)
+│   └── web/                 # Nuxt 4 SSR 前端
+│       ├── app/             # 页面、组件、组合式函数、状态 (Pinia)、校验
+│       ├── server/          # Nitro 路由（仅 RSS 订阅）
+│       └── shared/          # 共享 TypeScript 类型与工具
+├── packages/
+│   └── ui/                  # @kun/ui — 共享 Nuxt layer（组件库）
+├── docker/                  # Dockerfile + 环境变量示例 + Docker 说明
+├── docker-compose*.yml      # base / standalone / infra / prod
+├── scripts/                 # PM2 部署脚本 (deploy / start / stop / restart)
+└── docs/                    # 开发文档
 ```
 
 ## 快速开始
 
+**前置依赖：** Node.js 22+（含 Corepack/pnpm）、Go 1.26+、PostgreSQL、Redis，以及（可选）Meilisearch。完整功能还需要 `kun-galgame-infra` 的服务（OAuth、图床、Galgame Wiki）。
+
 ```bash
-# 安装依赖
+# 安装 workspace 依赖
 pnpm install
 
-# 复制并配置环境变量
-cp .env.example .env
+# 配置环境变量（按 app 分别配置）
+cp apps/api/.env.example apps/api/.env   # Go API：数据库、Redis、OAuth、S3、邮件、搜索…
+cp apps/web/.env.example apps/web/.env   # Nuxt：API 地址、OAuth 客户端、图床/Wiki 地址
 
-# 生成 Prisma 客户端
-pnpm prisma:generate
+# 执行数据库迁移（跨仓库迁移顺序详见 docs/）
+pnpm migrate
 
-# 推送 schema 到数据库
-pnpm prisma:push
-
-# 启动开发服务器 (http://127.0.0.1:1007)
+# 同时启动前后端 — API 在 :2334，Web 在 :2333
 pnpm dev
+#   pnpm dev:api   # 仅 Go API（air 热重载）→ http://127.0.0.1:2334
+#   pnpm dev:web   # 仅 Nuxt              → http://127.0.0.1:2333
+```
+
+或使用容器运行整套服务（详见 [`docker/README.md`](/docker/README.md)）：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.standalone.yml up
 ```
 
 ## 脚本命令
 
 | 命令 | 描述 |
 |---------|-------------|
-| `pnpm dev` | 启动开发服务器 |
-| `pnpm build` | 构建生产环境版本 |
-| `pnpm lint` | 运行 ESLint 代码检查 |
-| `pnpm format` | 运行 Prettier 格式化代码 |
-| `pnpm typecheck` | 执行 TypeScript 类型检查 |
-| `pnpm prisma:generate` | 生成 Prisma Client 代码 |
-| `pnpm prisma:push` | 将 schema 更改应用到数据库结构 |
-| `pnpm prisma:studio` | 开启 Prisma Studio GUI 查看数据库 |
-| `pnpm start` / `pnpm stop` | 使用 PM2 启动 / 停止生产环境 |
+| `pnpm dev` | 同时启动 API + Web（并行） |
+| `pnpm dev:web` / `pnpm dev:api` | 单独启动某个 app |
+| `pnpm build` | 生产构建 — 先 Go API 后 Nuxt web |
+| `pnpm lint` / `pnpm lint:fix` | ESLint（前端） |
+| `pnpm typecheck` | `vue-tsc` 类型检查（前端） |
+| `pnpm format` | 跨 app 运行 Prettier / gofmt |
+| `pnpm vet` | `go vet`（后端） |
+| `pnpm test:api` | `go test`（后端） |
+| `pnpm migrate` / `pnpm migrate:down` | 执行 / 回滚数据库迁移（后端） |
+| `pnpm sitemap` | 生成站点地图 |
+| `pnpm prod:deploy` / `prod:start` / `prod:stop` / `prod:restart` | PM2 部署脚本 |
 
 ## 加入 / 联系我们
 
