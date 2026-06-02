@@ -90,7 +90,10 @@ onMounted(async () => {
 
       <div class="flex justify-between">
         <div class="flex gap-2">
-          <div
+          <a
+            :href="`https://www.moyu.moe/user/${resource.user.id}/resource`"
+            target="_blank"
+            rel="noopener noreferrer"
             :class="
               cn(
                 'flex size-8 shrink-0 cursor-pointer justify-center',
@@ -103,7 +106,7 @@ onMounted(async () => {
               :src="resource.user.avatar"
               :alt="resource.user.name"
             />
-          </div>
+          </a>
 
           <div class="flex flex-col">
             <span class="text-xs">{{ resource.user.name }}</span>
@@ -122,7 +125,7 @@ onMounted(async () => {
           size="sm"
           variant="flat"
           target="_blank"
-          :href="`https://www.moyu.moe/patch/${resource.patch_id}/resource#kun_patch_resource_${resource.id}`"
+          :href="`https://www.moyu.moe/resource/${resource.id}`"
           :icon="true"
         >
           前往下载页面

@@ -77,8 +77,6 @@ const { data, status } = await useKunFetch<{
           :is-loading="status === 'pending'"
         />
       </KunCard>
-
-      <KunAdDZMMBanner />
     </template>
   </div>
 </template>
