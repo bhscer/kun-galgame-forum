@@ -1,6 +1,6 @@
 {
   "name": "kun-galgame-nuxt4-fiber",
-  "version": "5.3.41",
+  "version": "5.3.42",
   "private": true,
   "packageManager": "pnpm@10.12.1",
   "workspaces": [

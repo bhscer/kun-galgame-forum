@@ -25,13 +25,13 @@ services:
       postgres: { condition: service_healthy }
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${PGPASS:-kungal_dev_pw}
       POSTGRES_DB: kungalgame
     ports: ["15000:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+    volumes: ["pgdata:/var/lib/postgresql"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d kungalgame"]
       interval: 5s
@@ -40,7 +40,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     command: ["redis-server", "--appendonly", "yes"]
     ports: ["15001:6379"]
     volumes: ["redisdata:/data"]
