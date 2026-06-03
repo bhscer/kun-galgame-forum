@@ -83,7 +83,7 @@ https://www.kungal.com/ja-jp/kungalgame
 ├── packages/
 │   └── ui/                  # @kun/ui — 共有 Nuxt レイヤー（コンポーネントライブラリ）
 ├── docker/                  # Dockerfile + 環境変数サンプル + Docker README
-├── docker-compose*.yml      # base / standalone / infra / prod
+├── docker-compose*.yml      # base (joins infra) + prod
 ├── scripts/                 # PM2 デプロイスクリプト (deploy / start / stop / restart)
 └── docs/                    # ドキュメント
 ```
@@ -112,7 +112,7 @@ pnpm dev
 または、コンテナでスタック全体を実行します（[`docker/README.md`](/docker/README.md) 参照）：
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.standalone.yml up
+docker compose up -d api web        # kun-galgame-infra must be running first
 ```
 
 ## スクリプト

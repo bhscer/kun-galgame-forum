@@ -83,7 +83,7 @@ This is a **pnpm workspace monorepo** with a Go backend and a Nuxt frontend. It 
 ├── packages/
 │   └── ui/                  # @kun/ui — shared Nuxt layer (component library)
 ├── docker/                  # Dockerfiles + env examples + Docker README
-├── docker-compose*.yml      # base / standalone / infra / prod
+├── docker-compose*.yml      # base (joins infra) + prod
 ├── scripts/                 # PM2 deploy scripts (deploy / start / stop / restart)
 └── docs/                    # documentation
 ```
@@ -112,7 +112,7 @@ pnpm dev
 Or run the whole stack in containers (see [`docker/README.md`](/docker/README.md)):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.standalone.yml up
+docker compose up -d api web        # kun-galgame-infra must be running first
 ```
 
 ## Scripts

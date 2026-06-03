@@ -4,9 +4,10 @@ Container build + compose for **kungal** (`kun-galgame-nuxt4`): the Go Fiber API
 (`apps/api`) and the Nuxt 4 SSR site (`apps/web`).
 
 kungal is **not** the infra. Postgres / Redis (and the OAuth, image, and
-wiki services) are owned by **kun-galgame-infra** and shared. So in production the
-umbrella `website/compose.yaml` provides those, and kungal only ships its own
-`api` + `web`. A `standalone` override is included for local self-test.
+wiki services) are owned by **kun-galgame-infra** and shared. kungal ships only its
+own `api` + `web`; its `docker-compose.yml` joins infra's external network
+(`kun-galgame-infra_default`), so **kun-galgame-infra must be running first** — both
+locally and in production. (Same shape as moyu — no self-contained override.)
 
 ## Images
 
@@ -25,8 +26,8 @@ Both Dockerfiles take the **repo root** as build context (`apps/web` extends the
 |---------|-----------|----------------|-----------|
 | api     | 2334      | **15012**      | coexist with a running `air` dev server (2334) |
 | web     | 7777      | **15013**      | coexist with `nuxt dev` (2333) |
-| postgres (standalone) | 5432 | 15000 | |
-| redis (standalone)    | 6379 | 15001 | |
+
+(Postgres / Redis are infra's — kungal publishes no DB ports of its own.)
 
 ## Configure
 
@@ -50,14 +51,19 @@ Nuxt SSR and the browser reach the API differently:
 Dev sets a single `API_BASE_URL` for both; in a container that breaks SSR. The
 `web.env.example` splits them — keep both.
 
-## Run — standalone (local self-test)
+## Run — local (against infra)
 
-No infra repo needed; throwaway pg/redis come from the override.
+kungal has no DB of its own; bring up **kun-galgame-infra** first (it owns
+Postgres / Redis and creates the `kun-galgame-infra_default` network), then start
+kungal on that shared network — same flow as moyu.
 
 ```bash
-C="docker compose -f docker-compose.yml -f docker-compose.standalone.yml"
+# 1) infra up first (creates the network + Postgres/Redis) — in the infra repo:
+( cd ../kun-galgame-infra && docker compose up -d postgres redis )
+
+# 2) kungal on the shared network:
+C="docker compose"
 $C build
-$C up -d postgres redis
 $C run --rm migrate            # default set — see migration order below
 $C up -d api web
 # api  → http://localhost:15012/healthz

@@ -1,22 +1,19 @@
 # kungal (kun-galgame-nuxt4) — forum site (Go Fiber API + Nuxt 4 SSR).
 #
-# kungal is NOT the infra stack: it CONNECTS to the shared Postgres / Redis
-# that kun-galgame-infra owns. So this file does NOT define postgres/redis — they
-# come from either:
-#   • the umbrella website/compose.yaml (infra's services, via `include`), or
-#   • docker-compose.standalone.yml (local self-test pg/redis), composed in:
-#       docker compose -f docker-compose.yml -f docker-compose.standalone.yml up
+# Stateless api + web only. The backing services (Postgres / Redis) and the
+# upstreams (oauth / galgame-wiki / image) are OWNED BY the kun-galgame-infra
+# stack; kungal connects to them by service name on its network. So this file
+# does NOT define postgres/redis — bring infra up first (it creates the network),
+# then run here. Same shape as moyu's compose. See docker/README.md.
 #
 # Host ports are in the 1xxxx range so the stack coexists with a running `air`
 # dev server. Service-to-service traffic uses container ports via service names
 # (postgres:5432, redis:6379, http://api:2334, http://oauth:9277, …).
 #
-# Quick start (standalone self-test):
-#   C="docker compose -f docker-compose.yml -f docker-compose.standalone.yml"
-#   $C build
-#   $C up -d postgres redis
-#   $C run --rm migrate            # ⚠ see docker/migrate runbook for the ORDER
-#   $C up -d api web
+# Quick start (infra must be up first → its network exists):
+#   docker compose build
+#   docker compose run --rm migrate     # ⚠ see docker/migrate runbook for the ORDER
+#   docker compose up -d api web
 name: kungal
 
 x-svc-health: &svc-health
@@ -35,11 +32,9 @@ services:
     image: kungal/api
     env_file: [./docker/api.env]
     ports: ["15012:2334"]
-    # No depends_on on postgres/redis here: this base file does NOT define them
-    # (the infra owns them; standalone.yml adds throwaway ones). Declaring the
-    # dependency here would make a bare `docker compose ...` (base alone, e.g.
-    # `docker compose build`) an invalid project. standalone.yml re-adds the
-    # ordering deps for the local self-test path.
+    # No depends_on on postgres/redis: they live in the kun-galgame-infra compose
+    # (a separate project), not here — cross-project depends_on isn't possible.
+    # `restart: unless-stopped` reconnects once the infra stack is up.
     healthcheck:
       # distroless has no shell → the binary self-probes /healthz, exits 0/1.
       test: ["CMD", "/app", "healthcheck"]
@@ -81,8 +76,8 @@ services:
   # 012/015 are deferred and must run AFTER oauth's migrate-users). For a fresh
   # cross-repo bootstrap follow docs/migration; routine deploys run the default
   # set:
-  #   docker compose ... run --rm migrate                 # default (excludes 005/006/007/012/015)
-  #   docker compose ... run --rm migrate --only=015      # e.g. after 007 exists
+  #   docker compose run --rm migrate                 # default (excludes 005/006/007/012/015)
+  #   docker compose run --rm migrate --only=015      # e.g. after 007 exists
   migrate:
     build:
       context: .
@@ -91,5 +86,13 @@ services:
     image: kungal/migrate
     env_file: [./docker/api.env]
     profiles: ["jobs"]
-    # depends_on omitted in base (see api note above); standalone.yml re-adds it.
+    # No depends_on: postgres/redis live in the infra compose (cross-project),
+    # not here. Run after infra's postgres is up.
     restart: "no"
+
+# kungal joins the infra network so `postgres`/`redis`/`oauth`/`galgame`/`image`
+# resolve by service name. infra must be up first (it creates this network).
+networks:
+  default:
+    name: kun-galgame-infra_default
+    external: true

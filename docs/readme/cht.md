@@ -83,7 +83,7 @@ https://www.kungal.com/zh-tw/kungalgame
 ├── packages/
 │   └── ui/                  # @kun/ui — 共享 Nuxt layer（元件庫）
 ├── docker/                  # Dockerfile + 環境變數範例 + Docker 說明
-├── docker-compose*.yml      # base / standalone / infra / prod
+├── docker-compose*.yml      # base (joins infra) + prod
 ├── scripts/                 # PM2 部署腳本 (deploy / start / stop / restart)
 └── docs/                    # 開發文檔
 ```
@@ -112,7 +112,7 @@ pnpm dev
 或使用容器執行整套服務（詳見 [`docker/README.md`](/docker/README.md)）：
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.standalone.yml up
+docker compose up -d api web        # kun-galgame-infra must be running first
 ```
 
 ## 腳本命令
