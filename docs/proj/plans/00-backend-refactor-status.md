@@ -15,7 +15,7 @@
     │       │     └── galgame 交互 (like/comment/rating/resource)
     │       │           └── 调用 galgame service 获取元数据
     │       │
-    │       └── galgame service (OAuth repo, 独立端口)
+    │       └── galgame service (infra repo, 独立端口)
     │             ├── galgame 元数据 CRUD
     │             ├── tag/official/engine/series CRUD
     │             ├── PR 系统 + 编辑历史
@@ -37,7 +37,7 @@
 
 ## 迁移目标
 
-将 Nuxt 4 Nitro 后端 (`apps/nitro-server/`) 完全替换为 Go Fiber 后端 (`apps/api/`)，前端 (`apps/web/`) 保持 Nuxt 4。galgame 元数据 CRUD 独立为 galgame service（OAuth repo）。
+将 Nuxt 4 Nitro 后端 (`apps/nitro-server/`) 完全替换为 Go Fiber 后端 (`apps/api/`)，前端 (`apps/web/`) 保持 Nuxt 4。galgame 元数据 CRUD 独立为 galgame service（infra repo）。
 
 ## 总体数字
 
@@ -95,9 +95,9 @@
 
 ## 未完成
 
-### Phase 2: Galgame 元数据 → galgame service (OAuth repo)
+### Phase 2: Galgame 元数据 → galgame service (infra repo)
 
-在 OAuth repo 实现，独立数据库 `kun_galgame_wiki`：
+在 infra repo 实现，独立数据库 `kun_galgame_wiki`：
 
 - [ ] galgame service 基础框架 (cmd/galgame/main.go)
 - [ ] 双数据库连接 (wiki 读写 + oauth 只读)

@@ -3,7 +3,7 @@
 Container build + compose for **kungal** (`kun-galgame-nuxt4`): the Go Fiber API
 (`apps/api`) and the Nuxt 4 SSR site (`apps/web`).
 
-kungal is **not** the ecosystem hub. Postgres / Redis (and the OAuth, image, and
+kungal is **not** the infra. Postgres / Redis (and the OAuth, image, and
 wiki services) are owned by **kun-galgame-infra** and shared. So in production the
 umbrella `website/compose.yaml` provides those, and kungal only ships its own
 `api` + `web`. A `standalone` override is included for local self-test.
@@ -52,7 +52,7 @@ Dev sets a single `API_BASE_URL` for both; in a container that breaks SSR. The
 
 ## Run — standalone (local self-test)
 
-No oauth repo needed; throwaway pg/redis come from the override.
+No infra repo needed; throwaway pg/redis come from the override.
 
 ```bash
 C="docker compose -f docker-compose.yml -f docker-compose.standalone.yml"
@@ -69,8 +69,8 @@ $C up -d api web
 The umbrella `website/compose.yaml` `include:`s this file and provides the shared
 `postgres` / `redis` / `oauth` / `image` / `galgame` services. kungal's `api` +
 `web` resolve them by service name. **Cross-repo prerequisite:** kungal stores its
-data in a `kungalgame` database on the shared Postgres, so oauth must create it —
-add `CREATE DATABASE kungalgame;` to oauth's `docker/initdb.d/`.
+data in a `kungalgame` database on the shared Postgres, so infra must create it —
+add `CREATE DATABASE kungalgame;` to infra's `docker/initdb.d/`.
 
 ## Migration order (important)
 

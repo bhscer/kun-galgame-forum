@@ -4,7 +4,7 @@
 > 最终架构见 `08-galgame-service-architecture.md`。
 >
 > 端点拆分：
-> - **Step 1/5/6/8/9**（CRUD/PR/link/series/元数据）→ galgame service (OAuth repo)
+> - **Step 1/5/6/8/9**（CRUD/PR/link/series/元数据）→ galgame service (infra repo)
 > - **Step 2/3/4/7**（like/comment/resource/rating）→ kungal 后端 (apps/api)
 >
 > 以下内容仅作为 Nitro 业务逻辑参考，目录结构和实现位置已不适用。

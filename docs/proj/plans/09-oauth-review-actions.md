@@ -9,7 +9,7 @@
 `02-phase2-galgame.md` 已标记为过时，最终架构以 `08-galgame-service-architecture.md` 为准。
 
 拆分规则：
-- **galgame service (OAuth repo)**：Step 1/5/6/8/9（CRUD/PR/link/series/元数据）
+- **galgame service (infra repo)**：Step 1/5/6/8/9（CRUD/PR/link/series/元数据）
 - **kungal 后端 (apps/api)**：Step 2/3/4/7（like/comment/resource/rating）
 
 ---
@@ -103,7 +103,7 @@ galgame service 的认证中间件直接从 JWT 提取 `uid`，无需查库。
 
 ### 行动项
 
-- [ ] OAuth repo: `GenerateAccessToken` 增加 `uid` (integer) claim
+- [ ] infra repo: `GenerateAccessToken` 增加 `uid` (integer) claim
 - [ ] galgame service: 认证中间件从 JWT 提取 `uid`，不再查库
 - [ ] 已有依赖 JWT 的系统（如 kungal 后端的 session refresh）确认兼容新 claim
 

@@ -1,9 +1,9 @@
 # kungal (kun-galgame-nuxt4) — forum site (Go Fiber API + Nuxt 4 SSR).
 #
-# kungal is NOT the ecosystem hub: it CONNECTS to the shared Postgres / Redis
+# kungal is NOT the infra stack: it CONNECTS to the shared Postgres / Redis
 # that kun-galgame-infra owns. So this file does NOT define postgres/redis — they
 # come from either:
-#   • the umbrella website/compose.yaml (oauth's services, via `include`), or
+#   • the umbrella website/compose.yaml (infra's services, via `include`), or
 #   • docker-compose.standalone.yml (local self-test pg/redis), composed in:
 #       docker compose -f docker-compose.yml -f docker-compose.standalone.yml up
 #
@@ -36,7 +36,7 @@ services:
     env_file: [./docker/api.env]
     ports: ["15012:2334"]
     # No depends_on on postgres/redis here: this base file does NOT define them
-    # (the hub owns them; standalone.yml adds throwaway ones). Declaring the
+    # (the infra owns them; standalone.yml adds throwaway ones). Declaring the
     # dependency here would make a bare `docker compose ...` (base alone, e.g.
     # `docker compose build`) an invalid project. standalone.yml re-adds the
     # ordering deps for the local self-test path.

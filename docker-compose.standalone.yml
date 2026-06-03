@@ -2,7 +2,7 @@
 #
 # kungal normally connects to the Postgres / Redis that kun-galgame-infra owns
 # (shared across the ecosystem). This override adds throwaway pg/redis so the
-# stack can run on its own, with no oauth repo checked out:
+# stack can run on its own, with no infra repo checked out:
 #
 #   C="docker compose -f docker-compose.yml -f docker-compose.standalone.yml"
 #   $C up -d postgres redis
@@ -10,7 +10,7 @@
 #   $C up -d api web
 #
 # Do NOT use in production — there the umbrella website/compose.yaml provides
-# the real shared postgres/redis (oauth must `CREATE DATABASE kungalgame;` in
+# the real shared postgres/redis (infra must `CREATE DATABASE kungalgame;` in
 # its docker/initdb.d, since kungal's data lives in its own DB on that server).
 services:
   # Re-add the ordering deps the base file intentionally omits (so a bare

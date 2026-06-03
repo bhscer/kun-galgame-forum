@@ -4,7 +4,7 @@
 
 ## 定位
 
-独立的 galgame 元数据服务，部署在 OAuth repo 的 `cmd/galgame/main.go`，为 kungal、moyu 及未来站点提供 galgame 信息的统一 CRUD。
+独立的 galgame 元数据服务，部署在 infra repo 的 `cmd/galgame/main.go`，为 kungal、moyu 及未来站点提供 galgame 信息的统一 CRUD。
 
 ## 核心决策总结
 
@@ -431,7 +431,7 @@ internal/galgame/model/ 中的元数据模型（已迁到 galgame service）
 
 ## 实施顺序
 
-1. 在 OAuth repo 创建 `cmd/galgame/main.go` + 基础框架
+1. 在 infra repo 创建 `cmd/galgame/main.go` + 基础框架
 2. 定义 `kun_galgame_wiki` 数据库 schema
 3. 实现 galgame 核心 CRUD（不含 VNDB 同步）
 4. 实现元数据 CRUD（tag/official/engine/series）
