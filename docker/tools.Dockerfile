@@ -8,7 +8,7 @@
 # and invokes a job by name:
 #
 #   docker run --rm --network kun-galgame-infra_default \
-#     --env-file docker/api.env ghcr.io/kun1007/kungal-tools backfill-provider-names
+#     --env-file docker/api.env ghcr.io/kunmoe/kungal-tools backfill-provider-names
 #
 # kungal has no cgo → pure static binaries. Build context MUST be the repo root.
 ARG GO_VERSION=1.26

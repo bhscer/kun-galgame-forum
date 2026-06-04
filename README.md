@@ -6,7 +6,7 @@
 
 The image is sourced from the game [Ark Order](https://apps.qoo-app.com/en/app/9593), featuring the character 'KUN' (鲲).
 
-> **Note on AI-assisted development:** Starting from version **5.1.0**, this project uses LLM-assisted tools including but not limited to Claude Code for Vibe Coding. All code up to and including version **5.0.70** was written entirely by hand. The last purely hand-written codebase can be found at: [v5.0.70 (commit b4ad59e)](https://github.com/KUN1007/kun-galgame-nuxt4/tree/b4ad59eb77d3eaf36d082aa528651039816e1dfa)
+> **Note on AI-assisted development:** Starting from version **5.1.0**, this project uses LLM-assisted tools including but not limited to Claude Code for Vibe Coding. All code up to and including version **5.0.70** was written entirely by hand. The last purely hand-written codebase can be found at: [v5.0.70 (commit b4ad59e)](https://github.com/KunMoe/kun-galgame-nuxt4/tree/b4ad59eb77d3eaf36d082aa528651039816e1dfa)
 
 # KUN Visual Novel Forum
 
@@ -135,7 +135,7 @@ docker compose up -d api web        # kun-galgame-infra must be running first
 
 - [Telegram Group](https://t.me/kungalgame)
 - [Twitter / X](https://twitter.com/kungalgame)
-- [GitHub Repository](https://github.com/KUN1007/kun-galgame-nuxt4)
+- [GitHub Repository](https://github.com/KunMoe/kun-galgame-nuxt4)
 - [Discord Group](https://discord.com/invite/5F4FS2cXhX)
 - [YouTube Channel](https://youtube.com/@kungalgame)
 - [Bilibili](https://space.bilibili.com/1748455574)

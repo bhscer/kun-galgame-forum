@@ -5,7 +5,7 @@ labels:
   - 'bug'
   - 'enhancement'
 assignees:
-  - 'KUN1007'
+  - 'KunMoe'
 
 body:
   - type: textarea

@@ -27,7 +27,7 @@ x-svc-health: &svc-health
 services:
   # ───────────────────────────── Go API (distroless) ─────────────────────────
   api:
-    image: ghcr.io/kun1007/kungal-api:latest
+    image: ghcr.io/kunmoe/kungal-api:latest
     env_file: [./docker/api.env]
     expose: ["2334"]
     # No depends_on: postgres/redis live in the infra app, not here.
@@ -39,7 +39,7 @@ services:
 
   # ───────────────────────────── Nuxt 4 SSR frontend ─────────────────────────
   web:
-    image: ghcr.io/kun1007/kungal-web:latest
+    image: ghcr.io/kunmoe/kungal-web:latest
     env_file: [./docker/web.env]   # NUXT_API_BASE_URL (SSR) + NUXT_PUBLIC_* (browser, prod domains)
     expose: ["7777"]
     depends_on:
@@ -58,7 +58,7 @@ services:
   # AFTER infra's migrate-users). See docs/migration. Routine deploys: default set.
   #   docker compose -f docker-compose.prod.yml run --rm migrate
   migrate:
-    image: ghcr.io/kun1007/kungal-migrate:latest
+    image: ghcr.io/kunmoe/kungal-migrate:latest
     env_file: [./docker/api.env]
     profiles: ["jobs"]
     restart: "no"

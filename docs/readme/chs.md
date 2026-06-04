@@ -6,7 +6,7 @@
 
 图片来源为游戏 [方舟指令](https://apps.qoo-app.com/en/app/9593) 中的角色鲲（KUN）
 
-> **AI辅助开发说明：** 本项目自 **5.1.0** 版本起使用包含但不限于 Claude Code 等 LLM 辅助工具进行 Vibe Coding。**5.0.70** 及之前版本的所有代码均完全由手工编写。最后一个完全手写的代码库版本见：[v5.0.70 (commit b4ad59e)](https://github.com/KUN1007/kun-galgame-nuxt4/tree/b4ad59eb77d3eaf36d082aa528651039816e1dfa)
+> **AI辅助开发说明：** 本项目自 **5.1.0** 版本起使用包含但不限于 Claude Code 等 LLM 辅助工具进行 Vibe Coding。**5.0.70** 及之前版本的所有代码均完全由手工编写。最后一个完全手写的代码库版本见：[v5.0.70 (commit b4ad59e)](https://github.com/KunMoe/kun-galgame-nuxt4/tree/b4ad59eb77d3eaf36d082aa528651039816e1dfa)
 
 # 鲲 Galgame 论坛
 
@@ -135,7 +135,7 @@ docker compose up -d api web        # kun-galgame-infra must be running first
 
 - [Telegram 群组](https://t.me/kungalgame)
 - [Twitter / X](https://twitter.com/kungalgame)
-- [GitHub 仓库](https://github.com/KUN1007/kun-galgame-nuxt4)
+- [GitHub 仓库](https://github.com/KunMoe/kun-galgame-nuxt4)
 - [Discord 群组](https://discord.com/invite/5F4FS2cXhX)
 - [YouTube 频道](https://youtube.com/@kungalgame)
 - [Bilibili](https://space.bilibili.com/1748455574)
