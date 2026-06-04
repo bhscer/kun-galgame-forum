@@ -44,7 +44,7 @@ into an image.
 Nuxt SSR and the browser reach the API differently:
 
 - `NUXT_API_BASE_URL` → **SSR** (server). Internal docker network, by service
-  name: `http://api:2334`.
+  name: `http://kungal-api:2334`.
 - `NUXT_PUBLIC_API_BASE_URL` → **browser**. Host port / public domain:
   `http://localhost:15012` (or `https://www.kungal.com`).
 

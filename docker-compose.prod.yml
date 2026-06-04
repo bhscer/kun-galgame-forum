@@ -32,6 +32,7 @@ x-kungal-api-env: &kungal-api-env
   SERVER_PORT: "2334"
   SERVER_MODE: prod
   CORS_ALLOW_ORIGINS: https://www.kungal.com,https://kungal.com
+  # ⚠ POSTGRES_PASSWORD 直接拼进 DSN → 必须 URL-safe(字母数字;勿含 @ : / # % ? &,否则 URL 解析坏)
   KUN_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy}@postgres:5432/kungalgame
   DB_MAX_OPEN_CONNS: "25"
   DB_MAX_IDLE_CONNS: "10"
@@ -51,7 +52,7 @@ x-kungal-api-env: &kungal-api-env
   S3_BUCKET: ${S3_BUCKET:-}
   S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
   S3_SECRET_KEY: ${S3_SECRET_KEY:-}
-  # toolset archive uploads (Backblaze B2; blank → toolset upload disabled)
+  # toolset archive uploads (Backblaze B2). 空则上传路由仍注册、调用 500(应用只 warn 不拦);要开 toolset 上传就填全 5 个
   FILE_STORAGE_ENDPOINT: ${FILE_STORAGE_ENDPOINT:-}
   FILE_STORAGE_REGION: ${FILE_STORAGE_REGION:-}
   FILE_STORAGE_BUCKET: ${FILE_STORAGE_BUCKET:-}
@@ -79,6 +80,9 @@ services:
     image: ghcr.io/kunmoe/kungal-api:latest
     environment: { <<: *kungal-api-env }
     expose: ["2334"]
+    networks:
+      default:
+        aliases: [kungal-api]   # 唯一别名:kungal/moyu 都叫 `api`,共用 dokploy-network 时 bare `api` 会 DNS 冲突
     # No depends_on: postgres/redis live in the infra app. restart reconnects.
     healthcheck:
       test: ["CMD", "/app", "healthcheck"]
@@ -91,7 +95,7 @@ services:
     image: ghcr.io/kunmoe/kungal-web:latest
     environment:
       NODE_ENV: production
-      NUXT_API_BASE_URL: http://api:2334                       # SSR → api by service name
+      NUXT_API_BASE_URL: http://kungal-api:2334                # SSR → 本仓 api 的唯一别名(避免与 moyu api DNS 冲突)
       NUXT_PUBLIC_API_BASE_URL: https://www.kungal.com         # browser
       NUXT_PUBLIC_OAUTH_SERVER_URL: https://oauth.kungal.com/api/v1
       NUXT_PUBLIC_OAUTH_FRONTEND_URL: https://oauth.kungal.com

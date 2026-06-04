@@ -8,7 +8,7 @@
 #
 # Host ports are in the 1xxxx range so the stack coexists with a running `air`
 # dev server. Service-to-service traffic uses container ports via service names
-# (postgres:5432, redis:6379, http://api:2334, http://oauth:9277, …).
+# (postgres:5432, redis:6379, http://kungal-api:2334, http://oauth:9277, …).
 #
 # Quick start (infra must be up first → its network exists):
 #   docker compose build
@@ -32,6 +32,9 @@ services:
     image: kungal/api
     env_file: [./docker/api.env]
     ports: ["15012:2334"]
+    networks:
+      default:
+        aliases: [kungal-api]   # 唯一别名:与 moyu 的 api 共用 kun-galgame-infra_default,bare `api` 会 DNS 冲突
     # No depends_on on postgres/redis: they live in the kun-galgame-infra compose
     # (a separate project), not here — cross-project depends_on isn't possible.
     # `restart: unless-stopped` reconnects once the infra stack is up.
