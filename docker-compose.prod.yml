@@ -1,20 +1,23 @@
 # kungal (kun-galgame-forum) — PRODUCTION compose (Dokploy + GHCR images).
 #
-# kungal is a downstream app: it owns NO backing services. It joins the shared
-# `dokploy-network` and reaches the infra stack by service name (postgres:5432,
-# redis:6379, http://oauth:9277, http://galgame:9280). Bring infra up first.
+# Downstream app: owns NO backing services. Joins the shared `dokploy-network`
+# and reaches infra by service name (postgres:5432, redis:6379, oauth:9277,
+# galgame:9280, image:9278). Bring infra up first.
 #
-# vs docker-compose.yml (dev): `image:` not `build:` (CI pushes to GHCR), and
-# `expose:` not `ports:` (Traefik routes internally — no host ports in prod).
-# See docs/deploy/12-dokploy.md + 13-registry-ci.md.
+# vs docker-compose.yml (dev): `image:` not `build:`, `expose:` not `ports:`,
+# and **NO `env_file`** — all config is inline `environment:` so Dokploy needs no
+# `docker/*.env` on disk. Non-secret/domains are literal; secrets come from the
+# kungal app's **Dokploy Environment** via ${VAR}.
 #
-# FRONTEND DOMAINS (build-once): kungal web reads its public config at RUNTIME
-# from docker/web.env's NUXT_PUBLIC_* names, so the SAME image works anywhere —
-# set the real https domains in web.env / Dokploy Environment per 12-dokploy
-# §12.2-C (keep NUXT_API_BASE_URL=http://api:2334 for SSR). Rotate all secrets.
+# Set in kungal's Dokploy Environment:
+#   POSTGRES_PASSWORD  OAUTH_CLIENT_SECRET  JWT_SECRET  MEILI_MASTER_KEY
+#   (optional) KUN_IMAGE_CLIENT_ID/SECRET  FILE_STORAGE_* (B2 工具集)  MAIL_*  S3_*
+# These MUST match infra's: POSTGRES_PASSWORD = infra POSTGRES_PASSWORD;
+# MEILI_MASTER_KEY = infra MEILI_MASTER_KEY; OAUTH_CLIENT_SECRET = 注册论坛 client 的明文.
+# (JWT_SECRET here is kungal's OWN session secret — need NOT match infra.)
 #
 #   docker compose -f docker-compose.prod.yml pull
-#   docker compose -f docker-compose.prod.yml run --rm migrate   # ⚠ see docs/migration for ORDER
+#   docker compose -f docker-compose.prod.yml --profile jobs run --rm migrate   # ⚠ ORDER: docs/migration
 #   docker compose -f docker-compose.prod.yml up -d api web
 name: kungal
 
@@ -24,23 +27,78 @@ x-svc-health: &svc-health
   retries: 5
   start_period: 15s
 
+# ── api / migrate / tools runtime env (literal = non-secret; ${VAR} = panel) ──
+x-kungal-api-env: &kungal-api-env
+  SERVER_PORT: "2334"
+  SERVER_MODE: prod
+  CORS_ALLOW_ORIGINS: https://www.kungal.com,https://kungal.com
+  KUN_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy}@postgres:5432/kungalgame
+  DB_MAX_OPEN_CONNS: "25"
+  DB_MAX_IDLE_CONNS: "10"
+  DB_CONN_MAX_LIFETIME: "300"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+  REDIS_DB: "0"
+  OAUTH_SERVER_URL: http://oauth:9277/api/v1
+  OAUTH_CLIENT_ID: 4ed9bc99ec0a789a4796b83e22bd84c5
+  OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:?set OAUTH_CLIENT_SECRET in Dokploy (论坛 client 注册时的明文)}
+  OAUTH_REDIRECT_URI: https://www.kungal.com/auth/callback
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Dokploy (kungal 自己的会话密钥)}
+  # inline image bed (Cloudflare R2 in prod; blank → disabled)
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_REGION: ${S3_REGION:-}
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+  # toolset archive uploads (Backblaze B2; blank → toolset upload disabled)
+  FILE_STORAGE_ENDPOINT: ${FILE_STORAGE_ENDPOINT:-}
+  FILE_STORAGE_REGION: ${FILE_STORAGE_REGION:-}
+  FILE_STORAGE_BUCKET: ${FILE_STORAGE_BUCKET:-}
+  FILE_STORAGE_ACCESS_KEY: ${FILE_STORAGE_ACCESS_KEY:-}
+  FILE_STORAGE_SECRET_KEY: ${FILE_STORAGE_SECRET_KEY:-}
+  # mail (blank → disabled)
+  MAIL_HOST: ${MAIL_HOST:-}
+  MAIL_PORT: ${MAIL_PORT:-587}
+  MAIL_USER: ${MAIL_USER:-}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+  MAIL_FROM: ${MAIL_FROM:-}
+  # search — key MUST == infra MEILI_MASTER_KEY
+  MEILISEARCH_URL: http://meilisearch:7700
+  MEILISEARCH_KEY: ${MEILI_MASTER_KEY:?set MEILI_MASTER_KEY in Dokploy (= infra 的同名值)}
+  GALGAME_WIKI_BASE_URL: http://galgame:9280/api
+  # image_service (shared CDN domain == infra KUN_IMAGE_PUBLIC_BASE_URL)
+  KUN_IMAGE_PUBLIC_BASE_URL: https://image.kungal.iloveren.link
+  KUN_IMAGE_CLIENT_BASE_URL: http://image:9278
+  KUN_IMAGE_CLIENT_ID: ${KUN_IMAGE_CLIENT_ID:-}
+  KUN_IMAGE_CLIENT_SECRET: ${KUN_IMAGE_CLIENT_SECRET:-}
+
 services:
   # ───────────────────────────── Go API (distroless) ─────────────────────────
   api:
     image: ghcr.io/kunmoe/kungal-api:latest
-    env_file: [./docker/api.env]
+    environment: { <<: *kungal-api-env }
     expose: ["2334"]
-    # No depends_on: postgres/redis live in the infra app, not here.
-    # `restart: unless-stopped` reconnects once the infra stack is up.
+    # No depends_on: postgres/redis live in the infra app. restart reconnects.
     healthcheck:
       test: ["CMD", "/app", "healthcheck"]
       <<: *svc-health
     restart: unless-stopped
 
   # ───────────────────────────── Nuxt 4 SSR frontend ─────────────────────────
+  # Public config is read at RUNTIME (kungal-web is NOT baked at CI) — set below.
   web:
     image: ghcr.io/kunmoe/kungal-web:latest
-    env_file: [./docker/web.env]   # NUXT_API_BASE_URL (SSR) + NUXT_PUBLIC_* (browser, prod domains)
+    environment:
+      NODE_ENV: production
+      NUXT_API_BASE_URL: http://api:2334                       # SSR → api by service name
+      NUXT_PUBLIC_API_BASE_URL: https://www.kungal.com         # browser
+      NUXT_PUBLIC_OAUTH_SERVER_URL: https://oauth.kungal.com/api/v1
+      NUXT_PUBLIC_OAUTH_FRONTEND_URL: https://oauth.kungal.com
+      NUXT_PUBLIC_OAUTH_CLIENT_ID: 4ed9bc99ec0a789a4796b83e22bd84c5
+      NUXT_PUBLIC_OAUTH_REDIRECT_URI: https://www.kungal.com/auth/callback
+      NUXT_PUBLIC_GALGAME_WIKI_URL: https://wiki.kungal.com/api
+      NUXT_PUBLIC_KUN_GALGAME_URL: https://www.kungal.com
     expose: ["7777"]
     depends_on:
       api: { condition: service_healthy }
@@ -53,13 +111,21 @@ services:
       <<: *svc-health
     restart: unless-stopped
 
-  # ─────────────────────── one-off job (profile: jobs) ───────────────────────
-  # kungal's migration ORDER is non-trivial (005/006/007/012/015 deferred, run
-  # AFTER infra's migrate-users). See docs/migration. Routine deploys: default set.
-  #   docker compose -f docker-compose.prod.yml run --rm migrate
+  # ─────────────────────── one-off jobs (profile: jobs) ──────────────────────
+  # kungal migration ORDER is non-trivial (005/006/007/012/015 deferred, AFTER
+  # infra migrate-users). See docs/migration + 16-data-cutover.md.
+  #   docker compose -f docker-compose.prod.yml --profile jobs run --rm migrate [--only=005]
   migrate:
     image: ghcr.io/kunmoe/kungal-migrate:latest
-    env_file: [./docker/api.env]
+    environment: { <<: *kungal-api-env }
+    profiles: ["jobs"]
+    restart: "no"
+
+  # All cmd/* binaries (check-dup-email / backfill-provider-names / migrate --only=…):
+  #   docker compose -f docker-compose.prod.yml --profile jobs run --rm tools backfill-provider-names
+  tools:
+    image: ghcr.io/kunmoe/kungal-tools:latest
+    environment: { <<: *kungal-api-env }
     profiles: ["jobs"]
     restart: "no"
 
