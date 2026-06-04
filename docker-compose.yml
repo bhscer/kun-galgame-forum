@@ -1,4 +1,4 @@
-# kungal (kun-galgame-nuxt4) — forum site (Go Fiber API + Nuxt 4 SSR).
+# kungal (kun-galgame-forum) — forum site (Go Fiber API + Nuxt 4 SSR).
 #
 # Stateless api + web only. The backing services (Postgres / Redis) and the
 # upstreams (oauth / galgame-wiki / image) are OWNED BY the kun-galgame-infra

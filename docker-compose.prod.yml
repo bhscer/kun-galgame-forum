@@ -1,4 +1,4 @@
-# kungal (kun-galgame-nuxt4) — PRODUCTION compose (Dokploy + GHCR images).
+# kungal (kun-galgame-forum) — PRODUCTION compose (Dokploy + GHCR images).
 #
 # kungal is a downstream app: it owns NO backing services. It joins the shared
 # `dokploy-network` and reaches the infra stack by service name (postgres:5432,

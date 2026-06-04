@@ -1,6 +1,6 @@
 # kungal — Docker
 
-Container build + compose for **kungal** (`kun-galgame-nuxt4`): the Go Fiber API
+Container build + compose for **kungal** (`kun-galgame-forum`): the Go Fiber API
 (`apps/api`) and the Nuxt 4 SSR site (`apps/web`).
 
 kungal is **not** the infra. Postgres / Redis (and the OAuth, image, and

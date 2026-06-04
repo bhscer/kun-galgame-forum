@@ -12,7 +12,7 @@ KUN Visual Novel (鲲 Galgame) 是一个基于 Nuxt 4 的全栈 Web 应用，定
 ## 顶层目录结构
 
 ```
-kun-galgame-nuxt4/
+kun-galgame-forum/
 ├── app/                 # 前端应用代码（页面、组件、状态管理、样式等）
 ├── server/              # 后端服务代码（API、WebSocket、定时任务等）
 ├── shared/              # 前后端共享代码（类型定义、工具函数）

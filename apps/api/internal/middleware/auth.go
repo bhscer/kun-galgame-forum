@@ -22,7 +22,7 @@ const (
 )
 
 // Session namespace constants. These MUST be distinct from moyu's
-// (kun-galgame-patch-next) values: in local dev both sites run on
+// (kun-galgame-patch) values: in local dev both sites run on
 // 127.0.0.1 (cookies are domain-scoped, NOT port-scoped) and share one
 // Redis. A shared cookie name + key prefix made kungal read/refresh/delete
 // moyu's sessions (and vice versa) → cross-site logout with

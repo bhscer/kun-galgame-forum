@@ -6,7 +6,7 @@
 // returned AUTHORITATIVE balance into the local kungal_user_state.moemoepoint
 // read-cache (which ranking / profile / /auth/me still read).
 //
-// Terminal state (mirrors kun-galgame-patch-next/apps/api):
+// Terminal state (mirrors kun-galgame-patch/apps/api):
 //   - NO local `+=`. A local increment would double-count after the one-time
 //     §6 cross-site merge migration. We only ever WRITE the value OAuth returns.
 //   - Best-effort + non-blocking. Award runs in the background and never blocks

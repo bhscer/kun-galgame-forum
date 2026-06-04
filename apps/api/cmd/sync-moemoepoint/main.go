@@ -11,7 +11,7 @@
 //
 // Idempotent + safe to re-run. Read-only against OAuth; only UPDATEs the local
 // cache. Users OAuth doesn't know yet are logged and skipped (their stale local
-// value is left untouched). Mirrors kun-galgame-patch-next's equivalent.
+// value is left untouched). Mirrors kun-galgame-patch's equivalent.
 //
 // Usage:
 //

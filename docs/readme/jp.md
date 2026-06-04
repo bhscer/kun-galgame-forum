@@ -1,4 +1,4 @@
-![kun-galgame-nuxt4](https://kungal.com/kungalgame.webp)
+![kun-galgame-forum](https://kungal.com/kungalgame.webp)
 
 ### **[English](/README.md)** | **[日本語](/docs/readme/jp.md)** | **[简体中文](/docs/readme/chs.md)** | **[繁體中文](/docs/readme/cht.md)**
 
@@ -6,7 +6,7 @@
 
 この画像は、ゲーム [Ark Order](https://apps.qoo-app.com/en/app/9593) から提供されており、キャラクターは 'こん'（Kun）です。
 
-> **AI 支援開発について：** 本プロジェクトはバージョン **5.1.0** 以降、Claude Code を含む（ただしこれに限らない）LLM 支援ツールを用いた Vibe Coding を採用しています。**5.0.70** までのすべてのコードは完全に手書きで記述されました。最後の完全手書きコードベースはこちら：[v5.0.70 (commit b4ad59e)](https://github.com/KunMoe/kun-galgame-nuxt4/tree/b4ad59eb77d3eaf36d082aa528651039816e1dfa)
+> **AI 支援開発について：** 本プロジェクトはバージョン **5.1.0** 以降、Claude Code を含む（ただしこれに限らない）LLM 支援ツールを用いた Vibe Coding を採用しています。**5.0.70** までのすべてのコードは完全に手書きで記述されました。最後の完全手書きコードベースはこちら：[v5.0.70 (commit b4ad59e)](https://github.com/KunMoe/kun-galgame-forum/tree/b4ad59eb77d3eaf36d082aa528651039816e1dfa)
 
 # 鯤 ギャルゲームフォーラム
 
@@ -135,7 +135,7 @@ docker compose up -d api web        # kun-galgame-infra must be running first
 
 - [Telegram グループ](https://t.me/kungalgame)
 - [Twitter / X](https://twitter.com/kungalgame)
-- [GitHub リポジトリ](https://github.com/KunMoe/kun-galgame-nuxt4)
+- [GitHub リポジトリ](https://github.com/KunMoe/kun-galgame-forum)
 - [Discord グループ](https://discord.com/invite/5F4FS2cXhX)
 - [YouTube チャンネル](https://youtube.com/@kungalgame)
 - [Bilibili](https://space.bilibili.com/1748455574)

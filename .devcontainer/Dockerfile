@@ -21,4 +21,4 @@ ENV PNPM_HOME=/home/node/.local/share/pnpm \
 
 USER node
 
-WORKDIR /workspaces/kun-galgame-nuxt4
+WORKDIR /workspaces/kun-galgame-forum

@@ -1,4 +1,4 @@
-![kun-galgame-nuxt4](https://kungal.com/kungalgame.webp)
+![kun-galgame-forum](https://kungal.com/kungalgame.webp)
 
 ### **[English](/README.md)** | **[日本語](/docs/readme/jp.md)** | **[简体中文](/docs/readme/chs.md)** | **[繁體中文](/docs/readme/cht.md)**
 
@@ -6,7 +6,7 @@
 
 圖片來源為遊戲 [方舟指令](https://apps.qoo-app.com/en/app/9593) 中的角色鯤（KUN）
 
-> **AI 輔助開發說明：** 本項目自 **5.1.0** 版本起使用包含但不限於 Claude Code 等 LLM 輔助工具進行 Vibe Coding。**5.0.70** 及之前版本的所有程式碼均完全由手工編寫。最後一個完全手寫的程式碼庫版本見：[v5.0.70 (commit b4ad59e)](https://github.com/KunMoe/kun-galgame-nuxt4/tree/b4ad59eb77d3eaf36d082aa528651039816e1dfa)
+> **AI 輔助開發說明：** 本項目自 **5.1.0** 版本起使用包含但不限於 Claude Code 等 LLM 輔助工具進行 Vibe Coding。**5.0.70** 及之前版本的所有程式碼均完全由手工編寫。最後一個完全手寫的程式碼庫版本見：[v5.0.70 (commit b4ad59e)](https://github.com/KunMoe/kun-galgame-forum/tree/b4ad59eb77d3eaf36d082aa528651039816e1dfa)
 
 # 鯤 Galgame 論壇
 
@@ -135,7 +135,7 @@ docker compose up -d api web        # kun-galgame-infra must be running first
 
 - [Telegram 群](https://t.me/kungalgame)
 - [Twitter / X](https://twitter.com/kungalgame)
-- [GitHub Repository](https://github.com/KunMoe/kun-galgame-nuxt4)
+- [GitHub Repository](https://github.com/KunMoe/kun-galgame-forum)
 - [Discord 群](https://discord.com/invite/5F4FS2cXhX)
 - [YouTube Channel](https://youtube.com/@kungalgame)
 - [Bilibili](https://space.bilibili.com/1748455574)

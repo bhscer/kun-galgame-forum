@@ -1,8 +1,8 @@
 {
-  "name": "kun-galgame-nuxt4",
+  "name": "kun-galgame-forum",
   "dockerComposeFile": ["docker-compose.yml"],
   "service": "app",
-  "workspaceFolder": "/workspaces/kun-galgame-nuxt4",
+  "workspaceFolder": "/workspaces/kun-galgame-forum",
   "runServices": ["postgres", "redis", "mongo"],
   "shutdownAction": "stopCompose",
   "remoteUser": "node",

@@ -1,4 +1,4 @@
-# 代码审计问题清单（kungal / kun-galgame-nuxt4）
+# 代码审计问题清单（kungal / kun-galgame-forum）
 
 > 本文档汇总外部跨仓审计（`kungal-docs/claude` + `kungal-docs/gpt`，审计日期 2026-05-30）
 > 中**与本仓库相关**的问题，并已**逐条对照当前代码复核（2026-05-29）**。oauth / moyu
