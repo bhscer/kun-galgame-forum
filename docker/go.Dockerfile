@@ -29,6 +29,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
 # + tzdata (the daily reset cron / admin stats pin Asia/Shanghai).
 FROM gcr.io/distroless/static-debian13:nonroot
 COPY --from=build /out/app /app
+# cmd/migrate reads SQL from disk at runtime (-path defaults to "migrations",
+# resolved against CWD=/ here → /migrations). WITHOUT this copy the migrate
+# binary finds no files (filepath.Glob on a missing dir → empty, no error) and
+# silently "runs" zero migrations. Harmless in the api/server image.
+COPY apps/api/migrations /migrations
 USER nonroot:nonroot
 ENTRYPOINT ["/app"]
 # The container HEALTHCHECK is set in docker-compose.yml as:
