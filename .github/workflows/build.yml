@@ -33,6 +33,9 @@ jobs:
           - name: kungal-migrate
             file: docker/go.Dockerfile
             args: CMD=migrate
+          - name: kungal-tools         # every cmd/* binary, for one-off data-cutover jobs
+            file: docker/tools.Dockerfile
+            args: ""
           - name: kungal-web
             file: docker/nuxt.Dockerfile
             args: ""
