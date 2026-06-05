@@ -28,11 +28,15 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
 # ca-certificates (outbound HTTPS: OAuth, image_service, wiki, B2, SMTP TLS)
 # + tzdata (the daily reset cron / admin stats pin Asia/Shanghai).
 FROM gcr.io/distroless/static-debian13:nonroot
+# distroless :nonroot defaults WORKDIR to /home/nonroot (uid 65532's home), NOT
+# /. cmd/migrate's -path defaults to "migrations" (relative to CWD), so without
+# pinning CWD it looked in /home/nonroot/migrations, found nothing, and silently
+# "ran" zero migrations (filepath.Glob on a missing dir → empty, no error). Pin
+# WORKDIR to / so -path "migrations" resolves to the /migrations copied below.
+WORKDIR /
 COPY --from=build /out/app /app
-# cmd/migrate reads SQL from disk at runtime (-path defaults to "migrations",
-# resolved against CWD=/ here → /migrations). WITHOUT this copy the migrate
-# binary finds no files (filepath.Glob on a missing dir → empty, no error) and
-# silently "runs" zero migrations. Harmless in the api/server image.
+# cmd/migrate reads SQL from disk at runtime (-path "migrations" → /migrations,
+# given WORKDIR / above). Harmless dead weight in the api/server image.
 COPY apps/api/migrations /migrations
 USER nonroot:nonroot
 ENTRYPOINT ["/app"]
