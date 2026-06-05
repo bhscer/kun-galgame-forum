@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Cookies from 'js-cookie'
+
 definePageMeta({ layout: 'blank' })
 
 const route = useRoute()
@@ -11,12 +13,15 @@ useKunDisableSeo('OAuth 登录回调')
 onMounted(async () => {
   const code = route.query.code as string
   const returnedState = route.query.state as string
-  const savedState = sessionStorage.getItem('oauth_state')
-  const codeVerifier = sessionStorage.getItem('oauth_code_verifier')
+  // Read + clear the per-attempt secrets from COOKIES (set in oauth-auth.ts).
+  // See there for why sessionStorage was abandoned — it lost these across the
+  // cross-origin redirect on Via / older mobile browsers → "State 不匹配".
+  const savedState = Cookies.get('oauth_state')
+  const codeVerifier = Cookies.get('oauth_code_verifier')
 
-  // Clean up
-  sessionStorage.removeItem('oauth_state')
-  sessionStorage.removeItem('oauth_code_verifier')
+  // Clean up (must match the path the cookies were set with).
+  Cookies.remove('oauth_state', { path: '/' })
+  Cookies.remove('oauth_code_verifier', { path: '/' })
 
   if (!code) {
     error.value = '未收到授权码'
