@@ -116,6 +116,16 @@ services:
         - "require('net').connect(7777,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
       <<: *svc-health
     restart: unless-stopped
+    # Memory cap + auto-restart = OOM-recycle backstop for the upstream Nuxt
+    # 4.2.2 SSR memory leak (nuxt#34071: per-request render context not freed).
+    # Fresh kungal-web is ~0.3–0.9 GiB; the leak grew it to ~2.8 GiB and pegged a
+    # core (GC thrash). 2g caps that: normal load fits, and once the leak fills
+    # 2g the kernel OOM-kills node → restart: unless-stopped brings it back fresh.
+    # Remove/raise once the upstream leak is fixed or Nuxt is upgraded.
+    deploy:
+      resources:
+        limits:
+          memory: 2g
 
   # ─────────────────────── one-off jobs (profile: jobs) ──────────────────────
   # kungal migration ORDER is non-trivial (005/006/007/012/015 deferred, AFTER
