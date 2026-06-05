@@ -27,31 +27,39 @@ const CODE_AUTH_EXPIRED = 205
 // surface the message prominently and stop there.
 const CODE_BANNED = 234
 
-// Only forward the auth session cookie to the Go backend during SSR.
+// Forward a SMALL ALLOWLIST of cookies to the Go backend during SSR — never
+// the whole jar.
 //
-// pinia-plugin-persistedstate serializes every persisted Pinia store
-// into its own browser cookie (user profile, settings panel, sidebar
-// state, etc.). Accumulated, the full Cookie header easily exceeds
-// Fiber's default ReadBufferSize (4KB) — manifests as
-// `Request Header Fields Too Large` on Go and silently-empty SSR
-// renders (the data fetch fails, the page hydrates with no payload).
+// pinia-plugin-persistedstate serializes every persisted Pinia store into its
+// own browser cookie (user profile, editor drafts, sidebar state, etc.).
+// Accumulated, the full Cookie header easily exceeds Fiber's ReadBufferSize —
+// manifests as `Request Header Fields Too Large` on Go and silently-empty SSR
+// renders (the data fetch fails, the page hydrates with no payload). So we
+// forward ONLY the cookies the backend actually reads:
 //
-// The Go backend only authenticates against `kungal_session`; the
-// other cookies are pure client state and would be ignored anyway.
-// Forwarding only the one keeps SSR auth working without dragging
-// every persisted store across the wire.
-const SESSION_COOKIE_NAME = 'kungal_session'
+//   kungal_session     — auth session: per-user flags (isLiked / isFavorited /
+//                        isUpvoted) and any authed read.
+//   KUNGalgameSettings — content-rating preference. utils.IsSFW(c) reads
+//                        `showKUNGalgameContentLimit` from it and DEFAULTS TO
+//                        SFW when the cookie is absent. Without forwarding it,
+//                        an SSR refresh renders the SFW-filtered view: NSFW
+//                        galgame names in the home "最新动态" feed have no wiki
+//                        brief and fall back to "galgame#<id>", while client-
+//                        side navigation (full cookie jar) shows the real name.
+const SSR_FORWARDED_COOKIES = ['kungal_session', 'KUNGalgameSettings']
 
-const extractSessionCookie = (
+const extractForwardedCookies = (
   cookieHeader?: string
 ): string | undefined => {
   if (!cookieHeader) return undefined
-  const prefix = `${SESSION_COOKIE_NAME}=`
+  const kept: string[] = []
   for (const part of cookieHeader.split(';')) {
     const trimmed = part.trim()
-    if (trimmed.startsWith(prefix)) return trimmed
+    if (SSR_FORWARDED_COOKIES.some((name) => trimmed.startsWith(`${name}=`))) {
+      kept.push(trimmed)
+    }
   }
-  return undefined
+  return kept.length > 0 ? kept.join('; ') : undefined
 }
 
 const handleApiError = async (code: number, message: string) => {
@@ -123,19 +131,18 @@ export const useKunFetch = createUseFetch({
   }),
   credentials: 'include',
   // SSR is cross-origin from Nuxt → Go API, so `credentials: 'include'` is
-  // a no-op on the server. Manually forward the session cookie so per-user
-  // flags (isLiked / isFavorited / isUpvoted) render correctly on first
-  // paint. Filter to JUST the session cookie — see SESSION_COOKIE_NAME
-  // comment above for why bundling everything triggers
-  // "Request Header Fields Too Large".
+  // a no-op on the server. Manually forward the allowlisted cookies (session +
+  // content-rating preference) so per-user flags (isLiked / isFavorited /
+  // isUpvoted) AND the SFW filter render correctly on first paint — see
+  // SSR_FORWARDED_COOKIES above for why we don't bundle the whole jar.
   onRequest({ options }) {
     if (import.meta.server) {
-      const session = extractSessionCookie(
+      const forwarded = extractForwardedCookies(
         useRequestHeaders(['cookie']).cookie
       )
-      if (session) {
+      if (forwarded) {
         const merged = new Headers(options.headers as HeadersInit | undefined)
-        merged.set('cookie', session)
+        merged.set('cookie', forwarded)
         options.headers = merged
       }
     }
@@ -182,19 +189,19 @@ export const kunFetch = async <T>(
     ? `${config.apiBaseUrl}/api`
     : `${config.public.apiBaseUrl}/api`
 
-  // Cookie forwarding (SSR): forward only the session cookie. Bundling
-  // the whole cookie header (Pinia persisted stores, color-mode, etc.)
-  // can blow past Fiber's 4KB header limit — same rationale as
-  // useKunFetch above.
+  // Cookie forwarding (SSR): forward only the allowlisted cookies (session +
+  // content-rating preference). Bundling the whole cookie header (Pinia
+  // persisted stores, color-mode, etc.) can blow past Fiber's header limit —
+  // same rationale as useKunFetch / SSR_FORWARDED_COOKIES above.
   const headers = new Headers(
     (options as { headers?: HeadersInit } | undefined)?.headers
   )
   if (import.meta.server) {
-    const session = extractSessionCookie(
+    const forwarded = extractForwardedCookies(
       useRequestHeaders(['cookie']).cookie
     )
-    if (session) {
-      headers.set('cookie', session)
+    if (forwarded) {
+      headers.set('cookie', forwarded)
     }
   }
 
