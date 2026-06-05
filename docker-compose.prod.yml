@@ -76,13 +76,13 @@ x-kungal-api-env: &kungal-api-env
 
 services:
   # ───────────────────────────── Go API (distroless) ─────────────────────────
-  api:
+  # 服务名直接叫 kungal-api(不是 `api` + alias):Dokploy 不应用 compose 的 networks.aliases,
+  # 只把「服务名」注册到 dokploy-network。两仓都叫 `api` 会在共享网络上 DNS 冲突,所以用唯一服务名,
+  # SSR(kungal-web → http://kungal-api:2334)才能解析到。
+  kungal-api:
     image: ghcr.io/kunmoe/kungal-api:latest
     environment: { <<: *kungal-api-env }
     expose: ["2334"]
-    networks:
-      default:
-        aliases: [kungal-api]   # 唯一别名:kungal/moyu 都叫 `api`,共用 dokploy-network 时 bare `api` 会 DNS 冲突
     # No depends_on: postgres/redis live in the infra app. restart reconnects.
     healthcheck:
       test: ["CMD", "/app", "healthcheck"]
@@ -95,7 +95,7 @@ services:
     image: ghcr.io/kunmoe/kungal-web:latest
     environment:
       NODE_ENV: production
-      NUXT_API_BASE_URL: http://kungal-api:2334                # SSR → 本仓 api 的唯一别名(避免与 moyu api DNS 冲突)
+      NUXT_API_BASE_URL: http://kungal-api:2334                # SSR → 本仓 api 服务名 kungal-api(唯一,避免与 moyu api 冲突)
       NUXT_PUBLIC_API_BASE_URL: https://www.kungal.com         # browser
       NUXT_PUBLIC_OAUTH_SERVER_URL: https://oauth.kungal.com/api/v1
       NUXT_PUBLIC_OAUTH_FRONTEND_URL: https://oauth.kungal.com
@@ -105,7 +105,7 @@ services:
       NUXT_PUBLIC_KUN_GALGAME_URL: https://www.kungal.com
     expose: ["7777"]
     depends_on:
-      api: { condition: service_healthy }
+      kungal-api: { condition: service_healthy }
     healthcheck:
       test:
         - CMD
