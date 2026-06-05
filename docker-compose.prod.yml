@@ -81,6 +81,7 @@ services:
   # SSR(kungal-web → http://kungal-api:2334)才能解析到。
   kungal-api:
     image: ghcr.io/kunmoe/kungal-api:latest
+    pull_policy: always
     environment: { <<: *kungal-api-env }
     expose: ["2334"]
     # No depends_on: postgres/redis live in the infra app. restart reconnects.
@@ -93,10 +94,11 @@ services:
   # Public config is read at RUNTIME (kungal-web is NOT baked at CI) — set below.
   web:
     image: ghcr.io/kunmoe/kungal-web:latest
+    pull_policy: always
     environment:
       NODE_ENV: production
-      NUXT_API_BASE_URL: http://kungal-api:2334                # SSR → 本仓 api 服务名 kungal-api(唯一,避免与 moyu api 冲突)
-      NUXT_PUBLIC_API_BASE_URL: https://www.kungal.com         # browser
+      NUXT_API_BASE_URL: http://kungal-api:2334 # SSR → 本仓 api 服务名 kungal-api(唯一,避免与 moyu api 冲突)
+      NUXT_PUBLIC_API_BASE_URL: https://www.kungal.com # browser
       NUXT_PUBLIC_OAUTH_SERVER_URL: https://oauth.kungal.com/api/v1
       NUXT_PUBLIC_OAUTH_FRONTEND_URL: https://oauth.kungal.com
       NUXT_PUBLIC_OAUTH_CLIENT_ID: 4ed9bc99ec0a789a4796b83e22bd84c5
@@ -121,6 +123,7 @@ services:
   #   docker compose -f docker-compose.prod.yml --profile jobs run --rm migrate [--only=005]
   migrate:
     image: ghcr.io/kunmoe/kungal-migrate:latest
+    pull_policy: always
     environment: { <<: *kungal-api-env }
     profiles: ["jobs"]
     restart: "no"
@@ -129,6 +132,7 @@ services:
   #   docker compose -f docker-compose.prod.yml --profile jobs run --rm tools backfill-provider-names
   tools:
     image: ghcr.io/kunmoe/kungal-tools:latest
+    pull_policy: always
     environment: { <<: *kungal-api-env }
     profiles: ["jobs"]
     restart: "no"

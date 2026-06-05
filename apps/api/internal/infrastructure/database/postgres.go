@@ -2,7 +2,9 @@ package database
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -30,15 +32,31 @@ func withTimeZone(dsn string) string {
 }
 
 func NewPostgres(cfg config.DatabaseConfig, mode string) *gorm.DB {
-	var logLevel logger.LogLevel
+	logLevel := logger.Warn
 	if mode == "dev" {
 		logLevel = logger.Info
-	} else {
-		logLevel = logger.Warn
 	}
 
+	// IgnoreRecordNotFoundError: ErrRecordNotFound is normal control flow here,
+	// not a failure — GalgameRepository.FindLocal probes for a lazily-created
+	// local stats stub (a galgame only viewed, never interacted with, has none),
+	// and ToggleLike/ToggleFavorite use First() to test for an existing
+	// like/favorite before creating one. The default GORM logger reports every
+	// such miss at error level, flooding prod logs with harmless
+	// "record not found" lines. Silence those while keeping the 200ms slow-query
+	// trace (which still surfaces e.g. the activity-feed UNION query).
+	gormLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             200 * time.Millisecond,
+			LogLevel:                  logLevel,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  true,
+		},
+	)
+
 	db, err := gorm.Open(postgres.Open(withTimeZone(cfg.URL)), &gorm.Config{
-		Logger:                 logger.Default.LogMode(logLevel),
+		Logger:                 gormLogger,
 		SkipDefaultTransaction: true,
 	})
 	if err != nil {
