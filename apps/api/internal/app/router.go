@@ -91,6 +91,9 @@ func (a *App) setupRoutes() {
 	api.Get("/update/history", a.UpdateHandler.GetHistory)
 	api.Get("/update/todo", a.UpdateHandler.GetTodos)
 
+	// Friend links (public read — rendered on /friend-links)
+	api.Get("/friend-link", a.FriendLinkHandler.List)
+
 	// Activity (public)
 	api.Get("/activity", a.ActivityHandler.GetActivity)
 	api.Get("/activity/timeline", a.ActivityHandler.GetTimeline)
@@ -466,4 +469,11 @@ func (a *App) setupRoutes() {
 	updateAdmin.Post("/update/todo", a.UpdateHandler.CreateTodo)
 	updateAdmin.Put("/update/todo", a.UpdateHandler.UpdateTodo)
 	updateAdmin.Delete("/update/todo", a.UpdateHandler.DeleteTodo)
+
+	// Friend-link admin (role >= 2): CRUD + drag-reorder.
+	friendAdmin := authed.Group("", middleware.RequireRole(2))
+	friendAdmin.Post("/admin/friend-link", a.FriendLinkHandler.Create)
+	friendAdmin.Put("/admin/friend-link", a.FriendLinkHandler.Update)
+	friendAdmin.Delete("/admin/friend-link", a.FriendLinkHandler.Delete)
+	friendAdmin.Put("/admin/friend-link/reorder", a.FriendLinkHandler.Reorder)
 }

@@ -1,5 +1,19 @@
 <script setup lang="ts">
-import { friendArray } from '~/config/friend'
+import {
+  FRIEND_LINK_CATEGORIES,
+  FRIEND_LINK_STATUS_CHIP
+} from '~/constants/friendLink'
+
+// Friend links are now admin-managed (DB) instead of the static config/friend.ts.
+const { data } = await useKunFetch<GroupedFriendLinks>('/friend-link')
+
+// Render the 3 fixed categories in order; skip empty groups.
+const groups = computed(() =>
+  FRIEND_LINK_CATEGORIES.map((category) => ({
+    label: category.label,
+    links: data.value?.[category.key] ?? []
+  })).filter((group) => group.links.length > 0)
+)
 </script>
 
 <template>
@@ -15,24 +29,17 @@ import { friendArray } from '~/config/friend'
       </template>
     </KunHeader>
 
-    <template v-for="(friendGroup, index) in friendArray" :key="index">
+    <template v-for="(group, index) in groups" :key="index">
       <h2 class="mb-4 text-2xl font-bold">
-        {{ friendGroup.label }}
+        {{ group.label }}
       </h2>
 
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <!--
-          KunCard exposes the navigation target as `href` (renders the
-          card as a NuxtLink, which auto-detects external URLs). The
-          previous `:to` binding silently landed on the rendered <div>
-          as an unknown attr — that's why clicks did nothing. `target`
-          and `rel` pass through inheritAttrs onto the <a>.
-        -->
         <KunCard
           :dark-border="true"
           :is-transparent="true"
-          v-for="(friend, i) in friendGroup.value"
-          :key="i"
+          v-for="friend in group.links"
+          :key="friend.id"
           :href="friend.link"
           target="_blank"
           rel="noopener noreferrer"
@@ -41,17 +48,23 @@ import { friendArray } from '~/config/friend'
             <span class="text-lg font-bold">
               {{ friend.name }}
             </span>
-            <KunChip v-if="friend.status" color="danger">已下线</KunChip>
+            <KunChip
+              v-if="FRIEND_LINK_STATUS_CHIP[friend.status]"
+              :color="FRIEND_LINK_STATUS_CHIP[friend.status]!.color"
+            >
+              {{ FRIEND_LINK_STATUS_CHIP[friend.status]!.label }}
+            </KunChip>
           </div>
           <div class="text-default-600 mb-3 text-sm">
             {{
-              friend.label.length > 107
-                ? `${friend.label.slice(0, 107)}...`
-                : friend.label
+              friend.description.length > 107
+                ? `${friend.description.slice(0, 107)}...`
+                : friend.description
             }}
           </div>
           <KunImage
-            :src="`/friends/${friend.banner}.webp`"
+            v-if="friend.banner"
+            :src="friend.banner"
             class="h-auto w-full rounded-md"
           />
         </KunCard>
