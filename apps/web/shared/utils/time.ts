@@ -1,8 +1,19 @@
 import { differenceInSeconds, differenceInHours, format } from 'date-fns'
 
+// isMeaningfulDate rejects the inputs that otherwise render as garbage:
+//   - missing / empty / unparseable     → new Date(...) is Invalid → NaN
+//   - Go time.Time zero value           → "0001-01-01T00:00:00Z" (year ≤ 1)
+// Both show up post-migration (empty resourceUpdateTime from wiki search, a
+// zero `created`, etc.) and must not surface as "NaN 年前" / "2025 年前" / "0001-01-01".
+const isMeaningfulDate = (d: Date): boolean =>
+  !isNaN(d.getTime()) && d.getFullYear() > 1
+
 export const formatTimeDifference = (pastTime: number | Date | string) => {
-  const now = new Date()
   const past = new Date(pastTime)
+  if (!isMeaningfulDate(past)) {
+    return ''
+  }
+  const now = new Date()
   const diffInSeconds = differenceInSeconds(now, past)
 
   if (diffInSeconds < 10) {
@@ -54,7 +65,13 @@ export const formatDate = (
     formatString = `${formatString} - HH:mm`
   }
 
-  return format(new Date(time), formatString)
+  // date-fns `format` THROWS "Invalid time value" on an unparseable date and
+  // happily prints "0001-01-01" for the Go zero value — guard both.
+  const d = new Date(time)
+  if (!isMeaningfulDate(d)) {
+    return ''
+  }
+  return format(d, formatString)
 }
 
 // toYMD normalizes any incoming date string to "YYYY-MM-DD" (or "" for

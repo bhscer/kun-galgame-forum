@@ -16,11 +16,16 @@ import (
 // across series / official / engine / tag detail endpoints.
 type GalgameEnricher struct {
 	galgameRepo *repository.GalgameRepository
+	metaRepo    *repository.GalgameResourceMetaRepository
 	userClient  *userclient.Client
 }
 
-func NewGalgameEnricher(galgameRepo *repository.GalgameRepository, userClient *userclient.Client) *GalgameEnricher {
-	return &GalgameEnricher{galgameRepo: galgameRepo, userClient: userClient}
+func NewGalgameEnricher(
+	galgameRepo *repository.GalgameRepository,
+	metaRepo *repository.GalgameResourceMetaRepository,
+	userClient *userclient.Client,
+) *GalgameEnricher {
+	return &GalgameEnricher{galgameRepo: galgameRepo, metaRepo: metaRepo, userClient: userClient}
 }
 
 // FilterSFW removes NSFW items when the caller requests SFW-only content.
@@ -84,6 +89,11 @@ func (e *GalgameEnricher) ToCards(ctx context.Context, items []dto.WikiGalgameIt
 
 	userMap := e.userClient.Hydrate(ctx, userIDs)
 	localMap := e.galgameRepo.FindLocalBatch(galgameIDs)
+	// Platform/language badges come from the LOCAL galgame_resource rows — the
+	// wiki item (incl. Meilisearch search hits) carries neither — so the search /
+	// series / official / engine / tag cards match the /galgame list card's
+	// top-left platform badges. Cheap now that galgame_resource(galgame_id) is indexed.
+	platformMap, languageMap := groupResourceMeta(e.metaRepo.FindResourceMetaBatch(galgameIDs))
 
 	cards := make([]dto.GalgameCard, len(items))
 	for i, g := range items {
@@ -108,8 +118,8 @@ func (e *GalgameEnricher) ToCards(ctx context.Context, items []dto.WikiGalgameIt
 			// walker. banner_image_hash retired in wiki PR5 (K-PR6).
 			EffectiveBannerHash: g.EffectiveBannerHash,
 			EffectiveBannerURL:  g.EffectiveBannerURL,
-			Platform:            []string{},
-			Language:            []string{},
+			Platform:            emptyStrSliceIfNil(platformMap[g.ID]),
+			Language:            emptyStrSliceIfNil(languageMap[g.ID]),
 		}
 	}
 	return cards

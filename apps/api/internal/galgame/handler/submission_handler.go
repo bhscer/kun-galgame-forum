@@ -144,6 +144,10 @@ func (h *SubmissionHandler) SearchWithPending(c *fiber.Ctx) error {
 
 	q := collectQuery(c)
 	q.Set("include_pending", "true")
+	// Publish wizard must surface published games (0, for the "你已经提过这个"
+	// dedup cue) AND claimable VNDB drafts (2). Without status=2 the wizard can't
+	// find the bulk of the catalog that's still unclaimed VNDB drafts.
+	q.Set("status", "0,2")
 	data, appErr := h.svc.SearchWithPending(c.Context(), token, q)
 	if appErr != nil {
 		return response.Error(c, appErr)

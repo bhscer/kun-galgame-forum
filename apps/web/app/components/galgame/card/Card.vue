@@ -143,7 +143,9 @@ const {
         >
           <KunAvatar :disable-floating="true" :user="galgame.user" size="xs" />
           {{
-            `${galgame.user.name} · ${formatTimeDifference(galgame.resourceUpdateTime)}`
+            [galgame.user.name, formatTimeDifference(galgame.resourceUpdateTime)]
+              .filter(Boolean)
+              .join(' · ')
           }}
         </div>
       </div>

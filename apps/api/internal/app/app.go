@@ -237,7 +237,7 @@ func New(cfg *config.Config) *App {
 	galgameListRepo := galgameRepo.NewGalgameListRepository(db)
 	galgameResourceMetaRepo := galgameRepo.NewGalgameResourceMetaRepository(db)
 	galgameDetailRatingRepo := galgameRepo.NewGalgameDetailRatingRepository(db)
-	galgameEnricher := galgameService.NewGalgameEnricher(galgameLocalRepo, uc)
+	galgameEnricher := galgameService.NewGalgameEnricher(galgameLocalRepo, galgameResourceMetaRepo, uc)
 	galgameSeriesSvc := galgameService.NewSeriesService(gc, galgameEnricher)
 	galgameOfficialSvc := galgameService.NewOfficialService(gc, galgameEnricher)
 	galgameEngineSvc := galgameService.NewEngineService(gc, galgameEnricher)

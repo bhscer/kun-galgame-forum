@@ -136,9 +136,13 @@ type GalgameCard struct {
 }
 
 type UserTopic struct {
-	ID        int       `json:"id"`
-	Title     string    `json:"title"`
-	CreatedAt time.Time `json:"created"`
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	// gorm:"column:created" is REQUIRED: FindUserTopics selects `topic.created`,
+	// but GORM's default column for a `CreatedAt` field is `created_at`, so
+	// without this the column never binds and the API serialises the zero value
+	// "0001-01-01T00:00:00Z" (which the UI then renders as a 0001 date).
+	CreatedAt time.Time `gorm:"column:created" json:"created"`
 }
 
 // ──────────────────────────────────────────
