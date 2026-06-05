@@ -71,8 +71,14 @@ x-kungal-api-env: &kungal-api-env
   # image_service (shared CDN domain == infra KUN_IMAGE_PUBLIC_BASE_URL)
   KUN_IMAGE_PUBLIC_BASE_URL: https://image.kungal.iloveren.link
   KUN_IMAGE_CLIENT_BASE_URL: http://image:9278
-  KUN_IMAGE_CLIENT_ID: ${KUN_IMAGE_CLIENT_ID:-}
-  KUN_IMAGE_CLIENT_SECRET: ${KUN_IMAGE_CLIENT_SECRET:-}
+  # kungal's image_service client IS its own OAuth client (same id/secret as the
+  # login client above): image_service authenticates uploads via HTTP Basic
+  # (client_id:client_secret), then checks image_enabled + image_site_key +
+  # image_allowed_presets on the infra oauth_clients row (set to enabled /
+  # site_key=kungal / [topic, galgame_banner]). So reuse the OAuth creds rather
+  # than a separate Dokploy var.
+  KUN_IMAGE_CLIENT_ID: 4ed9bc99ec0a789a4796b83e22bd84c5
+  KUN_IMAGE_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:?set OAUTH_CLIENT_SECRET in Dokploy}
 
 services:
   # ───────────────────────────── Go API (distroless) ─────────────────────────

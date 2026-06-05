@@ -1,16 +1,8 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	"image/png"
 	"io"
-	"path/filepath"
-	"strings"
 
 	"kun-galgame-api/internal/image/repository"
 	"kun-galgame-api/internal/infrastructure/storage"
@@ -21,16 +13,18 @@ import (
 const (
 	MaxImageSize    = 10 * 1024 * 1024 // 10MB
 	dailyImageLimit = 50
-	imageBedBucket  = "topic"
 )
 
 type ImageService struct {
 	repo *repository.ImageRepository
-	s3   *storage.S3Client
-	// imgCli is the image_service client used by U2 galgame multi-image
-	// uploads (covers / screenshots). Nil-able: when credentials are
-	// unset the legacy /image/topic path still works (it doesn't touch
-	// image_service) and /image/galgame surfaces a clear error.
+	// s3 is no longer used for image uploads — ALL uploads go through
+	// image_service (imgCli) now. Kept only so the constructor wiring is
+	// unchanged; safe to drop with its app.go wiring in a later cleanup.
+	s3 *storage.S3Client
+	// imgCli is the image_service client. ALL user image uploads — topic inline
+	// images AND galgame covers/screenshots — go through it. Nil-able: when the
+	// credentials (KUN_IMAGE_CLIENT_ID / KUN_IMAGE_CLIENT_SECRET) are unset, both
+	// upload paths return a clear "未配置" error instead of falling back to S3.
 	imgCli *imageclient.Client
 }
 
@@ -42,11 +36,21 @@ func NewImageService(
 	return &ImageService{repo: repo, s3: s3, imgCli: imgCli}
 }
 
-// UploadTopicImage validates the user's daily quota, decodes + re-encodes
-// the image as PNG, uploads it to S3, then increments the daily counter.
-// Returns the S3 key (to be prefixed by CDN base URL on the frontend).
+// UploadTopicImage routes a user's inline post image through image_service
+// under the `topic` preset (WebP q77, ≤1920×1080, EXIF stripped — see infra
+// configs/image_presets.yaml) and returns the full webp CDN URL, which the
+// editor inserts directly as the image src.
+//
+// The kungal-local per-USER daily quota is kept on purpose: image_service's
+// quota is per-SITE, so this still gives per-user fair-use limiting + a
+// friendly message before we even hit image_service.
 func (s *ImageService) UploadTopicImage(ctx context.Context, userID int, r io.Reader, filename string) (string, *errors.AppError) {
-	// Check daily limit
+	if s.imgCli == nil {
+		return "", errors.ErrBadRequest(
+			"图片上传服务未配置 (KUN_IMAGE_CLIENT_ID / KUN_IMAGE_CLIENT_SECRET)",
+		)
+	}
+
 	count, err := s.repo.GetDailyCount(userID)
 	if err != nil {
 		return "", errors.ErrInternal("查询用户失败")
@@ -55,32 +59,16 @@ func (s *ImageService) UploadTopicImage(ctx context.Context, userID int, r io.Re
 		return "", errors.ErrBadRequest("今日图片上传次数已达上限")
 	}
 
-	// Decode image
-	img, _, err := image.Decode(r)
-	if err != nil {
-		return "", errors.ErrBadRequest("无效的图片格式")
+	res, uErr := s.imgCli.Upload(ctx, r, filename, "topic")
+	if uErr != nil {
+		// Forward image_service's structured error (preset denied, MIME, quota,
+		// oversize, …) so the user sees the real reason; else generic.
+		if ie, ok := uErr.(*imageclient.Error); ok {
+			return "", errors.New(ie.Code, ie.Message, ie.StatusCode)
+		}
+		return "", errors.ErrInternal("图片上传失败")
 	}
 
-	// TODO: resize large images with imaging library.
-	// For now, re-encode as PNG (WebP requires cgo; PNG is a safe fallback).
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		return "", errors.ErrInternal("图片处理失败")
-	}
-
-	// Upload to S3
-	ext := strings.ToLower(filepath.Ext(filename))
-	if ext == "" {
-		ext = ".png"
-	}
-	key := fmt.Sprintf("%s/user_%d/%d%s", imageBedBucket, userID, userID*1000+count, ext)
-
-	if err := s.s3.Upload(ctx, key, "image/png", bytes.NewReader(buf.Bytes())); err != nil {
-		return "", errors.ErrInternal("上传图片失败")
-	}
-
-	// Increment daily count
 	s.repo.IncrementDailyCount(userID)
-
-	return key, nil
+	return res.URL, nil
 }
