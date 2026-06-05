@@ -7,6 +7,10 @@ import type {
   DiscussionForumPosting
 } from 'schema-dts'
 
+// Key by path so navigating between two items of this dynamic route remounts
+// the page and re-runs setup — the detail fetch uses a static URL + watch:false.
+definePageMeta({ key: (route) => route.path })
+
 const route = useRoute()
 const id = computed(() => {
   return parseInt((route.params as { id: string }).id)

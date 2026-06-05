@@ -8,6 +8,10 @@ import type {
 
 const userId = storeToRefs(usePersistUserStore()).id.value
 const { showKUNGalgameContentLimit } = storeToRefs(usePersistSettingsStore())
+// Key by path so navigating between two items of this dynamic route remounts
+// the page and re-runs setup — the detail fetch uses a static URL + watch:false.
+definePageMeta({ key: (route) => route.path })
+
 const route = useRoute()
 
 // "NSFW mode" = cookie says nsfw or all. Used together with `userId` to
