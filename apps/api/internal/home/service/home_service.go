@@ -2,12 +2,17 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
+	"time"
 
 	galgameClient "kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/home/dto"
 	"kun-galgame-api/internal/home/repository"
 	"kun-galgame-api/pkg/userclient"
+
+	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -20,18 +25,25 @@ const (
 	homeTopicLimit        = 10
 )
 
+// homeCacheTTL bounds homepage staleness. The page has no per-user state (keyed
+// only by isSFW), so one cached build is shared across viewers, sparing the
+// per-render galgame-list query + wiki name-enrichment round-trip.
+const homeCacheTTL = 60 * time.Second
+
 type HomeService struct {
 	repo       *repository.HomeRepository
 	wikiGC     *galgameClient.GalgameClient
 	userClient *userclient.Client
+	rdb        *redis.Client
 }
 
 func NewHomeService(
 	repo *repository.HomeRepository,
 	gc *galgameClient.GalgameClient,
 	userClient *userclient.Client,
+	rdb *redis.Client,
 ) *HomeService {
-	return &HomeService{repo: repo, wikiGC: gc, userClient: userClient}
+	return &HomeService{repo: repo, wikiGC: gc, userClient: userClient, rdb: rdb}
 }
 
 // GetHome returns homepage data: galgames + topics.
@@ -41,16 +53,57 @@ func NewHomeService(
 // topic feed still renders. Topic lookup failures are still propagated — they
 // come from the local DB and indicate something more serious.
 func (s *HomeService) GetHome(ctx context.Context, isSFW bool) (*dto.HomeResponse, error) {
-	galgames, err := s.getHomeGalgames(ctx, isSFW)
-	if err != nil {
-		slog.Warn("首页 galgame 获取失败, 降级为空列表", "error", err)
+	cacheKey := fmt.Sprintf("home:v1:%t", isSFW)
+	if cached := s.getCachedHome(ctx, cacheKey); cached != nil {
+		return cached, nil
+	}
+
+	galgames, gErr := s.getHomeGalgames(ctx, isSFW)
+	if gErr != nil {
+		slog.Warn("首页 galgame 获取失败, 降级为空列表", "error", gErr)
 		galgames = []dto.HomeGalgame{}
 	}
 	topics, err := s.getHomeTopics(ctx, isSFW)
 	if err != nil {
 		return nil, err
 	}
-	return &dto.HomeResponse{Galgames: galgames, Topics: topics}, nil
+	resp := &dto.HomeResponse{Galgames: galgames, Topics: topics}
+	// Only cache a fully-successful build — never pin a wiki-degraded (empty
+	// galgame) homepage for the whole TTL.
+	if gErr == nil {
+		s.cacheHome(ctx, cacheKey, resp)
+	}
+	return resp, nil
+}
+
+// getCachedHome returns the cached homepage, or nil on a miss. Fail-open: any
+// redis/JSON error is a miss so the request still serves fresh data.
+func (s *HomeService) getCachedHome(ctx context.Context, key string) *dto.HomeResponse {
+	if s.rdb == nil {
+		return nil
+	}
+	raw, err := s.rdb.Get(ctx, key).Bytes()
+	if err != nil {
+		return nil
+	}
+	var resp dto.HomeResponse
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return nil
+	}
+	return &resp
+}
+
+// cacheHome best-effort stores the homepage with homeCacheTTL. A redis/marshal
+// failure is ignored — caching must never break the response.
+func (s *HomeService) cacheHome(ctx context.Context, key string, resp *dto.HomeResponse) {
+	if s.rdb == nil || resp == nil {
+		return
+	}
+	raw, err := json.Marshal(resp)
+	if err != nil {
+		return
+	}
+	_ = s.rdb.Set(ctx, key, raw, homeCacheTTL).Err()
 }
 
 func (s *HomeService) getHomeGalgames(ctx context.Context, isSFW bool) ([]dto.HomeGalgame, error) {

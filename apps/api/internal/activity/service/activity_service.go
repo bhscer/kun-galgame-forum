@@ -2,27 +2,39 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"kun-galgame-api/internal/activity/dto"
 	"kun-galgame-api/internal/activity/repository"
 	galgameClient "kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
+
+	"github.com/redis/go-redis/v9"
 )
+
+// activityCacheTTL bounds how stale the "最新动态" feed can be. Short on purpose:
+// it collapses the home page's per-render cost (the multi-source timeline query
+// + wiki name-enrichment + OAuth identity round-trips) into one computation per
+// window, while still surfacing new activity within seconds.
+const activityCacheTTL = 30 * time.Second
 
 type ActivityService struct {
 	repo       *repository.ActivityRepository
 	wikiGC     *galgameClient.GalgameClient
 	userClient *userclient.Client
+	rdb        *redis.Client
 }
 
 func NewActivityService(
 	repo *repository.ActivityRepository,
 	gc *galgameClient.GalgameClient,
 	userClient *userclient.Client,
+	rdb *redis.Client,
 ) *ActivityService {
-	return &ActivityService{repo: repo, wikiGC: gc, userClient: userClient}
+	return &ActivityService{repo: repo, wikiGC: gc, userClient: userClient, rdb: rdb}
 }
 
 // Result holds a paginated activity list.
@@ -36,6 +48,24 @@ type Result struct {
 // galgame names never enter the public activity stream
 // (docs/galgame_wiki/00-handbook §16).
 func (s *ActivityService) GetActivity(ctx context.Context, typeStr string, page, limit int, isSFW bool) (*Result, *errors.AppError) {
+	// Cache-aside on the fully-enriched result. Keyed by isSFW because that
+	// changes which galgame names the wiki returns (NSFW filter), so SFW and
+	// NSFW viewers must not share an entry.
+	cacheKey := fmt.Sprintf("activity:v1:%s:%d:%d:%t", typeStr, page, limit, isSFW)
+	if cached, ok := s.getCachedResult(ctx, cacheKey); ok {
+		return cached, nil
+	}
+
+	result, appErr := s.computeActivity(ctx, typeStr, page, limit, isSFW)
+	if appErr != nil {
+		return nil, appErr
+	}
+	s.cacheResult(ctx, cacheKey, result)
+	return result, nil
+}
+
+// computeActivity is GetActivity without the cache layer.
+func (s *ActivityService) computeActivity(ctx context.Context, typeStr string, page, limit int, isSFW bool) (*Result, *errors.AppError) {
 	if typeStr == "all" {
 		return s.GetTimeline(ctx, page, limit, isSFW)
 	}
@@ -53,6 +83,37 @@ func (s *ActivityService) GetActivity(ctx context.Context, typeStr string, page,
 	s.enrichGalgameItems(ctx, rows, items, isSFW)
 	s.hydrateActors(ctx, items)
 	return &Result{Items: items, Total: total}, nil
+}
+
+// getCachedResult returns a cached activity Result, and true on a hit.
+// Fail-open: redis.Nil (miss) or ANY error (redis down, bad JSON) is treated as
+// a miss so the request still serves fresh data.
+func (s *ActivityService) getCachedResult(ctx context.Context, key string) (*Result, bool) {
+	if s.rdb == nil {
+		return nil, false
+	}
+	raw, err := s.rdb.Get(ctx, key).Bytes()
+	if err != nil {
+		return nil, false
+	}
+	var result Result
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, false
+	}
+	return &result, true
+}
+
+// cacheResult best-effort stores the enriched result with activityCacheTTL.
+// A redis/marshal failure is ignored — caching must never break the response.
+func (s *ActivityService) cacheResult(ctx context.Context, key string, result *Result) {
+	if s.rdb == nil || result == nil {
+		return
+	}
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return
+	}
+	_ = s.rdb.Set(ctx, key, raw, activityCacheTTL).Err()
 }
 
 // GetTimeline returns a mixed activity timeline across all sources.

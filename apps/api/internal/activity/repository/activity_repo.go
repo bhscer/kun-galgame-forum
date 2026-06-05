@@ -225,20 +225,32 @@ func (r *ActivityRepository) FetchSingleSource(src ActivitySource, page, limit i
 // letting PostgreSQL handle sort and pagination in one pass. Identity is
 // hydrated at the service layer via userclient.
 func (r *ActivityRepository) FetchTimeline(page, limit int) ([]ActivityRow, int64, error) {
-	union := buildUnionAll()
-
+	// Exact total over the UNLIMITED union for pagination (the /activity page
+	// renders ceil(total/limit) page count). COUNT(*) lets Postgres prune each
+	// branch's target list to a bare row count — message's `WHERE type = ...`
+	// rides idx_message_type_created, the rest are small tables — so this stays
+	// cheap even though it spans every source.
 	var total int64
-	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS u`, union)
+	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS u`, buildUnionAll())
 	if err := r.db.Raw(countSQL).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	// Data: push `ORDER BY created DESC LIMIT (offset+limit)` INTO each source
+	// before the UNION. The global top (offset+limit) rows are guaranteed to be
+	// contained in the union of each source's own top (offset+limit) — a single
+	// source can contribute at most that many rows to a global top-N — so the
+	// outer ORDER BY/LIMIT/OFFSET still returns the exact page, but each branch
+	// is now an index-backed top-N (idx_<table>_created) instead of a full scan
+	// + global sort of every row across all ~17 source tables.
+	offset := (page - 1) * limit
+	perSource := offset + limit
 	dataSQL := fmt.Sprintf(
 		`SELECT u.*
 		FROM (%s) AS u
 		ORDER BY u.created DESC
 		LIMIT %d OFFSET %d`,
-		union, limit, (page-1)*limit,
+		buildLimitedUnionAll(perSource), limit, offset,
 	)
 	var rows []ActivityRow
 	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
@@ -247,11 +259,27 @@ func (r *ActivityRepository) FetchTimeline(page, limit int) ([]ActivityRow, int6
 	return rows, total, nil
 }
 
-// buildUnionAll joins all source queries with UNION ALL.
+// buildUnionAll joins all source queries with UNION ALL (no per-source limit).
+// Used only for the exact COUNT(*) over the full activity set.
 func buildUnionAll() string {
 	parts := make([]string, 0, len(Sources))
 	for _, src := range Sources {
 		parts = append(parts, "("+src.Query+")")
+	}
+	return strings.Join(parts, " UNION ALL ")
+}
+
+// buildLimitedUnionAll joins all sources with UNION ALL, but first caps each
+// source to its own `ORDER BY created DESC LIMIT perSource`. Every source SELECTs
+// `t.created` off its base table aliased `t`, so each per-branch ORDER BY/LIMIT
+// can use idx_<table>_created and read only the newest perSource rows. perSource
+// MUST be >= the page's offset+limit (see FetchTimeline) for the page to be
+// exact. Parenthesising each operand keeps the per-branch ORDER BY/LIMIT local
+// to that SELECT (not applied to the whole UNION).
+func buildLimitedUnionAll(perSource int) string {
+	parts := make([]string, 0, len(Sources))
+	for _, src := range Sources {
+		parts = append(parts, fmt.Sprintf("(%s ORDER BY t.created DESC LIMIT %d)", src.Query, perSource))
 	}
 	return strings.Join(parts, " UNION ALL ")
 }
