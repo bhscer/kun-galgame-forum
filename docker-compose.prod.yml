@@ -124,6 +124,13 @@ services:
   migrate:
     image: ghcr.io/kunmoe/kungal-migrate:latest
     pull_policy: always
+    # The image bakes migrations at /migrations but its WORKDIR is
+    # /home/nonroot, so the binary's default `-path migrations` (relative)
+    # resolves to a non-existent dir → it silently finds 0 migrations and
+    # exits 0 ("没有待执行的迁移"). Pin CWD to / so `-path migrations` → /migrations.
+    # (Keeps manual `... run --rm migrate --only=NNN` working too, vs hard-coding
+    # the command.) Proper long-term fix is the Dockerfile WORKDIR / COPY path.
+    working_dir: /
     environment: { <<: *kungal-api-env }
     profiles: ["jobs"]
     restart: "no"
