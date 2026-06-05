@@ -48,6 +48,14 @@ const getMessageHistory = async () => {
 }
 
 const sendMessage = async () => {
+  // Re-entry guard: the send can be triggered more than once near-simultaneously
+  // (the input's @keydown.enter + the 发送 button, plus event bubbling). isSending
+  // is flipped synchronously below before the await, so any concurrent/rapid
+  // re-fire bails here instead of POSTing a duplicate — this is what caused a
+  // single message to be inserted 2-3x.
+  if (isSending.value) {
+    return
+  }
   if (!messageInput.value.trim()) {
     useMessage(10401, 'warn')
     return
@@ -135,24 +143,18 @@ const handleLoadHistoryMessages = async () => {
   }
 }
 
-const onKeydown = async (event: KeyboardEvent) => {
-  if (event.key === 'Enter') {
-    event.preventDefault()
-    sendMessage()
-  }
-}
-
+// Enter-to-send is bound on the input itself (@keydown.enter.prevent="sendMessage").
+// A separate GLOBAL `window` keydown listener used to ALSO call sendMessage, so a
+// single Enter fired the input handler AND the window handler (and any extra
+// mounts duplicated it further) → 2-3 messages per send. It also sent on Enter
+// when the chat input wasn't even focused. Removed; the scoped input handler is
+// the single source of truth (plus the re-entry guard in sendMessage).
 onMounted(async () => {
   messages.value = await getMessageHistory()
-  window.addEventListener('keydown', onKeydown)
 
   nextTick(() => {
     scrollToBottom()
   })
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
