@@ -3,21 +3,20 @@
 // so every friend link's image matches what the admin form now produces (the
 // `topic` preset — WebP q77, EXIF stripped — via /image/topic).
 //
-// The static files live in the WEB container's public/ dir (not reachable from
-// this Go process), so each is fetched over HTTP from the public site and the
-// bytes are pushed to image_service. Run this from inside the cluster (the tools
-// container reaches both postgres and the internal image_service at
-// http://image:9278); fetching uses the PUBLIC base (default www.kungal.com),
-// which Traefik routes back to the web container.
+// Source bytes are read from a local dir (default /app/friends) that the
+// tools image bakes from apps/web/public/friends — fetching the originals over
+// HTTP from inside the cluster proved unreliable (public domain doesn't hairpin;
+// the internal web container's port isn't reachable over the overlay net). A
+// `-base` HTTP fallback is kept for ad-hoc use.
 //
 // Idempotent: only rows whose banner starts with "/friends/" are touched. Once
 // migrated the banner is a CDN URL, so a re-run skips it. Per-row failures are
 // logged and skipped (the row keeps its old static banner), never aborting.
 //
 //	docker compose -f docker-compose.prod.yml --profile jobs run --rm tools \
-//	  backfill-friend-link-banners                 # do it (topic preset)
-//	  backfill-friend-link-banners --dry-run        # fetch + report, no writes
-//	  backfill-friend-link-banners --preset=galgame_banner --base=https://www.kungal.com
+//	  backfill-friend-link-banners                 # do it (read /app/friends, topic preset)
+//	  backfill-friend-link-banners --dry-run        # report, no upload/writes
+//	  backfill-friend-link-banners --preset=galgame_banner
 package main
 
 import (
@@ -29,6 +28,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -43,8 +43,9 @@ import (
 func main() {
 	_ = godotenv.Load()
 
-	dryRun := flag.Bool("dry-run", false, "Fetch + report planned changes but do not upload or write")
-	base := flag.String("base", "https://www.kungal.com", "Public base URL the legacy /friends/<name>.webp banners are served from")
+	dryRun := flag.Bool("dry-run", false, "Read/report planned changes but do not upload or write")
+	dir := flag.String("dir", "/app/friends", "Local dir holding the baked static banners; read <dir>/<basename> (primary source)")
+	base := flag.String("base", "", "If set AND -dir is empty, HTTP-fetch from <base>/<banner> instead of reading -dir")
 	preset := flag.String("preset", "topic", "image_service preset to upload under (topic | galgame_banner)")
 	flag.Parse()
 
@@ -67,7 +68,6 @@ func main() {
 	})
 
 	db := database.NewPostgres(cfg.Database, cfg.Server.Mode)
-	baseURL := strings.TrimRight(*base, "/")
 
 	type row struct {
 		ID     int
@@ -85,20 +85,37 @@ func main() {
 		os.Exit(1)
 	}
 
+	source := "dir=" + *dir
+	if *dir == "" {
+		source = "base=" + *base
+	}
 	slog.Info("开始回填友链 banner",
-		"candidates", len(rows), "base", baseURL, "preset", *preset, "dry_run", *dryRun)
+		"candidates", len(rows), "source", source, "preset", *preset, "dry_run", *dryRun)
 
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 	ctx := context.Background()
 	updated, failed := 0, 0
 
 	for _, r := range rows {
-		src := baseURL + r.Banner // e.g. https://www.kungal.com/friends/acgngame.webp
-		fname := r.Banner[strings.LastIndex(r.Banner, "/")+1:]
+		fname := filepath.Base(r.Banner) // /friends/acgngame.webp → acgngame.webp
 
-		body, ferr := fetch(ctx, httpClient, src)
-		if ferr != nil {
-			slog.Error("拉取静态 banner 失败, 跳过", "id", r.ID, "name", r.Name, "src", src, "error", ferr)
+		var (
+			body []byte
+			src  string
+			rerr error
+		)
+		if *dir != "" {
+			src = filepath.Join(*dir, fname)
+			body, rerr = os.ReadFile(src)
+		} else if *base != "" {
+			src = strings.TrimRight(*base, "/") + r.Banner
+			body, rerr = fetch(ctx, httpClient, src)
+		} else {
+			rerr = fmt.Errorf("既未提供 -dir 也未提供 -base")
+			src = r.Banner
+		}
+		if rerr != nil {
+			slog.Error("读取静态 banner 失败, 跳过", "id", r.ID, "name", r.Name, "src", src, "error", rerr)
 			failed++
 			continue
 		}
@@ -129,7 +146,7 @@ func main() {
 	}
 
 	if *dryRun {
-		fmt.Printf("dry-run 完成: %d 个候选 (banner LIKE '/friends/%%'), %d 个拉取失败\n", len(rows), failed)
+		fmt.Printf("dry-run 完成: %d 个候选 (banner LIKE '/friends/%%'), %d 个读取失败\n", len(rows), failed)
 	} else {
 		fmt.Printf("回填完成: 成功迁移 %d, 失败/跳过 %d, 候选共 %d\n", updated, failed, len(rows))
 	}

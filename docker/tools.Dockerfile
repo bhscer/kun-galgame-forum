@@ -34,5 +34,8 @@ COPY --from=build /out/ /usr/local/bin/
 # migrate reads SQL from ./migrations relative to WORKDIR (/app) at runtime;
 # without it the deferred migrations silently apply nothing.
 COPY apps/api/migrations /app/migrations
+# backfill-friend-link-banners reads the legacy static banners from disk (the
+# in-cluster HTTP fetch of these is unreliable), then re-uploads via image_service.
+COPY apps/web/public/friends /app/friends
 USER appuser
 # No ENTRYPOINT: run a job by name, e.g. `docker run ... kungal-tools migrate --only=005,006,007,012,015`.
