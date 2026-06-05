@@ -122,7 +122,7 @@ onMounted(async () => {
       </KunButton>
     </KunTooltip>
 
-    <KunAdDZMMIcon />
+    <KunAdAIFYIcon />
 
     <!-- <KunModal
       :model-value="isShowUpdateAvatarModal"

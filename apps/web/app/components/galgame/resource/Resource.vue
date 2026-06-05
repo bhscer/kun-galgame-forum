@@ -31,16 +31,15 @@ const { data, status, refresh } = await useKunFetch<GalgameResource[]>(
 // primary provider per bucketizeResourceProvider's first-match-wins
 // rule).
 const groupedResources = computed(() => {
-  const grouped: Record<GalgameResourceProviderBucketKey, GalgameResource[]> =
-    {
-      baidu: [],
-      quark: [],
-      caiyun: [],
-      pan123: [],
-      xunlei: [],
-      lanzou: [],
-      other: []
-    }
+  const grouped: Record<GalgameResourceProviderBucketKey, GalgameResource[]> = {
+    baidu: [],
+    quark: [],
+    caiyun: [],
+    pan123: [],
+    xunlei: [],
+    lanzou: [],
+    other: []
+  }
   for (const r of data.value ?? []) {
     grouped[bucketizeResourceProvider(r.providerNames)].push(r)
   }
@@ -163,7 +162,7 @@ const activeBucket = computed(() =>
       </template>
     </KunHeader>
 
-    <KunAdDZMMBanner />
+    <KunAdAIFYBanner />
 
     <KunNull
       v-if="!data?.length"

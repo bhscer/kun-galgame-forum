@@ -244,7 +244,7 @@ const handleEditDone = () => {
         </div>
 
         <template v-else-if="detail">
-          <KunAdDZMMBanner />
+          <KunAdAIFYBanner />
 
           <KunInfo color="primary" variant="flat" title="下载链接">
             <div class="space-y-1.5">

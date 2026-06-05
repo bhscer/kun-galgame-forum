@@ -8,12 +8,11 @@ import {
 const route = useRoute()
 const resourceId = computed(() => Number((route.params as { id: string }).id))
 
-const { data, refresh } = await useKunFetch<GalgameResourcePageData | 'not found'>(
-  `/galgame-resource/${resourceId.value}`,
-  {
-    query: { resourceId }
-  }
-)
+const { data, refresh } = await useKunFetch<
+  GalgameResourcePageData | 'not found'
+>(`/galgame-resource/${resourceId.value}`, {
+  query: { resourceId }
+})
 
 if (data.value && data.value !== 'not found') {
   const titleBase = getPreferredLanguageText(data.value.galgame.name)
@@ -53,7 +52,7 @@ if (data.value && data.value !== 'not found') {
     <template v-if="data !== 'not found'">
       <GalgameResourceDetailHero :galgame="data.galgame" />
 
-      <KunAdDZMMBanner class-name="hidden lg:block" />
+      <KunAdAIFYBanner class-name="hidden lg:block" />
 
       <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <GalgameResourceDetailPanel

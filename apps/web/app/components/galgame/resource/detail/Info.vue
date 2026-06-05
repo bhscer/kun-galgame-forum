@@ -144,7 +144,7 @@ const handleEditDone = () => {
       </pre>
     </KunInfo>
 
-    <KunAdDZMMBanner class-name="block lg:hidden" />
+    <KunAdAIFYBanner class-name="block lg:hidden" />
 
     <KunInfo
       :color="isResourceExpired ? 'warning' : 'success'"
