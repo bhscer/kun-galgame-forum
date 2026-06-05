@@ -225,13 +225,30 @@ export const kunFetch = async <T>(
       // 401 + { code: 205 } (errors.ErrAuthExpired) — lands here, NOT in the
       // `resp.code !== 0` branch above. Without unwrapping it we'd only ever
       // show "网络请求失败" and never reset the user / redirect to login.
-      // ofetch attaches the parsed response body to FetchError.data, so route
-      // it through the same handler as a 2xx-wrapped error; fall back to the
-      // generic message only for genuine transport failures (no envelope).
-      const resp = (error as { data?: KunApiResponse<unknown> }).data
-      if (resp && resp.code !== 0) {
-        await handleApiError(resp.code, resp.message)
+      const err = error as {
+        data?: KunApiResponse<unknown>
+        status?: number
+        statusCode?: number
+        response?: { status?: number; _data?: KunApiResponse<unknown> }
+      }
+      // ofetch exposes the parsed body as both `err.data` and
+      // `err.response._data`; read either so a wrapped instance can't hide it.
+      const envelope = err.data ?? err.response?._data
+      const status = err.status ?? err.statusCode ?? err.response?.status
+
+      if (envelope && envelope.code !== 0) {
+        // App envelope on a non-2xx — route through the same handler as a
+        // 2xx-wrapped error (205 → logout, 234 → banned, else → message).
+        await handleApiError(envelope.code, envelope.message)
+      } else if (status === 401 || status === 403) {
+        // Auth-failure HTTP status but no parseable envelope (a reverse-proxy
+        // error page, a stripped body). Still treat as auth-expiry so a dead
+        // session logs the user out instead of looking like a flaky network.
+        await handleApiError(CODE_AUTH_EXPIRED, '登录已失效，请重新登录')
       } else {
+        // Genuine transport failure: no HTTP response reached the browser
+        // (offline, DNS, connection reset, CORS block). Don't force a logout
+        // on a network blip — just surface the generic message.
         useMessage('网络请求失败，请稍后重试', 'error')
       }
     }
