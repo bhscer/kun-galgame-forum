@@ -8,6 +8,18 @@ interface KunApiResponse<T> {
   data: T
 }
 
+// Hard ceiling for SSR API calls. Without it, a stalled server-side $fetch to
+// the Go backend (a half-open keep-alive socket left over after an api
+// redeploy, a transient network stall) never settles: the awaiting
+// useAsyncData/Suspense render hangs forever, pinning its entire SSR render
+// context in the heap and leaking the in/out sockets (incoming CLOSE_WAIT +
+// outgoing ESTABLISHED to the api). Node never reaps a slow handler, so these
+// accumulate over days until the event loop is GC-thrashing at 100% CPU.
+// ofetch's `timeout` aborts via AbortController, so a stuck request fails fast
+// and the handler unwinds. SSR-only on purpose: a hung client fetch can't leak
+// the server, and client paths (large file uploads) legitimately run long.
+const SSR_API_TIMEOUT_MS = 10000
+
 const CODE_AUTH_EXPIRED = 205
 // CODE_BANNED comes from kungal's mapping of OAuth 10014. We MUST NOT
 // redirect banned users to /login — a fresh login would just hit 10014
@@ -98,6 +110,10 @@ const handleApiError = async (code: number, message: string) => {
  * )
  */
 export const useKunFetch = createUseFetch({
+  // SSR-only ceiling so a stalled fetch can't hang the render and leak its
+  // context. import.meta.server is build-time constant → client bundle gets
+  // `undefined` (no timeout). See SSR_API_TIMEOUT_MS.
+  timeout: import.meta.server ? SSR_API_TIMEOUT_MS : undefined,
   baseURL: computed(() => {
     const config = useRuntimeConfig()
     const base = import.meta.server
@@ -184,6 +200,9 @@ export const kunFetch = async <T>(
 
   try {
     const resp = await $fetch<KunApiResponse<T>>(`${apiBase}${url}`, {
+      // SSR-only default (see SSR_API_TIMEOUT_MS); listed before ...options so a
+      // caller can still pass its own timeout (e.g. a long upload).
+      timeout: import.meta.server ? SSR_API_TIMEOUT_MS : undefined,
       credentials: 'include',
       ...options,
       headers
@@ -199,9 +218,22 @@ export const kunFetch = async <T>(
     // Same fallback rationale as useKunFetch above: OKMessage responses
     // have no `data`, but callers check `if (result)` to confirm success.
     return resp.data !== undefined ? resp.data : (resp.message as T)
-  } catch {
+  } catch (error) {
     if (import.meta.client) {
-      useMessage('网络请求失败，请稍后重试', 'error')
+      // ofetch rejects on ANY non-2xx status, so an app error that the Go
+      // backend serves with an error status — e.g. an expired session is
+      // 401 + { code: 205 } (errors.ErrAuthExpired) — lands here, NOT in the
+      // `resp.code !== 0` branch above. Without unwrapping it we'd only ever
+      // show "网络请求失败" and never reset the user / redirect to login.
+      // ofetch attaches the parsed response body to FetchError.data, so route
+      // it through the same handler as a 2xx-wrapped error; fall back to the
+      // generic message only for genuine transport failures (no envelope).
+      const resp = (error as { data?: KunApiResponse<unknown> }).data
+      if (resp && resp.code !== 0) {
+        await handleApiError(resp.code, resp.message)
+      } else {
+        useMessage('网络请求失败，请稍后重试', 'error')
+      }
     }
     return null
   }
