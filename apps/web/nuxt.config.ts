@@ -117,6 +117,13 @@ export default defineNuxtConfig({
 
   icon: {
     mode: 'svg',
+    // The default local endpoint is /api/_nuxt_icon, but in prod Traefik routes
+    // ALL of /api/* to the Go API — so @nuxt/icon's client fallback for any icon
+    // not in clientBundle (the ~20 dynamic `:name=expr` bindings) hit Go and
+    // 404'd, breaking those icons and spamming the API error log. Move it off
+    // the Go-owned /api namespace so it reaches Nitro, which serves it from
+    // serverBundle (which carries every collection, so dynamic icons resolve).
+    localApiEndpoint: '/_nuxt_icon',
     serverBundle: {
       collections: ICON_COLLECTIONS
     },
