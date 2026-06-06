@@ -55,7 +55,10 @@ COPY apps/web    apps/web
 # was skipped by --ignore-scripts above, and .dockerignore strips the host's
 # copy); the web build reads the layer's generated tsconfig.
 RUN pnpm --filter @kun/ui run prepare
-RUN pnpm --filter web run build
+# build:limit bumps Node's heap (--max-old-space-size=8192). The web build is
+# memory-heavy and OOM-aborts (exit 134 / SIGABRT) under the default heap in
+# CI's constrained build env; the GitHub runner has 16 GB so 8 GB heap fits.
+RUN pnpm --filter web run build:limit
 
 # ---- run: just Node + the self-contained .output (no pnpm, no sources) ----
 FROM node:${NODE_VERSION}-trixie-slim AS run
