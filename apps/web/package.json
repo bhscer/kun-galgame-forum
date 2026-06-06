@@ -7,6 +7,7 @@
   "scripts": {
     "build": "nuxt build",
     "build:limit": "NODE_OPTIONS='--max-old-space-size=8192' nuxt build",
+    "icons": "node scripts/generate-icon-list.mjs",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",

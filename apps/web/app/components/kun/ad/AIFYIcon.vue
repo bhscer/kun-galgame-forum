@@ -12,7 +12,9 @@ const { role } = usePersistUserStore()
     v-if="role < 2"
   >
     <KunLink target="_blank" :to="kungal.ad[0]!.link">
-      <KunImage class-name="hidden md:block h-11" :src="kungal.ad[0]!.icon" />
+      <!-- `block` (was `hidden md:block`) so the ad shows on mobile too, where it
+           replaces the GitHub promo in the top bar. -->
+      <KunImage class-name="block h-11" :src="kungal.ad[0]!.icon" />
     </KunLink>
   </KunTooltip>
 </template>

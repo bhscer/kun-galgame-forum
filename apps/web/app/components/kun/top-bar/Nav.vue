@@ -103,9 +103,12 @@ onMounted(async () => {
 
     <KunTopBarSideCollapsed v-if="showKUNGalgameSidebarCollapsed" />
 
+    <!-- Logged-out GitHub-star promo. Hidden on phones (< md); the ad slot below
+         takes this spot on mobile, while desktop keeps showing both. -->
     <KunTooltip
       text="本网站完全开源, 代码完全自主编写, 点击访问 GitHub 仓库为我们点亮 star ⭐"
       position="bottom"
+      class-name="hidden md:inline-block"
       v-if="!id"
     >
       <KunButton
