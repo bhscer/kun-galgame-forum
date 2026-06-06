@@ -77,9 +77,12 @@ func (s *SubmissionService) Claim(
 		return nil, appErr
 	}
 
-	// Local stub so the claimed galgame appears in kungal's list query.
-	if err := s.galgameRepo.CreateLocalStub(s.galgameRepo.DB(), gid); err != nil {
-		slog.Warn("claim: 创建本地 galgame stub 失败", "gid", gid, "error", err)
+	// Claiming is a content update: ensure the local stub exists AND bump
+	// galgame.resource_update_time, so the claimed galgame both appears in
+	// kungal's list query and rises to the top of the "sort by update time" view
+	// (Touch does both — replaces the old stub-only create which didn't bump).
+	if err := s.galgameRepo.Touch(s.galgameRepo.DB(), gid); err != nil {
+		slog.Warn("claim: 刷新本地 galgame resource_update_time 失败", "gid", gid, "error", err)
 	}
 	// Award +3 via OAuth (no local +=). Stable key per (galgame, claimer) so a
 	// re-claim can't double-award.

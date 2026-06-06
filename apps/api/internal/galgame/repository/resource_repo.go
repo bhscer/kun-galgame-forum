@@ -3,6 +3,7 @@ package repository
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
 	"kun-galgame-api/internal/galgame/model"
 
@@ -288,8 +289,20 @@ func (r *ResourceRepository) AdjustLikeCount(tx *gorm.DB, resourceID, delta int)
 		Update("like_count", gorm.Expr("like_count + ?", delta)).Error
 }
 
-// AdjustLocalResourceCount adjusts galgame.resource_count by delta.
+// AdjustLocalResourceCount adjusts galgame.resource_count by delta. Uses
+// .Table(...).Update(...) which BYPASSES GORM's autoUpdateTime — so adjusting
+// the count alone does NOT bump `updated`. Bumping on publish/edit is done
+// explicitly via TouchGalgameUpdated; delete intentionally only decrements.
 func (r *ResourceRepository) AdjustLocalResourceCount(tx *gorm.DB, galgameID, delta int) error {
 	return tx.Table("galgame").Where("id = ?", galgameID).
 		Update("resource_count", gorm.Expr("resource_count + ?", delta)).Error
+}
+
+// TouchGalgameUpdated bumps galgame.resource_update_time to now to mark a
+// resource content change (publish / edit). Separate from
+// AdjustLocalResourceCount so a resource DELETE can decrement the count WITHOUT
+// promoting the galgame in the "sort by update time" list.
+func (r *ResourceRepository) TouchGalgameUpdated(tx *gorm.DB, galgameID int) error {
+	return tx.Table("galgame").Where("id = ?", galgameID).
+		UpdateColumn("resource_update_time", time.Now()).Error
 }

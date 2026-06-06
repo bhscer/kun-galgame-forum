@@ -30,6 +30,13 @@ type GalgameLocal struct {
 	ReleaseDate      *time.Time `gorm:"column:release_date" json:"release_date"`
 	CreatedAt        time.Time  `gorm:"column:created" json:"created"`
 	UpdatedAt        time.Time  `gorm:"column:updated" json:"updated"`
+	// ResourceUpdateTime is the dedicated content-update sort key (migration
+	// 018), separate from the generic audit `updated`. autoCreateTime means GORM
+	// sets it once on the lazy-create stub and NEVER bumps it on a plain
+	// Save/Update — only the explicit Touch / TouchGalgameUpdated content paths
+	// move it, so engagement (like / favorite / comment / view) can't reorder
+	// the list.
+	ResourceUpdateTime time.Time `gorm:"column:resource_update_time;autoCreateTime" json:"resource_update_time"`
 }
 
 func (GalgameLocal) TableName() string { return "galgame" }

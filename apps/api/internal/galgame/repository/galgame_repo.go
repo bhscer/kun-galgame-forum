@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"kun-galgame-api/internal/galgame/model"
 
 	"gorm.io/gorm"
@@ -31,10 +33,11 @@ func (r *GalgameRepository) DB() *gorm.DB {
 
 // GalgameLocalRow is a lightweight row of local stats for enriching wiki data.
 type GalgameLocalRow struct {
-	ID            int `gorm:"column:id"`
-	LikeCount     int `gorm:"column:like_count"`
-	FavoriteCount int `gorm:"column:favorite_count"`
-	View          int `gorm:"column:view"`
+	ID                 int       `gorm:"column:id"`
+	LikeCount          int       `gorm:"column:like_count"`
+	FavoriteCount      int       `gorm:"column:favorite_count"`
+	View               int       `gorm:"column:view"`
+	ResourceUpdateTime time.Time `gorm:"column:resource_update_time"`
 }
 
 // ──────────────────────────────────────────
@@ -54,7 +57,7 @@ func (r *GalgameRepository) FindLocalBatch(ids []int) map[int]GalgameLocalRow {
 		return map[int]GalgameLocalRow{}
 	}
 	var rows []GalgameLocalRow
-	r.db.Table("galgame").Select("id, like_count, favorite_count, view").
+	r.db.Table("galgame").Select("id, like_count, favorite_count, view, resource_update_time").
 		Where("id IN ?", ids).Scan(&rows)
 	out := make(map[int]GalgameLocalRow, len(rows))
 	for _, row := range rows {
@@ -92,6 +95,20 @@ func (r *GalgameRepository) CreateLocalStub(tx *gorm.DB, galgameID int) error {
 func (r *GalgameRepository) EnsureLocalStub(tx *gorm.DB, galgameID int) error {
 	return tx.Clauses(clause.OnConflict{DoNothing: true}).
 		Create(&model.GalgameLocal{ID: galgameID}).Error
+}
+
+// Touch marks a CONTENT update on a galgame (claim / merged edit) so the kungal
+// list (ORDER BY g.resource_update_time DESC) surfaces it: it ensures the local
+// stub exists, then sets `resource_update_time = now`. Engagement (like /
+// favorite / comment / view) deliberately does NOT call this — and since the
+// list sorts by the dedicated resource_update_time, the audit `updated` those
+// bump can no longer reorder it.
+func (r *GalgameRepository) Touch(tx *gorm.DB, galgameID int) error {
+	if err := r.EnsureLocalStub(tx, galgameID); err != nil {
+		return err
+	}
+	return tx.Model(&model.GalgameLocal{}).Where("id = ?", galgameID).
+		UpdateColumn("resource_update_time", time.Now()).Error
 }
 
 // DeleteLocalStub removes the local row for a galgame and lets CASCADE

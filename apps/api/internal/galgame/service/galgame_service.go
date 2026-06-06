@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"kun-galgame-api/internal/constants"
 	"kun-galgame-api/internal/galgame/client"
@@ -148,9 +149,18 @@ func (s *GalgameService) MergePR(
 		return nil, appErr
 	}
 
+	gidInt, _ := strconv.Atoi(gid)
+
+	// A merged PR changed the galgame's content → bump local resource_update_time
+	// so it rises in the kungal "sort by update time" list.
+	if gidInt > 0 {
+		if err := s.galgameRepo.Touch(s.galgameRepo.DB(), gidInt); err != nil {
+			slog.Warn("mergePR: 刷新本地 galgame resource_update_time 失败", "gid", gidInt, "error", err)
+		}
+	}
+
 	submitter := prInfo.PR.UserID
 	if submitter > 0 && submitter != mergerID {
-		gidInt, _ := strconv.Atoi(gid)
 		s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
 			s.helpers.AdjustMoemoepoint(tx, submitter, constants.RewardPRMerge,
 				moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", gidInt))
@@ -467,14 +477,17 @@ func (s *GalgameService) GetList(
 				EnUs: b.NameEnUs, JaJp: b.NameJaJp,
 				ZhCn: b.NameZhCn, ZhTw: b.NameZhTw,
 			},
-			Banner:             b.Banner,
-			User:               userBriefToDTO(userMap[b.UserID]),
-			ContentLimit:       b.ContentLimit,
-			View:               localMap[id].View,
-			LikeCount:          localMap[id].LikeCount,
-			Rating:              ratingMap[id].Score,
-			RatingCount:         ratingMap[id].Count,
-			ResourceUpdateTime:  b.ResourceUpdateTime,
+			Banner:       b.Banner,
+			User:         userBriefToDTO(userMap[b.UserID]),
+			ContentLimit: b.ContentLimit,
+			View:         localMap[id].View,
+			LikeCount:    localMap[id].LikeCount,
+			Rating:       ratingMap[id].Score,
+			RatingCount:  ratingMap[id].Count,
+			// kungal's own list: the displayed "最近更新" comes from the LOCAL
+			// resource_update_time (the sort key), NOT the wiki's (which never
+			// tracks kungal resource activity) — so order and label agree.
+			ResourceUpdateTime:  localMap[id].ResourceUpdateTime.Format(time.RFC3339),
 			ReleaseDate:         b.ReleaseDate,
 			ReleaseDateTBA:      b.ReleaseDateTBA,
 			EffectiveBannerHash: b.EffectiveBannerHash,

@@ -46,10 +46,10 @@ var allProviders = []string{
 // If hasResourceFilter (returned by HasResourceFilter) is true, a JOIN against
 // galgame_resource is used; otherwise a simple galgame-only scan.
 func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, total int64) {
-	sortCol := "g.updated"
+	sortCol := "g.resource_update_time"
 	switch f.SortField {
 	case "time":
-		sortCol = "g.updated"
+		sortCol = "g.resource_update_time"
 	case "created":
 		sortCol = "g.created"
 	case "view":

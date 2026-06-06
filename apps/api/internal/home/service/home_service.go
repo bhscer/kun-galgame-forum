@@ -175,7 +175,7 @@ func (s *HomeService) getHomeGalgames(ctx context.Context, isSFW bool) ([]dto.Ho
 			ContentLimit:       b.ContentLimit,
 			View:               lr.View,
 			LikeCount:          lr.LikeCount,
-			ResourceUpdateTime: b.ResourceUpdateTime,
+			ResourceUpdateTime: lr.ResourceUpdateTime.Format(time.RFC3339),
 			Platform:           mapKeys(platformMap[lr.ID]),
 			Language:           mapKeys(languageMap[lr.ID]),
 			// U2: pass through the derived banner so the FE card can

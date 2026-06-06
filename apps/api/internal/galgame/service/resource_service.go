@@ -235,6 +235,12 @@ func (s *ResourceService) CreateResource(
 		if err := s.resourceRepo.AdjustLocalResourceCount(tx, req.GalgameID, 1); err != nil {
 			return err
 		}
+		// Publishing a resource is a content update → bump
+		// galgame.resource_update_time so it rises in the "sort by update time"
+		// list (the count adjust above does not, by design — see TouchGalgameUpdated).
+		if err := s.resourceRepo.TouchGalgameUpdated(tx, req.GalgameID); err != nil {
+			return err
+		}
 		s.helpers.AdjustMoemoepoint(tx, userID, constants.RewardCreateResource,
 			moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", req.GalgameID))
 		return nil
@@ -287,7 +293,11 @@ func (s *ResourceService) UpdateResource(
 		if err := s.resourceRepo.ReplaceProviders(tx, req.GalgameResourceID, providers); err != nil {
 			return err
 		}
-		return s.resourceRepo.ReplaceProviderNames(tx, req.GalgameResourceID, providerNames)
+		if err := s.resourceRepo.ReplaceProviderNames(tx, req.GalgameResourceID, providerNames); err != nil {
+			return err
+		}
+		// Editing a published resource is a content update → bump galgame.resource_update_time.
+		return s.resourceRepo.TouchGalgameUpdated(tx, row.GalgameID)
 	})
 	if txErr != nil {
 		return errors.ErrInternal("更新 Galgame 资源失败")

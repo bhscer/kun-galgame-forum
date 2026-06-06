@@ -1,6 +1,6 @@
 {
   "name": "kun-galgame-forum",
-  "version": "5.4.40",
+  "version": "5.4.41",
   "private": true,
   "packageManager": "pnpm@10.12.1",
   "workspaces": [

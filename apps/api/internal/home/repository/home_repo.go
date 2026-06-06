@@ -19,9 +19,10 @@ func NewHomeRepository(db *gorm.DB) *HomeRepository {
 // ──────────────────────────────────────────
 
 type GalgameLocalRow struct {
-	ID        int `gorm:"column:id"`
-	View      int `gorm:"column:view"`
-	LikeCount int `gorm:"column:like_count"`
+	ID                 int       `gorm:"column:id"`
+	View               int       `gorm:"column:view"`
+	LikeCount          int       `gorm:"column:like_count"`
+	ResourceUpdateTime time.Time `gorm:"column:resource_update_time"`
 }
 
 type ResourcePLRow struct {
@@ -59,12 +60,14 @@ type TagRelationRow struct {
 // Queries
 // ──────────────────────────────────────────
 
-// FindRecentGalgames returns the N most recently updated local galgames.
+// FindRecentGalgames returns the N galgames whose CONTENT was most recently
+// updated locally — ordered by the dedicated resource_update_time column
+// (migration 018), NOT the generic audit `updated` (which likes/comments bump).
 func (r *HomeRepository) FindRecentGalgames(limit int) ([]GalgameLocalRow, error) {
 	var rows []GalgameLocalRow
 	err := r.db.Table("galgame").
-		Select("id, view, like_count").
-		Order("updated DESC").
+		Select("id, view, like_count, resource_update_time").
+		Order("resource_update_time DESC").
 		Limit(limit).
 		Find(&rows).Error
 	return rows, err
