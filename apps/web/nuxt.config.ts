@@ -199,9 +199,17 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    // Nitro's default esbuild target (es2019) rejects top-level await, which
-    // utils/sanitize.ts uses to load jsdom server-only. The prod runtime is
-    // node 24, so bump the server target to es2022 (which supports TLA).
+    // jsdom (server-only, used by plugins/sanitize.server.ts) must stay
+    // EXTERNAL + traced, not bundled. When Nitro inlines it, jsdom/css-tree's
+    // relative data-file requires break at runtime (`Cannot find module
+    // '../data/patch.json'`) and every content page 500s. Forcing it external
+    // makes Nitro copy the real package (with its data/) into the output, the
+    // way isomorphic-dompurify's jsdom used to be handled.
+    externals: {
+      external: ['jsdom']
+    },
+    // es2022 (prod runs node 24) — the default es2019 rejected a top-level
+    // await an earlier iteration used; harmless to keep.
     esbuild: {
       options: {
         target: 'es2022'
