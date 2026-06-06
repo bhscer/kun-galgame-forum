@@ -13,6 +13,12 @@ const isUploadingImage = ref(false)
 // as removable chips (NOT dumped as a raw `![](url)` into the text box). On
 // send they're appended to the message as markdown — see sendMessage.
 const pendingImages = ref<{ name: string; url: string }[]>([])
+// Textarea handle (to insert emoji at the caret) + hidden file input (the upload
+// button proxies clicks to it).
+const messageTextarea = useTemplateRef<{
+  insertAtCaret: (text: string) => void
+}>('messageTextarea')
+const fileInput = ref<HTMLInputElement | null>(null)
 const isShowLoader = computed(() => {
   if (isLoadHistoryMessageComplete.value) {
     return false
@@ -50,14 +56,35 @@ const getMessageHistory = async () => {
   return Array.isArray(histories) ? histories : ([] as ChatMessage[])
 }
 
-const sendMessage = async () => {
-  // Re-entry guard: the send can be triggered more than once near-simultaneously
-  // (the textarea's Enter handler + the 发送 button). isSending is flipped
-  // synchronously below before the await, so any rapid re-fire bails here
-  // instead of POSTing a duplicate.
+// POST a message and refresh the history. The isSending re-entry guard makes a
+// rapid double-fire (Enter handler + 发送 button) bail instead of POSTing twice.
+const postMessage = async (content: string): Promise<boolean> => {
   if (isSending.value) {
-    return
+    return false
   }
+  if (content.length > 1000) {
+    useMessage(10402, 'warn')
+    return false
+  }
+
+  isSending.value = true
+  const result = await kunFetch('/message/chat/send', {
+    method: 'POST',
+    body: { receiverId: userId, content }
+  })
+  isSending.value = false
+
+  if (!result) {
+    return false
+  }
+  // Reload latest messages to get the new one
+  pageData.page = 1
+  messages.value = await getMessageHistory()
+  nextTick(() => scrollToBottom())
+  return true
+}
+
+const sendMessage = async () => {
   if (isUploadingImage.value) {
     useMessage('图片正在上传中, 请稍候', 'warn')
     return
@@ -77,25 +104,10 @@ const sendMessage = async () => {
     useMessage(10401, 'warn')
     return
   }
-  if (content.length > 1000) {
-    useMessage(10402, 'warn')
-    return
-  }
 
-  isSending.value = true
-  const result = await kunFetch('/message/chat/send', {
-    method: 'POST',
-    body: { receiverId: userId, content }
-  })
-  isSending.value = false
-
-  if (result) {
+  if (await postMessage(content)) {
     messageInput.value = ''
     pendingImages.value = []
-    // Reload latest messages to get the new one
-    pageData.page = 1
-    messages.value = await getMessageHistory()
-    nextTick(() => scrollToBottom())
   }
 }
 
@@ -160,6 +172,33 @@ const handleEnter = (event: KeyboardEvent) => {
   }
   event.preventDefault()
   sendMessage()
+}
+
+// 上传图片 button → proxy the click to the hidden file input → reuse the same
+// upload path as paste/drop.
+const openFilePicker = () => {
+  fileInput.value?.click()
+}
+
+const onFileChange = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (input.files?.length) {
+    uploadImages(Array.from(input.files))
+  }
+  // Reset so picking the same file again re-fires change.
+  input.value = ''
+}
+
+// Emoji inserts at the textarea caret. A sticker is added to the composer as a
+// pending chip (just like an uploaded image) so it sends with the next message
+// instead of firing immediately. Sticker URLs are on sticker.kungal.com, which
+// the renderer's img allow-list permits.
+const onEmoji = (emoji: string) => {
+  messageTextarea.value?.insertAtCaret(emoji)
+}
+
+const onSticker = (url: string) => {
+  pendingImages.value.push({ name: 'sticker', url })
 }
 
 // Sender-only recall: server validates ownership, but we still gate
@@ -242,7 +281,7 @@ onMounted(async () => {
 <template>
   <div
     ref="historyContainer"
-    class="h-[calc(100dvh-14rem)] space-y-3 overflow-y-auto py-3"
+    class="min-h-0 flex-1 space-y-3 overflow-y-auto py-3"
   >
     <div class="flex justify-center">
       <KunButton
@@ -269,7 +308,7 @@ onMounted(async () => {
   </div>
 
   <div
-    class="border-t px-3 pt-3"
+    class="shrink-0 border-t px-3 py-3"
     @paste="handlePaste"
     @drop.prevent="handleDrop"
     @dragover.prevent
@@ -306,8 +345,43 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="flex items-end gap-2">
+    <div class="flex items-end gap-1">
+      <!-- Emoji + sticker picker, opening above the input. -->
+      <KunPopover position="top-start" :auto-position="true">
+        <template #trigger>
+          <KunButton
+            :is-icon-only="true"
+            variant="light"
+            size="lg"
+            aria-label="表情和贴纸"
+          >
+            <KunIcon name="lucide:smile" />
+          </KunButton>
+        </template>
+        <MessagePmEmojiStickerPicker @emoji="onEmoji" @sticker="onSticker" />
+      </KunPopover>
+
+      <!-- Upload image (same upload path as paste/drop). -->
+      <KunButton
+        :is-icon-only="true"
+        variant="light"
+        size="lg"
+        @click="openFilePicker"
+        aria-label="上传图片"
+      >
+        <KunIcon name="lucide:image" />
+      </KunButton>
+      <input
+        ref="fileInput"
+        type="file"
+        accept="image/*"
+        multiple
+        class="hidden"
+        @change="onFileChange"
+      />
+
       <KunTextarea
+        ref="messageTextarea"
         v-model="messageInput"
         placeholder="输入消息... (可粘贴或拖拽图片, Enter 发送, Shift+Enter 换行)"
         class="flex-1"
@@ -316,7 +390,9 @@ onMounted(async () => {
         max-height="160px"
         @keydown.enter="handleEnter"
       />
-      <KunButton @click="sendMessage" :loading="isSending"> 发送 </KunButton>
+      <KunButton @click="sendMessage" :loading="isSending" size="lg">
+        发送
+      </KunButton>
     </div>
   </div>
 </template>

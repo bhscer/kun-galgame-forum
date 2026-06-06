@@ -13,7 +13,12 @@ useKunSeoMeta({
 </script>
 
 <template>
-  <div class="h-full min-w-0 flex-1 pl-3">
+  <!--
+    flex column bounded by the parent's h-[calc(100dvh-120px)] (see message.vue).
+    The container's history flexes to fill and SHRINKS as the input grows, so a
+    tall composer (chips + multi-line text) never pushes past the viewport.
+  -->
+  <div class="flex h-full min-w-0 flex-1 flex-col pl-3">
     <ClientOnly>
       <MessagePmHeader :id="userId" />
     </ClientOnly>
