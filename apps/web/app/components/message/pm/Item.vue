@@ -84,10 +84,19 @@ const handleClick = (event: MouseEvent) => {
         </div>
 
         <div class="mt-1 text-sm leading-relaxed">
-          <span>{{ message.content }}</span>
-          <span class="text-default-500 ml-2 text-xs">
+          <!--
+            contentHtml is server-rendered + sanitized (inline markdown + images
+            only — see internal/infrastructure/markdown RenderInline). The arbitrary
+            variants below tame what that renderer can emit inside a chat bubble:
+            flat paragraphs, inline code chips, primary links, and bounded images.
+          -->
+          <div
+            class="kun-message-content break-words [&_a]:text-primary [&_a]:underline [&_code]:bg-default-200/70 [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] [&_img]:my-1 [&_img]:max-h-60 [&_img]:max-w-full [&_img]:rounded-lg [&_p]:m-0 [&_strong]:font-semibold"
+            v-html="message.contentHtml"
+          />
+          <div class="text-default-500 mt-0.5 text-right text-xs">
             <KunTime :time="message.created" />
-          </span>
+          </div>
         </div>
       </div>
     </template>

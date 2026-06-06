@@ -3,13 +3,14 @@ import { asideItems } from './asideItemStore'
 
 const routeName = computed(() => useRoute().name)
 
+// SSR these so the aside renders with its items on first paint instead of
+// flashing empty. useKunFetch forwards the session cookie on SSR (see kunFetch
+// onRequest), so the authed nav fetch resolves server-side.
 const { data: system } = useKunFetch<ChatMessageAsideItem[]>(
-  '/message/nav/system',
-  { server: false, lazy: true }
+  '/message/nav/system'
 )
 const { data: contact } = useKunFetch<ChatMessageAsideItem[]>(
-  '/message/nav/contact',
-  { server: false, lazy: true }
+  '/message/nav/contact'
 )
 
 watch(

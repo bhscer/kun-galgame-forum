@@ -108,3 +108,34 @@ func (h *ImageHandler) UploadTopicImage(c *fiber.Ctx) error {
 	}
 	return response.OK(c, key)
 }
+
+// POST /api/image/message
+// Uploads a chat / private-message inline image and returns its CDN URL, which
+// the client inserts into the message as `![name](url)`. Mirror of
+// UploadTopicImage but under the `message` preset.
+func (h *ImageHandler) UploadMessageImage(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	file, err := c.FormFile("image")
+	if err != nil {
+		return response.Error(c, errors.ErrBadRequest("请选择要上传的图片"))
+	}
+	if file.Size > service.MaxImageSize {
+		return response.Error(c, errors.ErrBadRequest("图片大小不能超过 10MB"))
+	}
+
+	f, err := file.Open()
+	if err != nil {
+		return response.Error(c, errors.ErrBadRequest("读取图片失败"))
+	}
+	defer f.Close()
+
+	key, sErr := h.imageService.UploadMessageImage(c.Context(), user.ID, f, file.Filename)
+	if sErr != nil {
+		return response.Error(c, sErr)
+	}
+	return response.OK(c, key)
+}

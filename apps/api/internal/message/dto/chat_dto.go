@@ -35,12 +35,18 @@ type ChatSender struct {
 
 // ChatMessageItem is a single chat message item returned by GetChatHistory.
 // Field names/shape must match the frontend exactly.
+//
+// Content is the raw markdown source (kept for editing/quoting); ContentHtml is
+// the server-rendered, sanitized inline+image HTML the client renders with
+// v-html. Rendering happens server-side because the client never sanitizes
+// (see internal/infrastructure/markdown).
 type ChatMessageItem struct {
 	ID           int         `json:"id"`
 	ChatroomName string      `json:"chatroomName"`
 	Sender       ChatSender  `json:"sender"`
 	ReceiverID  int         `json:"receiverId"`
 	Content      string      `json:"content"`
+	ContentHtml  string      `json:"contentHtml"`
 	IsRecall     bool        `json:"isRecall"`
 	Created      string      `json:"created"`
 	RecallTime   *string     `json:"recallTime"`

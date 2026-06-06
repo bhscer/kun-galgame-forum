@@ -26,7 +26,11 @@ export interface ChatMessage {
   sender: KunUser
   readBy: KunUser[]
   receiverId: number
+  // Raw markdown source (used for editing/quoting). Render contentHtml, not
+  // this, in the bubble.
   content: string
+  // Server-rendered, sanitized inline+image HTML — safe to v-html.
+  contentHtml: string
   isRecall: boolean
   created: Date | string
   recallTime: Date | string | null

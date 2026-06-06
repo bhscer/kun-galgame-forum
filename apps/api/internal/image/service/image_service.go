@@ -72,3 +72,41 @@ func (s *ImageService) UploadTopicImage(ctx context.Context, userID int, r io.Re
 	s.repo.IncrementDailyCount(userID)
 	return res.URL, nil
 }
+
+// UploadMessageImage routes a chat/private-message inline image through
+// image_service under the `message` preset (same global pipeline as topic:
+// WebP q77, ≤1920×1080, EXIF stripped — see infra configs/image_presets.yaml)
+// and returns the full image.kungal.com CDN URL. That host is exactly what the
+// message markdown renderer's img-src allow-list accepts (see
+// internal/infrastructure/markdown RenderInline), so chat uploads always
+// survive sanitization while arbitrary external URLs do not.
+//
+// Shares the per-USER daily image quota with topic uploads on purpose — it's a
+// generic abuse cap, not per-feature accounting; image_service still applies
+// its own per-SITE quota on top.
+func (s *ImageService) UploadMessageImage(ctx context.Context, userID int, r io.Reader, filename string) (string, *errors.AppError) {
+	if s.imgCli == nil {
+		return "", errors.ErrBadRequest(
+			"图片上传服务未配置 (KUN_IMAGE_CLIENT_ID / KUN_IMAGE_CLIENT_SECRET)",
+		)
+	}
+
+	count, err := s.repo.GetDailyCount(userID)
+	if err != nil {
+		return "", errors.ErrInternal("查询用户失败")
+	}
+	if count >= dailyImageLimit {
+		return "", errors.ErrBadRequest("今日图片上传次数已达上限")
+	}
+
+	res, uErr := s.imgCli.Upload(ctx, r, filename, "message")
+	if uErr != nil {
+		if ie, ok := uErr.(*imageclient.Error); ok {
+			return "", errors.New(ie.Code, ie.Message, ie.StatusCode)
+		}
+		return "", errors.ErrInternal("图片上传失败")
+	}
+
+	s.repo.IncrementDailyCount(userID)
+	return res.URL, nil
+}

@@ -268,6 +268,8 @@ func (a *App) setupRoutes() {
 
 	// Image upload (authenticated)
 	authed.Post("/image/topic", a.ImageHandler.UploadTopicImage)
+	// Chat / private-message inline image upload (own `message` preset).
+	authed.Post("/image/message", a.ImageHandler.UploadMessageImage)
 	// U2 (K-PR3a): galgame cover / screenshot upload — proxies a
 	// single image to image_service under one of the gated presets and
 	// returns the resulting {hash, url, ...} to the FE so it can attach

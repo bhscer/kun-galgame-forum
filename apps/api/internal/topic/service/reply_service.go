@@ -189,7 +189,19 @@ func (s *ReplyService) CreateReply(
 			}
 		}
 
-		preview := truncate(req.Content, constants.TextPreviewLength)
+		// Include the targets' content, not just req.Content. A reply may only
+		// target other replies (empty main body + non-empty targets — the guard
+		// above accepts content OR targets), which otherwise yields an empty
+		// "replied" notification preview (the reported "blank notification").
+		var previewSrc strings.Builder
+		previewSrc.WriteString(req.Content)
+		for _, t := range validTargets {
+			if strings.TrimSpace(t.Content) != "" {
+				previewSrc.WriteString(" ")
+				previewSrc.WriteString(t.Content)
+			}
+		}
+		preview := truncate(strings.TrimSpace(previewSrc.String()), constants.TextPreviewLength)
 
 		for targetUserID := range targetUserSet {
 			s.helpers.AdjustMoemoepoint(tx, targetUserID, constants.RewardReply,

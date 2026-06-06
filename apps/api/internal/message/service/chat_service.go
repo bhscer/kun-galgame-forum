@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"kun-galgame-api/internal/infrastructure/markdown"
 	"kun-galgame-api/internal/message/dto"
 	"kun-galgame-api/internal/message/repository"
 	"kun-galgame-api/pkg/errors"
@@ -152,6 +153,7 @@ func (s *ChatService) GetChatHistory(
 			Sender:       dto.ChatSender{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
 			ReceiverID:  m.ReceiverID,
 			Content:      m.Content,
+			ContentHtml:  markdown.RenderInline(m.Content),
 			IsRecall:     m.IsRecall,
 			Created:      m.Created,
 			RecallTime:   m.RecallTime,

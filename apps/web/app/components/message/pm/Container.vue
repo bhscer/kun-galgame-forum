@@ -10,6 +10,7 @@ const messageInput = ref('')
 const messages = ref<ChatMessage[]>([])
 const isLoadHistoryMessageComplete = ref(false)
 const isSending = ref(false)
+const isUploadingImage = ref(false)
 const isShowLoader = computed(() => {
   if (isLoadHistoryMessageComplete.value) {
     return false
@@ -56,6 +57,10 @@ const sendMessage = async () => {
   if (isSending.value) {
     return
   }
+  if (isUploadingImage.value) {
+    useMessage('图片正在上传中, 请稍候', 'warn')
+    return
+  }
   if (!messageInput.value.trim()) {
     useMessage(10401, 'warn')
     return
@@ -79,6 +84,60 @@ const sendMessage = async () => {
     messages.value = await getMessageHistory()
     nextTick(() => scrollToBottom())
   }
+}
+
+// Paste or drop an image into the chat input → upload it to OUR image host
+// (/image/message, the `message` preset) → append the markdown. Uploading is
+// the only way an image survives the renderer's src allow-list (restricted to
+// image.kungal.com — see RenderInline server-side); pasting an external image
+// URL would just get stripped. Append-at-end is the right UX for attaching an
+// image and leaves in-progress typing untouched.
+const uploadAndAppendImages = async (files: File[]) => {
+  const images = files.filter((file) => file.type.startsWith('image/'))
+  if (!images.length) {
+    return
+  }
+
+  isUploadingImage.value = true
+  try {
+    for (const image of images) {
+      const formData = new FormData()
+      formData.append('image', image)
+      const url = await kunFetch<string>('/image/message', {
+        method: 'POST',
+        body: formData,
+        watch: false
+      })
+      if (url) {
+        const snippet = `![${image.name}](${url})`
+        messageInput.value = messageInput.value
+          ? `${messageInput.value} ${snippet}`
+          : snippet
+      }
+    }
+  } finally {
+    isUploadingImage.value = false
+  }
+}
+
+const handlePaste = (event: ClipboardEvent) => {
+  const files = Array.from(event.clipboardData?.files ?? [])
+  if (!files.some((file) => file.type.startsWith('image/'))) {
+    return
+  }
+  // Only swallow the paste when it carries an image — plain-text pastes fall
+  // through to the input untouched.
+  event.preventDefault()
+  uploadAndAppendImages(files)
+}
+
+const handleDrop = (event: DragEvent) => {
+  const files = Array.from(event.dataTransfer?.files ?? [])
+  if (!files.some((file) => file.type.startsWith('image/'))) {
+    return
+  }
+  event.preventDefault()
+  uploadAndAppendImages(files)
 }
 
 // Sender-only recall: server validates ownership, but we still gate
@@ -161,7 +220,7 @@ onMounted(async () => {
 <template>
   <div
     ref="historyContainer"
-    class="h-[calc(100dvh-14rem)] overflow-y-auto py-3"
+    class="h-[calc(100dvh-14rem)] space-y-3 overflow-y-auto py-3"
   >
     <div class="flex justify-center">
       <KunButton
@@ -187,13 +246,20 @@ onMounted(async () => {
     </div>
   </div>
 
-  <div class="flex gap-2 border-t px-3 pt-3">
-    <KunInput
-      v-model="messageInput"
-      placeholder="输入消息..."
-      class="flex-1"
-      @keydown.enter.prevent="sendMessage"
-    />
-    <KunButton @click="sendMessage" :loading="isSending"> 发送 </KunButton>
+  <div class="border-t px-3 pt-3">
+    <div v-if="isUploadingImage" class="text-default-500 mb-1 text-xs">
+      图片上传中...
+    </div>
+    <div class="flex gap-2">
+      <KunInput
+        v-model="messageInput"
+        placeholder="输入消息... (可粘贴或拖拽图片)"
+        class="flex-1"
+        @keydown.enter.prevent="sendMessage"
+        @paste="handlePaste"
+        @drop="handleDrop"
+      />
+      <KunButton @click="sendMessage" :loading="isSending"> 发送 </KunButton>
+    </div>
   </div>
 </template>
