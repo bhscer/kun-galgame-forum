@@ -227,7 +227,8 @@ func (s *TopicWriteService) ToggleLike(ctx context.Context, userID, topicID int)
 			}
 			s.helpers.AdjustMoemoepoint(tx, topic.UserID, 1,
 				moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
-			s.helpers.CreateTopicMessage(tx, userID, topic.UserID, "liked", topicID)
+			s.helpers.CreateTopicMessageWithContent(tx, userID, topic.UserID, "liked",
+				truncate(topic.Title, constants.TextPreviewLength), topicID)
 		} else if findErr == nil {
 			if err := s.topicRepo.DeleteTopicLike(tx, existing); err != nil {
 				return err
@@ -335,7 +336,8 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int) *er
 			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("topic", topicID))
 		s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardUpvoteOwner,
 			moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic", topicID))
-		s.helpers.CreateTopicMessage(tx, userID, topic.UserID, "upvoted", topicID)
+		s.helpers.CreateTopicMessageWithContent(tx, userID, topic.UserID, "upvoted",
+			truncate(topic.Title, constants.TextPreviewLength), topicID)
 		return nil
 	})
 
@@ -379,7 +381,8 @@ func (s *TopicWriteService) ToggleFavorite(ctx context.Context, userID, topicID 
 			if userID != topic.UserID {
 				s.helpers.AdjustMoemoepoint(tx, topic.UserID, 1,
 					moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
-				s.helpers.CreateTopicMessage(tx, userID, topic.UserID, "favorite", topicID)
+				s.helpers.CreateTopicMessageWithContent(tx, userID, topic.UserID, "favorite",
+					truncate(topic.Title, constants.TextPreviewLength), topicID)
 			}
 		} else if findErr == nil {
 			if err := s.topicRepo.DeleteTopicFavorite(tx, existing); err != nil {

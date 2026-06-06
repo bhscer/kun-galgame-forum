@@ -181,7 +181,7 @@ func (s *GalgameService) ToggleLike(
 	ctx context.Context,
 	userID, galgameID int,
 ) *errors.AppError {
-	ownerID := s.fetchOwnerID(ctx, galgameID)
+	ownerID, name := s.fetchOwnerAndName(ctx, galgameID)
 	if ownerID == userID {
 		return errors.ErrBadRequest("您不能给自己点赞")
 	}
@@ -191,7 +191,7 @@ func (s *GalgameService) ToggleLike(
 		if liked {
 			s.helpers.AdjustMoemoepoint(tx, ownerID, 1,
 				moemoepoint.ReasonLiked, moemoepoint.Ref("galgame", galgameID))
-			s.helpers.CreateGalgameMessage(tx, userID, ownerID, "liked", galgameID)
+			s.helpers.CreateGalgameMessageWithContent(tx, userID, ownerID, "liked", name, galgameID)
 		} else {
 			s.helpers.AdjustMoemoepoint(tx, ownerID, -1,
 				moemoepoint.ReasonLiked, moemoepoint.Ref("galgame", galgameID))
@@ -206,7 +206,7 @@ func (s *GalgameService) ToggleLike(
 // legacy Nitro behavior. Owner id is resolved via wiki; if the lookup fails
 // we still flip the flag but skip moemoe / notification.
 func (s *GalgameService) ToggleFavorite(ctx context.Context, userID, galgameID int) *errors.AppError {
-	ownerID := s.fetchOwnerID(ctx, galgameID)
+	ownerID, name := s.fetchOwnerAndName(ctx, galgameID)
 
 	s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
 		favorited := s.interactionRepo.ToggleFavorite(tx, userID, galgameID)
@@ -216,7 +216,7 @@ func (s *GalgameService) ToggleFavorite(ctx context.Context, userID, galgameID i
 		if favorited {
 			s.helpers.AdjustMoemoepoint(tx, ownerID, 1,
 				moemoepoint.ReasonLiked, moemoepoint.Ref("galgame", galgameID))
-			s.helpers.CreateGalgameMessage(tx, userID, ownerID, "favorite", galgameID)
+			s.helpers.CreateGalgameMessageWithContent(tx, userID, ownerID, "favorite", name, galgameID)
 		} else {
 			s.helpers.AdjustMoemoepoint(tx, ownerID, -1,
 				moemoepoint.ReasonLiked, moemoepoint.Ref("galgame", galgameID))
@@ -226,19 +226,39 @@ func (s *GalgameService) ToggleFavorite(ctx context.Context, userID, galgameID i
 	return nil
 }
 
-// fetchOwnerID reads the owner user_id from wiki (0 on any failure).
-func (s *GalgameService) fetchOwnerID(ctx context.Context, galgameID int) int {
+// fetchOwnerAndName reads the galgame's owner user_id AND a display name from
+// wiki in ONE request (0 / "" on any failure). The name (preferring zh-CN, then
+// en-US / ja-JP / zh-TW) becomes the notification content preview so a
+// favorite/like notice shows WHICH galgame instead of a blank line — see the
+// CreateGalgameMessageWithContent callers below.
+func (s *GalgameService) fetchOwnerAndName(ctx context.Context, galgameID int) (int, string) {
 	data, err := s.wikiClient.Get(ctx, fmt.Sprintf("/galgame/%d", galgameID), nil)
 	if err != nil {
-		return 0
+		return 0, ""
 	}
 	var env struct {
 		Galgame struct {
-			UserID int `json:"user_id"`
+			UserID   int    `json:"user_id"`
+			NameZhCn string `json:"name_zh_cn"`
+			NameEnUs string `json:"name_en_us"`
+			NameJaJp string `json:"name_ja_jp"`
+			NameZhTw string `json:"name_zh_tw"`
 		} `json:"galgame"`
 	}
 	_ = json.Unmarshal(data, &env)
-	return env.Galgame.UserID
+	g := env.Galgame
+	name := firstNonEmpty(g.NameZhCn, g.NameEnUs, g.NameJaJp, g.NameZhTw)
+	return g.UserID, truncate(name, constants.TextPreviewLength)
+}
+
+// firstNonEmpty returns the first non-blank argument, or "".
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // ──────────────────────────────────────────
