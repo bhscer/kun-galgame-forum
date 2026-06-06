@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { kunSanitize } from '../../../utils/sanitize'
 import { useSpoilerContent } from '../../../composables/topic/useSpoilerContent'
 import { useContentLightbox } from '../../../composables/topic/useContentLightbox'
 
@@ -24,19 +23,17 @@ useSpoilerContent(articleRef)
 // for free — no per-consumer wiring.
 const { isLightboxOpen, images, currentImageIndex } =
   useContentLightbox(articleRef)
-
-const sanitizeConfig = {
-  ADD_TAGS: ['div', 'span', 'button'],
-  ADD_ATTR: ['class', 'title', 'line']
-}
 </script>
 
 <template>
   <div>
+    <!-- `content` is server-sanitized HTML (Go goldmark + bluemonday). No
+         client-side DOM sanitizer here on purpose: the old DOMPurify ran jsdom
+         on every SSR render and leaked the web container to OOM. -->
     <article
       ref="articleRef"
       :class="cn('kun-prose', className)"
-      v-html="kunSanitize(content, sanitizeConfig)"
+      v-html="content"
     />
     <KunLightbox
       v-model:is-open="isLightboxOpen"

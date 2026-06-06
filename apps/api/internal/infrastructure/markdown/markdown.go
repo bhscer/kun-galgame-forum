@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	mathjax "github.com/litao91/goldmark-mathjax"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -23,7 +24,8 @@ var (
 	videoLinkRegex = regexp.MustCompile(`kv:<a href="(https?://[^\s]+?\.(mp4))">[^<]+</a>`)
 	codeBlockRegex = regexp.MustCompile(`(?s)<pre><code class="language-(\w+)"`)
 
-	md goldmark.Markdown
+	md        goldmark.Markdown
+	sanitizer *bluemonday.Policy
 )
 
 // TocLink is one entry in a table of contents tree. The JSON shape matches
@@ -62,6 +64,39 @@ func init() {
 			html.WithUnsafe(),
 		),
 	)
+
+	sanitizer = newSanitizePolicy()
+}
+
+// newSanitizePolicy builds the allow-list applied to goldmark's HTML output.
+// goldmark runs with html.WithUnsafe(), so raw user HTML passes through and the
+// result is UNTRUSTED — this is the single server-side sanitization boundary
+// (it replaces the old per-render client-side DOMPurify, which ran jsdom on
+// every SSR render and leaked memory). The allow-list keeps everything the
+// kungal pipeline emits — heading-id anchors, code language classes, math
+// spans, lazy-image attrs, GFM tables/task-lists, and the post-render
+// code/spoiler/table/video wrappers — while stripping <script>/<style>, event
+// handlers, and unsafe URL schemes (javascript:, data:, …).
+func newSanitizePolicy() *bluemonday.Policy {
+	p := bluemonday.UGCPolicy()
+
+	// Classes carry no script and are required by code (language-*), math,
+	// spoilers, code containers, and the prose styling.
+	p.AllowAttrs("class").Globally()
+	// Auto heading-id anchors (parser.WithAutoHeadingID).
+	p.AllowAttrs("id").OnElements("h1", "h2", "h3", "h4", "h5", "h6")
+	// lazyImageRenderer attributes.
+	p.AllowAttrs("loading", "decoding", "data-kun-lazy-image").OnElements("img")
+	// Markup added by the post-render transforms (the <video> src is regex-
+	// constrained to https?://….mp4; the button carries no handler).
+	p.AllowElements("video", "button")
+	p.AllowAttrs("controls", "loop", "playsinline", "width", "src").OnElements("video")
+	p.AllowAttrs("title").OnElements("button")
+	// GFM task-list checkboxes.
+	p.AllowElements("input")
+	p.AllowAttrs("type", "checked", "disabled").OnElements("input")
+
+	return p
 }
 
 // Render converts markdown to HTML with all custom transformations.
@@ -115,6 +150,11 @@ func RenderWithTOC(source string) (string, []TocLink) {
 	// Video: kv:<a href="url.mp4">...</a> → <video>
 	result = videoLinkRegex.ReplaceAllString(result,
 		`<video controls loop playsinline width="100%" src="$1"></video>`)
+
+	// Sanitize the full rendered HTML (incl. the transform-added wrappers and
+	// any raw user HTML that html.WithUnsafe let through). Done once here,
+	// server-side; the frontend now renders contentHtml directly without jsdom.
+	result = sanitizer.Sanitize(result)
 
 	return result, toc
 }

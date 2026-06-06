@@ -31,7 +31,6 @@
 //
 // On mobile (<md) the two columns stack vertically (old on top, new
 // below) since side-by-side at narrow viewports is unreadable.
-import { kunSanitize } from '@kun/ui/utils/sanitize'
 import { KUN_GALGAME_RESOURCE_PULL_REQUEST_I18N_FIELD_MAP } from '~/constants/galgame'
 
 // Wiki ships a `names` map alongside the diff (K-PR, 2026-Q2):
@@ -162,10 +161,13 @@ const renderScalar = (
     : newVal === undefined || newVal === null
       ? ''
       : String(newVal)
+  // oldHtml/newHtml are already HTML-escaped char-by-char by useSideBySideDiff
+  // (only our own <b>/<strong> wrappers are added), so they are safe to bind
+  // directly — no DOM sanitizer (which pulled in the jsdom SSR leak).
   const { oldHtml, newHtml } = useSideBySideDiff(o, n)
   return {
-    oldHtml: kunSanitize(oldHtml),
-    newHtml: kunSanitize(newHtml),
+    oldHtml,
+    newHtml,
     preWrap: LARGE_TEXT_FIELDS.has(key)
   }
 }

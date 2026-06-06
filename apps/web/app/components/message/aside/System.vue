@@ -1,18 +1,14 @@
 <script setup lang="ts">
-import { kunSanitize } from '@kun/ui/utils/sanitize'
-
 const props = defineProps<{
   message: MessageSystemMessage
 }>()
 
-// Defense-in-depth: admin/system broadcast content is rendered as HTML, so
-// sanitize before binding to v-html (consistent with SnapshotDiff.vue and
-// moyu's message sinks). Even though the write path is admin-only today, an
-// unsanitized v-html here would be a stored-XSS the moment any user-influenced
-// text reaches a system message.
-const sanitizedContent = computed(() =>
-  kunSanitize(props.message.content['zh-cn'] ?? '')
-)
+// System broadcasts are admin-authored HTML (admin-only write path), rendered
+// directly. No client-side DOM sanitizer here on purpose — the old DOMPurify
+// ran jsdom on every SSR render and leaked the web container to OOM. If
+// user-influenced text ever reaches a system message, sanitize it server-side
+// via the goldmark + bluemonday pipeline (internal/infrastructure/markdown).
+const messageHtml = computed(() => props.message.content['zh-cn'] ?? '')
 </script>
 
 <template>
@@ -39,6 +35,6 @@ const sanitizedContent = computed(() =>
       </span>
     </div>
 
-    <div class="leading-8 break-all" v-html="sanitizedContent" />
+    <div class="leading-8 break-all" v-html="messageHtml" />
   </div>
 </template>
