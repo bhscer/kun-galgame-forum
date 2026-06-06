@@ -122,13 +122,6 @@ export const useKunFetch = createUseFetch({
   // context. import.meta.server is build-time constant → client bundle gets
   // `undefined` (no timeout). See SSR_API_TIMEOUT_MS.
   timeout: import.meta.server ? SSR_API_TIMEOUT_MS : undefined,
-  baseURL: computed(() => {
-    const config = useRuntimeConfig()
-    const base = import.meta.server
-      ? config.apiBaseUrl
-      : config.public.apiBaseUrl
-    return `${base}/api`
-  }),
   credentials: 'include',
   // SSR is cross-origin from Nuxt → Go API, so `credentials: 'include'` is
   // a no-op on the server. Manually forward the allowlisted cookies (session +
@@ -136,6 +129,18 @@ export const useKunFetch = createUseFetch({
   // isUpvoted) AND the SFW filter render correctly on first paint — see
   // SSR_FORWARDED_COOKIES above for why we don't bundle the whole jar.
   onRequest({ options }) {
+    // baseURL is set HERE, not as a `baseURL` factory option, on purpose. As an
+    // option it gets hashed into useFetch's cache key — and it differs between
+    // SSR (internal http://kungal-api:2334) and the client (public
+    // https://www.kungal.com). That divergence made the client's key miss the
+    // SSR payload, so EVERY page re-fetched its data on hydration: the page
+    // re-rendered after the await ("loads twice") and Vue logged a hydration
+    // mismatch. Applying baseURL in onRequest keeps the cache key path-only and
+    // identical on both sides, so the SSR payload is reused and nothing re-fetches.
+    const config = useRuntimeConfig()
+    options.baseURL = `${
+      import.meta.server ? config.apiBaseUrl : config.public.apiBaseUrl
+    }/api`
     if (import.meta.server) {
       const forwarded = extractForwardedCookies(
         useRequestHeaders(['cookie']).cookie
