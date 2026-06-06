@@ -90,6 +90,7 @@ func TestRenderInline_Sanitizes(t *testing.T) {
 func TestRenderInline_ImageHostAllowlist(t *testing.T) {
 	t.Run("allowed hosts keep src", func(t *testing.T) {
 		for _, src := range []string{
+			"https://image.kungal.iloveren.link/message/a.webp", // prod CDN
 			"https://image.kungal.com/topic/a.webp",
 			"https://sticker.kungal.com/stickers/s.webp",
 		} {

@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"os"
 	"regexp"
 	"strings"
 
@@ -28,11 +29,36 @@ var (
 // URLs — to close the private-message tracking-pixel / deanonymization vector:
 // an external src would make the *recipient's* browser fetch an
 // attacker-controlled URL on open, leaking their IP / UA / online-time (and the
-// file behind an external URL can be swapped after delivery). image.kungal.com
-// serves uploads + avatars; sticker.kungal.com serves stickers. The chat image
-// uploader posts to /image/* and returns an image.kungal.com URL, so legitimate
-// images always land on these hosts.
-var allowedImageHosts = []string{"image.kungal.com", "sticker.kungal.com"}
+// file behind an external URL can be swapped after delivery). The chat uploader
+// posts to /image/message and returns an image.kungal.iloveren.link URL (the
+// image_service KUN_IMAGE_PUBLIC_BASE_URL), so legitimate images always land on
+// one of these hosts. (Topics, by contrast, allow external images — a public,
+// different-risk surface; messages are private 1-to-1 and locked down.)
+var allowedImageHosts = resolveAllowedImageHosts()
+
+// resolveAllowedImageHosts reads KUNGAL_MESSAGE_IMAGE_HOSTS (comma-separated)
+// when set, else falls back to the known production CDN hosts. The env hook
+// lets dev/staging (local minio, a different CDN) or a future domain migration
+// change the allow-list without a code change — the host MUST match
+// image_service's KUN_IMAGE_PUBLIC_BASE_URL or uploaded images get stripped.
+func resolveAllowedImageHosts() []string {
+	if v := strings.TrimSpace(os.Getenv("KUNGAL_MESSAGE_IMAGE_HOSTS")); v != "" {
+		var hosts []string
+		for p := range strings.SplitSeq(v, ",") {
+			if h := strings.TrimSpace(p); h != "" {
+				hosts = append(hosts, h)
+			}
+		}
+		if len(hosts) > 0 {
+			return hosts
+		}
+	}
+	return []string{
+		"image.kungal.iloveren.link", // current production image CDN (KUN_IMAGE_PUBLIC_BASE_URL)
+		"image.kungal.com",           // canonical domain (avatars reference it; future migration)
+		"sticker.kungal.com",         // stickers
+	}
+}
 
 // messageImageSrcPattern matches ONLY https URLs whose host is exactly one of
 // allowedImageHosts. The required trailing "/" after the host defeats

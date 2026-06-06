@@ -6,12 +6,20 @@ const routeName = computed(() => useRoute().name)
 // SSR these so the aside renders with its items on first paint instead of
 // flashing empty. useKunFetch forwards the session cookie on SSR (see kunFetch
 // onRequest), so the authed nav fetch resolves server-side.
-const { data: system } = useKunFetch<ChatMessageAsideItem[]>(
+const { data: systemNav } = useKunFetch<ChatMessageAsideItem[]>(
   '/message/nav/system'
 )
-const { data: contact } = useKunFetch<ChatMessageAsideItem[]>(
+const { data: contactNav } = useKunFetch<ChatMessageAsideItem[]>(
   '/message/nav/contact'
 )
+
+// Re-assert the element type locally. useKunFetch's shared transform unwraps
+// every endpoint's `data`, so for TS its result widens toward `{}` — and Nuxt's
+// auto-generated useFetch types can transiently resolve it to `{}` mid-
+// regeneration, which is what flagged `system[0]`/`system[1]` as un-indexable.
+// Pinning ChatMessageAsideItem[] here makes the aside immune to that.
+const system = computed(() => systemNav.value as ChatMessageAsideItem[] | null)
+const contact = computed(() => contactNav.value as ChatMessageAsideItem[] | null)
 
 watch(
   contact,

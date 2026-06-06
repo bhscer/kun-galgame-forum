@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { replaceAsideItem } from '../aside/asideItemStore'
-
 const props = defineProps<{
   userId: number
 }>()
