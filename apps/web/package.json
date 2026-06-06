@@ -103,7 +103,6 @@
     "dotenv": "^17.2.3",
     "engine.io": "^6.6.4",
     "feed": "^5.1.0",
-    "isomorphic-dompurify": "^2.34.0",
     "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.3",
     "katex": "^0.16.27",

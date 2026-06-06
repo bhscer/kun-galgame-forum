@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DOMPurify from 'isomorphic-dompurify'
+import { kunSanitize } from '@kun/ui/utils/sanitize'
 
 const props = defineProps<{
   message: MessageSystemMessage
@@ -11,7 +11,7 @@ const props = defineProps<{
 // unsanitized v-html here would be a stored-XSS the moment any user-influenced
 // text reaches a system message.
 const sanitizedContent = computed(() =>
-  DOMPurify.sanitize(props.message.content['zh-cn'] ?? '')
+  kunSanitize(props.message.content['zh-cn'] ?? '')
 )
 </script>
 

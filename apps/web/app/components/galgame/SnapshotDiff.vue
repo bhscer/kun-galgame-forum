@@ -31,7 +31,7 @@
 //
 // On mobile (<md) the two columns stack vertically (old on top, new
 // below) since side-by-side at narrow viewports is unreadable.
-import DOMPurify from 'isomorphic-dompurify'
+import { kunSanitize } from '@kun/ui/utils/sanitize'
 import { KUN_GALGAME_RESOURCE_PULL_REQUEST_I18N_FIELD_MAP } from '~/constants/galgame'
 
 // Wiki ships a `names` map alongside the diff (K-PR, 2026-Q2):
@@ -164,8 +164,8 @@ const renderScalar = (
       : String(newVal)
   const { oldHtml, newHtml } = useSideBySideDiff(o, n)
   return {
-    oldHtml: DOMPurify.sanitize(oldHtml),
-    newHtml: DOMPurify.sanitize(newHtml),
+    oldHtml: kunSanitize(oldHtml),
+    newHtml: kunSanitize(newHtml),
     preWrap: LARGE_TEXT_FIELDS.has(key)
   }
 }
