@@ -46,12 +46,7 @@ const interactionBlocks = [
 const infoList = [
   { label: '注册序号', value: (u: UserInfo) => u.id },
   { label: '今日发布话题', value: (u: UserInfo) => u.dailyTopicCount },
-  { label: '今日发布 Galgame', value: (u: UserInfo) => u.dailyGalgameCount },
-  {
-    label: '注册时间',
-    value: (u: UserInfo) =>
-      formatDate(u.created, { isShowYear: true, isPrecise: true })
-  }
+  { label: '今日发布 Galgame', value: (u: UserInfo) => u.dailyGalgameCount }
 ]
 </script>
 
@@ -133,6 +128,14 @@ const infoList = [
       >
         <span>{{ item.label }}</span>
         <span class="font-medium">{{ item.value(user) }}</span>
+      </div>
+      <div
+        class="text-default-700 flex items-center justify-between text-sm"
+      >
+        <span>注册时间</span>
+        <span class="font-medium">
+          <KunTime :time="user.created" type="datetime" show-year />
+        </span>
       </div>
     </div>
 

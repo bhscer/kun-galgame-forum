@@ -148,7 +148,7 @@ if (data.value) {
               </div>
               <div class="flex items-center space-x-1">
                 <KunIcon name="lucide:clock" />
-                <span>更新于 {{ formatDate(data.updated) }}</span>
+                <span>更新于 <KunTime :time="data.updated" type="date" /></span>
               </div>
             </div>
           </div>

@@ -142,11 +142,7 @@ const {
           class="text-default-600 mt-auto flex items-center gap-1 pt-3 text-sm"
         >
           <KunAvatar :disable-floating="true" :user="galgame.user" size="xs" />
-          {{
-            [galgame.user.name, formatTimeDifference(galgame.resourceUpdateTime)]
-              .filter(Boolean)
-              .join(' · ')
-          }}
+          {{ galgame.user.name }} · <KunTime :time="galgame.resourceUpdateTime" />
         </div>
       </div>
     </KunCard>

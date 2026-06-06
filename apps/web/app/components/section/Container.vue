@@ -76,9 +76,7 @@ watch(
         <div class="flex items-center">
           <div class="mr-2 font-bold">{{ topic.user.name }}</div>
           <div class="text-default-500 text-sm">
-            {{
-              formatDate(topic.created, { isShowYear: true, isPrecise: true })
-            }}
+            <KunTime :time="topic.created" type="datetime" show-year />
           </div>
         </div>
 

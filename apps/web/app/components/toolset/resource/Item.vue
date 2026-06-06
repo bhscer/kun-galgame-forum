@@ -244,7 +244,7 @@ const handleSave = async () => {
         <KunAvatar :user="detail.user" />
         <span>{{ detail.user.name }}</span>
         <span class="text-default-500 text-sm">
-          {{ formatTimeDifference(detail.created) }}
+          <KunTime :time="detail.created" />
         </span>
       </div>
 

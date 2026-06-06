@@ -102,6 +102,10 @@ services:
     image: ghcr.io/kunmoe/kungal-web:latest
     pull_policy: always
     environment:
+      # SSR renders absolute times in this zone (the container is otherwise UTC);
+      # <KunTime> re-renders in the viewer's own timezone after mount. Asia/Shanghai
+      # matches the CN-majority audience so most users see no post-hydration shift.
+      TZ: Asia/Shanghai
       NODE_ENV: production
       NUXT_API_BASE_URL: http://kungal-api:2334 # SSR → 本仓 api 服务名 kungal-api(唯一,避免与 moyu api 冲突)
       NUXT_PUBLIC_API_BASE_URL: https://www.kungal.com # browser

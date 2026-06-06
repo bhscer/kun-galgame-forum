@@ -90,12 +90,7 @@ const handleDeleteRating = async () => {
 
               <div class="text-default-500 flex items-center gap-2 text-sm">
                 <KunIcon name="lucide:calendar" />
-                {{
-                  formatDate(data.created, {
-                    isShowYear: true,
-                    isPrecise: true
-                  })
-                }}
+                <KunTime :time="data.created" type="datetime" show-year />
               </div>
             </div>
 

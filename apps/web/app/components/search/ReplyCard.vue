@@ -15,7 +15,7 @@ defineProps<{
       <KunIcon class="text-primary h-5 w-5" name="carbon:reply" />
       <span class="text-lg">{{ reply.topicTitle }}</span>
       <span class="text-default-500 ml-auto text-sm">
-        {{ formatTimeDifference(reply.created) }}
+        <KunTime :time="reply.created" />
       </span>
     </div>
 

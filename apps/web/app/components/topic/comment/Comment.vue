@@ -166,20 +166,10 @@ const handleSaveEdit = async (comment: TopicComment) => {
 
             <div class="flex items-center justify-between">
               <span class="text-default-500 text-xs">
-                {{
-                  formatDate(comment.created, {
-                    isPrecise: true,
-                    isShowYear: true
-                  })
-                }}
+                <KunTime :time="comment.created" type="datetime" show-year />
                 <span v-if="comment.edited" class="ml-1">
                   (编辑于
-                  {{
-                    formatDate(comment.edited, {
-                      isPrecise: true,
-                      isShowYear: true
-                    })
-                  }})
+                  <KunTime :time="comment.edited" type="datetime" show-year />)
                 </span>
               </span>
 

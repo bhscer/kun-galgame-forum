@@ -71,9 +71,7 @@ watch(
           <div class="flex items-center gap-3">
             <KunUser :disable-floating="true" :user="log.user" />
             <div class="text-default-500 text-sm">
-              {{
-                formatDate(log.created, { isPrecise: true, isShowYear: true })
-              }}
+              <KunTime :time="log.created" type="datetime" show-year />
             </div>
           </div>
           <span class="text-default-700 text-sm">

@@ -33,7 +33,7 @@ defineProps<{
         {{ user.moemoepoint }}
       </div>
       <span v-if="user.created" class="text-default-700">
-        {{ formatDate(user.created, { isShowYear: true }) }}
+        <KunTime :time="user.created" type="date" show-year />
       </span>
     </div>
   </KunCard>

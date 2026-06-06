@@ -109,7 +109,7 @@ const canManage = (comment: ToolsetComment) =>
 
         <div class="flex items-center justify-between">
           <span class="text-default-500 text-sm">
-            发布于 {{ formatTimeDifference(com.created) }}
+            发布于 <KunTime :time="com.created" />
           </span>
 
           <div class="flex items-center justify-end gap-1">

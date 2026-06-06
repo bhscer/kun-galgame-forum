@@ -129,7 +129,7 @@ const handleEditDone = () => {
       <KunAvatar :user="resource.user" />
       <span>{{ resource.user.name }}</span>
       <span class="text-default-500 text-sm">
-        {{ `发布于 ${formatTimeDifference(resource.created)}` }}
+        发布于 <KunTime :time="resource.created" />
       </span>
     </div>
 

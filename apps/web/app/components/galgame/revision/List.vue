@@ -109,7 +109,7 @@ const handleRevert = async (rev: number) => {
                 (小修改)
               </span>
               <span class="text-default-500">
-                {{ formatTimeDifference(rev.created) }}
+                <KunTime :time="rev.created" />
               </span>
             </div>
             <div class="text-default-500" v-if="rev.note">{{ rev.note }}</div>

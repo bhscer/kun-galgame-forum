@@ -74,7 +74,7 @@ if (data.value) {
               {{ `本 Wiki 拥有 ${data.websiteCount} 个 ${data.label}` }}
             </KunChip>
             <KunChip>
-              更新于 {{ formatDate(data.updated, { isShowYear: true }) }}
+              更新于 <KunTime :time="data.updated" type="date" show-year />
             </KunChip>
           </div>
 

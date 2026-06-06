@@ -128,7 +128,7 @@ const submitFix = async (index: number) => {
             </KunChip>
             <KunChip color="danger">链接过期</KunChip>
             <div class="text-default-500 text-sm">
-              {{ `创建于 ${formatDate(res.created, { isShowYear: true })}` }}
+              创建于 <KunTime :time="res.created" type="date" show-year />
             </div>
           </div>
 
@@ -178,7 +178,7 @@ const submitFix = async (index: number) => {
             </div>
 
             <div class="text-default-500 text-sm">
-              {{ formatDate(res.created, { isShowYear: true }) }}
+              <KunTime :time="res.created" type="date" show-year />
             </div>
           </div>
         </KunCard>

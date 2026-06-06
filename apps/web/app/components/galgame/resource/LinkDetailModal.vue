@@ -197,7 +197,7 @@ const handleEditDone = () => {
             <div class="flex flex-col">
               <span class="font-medium">{{ resource.user.name }}</span>
               <span class="text-default-500 text-xs">
-                发布于 {{ formatTimeDifference(resource.created) }}
+                发布于 <KunTime :time="resource.created" />
               </span>
             </div>
           </div>

@@ -39,7 +39,7 @@ defineProps<{
       <div class="flex items-center justify-between">
         <span class="text-default-600">网站索引时间</span>
         <span class="text-default-900 font-semibold">
-          {{ formatDate(data.created, { isShowYear: true, isPrecise: true }) }}
+          <KunTime :time="data.created" type="datetime" show-year />
         </span>
       </div>
     </div>

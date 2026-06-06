@@ -74,7 +74,7 @@ watch(
         <KunAvatar :user="pr.user" />
         <span>{{ pr.user.name }} 提出更新请求</span>
         <span class="text-default-500">
-          {{ formatTimeDifference(pr.created) }}
+          <KunTime :time="pr.created" />
         </span>
       </div>
 
@@ -84,12 +84,7 @@ watch(
           :class="statusColorMap[pr.status]"
         >
           <span v-if="pr.completedTime">
-            {{
-              formatDate(pr.completedTime, {
-                isShowYear: true,
-                isPrecise: true
-              })
-            }}
+            <KunTime :time="pr.completedTime" type="datetime" show-year />
           </span>
           <KunIcon :name="iconMap[pr.status]" />
           <span>

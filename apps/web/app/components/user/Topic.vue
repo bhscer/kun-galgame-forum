@@ -66,7 +66,7 @@ const handleUpdateTopicHideStatus = async (topicId: number) => {
             {{ topic.title }}
           </div>
           <div class="text-default-500 text-sm">
-            {{ formatDate(topic.created, { isShowYear: true }) }}
+            <KunTime :time="topic.created" type="date" show-year />
           </div>
         </KunCard>
       </template>
@@ -84,7 +84,7 @@ const handleUpdateTopicHideStatus = async (topicId: number) => {
           <div
             class="text-default-500 flex items-center justify-between text-sm"
           >
-            <span>{{ formatDate(topic.created, { isShowYear: true }) }}</span>
+            <KunTime :time="topic.created" type="date" show-year />
             <KunButton
               @click="handleUpdateTopicHideStatus(topic.id)"
               size="sm"

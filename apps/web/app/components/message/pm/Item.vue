@@ -86,7 +86,7 @@ const handleClick = (event: MouseEvent) => {
         <div class="mt-1 text-sm leading-relaxed">
           <span>{{ message.content }}</span>
           <span class="text-default-500 ml-2 text-xs">
-            {{ formatTimeDifference(message.created) }}
+            <KunTime :time="message.created" />
           </span>
         </div>
       </div>

@@ -22,7 +22,7 @@ const logs = computed(() => props.logs)
       <div class="text-default-500 flex items-center justify-between text-sm">
         <div class="text-default-500 flex items-center gap-1">
           <KunIcon name="lucide:clock-7" />
-          <span>{{ formatDate(kun.created, { isShowYear: true }) }}</span>
+          <KunTime :time="kun.created" type="date" show-year />
         </div>
         <div class="flex items-center gap-1">
           <KunIcon name="lucide:triangle-alert" class="text-warning h-4 w-4" />

@@ -148,7 +148,7 @@ const handleDelete = async () => {
           </KunLink>
         </template>
         <span class="text-default-400 text-xs">
-          {{ formatTimeDifference(comment.created) }}
+          <KunTime :time="comment.created" />
         </span>
         <span v-if="isEdited" class="text-default-400 text-xs italic">
           (已编辑)

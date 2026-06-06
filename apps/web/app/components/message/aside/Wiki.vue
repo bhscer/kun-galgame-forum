@@ -111,7 +111,7 @@ const linkTo = computed(() => {
         {{ typeBadge.label }}
       </KunChip>
       <span class="text-default-500 text-sm">
-        {{ formatDate(message.created_at, { isShowYear: true, isPrecise: true }) }}
+        <KunTime :time="message.created_at" type="datetime" show-year />
       </span>
     </div>
 

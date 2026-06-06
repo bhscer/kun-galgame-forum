@@ -29,7 +29,7 @@ defineProps<{
           <div class="flex items-center gap-3">
             <KunUser :disable-floating="true" :user="rating.user" />
             <span class="text-default-500 text-sm">
-              {{ formatTimeDifference(rating.created) }}
+              <KunTime :time="rating.created" />
             </span>
           </div>
 

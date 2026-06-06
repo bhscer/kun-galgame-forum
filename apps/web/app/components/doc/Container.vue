@@ -51,7 +51,7 @@ const articles = computed(() => articleResponse.value?.items || [])
             :datetime="post.publishedTime?.toString()"
             class="text-default-500"
           >
-            {{ formatDate(post.publishedTime, { isShowYear: true }) }}
+            <KunTime :time="post.publishedTime" type="date" show-year />
           </time>
         </div>
 

@@ -47,7 +47,7 @@ defineProps<{
         <div class="flex items-center space-x-2">
           <KunUser :disable-floating="true" size="sm" :user="activity.actor" />
           <span class="text-default-500 text-sm">
-            {{ formatTimeDifference(activity.timestamp) }}
+            <KunTime :time="activity.timestamp" />
           </span>
         </div>
 

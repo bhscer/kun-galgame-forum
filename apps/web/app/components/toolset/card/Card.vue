@@ -48,7 +48,7 @@ defineProps<{
       <div class="flex items-center gap-2">
         <KunUser size="sm" :user="t.user" />
         <span class="text-default-500 text-xs">
-          {{ formatTimeDifference(t.resource_update_time) }}
+          <KunTime :time="t.resource_update_time" />
         </span>
 
         <KunChip class-name="ml-auto" color="primary" size="sm">

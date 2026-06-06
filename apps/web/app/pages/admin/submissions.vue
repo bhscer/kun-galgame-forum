@@ -245,7 +245,7 @@ const handleConfirmReason = async () => {
               <template v-else>#{{ msg.actor_user_id }}</template>
             </span>
             <span>·</span>
-            <span>{{ formatTimeDifference(msg.created_at) }}</span>
+            <span><KunTime :time="msg.created_at" /></span>
             <span>·</span>
             <span>galgame_id: {{ msg.galgame_id }}</span>
           </div>

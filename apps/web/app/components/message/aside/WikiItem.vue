@@ -76,7 +76,7 @@ const typeLabel = (t: string | undefined) => {
       <div class="flex items-center justify-between">
         <span class="font-bold">Wiki 通知</span>
         <span class="text-default-500 text-sm" v-if="latest">
-          {{ formatTimeDifference(latest.created_at) }}
+          <KunTime :time="latest.created_at" />
         </span>
       </div>
 

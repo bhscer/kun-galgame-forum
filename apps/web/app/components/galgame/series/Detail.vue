@@ -95,12 +95,12 @@ const handleDeleteSeries = async () => {
           <div class="text-default-500 space-x-2">
             <span>
               创建于
-              {{ formatDate(data.created, { isShowYear: true }) }}
+              <KunTime :time="data.created" type="date" show-year />
             </span>
             ·
             <span>
               更新于
-              {{ formatTimeDifference(data.updated) }}
+              <KunTime :time="data.updated" />
             </span>
           </div>
 

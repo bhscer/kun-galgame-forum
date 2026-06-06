@@ -73,7 +73,7 @@ const handleCommitNewComment = (comment: WebsiteComment) => {
             </KunTooltip>
 
             <span class="text-default-500 text-sm">
-              {{ formatDate(com.created, { isPrecise: true }) }}
+              <KunTime :time="com.created" type="datetime" />
             </span>
           </div>
 

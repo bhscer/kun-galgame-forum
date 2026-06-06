@@ -105,9 +105,7 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
           >
             <KunUser :user="galgame.user" />
             <span class="text-sm">
-              {{
-                `${formatDate(galgame.created, { isShowYear: true })} 创建本游戏`
-              }}
+              <KunTime :time="galgame.created" type="date" show-year /> 创建本游戏
             </span>
           </div>
 

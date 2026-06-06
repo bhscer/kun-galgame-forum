@@ -123,7 +123,7 @@ const { data: commentData, status: commentStatus } = await useKunFetch<{
           <KunContent :content="c.contentHtml" />
           <div class="text-default-500 flex items-center justify-between text-sm">
             <span>评论于 Galgame #{{ c.galgameId }}</span>
-            <span>{{ formatDate(c.created, { isShowYear: true }) }}</span>
+            <KunTime :time="c.created" type="date" show-year />
           </div>
         </KunCard>
 

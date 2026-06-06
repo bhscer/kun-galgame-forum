@@ -37,7 +37,7 @@ defineProps<{
           {{ section.latestTopic?.title }}
         </h3>
         <p class="text-default-500 text-sm">
-          {{ formatTimeDifference(section.latestTopic?.created || '') }}
+          <KunTime :time="section.latestTopic?.created || ''" />
         </p>
       </div>
     </KunCard>

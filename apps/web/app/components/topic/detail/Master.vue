@@ -45,14 +45,10 @@ defineProps<{
       >
         <span>{{ `浏览数 - ${topic.view}` }}</span>
         <span>
-          {{
-            `发布于 - ${formatDate(topic.created, { isShowYear: true, isPrecise: true })}`
-          }}
+          发布于 - <KunTime :time="topic.created" type="datetime" show-year />
         </span>
         <p class="text-default-500" v-if="topic.edited">
-          {{
-            `重新编辑于 - ${formatDate(topic.edited, { isShowYear: true, isPrecise: true })}`
-          }}
+          重新编辑于 - <KunTime :time="topic.edited" type="datetime" show-year />
         </p>
       </div>
 

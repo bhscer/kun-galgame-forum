@@ -15,7 +15,7 @@ defineProps<{
       <KunIcon class="text-primary h-5 w-5" name="uil:comment-dots" />
       <span class="text-lg">{{ comment.topicTitle }}</span>
       <span class="text-default-500 ml-auto text-sm">
-        {{ formatTimeDifference(comment.created) }}
+        <KunTime :time="comment.created" />
       </span>
     </div>
 

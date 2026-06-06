@@ -144,7 +144,7 @@ const handleMarkValid = async () => {
         <div class="flex flex-col leading-tight">
           <span class="text-sm font-medium">{{ resource.user.name }}</span>
           <span class="text-default-500 text-xs">
-            {{ formatTimeDifference(resource.created) }}
+            <KunTime :time="resource.created" />
           </span>
         </div>
       </div>

@@ -91,7 +91,7 @@ const handleTodoAction = async (data: UpdateTodoPayload) => {
         </KunChip>
 
         <span class="text-default-600 text-sm">
-          {{ `该企划创建于 ${formatDate(todo.created, { isPrecise: true })}` }}
+          该企划创建于 <KunTime :time="todo.created" type="datetime" />
         </span>
       </div>
 
@@ -102,7 +102,7 @@ const handleTodoAction = async (data: UpdateTodoPayload) => {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2 text-sm">
           <span v-if="todo.completed_time" class="text-default-500">
-            {{ formatDate(todo.completed_time, { isPrecise: true }) }}
+            <KunTime :time="todo.completed_time" type="datetime" />
           </span>
           <KunIcon
             :name="iconMap[todo.status]"

@@ -63,7 +63,7 @@ const { data, status } = await useKunFetch<{
       <div class="flex items-center space-x-2">
         <KunUser size="sm" v-if="activity.actor" :user="activity.actor" />
         <span class="text-default-500 text-sm">
-          {{ formatTimeDifference(activity.timestamp) }}
+          <KunTime :time="activity.timestamp" />
         </span>
       </div>
     </div>

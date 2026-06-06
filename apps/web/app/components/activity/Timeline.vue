@@ -57,11 +57,7 @@ const { data, status } = await useKunFetch<{
 
           <div class="flex items-center space-x-2">
             <span class="text-default-500 text-sm">
-              {{
-                activity.actor
-                  ? `${activity.actor.name} 发布于 ${formatTimeDifference(activity.timestamp)}`
-                  : formatTimeDifference(activity.timestamp)
-              }}
+              <template v-if="activity.actor">{{ activity.actor.name }} 发布于 </template><KunTime :time="activity.timestamp" />
             </span>
           </div>
         </div>

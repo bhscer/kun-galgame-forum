@@ -119,10 +119,10 @@ const handleWithdraw = async (item: MineGalgameItem) => {
           <div class="text-default-500 flex flex-wrap items-center gap-2 text-sm">
             <span>VNDB: {{ item.vndb_id || '—' }}</span>
             <span>·</span>
-            <span>提交于 {{ formatTimeDifference(item.created) }}</span>
+            <span>提交于 <KunTime :time="item.created" /></span>
             <template v-if="item.updated !== item.created">
               <span>·</span>
-              <span>最后修改 {{ formatTimeDifference(item.updated) }}</span>
+              <span>最后修改 <KunTime :time="item.updated" /></span>
             </template>
           </div>
           <div

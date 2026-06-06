@@ -71,12 +71,7 @@ const handleDeleteMessage = async (messageId: number) => {
 
     <div class="flex justify-between">
       <span class="text-default-500 text-sm">
-        {{
-          formatDate(message.created, {
-            isShowYear: true,
-            isPrecise: true
-          })
-        }}
+        <KunTime :time="message.created" type="datetime" show-year />
       </span>
 
       <KunButton

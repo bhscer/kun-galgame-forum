@@ -74,7 +74,7 @@ const handleUpdateLogAction = async (data: UpdateUpdateLogPayload) => {
             {{ KUN_UPDATE_LOG_TYPE_MAP[update.type] }}
           </KunChip>
           <span class="text-default-500 text-sm">
-            {{ formatDate(update.created, { isShowYear: true }) }} - Version
+            <KunTime :time="update.created" type="date" show-year /> - Version
             {{ update.version }}
           </span>
         </div>

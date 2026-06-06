@@ -37,7 +37,7 @@ defineProps<{
       </KunChip>
 
       <span class="text-default-500 text-sm">
-        {{ formatTimeDifference(resource.created) }}
+        <KunTime :time="resource.created" />
       </span>
     </div>
 

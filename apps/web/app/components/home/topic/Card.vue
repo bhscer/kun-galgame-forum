@@ -19,7 +19,7 @@ defineProps<{
       </h3>
 
       <span class="text-default-500 shrink-0 text-sm">
-        {{ formatTimeDifference(topic.statusUpdateTime) }}
+        <KunTime :time="topic.statusUpdateTime" />
       </span>
     </div>
 

@@ -112,12 +112,7 @@ const handleDelete = async () => {
           <div class="text-default-500 flex items-center gap-2">
             <KunIcon name="lucide:calendar-days" />
             <p class="text-small text-inherit">
-              {{
-                formatDate(metadata.publishedTime, {
-                  isPrecise: true,
-                  isShowYear: true
-                })
-              }}
+              <KunTime :time="metadata.publishedTime" type="datetime" show-year />
             </p>
           </div>
         </div>

@@ -111,12 +111,7 @@ onMounted(async () => {
           <div class="flex flex-col">
             <span class="text-xs">{{ resource.user.name }}</span>
             <span class="text-default-500 text-xs">
-              {{
-                `资源更新于 ${formatDate(resource.update_time, {
-                  isPrecise: true,
-                  isShowYear: true
-                })}`
-              }}
+              资源更新于 <KunTime :time="resource.update_time" type="datetime" show-year />
             </span>
           </div>
         </div>

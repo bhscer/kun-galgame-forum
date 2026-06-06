@@ -101,7 +101,7 @@ const onReplied = () => {
 
       <div class="flex items-end justify-between">
         <span class="text-default-500 text-sm">
-          发布于 {{ formatTimeDifference(comment.created) }}
+          发布于 <KunTime :time="comment.created" />
         </span>
 
         <div class="flex items-center justify-end gap-1">

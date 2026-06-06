@@ -82,7 +82,7 @@ if (data.value) {
             <KunChip color="primary">标签价值 {{ data.level }}</KunChip>
 
             <KunChip>
-              更新于 {{ formatDate(data.updated, { isShowYear: true }) }}
+              更新于 <KunTime :time="data.updated" type="date" show-year />
             </KunChip>
           </div>
 

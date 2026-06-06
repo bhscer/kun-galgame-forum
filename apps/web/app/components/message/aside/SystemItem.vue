@@ -17,7 +17,7 @@ defineProps<{
       <div class="flex items-center justify-between">
         <span class="font-bold">{{ title }}</span>
         <span class="text-default-500 text-sm" v-if="data.lastMessageTime">
-          {{ formatTimeDifference(data.lastMessageTime) }}
+          <KunTime :time="data.lastMessageTime" />
         </span>
       </div>
 

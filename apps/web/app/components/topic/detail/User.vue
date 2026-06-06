@@ -43,11 +43,11 @@ withDefaults(
       <div v-if="showAddition" class="text-xs text-gray-500 dark:text-gray-400">
         <span>
           发布于
-          {{ formatDate(created, { isShowYear: true, isPrecise: true }) }}
+          <KunTime :time="created" type="datetime" show-year />
         </span>
         <span v-if="edited" class="ml-2">
           (编辑于
-          {{ formatDate(edited, { isShowYear: true, isPrecise: true }) }})
+          <KunTime :time="edited" type="datetime" show-year />)
         </span>
       </div>
     </div>

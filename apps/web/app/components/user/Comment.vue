@@ -46,7 +46,7 @@ const { data, status } = await useKunFetch<{
           {{ comment.content }}
         </div>
         <div class="text-default-500 text-sm">
-          {{ formatDate(comment.created, { isShowYear: true }) }}
+          <KunTime :time="comment.created" type="date" show-year />
         </div>
       </KunCard>
 
