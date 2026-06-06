@@ -9,6 +9,10 @@ const messages = ref<ChatMessage[]>([])
 const isLoadHistoryMessageComplete = ref(false)
 const isSending = ref(false)
 const isUploadingImage = ref(false)
+// Images pasted/dropped into the input are uploaded immediately and held here
+// as removable chips (NOT dumped as a raw `![](url)` into the text box). On
+// send they're appended to the message as markdown — see sendMessage.
+const pendingImages = ref<{ name: string; url: string }[]>([])
 const isShowLoader = computed(() => {
   if (isLoadHistoryMessageComplete.value) {
     return false
@@ -48,10 +52,9 @@ const getMessageHistory = async () => {
 
 const sendMessage = async () => {
   // Re-entry guard: the send can be triggered more than once near-simultaneously
-  // (the input's @keydown.enter + the 发送 button, plus event bubbling). isSending
-  // is flipped synchronously below before the await, so any concurrent/rapid
-  // re-fire bails here instead of POSTing a duplicate — this is what caused a
-  // single message to be inserted 2-3x.
+  // (the textarea's Enter handler + the 发送 button). isSending is flipped
+  // synchronously below before the await, so any rapid re-fire bails here
+  // instead of POSTing a duplicate.
   if (isSending.value) {
     return
   }
@@ -59,11 +62,22 @@ const sendMessage = async () => {
     useMessage('图片正在上传中, 请稍候', 'warn')
     return
   }
-  if (!messageInput.value.trim()) {
+
+  // Compose the wire content: trimmed text plus one markdown image per pending
+  // chip (newline-joined so text and images stack in the rendered bubble).
+  const text = messageInput.value.trim()
+  const imageMarkdown = pendingImages.value
+    // Strip markdown-breaking chars from the filename used as alt, so a name
+    // like "a]b(c).png" can't terminate the ![alt](url) syntax early.
+    .map((img) => `![${img.name.replace(/[[\]()]/g, '')}](${img.url})`)
+    .join(' ')
+  const content = [text, imageMarkdown].filter(Boolean).join('\n')
+
+  if (!content) {
     useMessage(10401, 'warn')
     return
   }
-  if (messageInput.value.length > 1000) {
+  if (content.length > 1000) {
     useMessage(10402, 'warn')
     return
   }
@@ -71,12 +85,13 @@ const sendMessage = async () => {
   isSending.value = true
   const result = await kunFetch('/message/chat/send', {
     method: 'POST',
-    body: { receiverId: userId, content: messageInput.value }
+    body: { receiverId: userId, content }
   })
   isSending.value = false
 
   if (result) {
     messageInput.value = ''
+    pendingImages.value = []
     // Reload latest messages to get the new one
     pageData.page = 1
     messages.value = await getMessageHistory()
@@ -84,13 +99,11 @@ const sendMessage = async () => {
   }
 }
 
-// Paste or drop an image into the chat input → upload it to OUR image host
-// (/image/message, the `message` preset) → append the markdown. Uploading is
-// the only way an image survives the renderer's src allow-list (restricted to
-// image.kungal.com — see RenderInline server-side); pasting an external image
-// URL would just get stripped. Append-at-end is the right UX for attaching an
-// image and leaves in-progress typing untouched.
-const uploadAndAppendImages = async (files: File[]) => {
+// Upload pasted/dropped images to OUR image host (/image/message, the `message`
+// preset) and hold each as a chip. Uploading is the only way an image survives
+// the renderer's src allow-list (image.kungal.iloveren.link — see RenderInline
+// server-side); a pasted external image URL would just get stripped.
+const uploadImages = async (files: File[]) => {
   const images = files.filter((file) => file.type.startsWith('image/'))
   if (!images.length) {
     return
@@ -107,10 +120,7 @@ const uploadAndAppendImages = async (files: File[]) => {
         watch: false
       })
       if (url) {
-        const snippet = `![${image.name}](${url})`
-        messageInput.value = messageInput.value
-          ? `${messageInput.value} ${snippet}`
-          : snippet
+        pendingImages.value.push({ name: image.name, url })
       }
     }
   } finally {
@@ -118,24 +128,38 @@ const uploadAndAppendImages = async (files: File[]) => {
   }
 }
 
+const removePendingImage = (index: number) => {
+  pendingImages.value.splice(index, 1)
+}
+
+// paste/drop are bound ONCE on the input wrapper (not on the textarea), so a
+// single paste triggers a single upload. Binding @paste on KunInput previously
+// double-fired — KunInput re-applies $attrs to BOTH its root div and inner
+// <input>, so the bubbling paste hit two listeners — which uploaded (and thus
+// sent) the image twice.
 const handlePaste = (event: ClipboardEvent) => {
   const files = Array.from(event.clipboardData?.files ?? [])
   if (!files.some((file) => file.type.startsWith('image/'))) {
     return
   }
   // Only swallow the paste when it carries an image — plain-text pastes fall
-  // through to the input untouched.
+  // through to the textarea untouched.
   event.preventDefault()
-  uploadAndAppendImages(files)
+  uploadImages(files)
 }
 
 const handleDrop = (event: DragEvent) => {
-  const files = Array.from(event.dataTransfer?.files ?? [])
-  if (!files.some((file) => file.type.startsWith('image/'))) {
+  uploadImages(Array.from(event.dataTransfer?.files ?? []))
+}
+
+// Enter sends; Shift+Enter inserts a newline. Guard isComposing so pressing
+// Enter to confirm an IME (pinyin, etc.) candidate doesn't fire a send.
+const handleEnter = (event: KeyboardEvent) => {
+  if (event.isComposing || event.shiftKey) {
     return
   }
   event.preventDefault()
-  uploadAndAppendImages(files)
+  sendMessage()
 }
 
 // Sender-only recall: server validates ownership, but we still gate
@@ -200,11 +224,11 @@ const handleLoadHistoryMessages = async () => {
   }
 }
 
-// Enter-to-send is bound on the input itself (@keydown.enter.prevent="sendMessage").
+// Enter-to-send is handled on the textarea (@keydown.enter="handleEnter").
 // A separate GLOBAL `window` keydown listener used to ALSO call sendMessage, so a
 // single Enter fired the input handler AND the window handler (and any extra
 // mounts duplicated it further) → 2-3 messages per send. It also sent on Enter
-// when the chat input wasn't even focused. Removed; the scoped input handler is
+// when the chat input wasn't even focused. Removed; the scoped textarea handler is
 // the single source of truth (plus the re-entry guard in sendMessage).
 onMounted(async () => {
   messages.value = await getMessageHistory()
@@ -244,18 +268,53 @@ onMounted(async () => {
     </div>
   </div>
 
-  <div class="border-t px-3 pt-3">
-    <div v-if="isUploadingImage" class="text-default-500 mb-1 text-xs">
-      图片上传中...
+  <div
+    class="border-t px-3 pt-3"
+    @paste="handlePaste"
+    @drop.prevent="handleDrop"
+    @dragover.prevent
+  >
+    <!--
+      Pending image attachments as removable thumbnail chips, shown above the
+      textarea instead of dumping a raw markdown URL into it. The dashed box is
+      the in-flight upload indicator.
+    -->
+    <div
+      v-if="pendingImages.length || isUploadingImage"
+      class="mb-2 flex flex-wrap gap-2"
+    >
+      <div
+        v-for="(img, index) in pendingImages"
+        :key="img.url"
+        class="border-default-200 relative h-16 w-16 overflow-hidden rounded-lg border"
+      >
+        <img :src="img.url" :alt="img.name" class="h-full w-full object-cover" />
+        <button
+          type="button"
+          @click="removePendingImage(index)"
+          class="bg-background/70 text-default-600 hover:text-danger absolute top-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full text-xs leading-none"
+          aria-label="移除图片"
+        >
+          ✕
+        </button>
+      </div>
+      <div
+        v-if="isUploadingImage"
+        class="border-default-200 text-default-500 flex h-16 w-16 items-center justify-center rounded-lg border border-dashed text-xs"
+      >
+        上传中...
+      </div>
     </div>
-    <div class="flex gap-2">
-      <KunInput
+
+    <div class="flex items-end gap-2">
+      <KunTextarea
         v-model="messageInput"
-        placeholder="输入消息... (可粘贴或拖拽图片)"
+        placeholder="输入消息... (可粘贴或拖拽图片, Enter 发送, Shift+Enter 换行)"
         class="flex-1"
-        @keydown.enter.prevent="sendMessage"
-        @paste="handlePaste"
-        @drop="handleDrop"
+        :auto-grow="true"
+        :rows="1"
+        max-height="160px"
+        @keydown.enter="handleEnter"
       />
       <KunButton @click="sendMessage" :loading="isSending"> 发送 </KunButton>
     </div>

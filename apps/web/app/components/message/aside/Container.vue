@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { asideItems } from './asideItemStore'
-
 const routeName = computed(() => useRoute().name)
 
 // SSR these so the aside renders with its items on first paint instead of
@@ -13,20 +11,20 @@ const { data: contactNav } = useKunFetch<ChatMessageAsideItem[]>(
   '/message/nav/contact'
 )
 
-// Re-assert the element type locally. useKunFetch's shared transform unwraps
-// every endpoint's `data`, so for TS its result widens toward `{}` — and Nuxt's
-// auto-generated useFetch types can transiently resolve it to `{}` mid-
-// regeneration, which is what flagged `system[0]`/`system[1]` as un-indexable.
-// Pinning ChatMessageAsideItem[] here makes the aside immune to that.
+// Render the chat list straight off this per-request fetch (exactly like
+// `system` below), NOT through a watch into the shared asideItems store. A
+// watch can't populate the list during SSR: on the server, watch callbacks run
+// only for the immediate tick — before the fetch resolves — and post-resolve
+// reactive changes don't fire, so the list rendered empty server-side and only
+// filled in after client hydration. Reading the fetch directly makes it SSR.
+//
+// The `as` casts pin the element type: useKunFetch's shared transform unwraps
+// every endpoint's `data`, so TS widens it toward `{}` (and Nuxt's generated
+// useFetch types can transiently resolve to `{}` mid-regeneration), which
+// otherwise flags `system[0]` / the `room` loop as un-indexable.
 const system = computed(() => systemNav.value as ChatMessageAsideItem[] | null)
-const contact = computed(() => contactNav.value as ChatMessageAsideItem[] | null)
-
-watch(
-  contact,
-  (val) => {
-    asideItems.value = val ?? []
-  },
-  { immediate: true }
+const contact = computed(
+  () => (contactNav.value as ChatMessageAsideItem[] | null) ?? []
 )
 </script>
 
@@ -62,7 +60,7 @@ watch(
     <MessageAsideWikiItem />
 
     <MessageAsideItem
-      v-for="(room, index) in asideItems"
+      v-for="(room, index) in contact"
       :key="index"
       :room="room"
     />

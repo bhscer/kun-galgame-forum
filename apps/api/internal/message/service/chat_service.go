@@ -147,13 +147,26 @@ func (s *ChatService) GetChatHistory(
 	items := make([]dto.ChatMessageItem, len(rows))
 	for i, m := range rows {
 		u := userMap[m.SenderID]
+
+		// Recalled messages must not leak their original body — the client only
+		// ever shows "<sender> 撤回了一条消息", never the content. Blank both the
+		// raw source and the rendered HTML so a recalled message's text (and any
+		// image URL) isn't served at all. (The image bytes themselves still live
+		// on the CDN — true deletion is a separate, larger change.)
+		content := m.Content
+		contentHTML := markdown.RenderInline(m.Content)
+		if m.IsRecall {
+			content = ""
+			contentHTML = ""
+		}
+
 		items[len(rows)-1-i] = dto.ChatMessageItem{
 			ID:           m.ID,
 			ChatroomName: m.ChatroomName,
 			Sender:       dto.ChatSender{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
 			ReceiverID:  m.ReceiverID,
-			Content:      m.Content,
-			ContentHtml:  markdown.RenderInline(m.Content),
+			Content:      content,
+			ContentHtml:  contentHTML,
 			IsRecall:     m.IsRecall,
 			Created:      m.Created,
 			RecallTime:   m.RecallTime,
