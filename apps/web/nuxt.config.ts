@@ -199,6 +199,14 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // Nitro's default esbuild target (es2019) rejects top-level await, which
+    // utils/sanitize.ts uses to load jsdom server-only. The prod runtime is
+    // node 24, so bump the server target to es2022 (which supports TLA).
+    esbuild: {
+      options: {
+        target: 'es2022'
+      }
+    },
     typescript: {
       tsConfig: {
         ...sharedTsConfig
