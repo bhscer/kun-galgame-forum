@@ -107,9 +107,19 @@ export default defineNuxtConfig({
   },
 
   umami: {
-    id: process.env.KUN_VISUAL_NOVEL_FORUM_UMAMI_ID,
+    // Public website-id (it ships in the client tracker tag — not a secret). The
+    // `|| '<id>'` fallback is the actual fix: kungal-web is built GENERIC (the CI
+    // matrix passes no build-args) and .env is gitignored, so at BUILD time
+    // process.env.KUN_VISUAL_NOVEL_FORUM_UMAMI_ID was undefined → nuxt-umami baked an
+    // undefined id → every /api/send 400'd. nuxt-umami reads `id` at build (a module
+    // option), not at runtime, so the default has to be a literal here.
+    id:
+      process.env.KUN_VISUAL_NOVEL_FORUM_UMAMI_ID ||
+      '2fc714ed-ed3b-459a-b52c-65f7e1621834',
     host: 'https://umami.kungal.org/',
-    autoTrack: true
+    autoTrack: true,
+    // One baked id runs in every deployment — keep local dev traffic out of prod stats.
+    ignoreLocalhost: true
   },
 
   // Frontend
