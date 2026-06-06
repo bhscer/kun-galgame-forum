@@ -67,6 +67,10 @@ func (s *CommentService) CreateComment(
 			return err
 		}
 
+		if err := recomputeTopicCounts(tx, topicID); err != nil {
+			return err
+		}
+
 		if userID != targetUserID {
 			s.helpers.AdjustMoemoepoint(tx, targetUserID, constants.RewardReply,
 				moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic_reply", replyID))
@@ -232,6 +236,10 @@ func (s *CommentService) DeleteComment(ctx context.Context, userID, role, commen
 			return err
 		}
 		if err := s.commentRepo.DeleteCommentByID(tx, commentID); err != nil {
+			return err
+		}
+
+		if err := recomputeTopicCounts(tx, comment.TopicID); err != nil {
 			return err
 		}
 

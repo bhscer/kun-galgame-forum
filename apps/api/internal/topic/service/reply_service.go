@@ -176,6 +176,10 @@ func (s *ReplyService) CreateReply(
 			return err
 		}
 
+		if err := recomputeTopicCounts(tx, req.TopicID); err != nil {
+			return err
+		}
+
 		// Collect distinct target users (minus self)
 		targetUserSet := make(map[int]bool)
 		for _, t := range validTargets {
@@ -318,6 +322,10 @@ func (s *ReplyService) DeleteReply(
 			return err
 		}
 		if err := s.replyRepo.DeleteRepliesByIDs(tx, allIDs); err != nil {
+			return err
+		}
+
+		if err := recomputeTopicCounts(tx, reply.TopicID); err != nil {
 			return err
 		}
 

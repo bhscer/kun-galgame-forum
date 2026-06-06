@@ -103,6 +103,22 @@ func createDedupMessage(tx *gorm.DB, senderID, receiverID int, msgType, content,
 	})
 }
 
+// recomputeTopicCounts refreshes the denormalized topic.reply_count and
+// topic.comment_count from the actual rows. The new BE does not otherwise
+// maintain these — the migration backfilled them once, so any reply/comment
+// activity since then drifted them (post-migration topics sat at 0; pre-
+// migration topics undercount their new replies). See migration 018x backfill.
+// Recompute (rather than +1/-1) is intentional: it stays correct through the
+// cascade delete that removes a reply plus its nested replies and their
+// comments in a single statement. Call it inside the SAME tx as the mutation.
+func recomputeTopicCounts(tx *gorm.DB, topicID int) error {
+	return tx.Exec(`
+		UPDATE topic SET
+			reply_count   = (SELECT COUNT(*) FROM topic_reply  WHERE topic_id = ?),
+			comment_count = (SELECT COUNT(*) FROM topic_comment WHERE topic_id = ?)
+		WHERE id = ?`, topicID, topicID, topicID).Error
+}
+
 // truncate trims `s` to `maxLen` runes (rune-aware, avoids splitting multibyte chars).
 func truncate(s string, maxLen int) string {
 	runes := []rune(s)
