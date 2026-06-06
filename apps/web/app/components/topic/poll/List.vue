@@ -18,6 +18,15 @@ const selectedOptions = ref<number[]>([])
 const isLoading = ref(false)
 const isLogModalOpen = ref(false)
 
+// `new Date()` (now) differs between server render and client hydration, so a
+// poll whose deadline is near "now" can flip ended/not-ended → a hydration
+// mismatch. Capture the server's `now`, ship it via the payload (useState),
+// then refresh after mount so it stays live without a mismatch.
+const nowMs = useState(`kun-poll-now-${useId()}`, () => Date.now())
+onMounted(() => {
+  nowMs.value = Date.now()
+})
+
 const isPollEnded = computed(() => {
   if (props.poll.status === 'closed') {
     return true
@@ -25,7 +34,7 @@ const isPollEnded = computed(() => {
   if (!props.poll.deadline) {
     return false
   }
-  return new Date(props.poll.deadline) < new Date()
+  return new Date(props.poll.deadline).getTime() < nowMs.value
 })
 
 const canViewResults = computed(() => {

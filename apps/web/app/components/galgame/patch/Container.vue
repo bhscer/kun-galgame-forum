@@ -15,12 +15,21 @@ const isLoading = ref(false)
 
 const fetchKunPatchResource = async (vndbId: string) => {
   isLoading.value = true
-  const data = await fetch(`https://www.moyu.moe/api/hikari?vndb_id=${vndbId}`)
-  const res = (await data.json()) as HikariResponse
-  if (res.success) {
-    resources.value = res.data ? res.data.resource : []
+  try {
+    const data = await fetch(`https://www.moyu.moe/api/hikari?vndb_id=${vndbId}`)
+    const res = (await data.json()) as HikariResponse
+    if (res.success) {
+      resources.value = res.data ? res.data.resource : []
+    }
+  } catch {
+    // moyu.moe is a different origin. If it returns no CORS header the browser
+    // blocks the request and `fetch` rejects — and because this runs in
+    // onMounted, an unhandled rejection bubbles up and trips the page-level
+    // error state ("请求 Galgame 错误"). The patch list is supplementary, so
+    // swallow the failure and render the galgame page without it.
+  } finally {
+    isLoading.value = false
   }
-  isLoading.value = false
 }
 
 onMounted(async () => {
