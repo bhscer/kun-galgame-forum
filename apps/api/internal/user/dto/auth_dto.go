@@ -92,6 +92,9 @@ type UserGalgamesRequest struct {
 	Type  string `query:"type" validate:"required"`
 	Page  int    `query:"page" validate:"min=1"`
 	Limit int    `query:"limit" validate:"min=1,max=50"`
+	// ShowNoResource: false (default) hides galgames with no download resource
+	// (the global "显示没有下载资源的 Galgame" toggle); true includes them.
+	ShowNoResource bool `query:"showNoResource"`
 }
 
 type UserTopicsRequest struct {

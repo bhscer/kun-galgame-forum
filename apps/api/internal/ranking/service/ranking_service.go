@@ -33,7 +33,7 @@ func NewRankingService(
 func (s *RankingService) GetGalgameRanking(
 	ctx context.Context, req *dto.GalgameRankingRequest, isSFW bool,
 ) []dto.GalgameRankingItem {
-	rows := s.repo.FindGalgameLocal(req.SortField, req.SortOrder, req.Page, req.Limit)
+	rows := s.repo.FindGalgameLocal(req.SortField, req.SortOrder, req.Page, req.Limit, req.ShowNoResource)
 	if len(rows) == 0 {
 		return []dto.GalgameRankingItem{}
 	}

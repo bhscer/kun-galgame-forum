@@ -29,6 +29,10 @@ type GalgameListRequest struct {
 	// rating is driven by sortField=rating.
 	MinRatingCount int     `query:"minRatingCount" validate:"omitempty,min=0"`
 	MinRating      float64 `query:"minRating" validate:"omitempty,min=0,max=10"`
+	// ShowNoResource controls whether galgames with NO download resources
+	// appear. Default false (the "显示没有下载资源的 Galgame" toggle is off) →
+	// resource-less galgames are hidden; true → include them.
+	ShowNoResource bool `query:"showNoResource"`
 }
 
 // ──────────────────────────────────────────

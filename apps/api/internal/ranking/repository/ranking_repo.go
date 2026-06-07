@@ -65,7 +65,9 @@ type UserRankingRow struct {
 // only — a rating leaderboard shouldn't list unrated titles); the other
 // fields map to galgame columns. sortField/sortOrder are validator-
 // constrained, so the column interpolation is safe.
-func (r *RankingRepository) FindGalgameLocal(sortField, sortOrder string, page, limit int) []GalgameLocalRow {
+// showNoResource=false (default) hides galgames with no download resource via an
+// EXISTS semi-join — the global "显示没有下载资源的 Galgame" toggle.
+func (r *RankingRepository) FindGalgameLocal(sortField, sortOrder string, page, limit int, showNoResource bool) []GalgameLocalRow {
 	var rows []GalgameLocalRow
 
 	if sortField == "rating" {
@@ -74,11 +76,14 @@ func (r *RankingRepository) FindGalgameLocal(sortField, sortOrder string, page, 
 		c := strconv.FormatFloat(rankingBayesianPriorC, 'f', -1, 64)
 		ms := strconv.FormatFloat(m, 'f', 6, 64)
 		bayes := "(" + c + " * " + ms + " + rt.rsum) / (" + c + " + rt.rcnt)"
-		r.db.Table("galgame g").
+		q := r.db.Table("galgame g").
 			Joins("JOIN (SELECT galgame_id, SUM(overall) AS rsum, COUNT(*) AS rcnt " +
 				"FROM galgame_rating GROUP BY galgame_id) rt ON rt.galgame_id = g.id").
-			Select("g.id, ROUND((" + bayes + ")::numeric, 2) AS value").
-			Order(bayes + " " + sortOrder).
+			Select("g.id, ROUND((" + bayes + ")::numeric, 2) AS value")
+		if !showNoResource {
+			q = q.Where("EXISTS (SELECT 1 FROM galgame_resource gr WHERE gr.galgame_id = g.id)")
+		}
+		q.Order(bayes + " " + sortOrder).
 			Offset((page - 1) * limit).
 			Limit(limit).
 			Scan(&rows)
@@ -89,9 +94,12 @@ func (r *RankingRepository) FindGalgameLocal(sortField, sortOrder string, page, 
 	if col == "" {
 		col = "view"
 	}
-	r.db.Table("galgame").
-		Select("id, "+col+" AS value").
-		Order(col + " " + sortOrder).
+	q := r.db.Table("galgame").
+		Select("id, " + col + " AS value")
+	if !showNoResource {
+		q = q.Where("EXISTS (SELECT 1 FROM galgame_resource gr WHERE gr.galgame_id = galgame.id)")
+	}
+	q.Order(col + " " + sortOrder).
 		Offset((page - 1) * limit).
 		Limit(limit).
 		Scan(&rows)

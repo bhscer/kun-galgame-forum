@@ -446,6 +446,7 @@ func (s *GalgameService) GetList(
 		ReleasedMonths:       releasedMonths,
 		MinRatingCount:       req.MinRatingCount,
 		MinRating:            req.MinRating,
+		ShowNoResource:       req.ShowNoResource,
 		Page:                 req.Page,
 		Limit:                req.Limit,
 	}

@@ -14,6 +14,9 @@ type GalgameRankingRequest struct {
 	Limit     int    `query:"limit" validate:"min=1,max=50"`
 	SortField string `query:"sortField" validate:"required,oneof=view like favorite resource rating"`
 	SortOrder string `query:"sortOrder" validate:"required,oneof=asc desc"`
+	// ShowNoResource: false (default) hides galgames with no download resource
+	// (the global "显示没有下载资源的 Galgame" toggle); true includes them.
+	ShowNoResource bool `query:"showNoResource"`
 }
 
 type TopicRankingRequest struct {

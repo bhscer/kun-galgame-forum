@@ -47,7 +47,7 @@ func (s *UserContentService) GetUserGalgameCards(
 	req *dto.UserGalgamesRequest,
 	isSFW bool,
 ) ([]dto.UserGalgameCard, int64, *errors.AppError) {
-	ids, total, err := s.userContentRepo.FindUserGalgameIDs(userID, req.Type, req.Page, req.Limit)
+	ids, total, err := s.userContentRepo.FindUserGalgameIDs(userID, req.Type, req.Page, req.Limit, req.ShowNoResource)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户 Galgame 列表失败")
 	}

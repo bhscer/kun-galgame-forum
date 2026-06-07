@@ -2,8 +2,15 @@
 import { galgameSortItem } from '~/constants/ranking'
 import { galgameRankingPageData, getRankClasses } from './pageData'
 
+// Global "显示没有下载资源的 Galgame" preference (cookie-persisted, SSR-safe).
+// Off (default) hides resource-less galgames. A computed query keeps page/sort
+// reactive AND re-fetches when the toggle changes.
+const settings = usePersistSettingsStore()
 const { data } = await useKunFetch<RankingGalgameItem[]>('/ranking/galgame', {
-  query: galgameRankingPageData
+  query: computed(() => ({
+    ...galgameRankingPageData,
+    showNoResource: settings.showKUNGalgameNoResource
+  }))
 })
 </script>
 

@@ -61,6 +61,10 @@ const {
   isOpenInNewTab
 } = storeToRefs(usePersistGalgameCardStore())
 
+// Global "显示没有下载资源的 Galgame" (cookie-persisted, applies to all local
+// galgame lists, not just /galgame). Bound to the 显示设置 switch below.
+const { showKUNGalgameNoResource } = storeToRefs(usePersistSettingsStore())
+
 watch(
   () => [
     type.value,
@@ -73,7 +77,8 @@ watch(
     includeProviders.value,
     excludeOnlyProviders.value,
     minRatingCount.value,
-    minRating.value
+    minRating.value,
+    showKUNGalgameNoResource.value
   ],
   () => {
     page.value = 1
@@ -553,6 +558,10 @@ const resetFilters = () => {
         <KunSwitch v-model="showPublisher" label="底部发布者与时间" />
         <KunSwitch v-model="showJapaneseName" label="中文名下显示日语名" />
         <KunSwitch v-model="isOpenInNewTab" label="在新页面打开卡片" />
+        <KunSwitch
+          v-model="showKUNGalgameNoResource"
+          label="显示没有下载资源的 Galgame"
+        />
       </div>
     </div>
   </div>

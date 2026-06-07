@@ -23,7 +23,7 @@ func (r *UserContentRepository) DB() *gorm.DB { return r.db }
 // Galgame IDs
 // ──────────────────────────────────────────
 
-func (r *UserContentRepository) FindUserGalgameIDs(userID int, queryType string, page, limit int) ([]int, int64, error) {
+func (r *UserContentRepository) FindUserGalgameIDs(userID int, queryType string, page, limit int, showNoResource bool) ([]int, int64, error) {
 	offset := (page - 1) * limit
 	var total int64
 
@@ -57,6 +57,12 @@ func (r *UserContentRepository) FindUserGalgameIDs(userID int, queryType string,
 			Group("galgame.id")
 	default:
 		return []int{}, 0, nil
+	}
+
+	// Hide galgames with no download resource unless the global
+	// "显示没有下载资源的 Galgame" toggle is on.
+	if !showNoResource {
+		baseQuery = baseQuery.Where("EXISTS (SELECT 1 FROM galgame_resource gr WHERE gr.galgame_id = galgame.id)")
 	}
 
 	if err := baseQuery.Count(&total).Error; err != nil {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
+
 // Filters are URL-backed (useGalgameFilters / useRouteQuery). The refs
 // double as the fetch query — URL key === BE query key, so no remapping.
 // useKunFetch watches the query refs, so a chip toggle (which writes the
@@ -20,6 +22,11 @@ const {
   minRating
 } = useGalgameFilters()
 
+// Global "显示没有下载资源的 Galgame" preference (cookie-persisted settings
+// store, SSR-safe). Off (default) hides resource-less galgames. Passed in the
+// query so toggling it re-fetches.
+const { showKUNGalgameNoResource } = storeToRefs(usePersistSettingsStore())
+
 const { data, status } = await useKunFetch<{
   galgames: GalgameCard[]
   total: number
@@ -39,7 +46,8 @@ const { data, status } = await useKunFetch<{
     includeProviders,
     excludeOnlyProviders,
     minRatingCount,
-    minRating
+    minRating,
+    showNoResource: showKUNGalgameNoResource
   }
 })
 </script>

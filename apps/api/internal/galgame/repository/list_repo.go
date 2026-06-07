@@ -43,8 +43,11 @@ var allProviders = []string{
 }
 
 // ListIDs returns galgame IDs matching the given filter, paginated and sorted.
-// If hasResourceFilter (returned by HasResourceFilter) is true, a JOIN against
-// galgame_resource is used; otherwise a simple galgame-only scan.
+// If hasResourceFilter(f) is true, a JOIN against galgame_resource applies the
+// resource-derived filters (and inherently keeps only galgames with a resource).
+// Otherwise a simple galgame-only scan — which STILL hides galgames that have no
+// download resource via an EXISTS sub-select, unless f.ShowNoResource is set
+// (the "显示没有下载资源的 Galgame" toggle, default off).
 func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, total int64) {
 	sortCol := "g.resource_update_time"
 	switch f.SortField {
@@ -95,6 +98,12 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 			q = applyReleaseFilter(q, f)
 			if ratingFilter {
 				q = applyRatingFilter(q, f, bayes)
+			}
+			// Hide galgames with no download resource unless the caller opted in
+			// (ShowNoResource). A semi-join EXISTS keeps the plain scan's
+			// pagination/order — cheaper than the JOIN+GROUP BY branch below.
+			if !f.ShowNoResource {
+				q = q.Where("EXISTS (SELECT 1 FROM galgame_resource gr WHERE gr.galgame_id = g.id)")
 			}
 			return q
 		}

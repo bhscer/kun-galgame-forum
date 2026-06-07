@@ -27,6 +27,11 @@ type GalgameListFilter struct {
 	// Zero = filter inactive. Rating SORT is driven by SortField=="rating".
 	MinRatingCount int
 	MinRating      float64
+	// ShowNoResource: when false (default — the "显示没有下载资源的 Galgame"
+	// toggle is off), the list is restricted to galgames that have at least
+	// one download resource (via the galgame_resource JOIN); when true,
+	// resource-less galgames are included too.
+	ShowNoResource bool
 	Page           int
 	Limit          int
 }

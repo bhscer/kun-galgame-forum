@@ -52,12 +52,24 @@ interface UserGalgameCommentItem {
 // Two parallel fetches gated by `isCommentMode`. We swap the endpoint
 // (and the result shape) instead of branching client-side on a single
 // union response — keeps the wire payload tight and the typing clean.
+// Global "显示没有下载资源的 Galgame" preference (cookie-persisted, SSR-safe).
+// Off (default) hides resource-less galgames; added to the query + watch so a
+// toggle re-fetches. (Comment-mode fetch below is unaffected — it lists
+// comments, not galgame cards.)
+const settings = usePersistSettingsStore()
 const { data: galgameData, status: galgameStatus } = await useKunFetch<{
   items: GalgameCard[]
   total: number
 }>(() => `/user/${props.userId}/galgames`, {
-  query: pageData,
-  watch: [() => pageData.page, () => pageData.type],
+  query: computed(() => ({
+    ...pageData,
+    showNoResource: settings.showKUNGalgameNoResource
+  })),
+  watch: [
+    () => pageData.page,
+    () => pageData.type,
+    () => settings.showKUNGalgameNoResource
+  ],
   immediate: !isCommentMode.value,
   server: !isCommentMode.value
 })
