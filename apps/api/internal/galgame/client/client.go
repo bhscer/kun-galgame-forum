@@ -196,6 +196,41 @@ func (c *GalgameClient) GetUserStats(ctx context.Context, userID int) (*WikiUser
 	return &stats, nil
 }
 
+// WikiUserGalgames is the paginated published-galgame list for a user.
+type WikiUserGalgames struct {
+	Galgames []GalgameBrief `json:"galgames"`
+	Total    int64          `json:"total"`
+}
+
+// GetUserGalgames fetches a user's PUBLISHED galgames (briefs, newest first,
+// paginated) from the wiki — the source for the profile "已发布 Galgame" tab.
+// kungal's local galgame mirror has no user_id (ownership is wiki-managed after
+// the OAuth migration), so this wiki endpoint is the only way to answer "what
+// has this user published". NSFW gating is done server-side by the wiki.
+//
+//	isSFW=true  → content_limit=sfw  (drop NSFW server-side)
+//	isSFW=false → content_limit=all
+func (c *GalgameClient) GetUserGalgames(ctx context.Context, userID, page, limit int, isSFW bool) ([]GalgameBrief, int64, *errors.AppError) {
+	contentLimit := "all"
+	if isSFW {
+		contentLimit = "sfw"
+	}
+	query := url.Values{
+		"page":          {strconv.Itoa(page)},
+		"limit":         {strconv.Itoa(limit)},
+		"content_limit": {contentLimit},
+	}
+	data, appErr := c.Get(ctx, fmt.Sprintf("/galgame/user/%d/galgames", userID), query)
+	if appErr != nil {
+		return nil, 0, appErr
+	}
+	var resp WikiUserGalgames
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, 0, errors.ErrInternal("解析 Wiki 用户 Galgame 列表失败")
+	}
+	return resp.Galgames, resp.Total, nil
+}
+
 // WikiAdminStats is the admin stats response from wiki service.
 type WikiAdminStats struct {
 	Totals map[string]int64   `json:"totals"`

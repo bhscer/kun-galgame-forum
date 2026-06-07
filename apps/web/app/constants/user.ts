@@ -35,6 +35,7 @@ export const GALGAME_NAV_CONFIG: Record<
   (typeof KUN_USER_PAGE_GALGAME_TYPE)[number],
   _NavItemData
 > = {
+  galgame_publish: { text: '已发布', path: 'galgame-publish' },
   galgame_like: { text: '已点赞', path: 'galgame-like' },
   galgame_favorite: { text: '已收藏', path: 'galgame-favorite' },
   galgame_comment: { text: '评论', path: 'galgame-comment' },
@@ -130,6 +131,7 @@ export const KUN_USER_PAGE_COMMENT_TYPE = [
 ] as const
 
 export const KUN_USER_PAGE_GALGAME_TYPE = [
+  'galgame_publish',
   'galgame_like',
   'galgame_favorite',
   'galgame_comment',

@@ -47,6 +47,19 @@ func (s *UserContentService) GetUserGalgameCards(
 	req *dto.UserGalgamesRequest,
 	isSFW bool,
 ) ([]dto.UserGalgameCard, int64, *errors.AppError) {
+	// "已发布" (galgame_publish): ownership lives in the wiki — kungal's local
+	// galgame mirror has no user_id after the OAuth migration — so the list
+	// comes straight from the wiki endpoint (already ordered, paginated and
+	// NSFW-filtered there). Other types (like / favorite / comment) still join
+	// local relation tables for the IDs, then enrich via the wiki batch.
+	if req.Type == "galgame_publish" {
+		briefs, total, wikiErr := s.wikiClient.GetUserGalgames(ctx, userID, req.Page, req.Limit, isSFW)
+		if wikiErr != nil {
+			return []dto.UserGalgameCard{}, 0, nil
+		}
+		return s.buildGalgameCards(ctx, briefs), total, nil
+	}
+
 	ids, total, err := s.userContentRepo.FindUserGalgameIDs(userID, req.Type, req.Page, req.Limit, req.ShowNoResource)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户 Galgame 列表失败")
@@ -61,20 +74,43 @@ func (s *UserContentService) GetUserGalgameCards(
 		return []dto.UserGalgameCard{}, total, nil
 	}
 
+	// Preserve the local ordering (FindUserGalgameIDs returns newest-first);
+	// drop IDs the wiki filtered out (NSFW miss / deleted).
+	briefs := make([]galgameClient.GalgameBrief, 0, len(ids))
+	for _, id := range ids {
+		if b, ok := briefMap[id]; ok {
+			briefs = append(briefs, b)
+		}
+	}
+	return s.buildGalgameCards(ctx, briefs), total, nil
+}
+
+// buildGalgameCards turns an ORDERED slice of wiki briefs into profile cards,
+// fusing in kungal-local stats (view / like), resource meta (platform /
+// language) and author identity. Shared by every galgame tab so the card shape
+// stays identical across 已发布 / 点赞 / 收藏 / 评论.
+func (s *UserContentService) buildGalgameCards(
+	ctx context.Context,
+	briefs []galgameClient.GalgameBrief,
+) []dto.UserGalgameCard {
+	if len(briefs) == 0 {
+		return []dto.UserGalgameCard{}
+	}
+
+	ids := make([]int, len(briefs))
+	for i, b := range briefs {
+		ids[i] = b.ID
+	}
 	localMap := s.userContentRepo.FindGalgameLocalStats(ids)
 	metaRows := s.userContentRepo.FindResourceMetaByGalgameIDs(ids)
 	platformMap, languageMap := groupResourceMeta(metaRows)
 
-	userIDs := collectUniqueIDs(values(briefMap), func(b galgameClient.GalgameBrief) int { return b.UserID })
+	userIDs := collectUniqueIDs(briefs, func(b galgameClient.GalgameBrief) int { return b.UserID })
 	userMap := s.userClient.Hydrate(ctx, userIDs)
 
-	cards := make([]dto.UserGalgameCard, 0, len(ids))
-	for _, id := range ids {
-		b, ok := briefMap[id]
-		if !ok {
-			continue
-		}
-		l := localMap[id]
+	cards := make([]dto.UserGalgameCard, 0, len(briefs))
+	for _, b := range briefs {
+		l := localMap[b.ID]
 		u := userMap[b.UserID]
 		cards = append(cards, dto.UserGalgameCard{
 			ID:                 b.ID,
@@ -85,8 +121,8 @@ func (s *UserContentService) GetUserGalgameCards(
 			View:               l.View,
 			LikeCount:          l.LikeCount,
 			ResourceUpdateTime: b.ResourceUpdateTime,
-			Platform:           emptyStrSlice(platformMap[id]),
-			Language:           emptyStrSlice(languageMap[id]),
+			Platform:           emptyStrSlice(platformMap[b.ID]),
+			Language:           emptyStrSlice(languageMap[b.ID]),
 			ReleaseDate:        b.ReleaseDate,
 			ReleaseDateTBA:     b.ReleaseDateTBA,
 			// U2: pass through the wiki-derived banner so the FE card
@@ -96,16 +132,7 @@ func (s *UserContentService) GetUserGalgameCards(
 			EffectiveBannerURL:  b.EffectiveBannerURL,
 		})
 	}
-	return cards, total, nil
-}
-
-// values is a tiny helper that extracts map values into a slice.
-func values[K comparable, V any](m map[K]V) []V {
-	out := make([]V, 0, len(m))
-	for _, v := range m {
-		out = append(out, v)
-	}
-	return out
+	return cards
 }
 
 // ──────────────────────────────────────────
