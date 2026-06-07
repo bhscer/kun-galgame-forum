@@ -92,6 +92,9 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 	if !hasResourceFilter(f) {
 		build := func() *gorm.DB {
 			q := r.db.Table("galgame g")
+			if len(f.RestrictIDs) > 0 {
+				q = q.Where("g.id IN ?", f.RestrictIDs)
+			}
 			if ratingSort || ratingFilter {
 				q = q.Joins(ratingAggJoin)
 			}
@@ -127,6 +130,9 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 	inner := r.db.Table("galgame g").
 		Select("DISTINCT g.id").
 		Joins("JOIN galgame_resource gr ON gr.galgame_id = g.id")
+	if len(f.RestrictIDs) > 0 {
+		inner = inner.Where("g.id IN ?", f.RestrictIDs)
+	}
 	if ratingFilter {
 		inner = inner.Joins(ratingAggJoin)
 	}

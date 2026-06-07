@@ -32,8 +32,13 @@ type GalgameListFilter struct {
 	// one download resource (via the galgame_resource JOIN); when true,
 	// resource-less galgames are included too.
 	ShowNoResource bool
-	Page           int
-	Limit          int
+	// RestrictIDs, when non-empty, scopes the whole list to this id set
+	// (g.id IN (…)). Used by the wiki-entity detail pages (tag/official/engine):
+	// the wiki supplies the entity's member galgame ids, then the SAME local
+	// filter/sort/paginate runs over them. Empty = the global /galgame list.
+	RestrictIDs []int
+	Page        int
+	Limit       int
 }
 
 // GalgameResourceMeta holds a platform/language tuple from galgame_resource,

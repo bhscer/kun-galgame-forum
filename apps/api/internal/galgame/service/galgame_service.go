@@ -455,6 +455,20 @@ func (s *GalgameService) GetList(
 		Limit:                req.Limit,
 	}
 
+	return s.hydrateListCards(ctx, filter, isSFW)
+}
+
+// hydrateListCards runs the shared "filter → ids → hydrate → cards" flow used by
+// BOTH the global /galgame list AND the wiki-entity detail pages (tag/official/
+// engine, which set filter.RestrictIDs = the wiki member ids). All filtering /
+// sorting / pagination is local (list_repo over galgame_resource); hydration
+// pulls wiki metadata + OAuth users + local stats/ratings/resource-meta. Keeping
+// this in one place is why the entity pages add zero duplicated filter logic.
+func (s *GalgameService) hydrateListCards(
+	ctx context.Context,
+	filter model.GalgameListFilter,
+	isSFW bool,
+) (*dto.GalgameListPage, *errors.AppError) {
 	ids, total := s.listRepo.ListIDs(filter)
 	if len(ids) == 0 {
 		return &dto.GalgameListPage{Galgames: []dto.GalgameListCard{}, Total: total}, nil
