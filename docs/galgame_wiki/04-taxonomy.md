@@ -46,6 +46,14 @@
 
 **查询参数**：`page`, `limit`, `tag_ids`（数组）
 
+### GET /tag/:id/galgame-ids
+
+返回某标签下所有 galgame 的 id 列表（下游按标签拉取 / 筛选用）。`official` / `engine` 同款：`GET /official/:id/galgame-ids`、`GET /engine/:id/galgame-ids`。
+
+**路径参数**：`:id`（tag id）
+
+**成功响应**：`{ "code": 0, "message": "...", "data": { "ids": [101, 102, ...] } }`（无匹配时 `ids: []`）。
+
 ### GET /tag/:name
 
 标签详情 + 关联的 galgame 列表。
@@ -156,6 +164,10 @@
 | sort_order | string | 否 | `asc` / `desc` |
 | content_limit | string | 否 | `sfw` / `nsfw`，只返回对应分级 galgame，`total` 同步反映过滤后数量 |
 
+### GET /official/:id/galgame-ids
+
+返回某开发商下所有 galgame 的 id 列表（下游按开发商拉取 / 筛选用）。`:id` = official id。成功响应 `{ "code": 0, "message": "...", "data": { "ids": [...] } }`（无匹配时 `ids: []`）。
+
 ### PUT /official
 
 更新。**需要认证（admin/moderator）**。
@@ -220,6 +232,10 @@
 | page | int | 否 | 页码 |
 | limit | int | 否 | 每页数量 |
 | content_limit | string | 否 | `sfw` / `nsfw`，只返回对应分级 galgame，`total` 同步反映过滤后数量 |
+
+### GET /engine/:id/galgame-ids
+
+返回某引擎下所有 galgame 的 id 列表（下游按引擎拉取 / 筛选用）。`:id` = engine id。成功响应 `{ "code": 0, "message": "...", "data": { "ids": [...] } }`（无匹配时 `ids: []`）。
 
 ### PUT /engine
 
