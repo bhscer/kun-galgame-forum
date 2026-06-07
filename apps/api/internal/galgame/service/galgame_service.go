@@ -482,9 +482,12 @@ func (s *GalgameService) hydrateListCards(
 	// drops NSFW briefs in SFW mode; an exact total requires the public
 	// list to source from wiki's /galgame, not kungal's local stats —
 	// out of scope here.
-	briefMap, _ := s.wikiClient.GetBatchPublic(ctx, ids, isSFW)
-	if briefMap == nil {
-		briefMap = map[int]client.GalgameBrief{}
+	briefMap, appErr := s.wikiClient.GetBatchPublic(ctx, ids, isSFW)
+	if appErr != nil {
+		// Wiki batch unreachable/errored: returning empty cards with a non-zero
+		// total reads as "results exist but none rendered". Surface the error
+		// instead of silently degrading to a blank-but-paginated list.
+		return nil, appErr
 	}
 
 	// Users (from wiki briefs) — hydrated from OAuth.

@@ -15,6 +15,12 @@ const engineId = computed(() => {
 const { page, limit, type, language, platform, sortField, sortOrder } =
   useGalgameFilters()
 
+const { showKUNGalgameContentLimit } = storeToRefs(usePersistSettingsStore())
+// SFW mode mirrors the server's IsSFW (cookie showKUNGalgameContentLimit !==
+// 'nsfw'): in this mode the wiki drops NSFW briefs, so this entity's NSFW
+// galgames are hidden and the count can read higher than the cards shown.
+const isSfwMode = computed(() => showKUNGalgameContentLimit.value !== 'nsfw')
+
 const showEngineModal = ref(false)
 const editingEngine = ref<UpdateGalgameEnginePayload>(
   {} as UpdateGalgameEnginePayload
@@ -168,6 +174,13 @@ if (data.value) {
     </KunHeader>
 
     <GalgameCardNav :show-advanced="false" />
+
+    <KunInfo
+      v-if="isSfwMode"
+      color="warning"
+      title="部分 Galgame 已隐藏"
+      description="当前为 SFW 模式，该分类下含 NSFW 内容的 Galgame 不会显示，统计数量也可能因此偏多。如需查看，请在设置面板开启 NSFW 开关。"
+    />
 
     <GalgameEngineModal
       v-model="showEngineModal"

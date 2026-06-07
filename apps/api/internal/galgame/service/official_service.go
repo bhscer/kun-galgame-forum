@@ -150,7 +150,12 @@ func (s *OfficialService) GetDetail(
 	rawQuery url.Values,
 	isSFW bool,
 ) (*dto.OfficialDetail, *errors.AppError) {
-	data, appErr := s.wikiClient.Get(ctx, "/official/"+name, withSFWFilter(rawQuery, isSFW))
+	// Only the entity metadata is used here; the galgame list is recomputed
+	// locally below, so fetch the cheapest possible page from the wiki.
+	q := withSFWFilter(rawQuery, isSFW)
+	q.Set("page", "1")
+	q.Set("limit", "1")
+	data, appErr := s.wikiClient.Get(ctx, "/official/"+name, q)
 	if appErr != nil {
 		return nil, appErr
 	}
