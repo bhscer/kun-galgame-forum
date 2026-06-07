@@ -204,7 +204,9 @@ func (s *ActivityService) enrichGalgameItems(
 	}
 
 	briefName := func(b galgameClient.GalgameBrief) string {
-		for _, n := range []string{b.NameZhCn, b.NameJaJp, b.NameEnUs, b.NameZhTw} {
+		// zh-cn > zh-tw > ja-jp > en-us — the FE getPreferredLanguageText zh-cn
+		// default; en-US (VNDB romaji) last so a JP/CN game never shows it.
+		for _, n := range []string{b.NameZhCn, b.NameZhTw, b.NameJaJp, b.NameEnUs} {
 			if n != "" {
 				return n
 			}

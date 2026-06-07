@@ -94,10 +94,12 @@ func (h *RSSHandler) GetGalgameRSS(c *fiber.Ctx) error {
 	return response.OK(c, items)
 }
 
-// pickPreferredName mirrors the legacy getPreferredLanguageText fallback chain:
-// zh-cn > en-us > ja-jp > zh-tw. Returns the first non-empty entry.
+// pickPreferredName mirrors the FE getPreferredLanguageText zh-cn default
+// fallback chain: zh-cn > zh-tw > ja-jp > en-us. Returns the first non-empty
+// entry. en-US (usually the VNDB romaji title) is LAST so a JP/CN-titled game
+// never surfaces its VNDB English name when a Chinese/Japanese name exists.
 func pickPreferredName(b galgameClient.GalgameBrief) string {
-	candidates := []string{b.NameZhCn, b.NameEnUs, b.NameJaJp, b.NameZhTw}
+	candidates := []string{b.NameZhCn, b.NameZhTw, b.NameJaJp, b.NameEnUs}
 	for _, n := range candidates {
 		if n != "" {
 			return n

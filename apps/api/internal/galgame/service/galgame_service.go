@@ -227,10 +227,14 @@ func (s *GalgameService) ToggleFavorite(ctx context.Context, userID, galgameID i
 }
 
 // fetchOwnerAndName reads the galgame's owner user_id AND a display name from
-// wiki in ONE request (0 / "" on any failure). The name (preferring zh-CN, then
-// en-US / ja-JP / zh-TW) becomes the notification content preview so a
-// favorite/like notice shows WHICH galgame instead of a blank line — see the
-// CreateGalgameMessageWithContent callers below.
+// wiki in ONE request (0 / "" on any failure). The name becomes the notification
+// content preview so a favorite/like notice shows WHICH galgame instead of a
+// blank line — see the CreateGalgameMessageWithContent callers below.
+//
+// Fallback order zh-CN → zh-TW → ja-JP → en-US mirrors the FE's
+// getPreferredLanguageText zh-cn default. en-US (usually the VNDB romaji title)
+// is LAST on purpose: a JP/CN-titled game must never surface its VNDB English
+// name when a Chinese or Japanese name exists.
 func (s *GalgameService) fetchOwnerAndName(ctx context.Context, galgameID int) (int, string) {
 	data, err := s.wikiClient.Get(ctx, fmt.Sprintf("/galgame/%d", galgameID), nil)
 	if err != nil {
@@ -247,7 +251,7 @@ func (s *GalgameService) fetchOwnerAndName(ctx context.Context, galgameID int) (
 	}
 	_ = json.Unmarshal(data, &env)
 	g := env.Galgame
-	name := firstNonEmpty(g.NameZhCn, g.NameEnUs, g.NameJaJp, g.NameZhTw)
+	name := firstNonEmpty(g.NameZhCn, g.NameZhTw, g.NameJaJp, g.NameEnUs)
 	return g.UserID, truncate(name, constants.TextPreviewLength)
 }
 
