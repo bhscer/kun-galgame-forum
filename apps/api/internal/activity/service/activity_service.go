@@ -76,7 +76,7 @@ func (s *ActivityService) computeActivity(ctx context.Context, typeStr string, p
 		return &Result{Items: []dto.ActivityItem{}, Total: 0}, nil
 	}
 
-	rows, total, err := s.repo.FetchSingleSource(src, page, limit)
+	rows, total, err := s.repo.FetchSingleSource(src, page, limit, isSFW)
 	if err != nil {
 		return nil, errors.ErrInternal("查询活动数据失败")
 	}
@@ -119,7 +119,7 @@ func (s *ActivityService) cacheResult(ctx context.Context, key string, result *R
 
 // GetTimeline returns a mixed activity timeline across all sources.
 func (s *ActivityService) GetTimeline(ctx context.Context, page, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
-	rows, total, err := s.repo.FetchTimeline(page, limit)
+	rows, total, err := s.repo.FetchTimeline(page, limit, isSFW)
 	if err != nil {
 		return nil, errors.ErrInternal("查询活动列表失败")
 	}

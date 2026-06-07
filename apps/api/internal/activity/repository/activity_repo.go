@@ -31,6 +31,12 @@ func NewActivityRepository(db *gorm.DB) *ActivityRepository {
 type ActivitySource struct {
 	TypeStr string
 	Query   string
+	// SFWWhere, when non-empty, is a predicate on the source's base table `t`
+	// appended as a fresh WHERE for SFW viewers only — hides r18 entities (e.g.
+	// r18 galgame websites) from the default feed, mirroring the list endpoints'
+	// sfwScope. Only set it on sources whose Query has NO base WHERE (it is
+	// appended as `WHERE`, not `AND`).
+	SFWWhere string
 }
 
 // Sources is the map of activity type → SQL source.
@@ -121,17 +127,28 @@ var Sources = map[string]ActivitySource{
 	// GALGAME_PR_CREATION removed: galgame_pr table moved to wiki service
 	"GALGAME_WEBSITE_CREATION": {
 		TypeStr: "GALGAME_WEBSITE_CREATION",
+		// Link key is the website's url (a bare domain), NOT its numeric id: the
+		// FE route is /website/:domain and the API resolves it via `WHERE url = ?`
+		// (website_repo.FindByDomain). Linking by t.id sent every click to a
+		// non-existent /website/<id> → "跳转不过去".
 		Query: `SELECT 'GALGAME_WEBSITE_CREATION' AS type_str, t.id,
 			t.name AS content,
-			'/website/' || t.id AS link, t.created, t.user_id, 0 AS galgame_id
+			'/website/' || t.url AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM galgame_website t`,
+		// SFW viewers don't see r18 websites' activity (mirrors website-list sfwScope).
+		SFWWhere: "t.age_limit = 'all'",
 	},
 	"GALGAME_WEBSITE_COMMENT_CREATION": {
 		TypeStr: "GALGAME_WEBSITE_COMMENT_CREATION",
+		// Same /website/:domain key as above — resolve the parent website's url
+		// from website_id (COALESCE to '' if the website was deleted).
 		Query: `SELECT 'GALGAME_WEBSITE_COMMENT_CREATION' AS type_str, t.id,
 			SUBSTRING(t.content, 1, 100) AS content,
-			'/website/' || t.website_id AS link, t.created, t.user_id, 0 AS galgame_id
+			'/website/' || COALESCE((SELECT w.url FROM galgame_website w WHERE w.id = t.website_id), '') AS link,
+			t.created, t.user_id, 0 AS galgame_id
 			FROM galgame_website_comment t`,
+		// Hide comments on r18 websites from SFW viewers.
+		SFWWhere: "EXISTS (SELECT 1 FROM galgame_website w WHERE w.id = t.website_id AND w.age_limit = 'all')",
 	},
 	"TOOLSET_CREATION": {
 		TypeStr: "TOOLSET_CREATION",
@@ -231,8 +248,9 @@ func (r *ActivityRepository) GalgameIDsWithResources(ids []int) map[int]bool {
 
 // FetchSingleSource runs a single activity source with pagination and count.
 // Identity is hydrated at the service layer via userclient.
-func (r *ActivityRepository) FetchSingleSource(src ActivitySource, page, limit int) ([]ActivityRow, int64, error) {
-	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS sub`, src.Query)
+func (r *ActivityRepository) FetchSingleSource(src ActivitySource, page, limit int, isSFW bool) ([]ActivityRow, int64, error) {
+	query := sourceQuery(src, isSFW)
+	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS sub`, query)
 	var total int64
 	if err := r.db.Raw(countSQL).Scan(&total).Error; err != nil {
 		return nil, 0, err
@@ -243,7 +261,7 @@ func (r *ActivityRepository) FetchSingleSource(src ActivitySource, page, limit i
 		FROM (%s) AS sub
 		ORDER BY sub.created DESC
 		LIMIT %d OFFSET %d`,
-		src.Query, limit, (page-1)*limit,
+		query, limit, (page-1)*limit,
 	)
 	var rows []ActivityRow
 	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
@@ -255,14 +273,14 @@ func (r *ActivityRepository) FetchSingleSource(src ActivitySource, page, limit i
 // FetchTimeline runs a single UNION ALL query across all source tables,
 // letting PostgreSQL handle sort and pagination in one pass. Identity is
 // hydrated at the service layer via userclient.
-func (r *ActivityRepository) FetchTimeline(page, limit int) ([]ActivityRow, int64, error) {
+func (r *ActivityRepository) FetchTimeline(page, limit int, isSFW bool) ([]ActivityRow, int64, error) {
 	// Exact total over the UNLIMITED union for pagination (the /activity page
 	// renders ceil(total/limit) page count). COUNT(*) lets Postgres prune each
 	// branch's target list to a bare row count — message's `WHERE type = ...`
 	// rides idx_message_type_created, the rest are small tables — so this stays
 	// cheap even though it spans every source.
 	var total int64
-	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS u`, buildUnionAll())
+	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS u`, buildUnionAll(isSFW))
 	if err := r.db.Raw(countSQL).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -281,7 +299,7 @@ func (r *ActivityRepository) FetchTimeline(page, limit int) ([]ActivityRow, int6
 		FROM (%s) AS u
 		ORDER BY u.created DESC
 		LIMIT %d OFFSET %d`,
-		buildLimitedUnionAll(perSource), limit, offset,
+		buildLimitedUnionAll(perSource, isSFW), limit, offset,
 	)
 	var rows []ActivityRow
 	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
@@ -290,12 +308,21 @@ func (r *ActivityRepository) FetchTimeline(page, limit int) ([]ActivityRow, int6
 	return rows, total, nil
 }
 
+// sourceQuery returns src.Query, appending the SFW predicate (as a fresh WHERE)
+// for SFW viewers when the source defines one. See ActivitySource.SFWWhere.
+func sourceQuery(src ActivitySource, isSFW bool) string {
+	if isSFW && src.SFWWhere != "" {
+		return src.Query + " WHERE " + src.SFWWhere
+	}
+	return src.Query
+}
+
 // buildUnionAll joins all source queries with UNION ALL (no per-source limit).
 // Used only for the exact COUNT(*) over the full activity set.
-func buildUnionAll() string {
+func buildUnionAll(isSFW bool) string {
 	parts := make([]string, 0, len(Sources))
 	for _, src := range Sources {
-		parts = append(parts, "("+src.Query+")")
+		parts = append(parts, "("+sourceQuery(src, isSFW)+")")
 	}
 	return strings.Join(parts, " UNION ALL ")
 }
@@ -307,10 +334,10 @@ func buildUnionAll() string {
 // MUST be >= the page's offset+limit (see FetchTimeline) for the page to be
 // exact. Parenthesising each operand keeps the per-branch ORDER BY/LIMIT local
 // to that SELECT (not applied to the whole UNION).
-func buildLimitedUnionAll(perSource int) string {
+func buildLimitedUnionAll(perSource int, isSFW bool) string {
 	parts := make([]string, 0, len(Sources))
 	for _, src := range Sources {
-		parts = append(parts, fmt.Sprintf("(%s ORDER BY t.created DESC LIMIT %d)", src.Query, perSource))
+		parts = append(parts, fmt.Sprintf("(%s ORDER BY t.created DESC LIMIT %d)", sourceQuery(src, isSFW), perSource))
 	}
 	return strings.Join(parts, " UNION ALL ")
 }
