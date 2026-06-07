@@ -477,6 +477,53 @@ func (c *GalgameClient) MessagesFeed(ctx context.Context, sinceID int64, limit i
 	return &feed, nil
 }
 
+// WikiRevision matches one item in /galgame/revisions/recent — a merged
+// (edit-landed) galgame revision. UserID is the editor (correct actor).
+type WikiRevision struct {
+	ID        int64  `json:"id"`
+	GalgameID int    `json:"galgame_id"`
+	UserID    int    `json:"user_id"`
+	Action    string `json:"action"`
+	Created   string `json:"created"`
+}
+
+// WikiRevisionFeed is the envelope returned by /galgame/revisions/recent.
+type WikiRevisionFeed struct {
+	Items   []WikiRevision `json:"items"`
+	HasMore bool           `json:"has_more"`
+}
+
+// RecentRevisions pulls a batch of merged-revision (edit) events using OAuth
+// Client Basic Auth — the wiki-revision sync cron's source for mirroring galgame
+// edits into the local activity timeline. Returns ErrInternal if the client
+// wasn't constructed with NewGalgameClientWithBasicAuth.
+func (c *GalgameClient) RecentRevisions(ctx context.Context, sinceID int64, limit int) (*WikiRevisionFeed, *errors.AppError) {
+	if c.basicAuth == "" {
+		return nil, errors.ErrInternal("wiki client 未配置 Basic Auth 凭证")
+	}
+	if limit <= 0 {
+		limit = 1000
+	}
+
+	reqURL := c.baseURL + "/galgame/revisions/recent?since_id=" +
+		strconv.FormatInt(sinceID, 10) + "&limit=" + strconv.Itoa(limit)
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
+	if err != nil {
+		return nil, errors.ErrInternal("创建请求失败")
+	}
+	req.Header.Set("Authorization", c.basicAuth)
+
+	data, appErr := c.doRequest(req)
+	if appErr != nil {
+		return nil, appErr
+	}
+	var feed WikiRevisionFeed
+	if err := json.Unmarshal(data, &feed); err != nil {
+		return nil, errors.ErrInternal("解析 wiki 修订 feed 失败")
+	}
+	return &feed, nil
+}
+
 // bodySnippet trims an upstream body for safe logging / error context.
 // Wiki errors are tiny JSON; a misconfigured upstream may return a large
 // HTML page, so cap it.

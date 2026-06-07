@@ -260,6 +260,9 @@ func New(cfg *config.Config) *App {
 	galgameMessageRepo := galgameRepo.NewWikiMessageRepository(db)
 	galgameMessageSvc := galgameService.NewWikiMessageService(gc, galgameMessageRepo)
 	galgameMessageSync := galgameService.NewWikiMessageSync(gc, galgameLocalRepo, userStateRepo, rdb)
+	// Mirrors wiki merged-revision (edit) events into galgame_activity so the
+	// forum activity timeline can show galgame edits (see migration 021).
+	galgameRevisionSync := galgameService.NewWikiRevisionSync(gc, db, rdb)
 
 	// Website
 	websiteRepository := websiteRepo.NewWebsiteRepository(db)
@@ -349,7 +352,7 @@ func New(cfg *config.Config) *App {
 		ToolsetCommentHandler:      toolsetHandler.NewCommentHandler(toolsetCommentSvc),
 		ToolsetResourceHandler:     toolsetHandler.NewResourceHandler(toolsetResourceSvc),
 		ToolsetUploadHandler:       toolsetHandler.NewUploadHandler(toolsetUploadSvc),
-		CronStop:                   cronPkg.Start(db, rdb, galgameMessageSync.Run),
+		CronStop:                   cronPkg.Start(db, rdb, galgameMessageSync.Run, galgameRevisionSync.Run),
 	}
 
 	// Fiber

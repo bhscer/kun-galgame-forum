@@ -93,6 +93,17 @@ var Sources = map[string]ActivitySource{
 			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
 			FROM galgame_resource t`,
 	},
+	// GALGAME_EDIT: wiki merged-revision (edit) events, mirrored into
+	// galgame_activity by the wiki-revision sync cron. user_id is the real
+	// editor (from the revision), so unlike GALGAME_CREATION it needs no
+	// brief-actor injection during enrichment.
+	"GALGAME_EDIT": {
+		TypeStr: "GALGAME_EDIT",
+		Query: `SELECT 'GALGAME_EDIT' AS type_str, t.id,
+			'' AS content,
+			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
+			FROM galgame_activity t`,
+	},
 	"GALGAME_RATING_CREATION": {
 		TypeStr: "GALGAME_RATING_CREATION",
 		Query: `SELECT 'GALGAME_RATING_CREATION' AS type_str, t.id,

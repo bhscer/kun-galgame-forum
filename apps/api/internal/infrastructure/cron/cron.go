@@ -24,7 +24,7 @@ const scheduleTZ = "Asia/Shanghai"
 // status (the cron pace was bumped from daily so users see their +3
 // moemoepoint within a normal page-refresh window after admin approves
 // their submission).
-func Start(db *gorm.DB, rdb *redis.Client, wikiMessageSync func()) func() {
+func Start(db *gorm.DB, rdb *redis.Client, wikiMessageSync func(), wikiRevisionSync func()) func() {
 	loc, err := time.LoadLocation(scheduleTZ)
 	if err != nil {
 		slog.Warn("加载定时任务时区失败, 回退到进程本地时区", "tz", scheduleTZ, "error", err)
@@ -47,6 +47,12 @@ func Start(db *gorm.DB, rdb *redis.Client, wikiMessageSync func()) func() {
 	// when the caller didn't wire a sync (e.g. tests).
 	if wikiMessageSync != nil {
 		c.AddFunc("*/10 * * * *", wikiMessageSync)
+	}
+
+	// Every 10 min: mirror wiki merged-revision (edit) events into the local
+	// galgame_activity timeline source. Same cadence as the message sync.
+	if wikiRevisionSync != nil {
+		c.AddFunc("*/10 * * * *", wikiRevisionSync)
 	}
 
 	c.Start()
