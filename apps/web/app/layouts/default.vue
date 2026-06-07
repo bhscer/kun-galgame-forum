@@ -66,7 +66,7 @@ const { showKUNGalgameSidebarCollapsed } = storeToRefs(
              round-trip, so a bare <img> is the right tool. -->
         <img
           v-if="showKUNGalgameBackLoli"
-          class="pointer-events-none fixed right-px bottom-px z-0 min-w-60 opacity-17! select-none"
+          class="pointer-events-none fixed right-px bottom-px z-0 h-[33dvh] w-auto opacity-17! select-none"
           :src="
             ENABLE_KUN_VISUAL_NOVEL_FORUM_WINTER_THEME
               ? '/winter/sd.webp'
