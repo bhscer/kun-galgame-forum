@@ -58,7 +58,13 @@ const { showKUNGalgameSidebarCollapsed } = storeToRefs(
           <NuxtPage />
         </div>
 
-        <KunImage
+        <!-- Native <img>, NOT KunImage: this mascot must stay `fixed` to the
+             bottom-right corner. KunImage's skeleton wrapper is a
+             `position: relative` div that also receives this class, and
+             Tailwind emits `.relative` after `.fixed`, so `relative` wins and
+             un-pins it. A decorative static webp also wants no skeleton / IPX
+             round-trip, so a bare <img> is the right tool. -->
+        <img
           v-if="showKUNGalgameBackLoli"
           class="pointer-events-none fixed right-px bottom-px z-0 min-w-60 opacity-17! select-none"
           :src="
