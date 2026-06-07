@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// Global "显示没有下载资源的 Galgame" preference (cookie-persisted, SSR-safe).
+// Off (default) drops resource-less galgames' creation rows from the feed too.
+const settings = usePersistSettingsStore()
 const [{ data }, { data: activityData }] = await Promise.all([
   useKunFetch<{
     galgames: HomeGalgame[]
@@ -8,7 +11,12 @@ const [{ data }, { data: activityData }] = await Promise.all([
     items: ActivityItem[]
     total: number
   }>('/activity', {
-    query: { page: 1, limit: 20, type: 'all' }
+    query: {
+      page: 1,
+      limit: 20,
+      type: 'all',
+      showNoResource: settings.showKUNGalgameNoResource
+    }
   })
 ])
 

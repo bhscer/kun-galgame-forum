@@ -198,6 +198,26 @@ func (r *ActivityRepository) GetSource(typeStr string) (ActivitySource, bool) {
 	return s, ok
 }
 
+// GalgameIDsWithResources returns the subset of ids that have at least one
+// download resource (a galgame_resource row). The activity feed uses it to drop
+// GALGAME_CREATION rows for resource-less galgames when the viewer is hiding
+// them (显示设置 → 显示没有下载资源的 Galgame, default off).
+func (r *ActivityRepository) GalgameIDsWithResources(ids []int) map[int]bool {
+	out := make(map[int]bool, len(ids))
+	if len(ids) == 0 {
+		return out
+	}
+	var found []int
+	r.db.Table("galgame_resource").
+		Where("galgame_id IN ?", ids).
+		Distinct().
+		Pluck("galgame_id", &found)
+	for _, id := range found {
+		out[id] = true
+	}
+	return out
+}
+
 // FetchSingleSource runs a single activity source with pagination and count.
 // Identity is hydrated at the service layer via userclient.
 func (r *ActivityRepository) FetchSingleSource(src ActivitySource, page, limit int) ([]ActivityRow, int64, error) {

@@ -6,12 +6,19 @@ const pageData = reactive({
   limit: 50
 })
 
+// Global "显示没有下载资源的 Galgame" preference (cookie-persisted, SSR-safe).
+// Off (default) drops resource-less galgames' creation rows; computed query
+// keeps page reactive AND re-fetches when the toggle changes.
+const settings = usePersistSettingsStore()
 const { data, status } = await useKunFetch<{
   items: ActivityItem[]
   total: number
 }>('/activity/timeline', {
   method: 'GET',
-  query: pageData
+  query: computed(() => ({
+    ...pageData,
+    showNoResource: settings.showKUNGalgameNoResource
+  }))
 })
 </script>
 

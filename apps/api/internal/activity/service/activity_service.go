@@ -47,16 +47,17 @@ type Result struct {
 // it falls back to GetTimeline. isSFW is forwarded to wiki so NSFW
 // galgame names never enter the public activity stream
 // (docs/galgame_wiki/00-handbook §16).
-func (s *ActivityService) GetActivity(ctx context.Context, typeStr string, page, limit int, isSFW bool) (*Result, *errors.AppError) {
-	// Cache-aside on the fully-enriched result. Keyed by isSFW because that
-	// changes which galgame names the wiki returns (NSFW filter), so SFW and
-	// NSFW viewers must not share an entry.
-	cacheKey := fmt.Sprintf("activity:v1:%s:%d:%d:%t", typeStr, page, limit, isSFW)
+func (s *ActivityService) GetActivity(ctx context.Context, typeStr string, page, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
+	// Cache-aside on the fully-enriched result. Keyed by isSFW (changes which
+	// galgame names the wiki returns — NSFW filter) and showNoResource (changes
+	// whether resource-less galgames' GALGAME_CREATION rows are dropped), so
+	// viewers with different filters must not share an entry.
+	cacheKey := fmt.Sprintf("activity:v1:%s:%d:%d:%t:%t", typeStr, page, limit, isSFW, showNoResource)
 	if cached, ok := s.getCachedResult(ctx, cacheKey); ok {
 		return cached, nil
 	}
 
-	result, appErr := s.computeActivity(ctx, typeStr, page, limit, isSFW)
+	result, appErr := s.computeActivity(ctx, typeStr, page, limit, isSFW, showNoResource)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -65,9 +66,9 @@ func (s *ActivityService) GetActivity(ctx context.Context, typeStr string, page,
 }
 
 // computeActivity is GetActivity without the cache layer.
-func (s *ActivityService) computeActivity(ctx context.Context, typeStr string, page, limit int, isSFW bool) (*Result, *errors.AppError) {
+func (s *ActivityService) computeActivity(ctx context.Context, typeStr string, page, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
 	if typeStr == "all" {
-		return s.GetTimeline(ctx, page, limit, isSFW)
+		return s.GetTimeline(ctx, page, limit, isSFW, showNoResource)
 	}
 
 	src, ok := s.repo.GetSource(typeStr)
@@ -80,7 +81,7 @@ func (s *ActivityService) computeActivity(ctx context.Context, typeStr string, p
 		return nil, errors.ErrInternal("查询活动数据失败")
 	}
 	items := rowsToItems(rows)
-	s.enrichGalgameItems(ctx, rows, items, isSFW)
+	items = s.enrichGalgameItems(ctx, rows, items, isSFW, showNoResource)
 	s.hydrateActors(ctx, items)
 	return &Result{Items: items, Total: total}, nil
 }
@@ -117,13 +118,13 @@ func (s *ActivityService) cacheResult(ctx context.Context, key string, result *R
 }
 
 // GetTimeline returns a mixed activity timeline across all sources.
-func (s *ActivityService) GetTimeline(ctx context.Context, page, limit int, isSFW bool) (*Result, *errors.AppError) {
+func (s *ActivityService) GetTimeline(ctx context.Context, page, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
 	rows, total, err := s.repo.FetchTimeline(page, limit)
 	if err != nil {
 		return nil, errors.ErrInternal("查询活动列表失败")
 	}
 	items := rowsToItems(rows)
-	s.enrichGalgameItems(ctx, rows, items, isSFW)
+	items = s.enrichGalgameItems(ctx, rows, items, isSFW, showNoResource)
 	s.hydrateActors(ctx, items)
 	return &Result{Items: items, Total: total}, nil
 }
@@ -159,13 +160,23 @@ func rowsToItems(rows []repository.ActivityRow) []dto.ActivityItem {
 // comment text (matching the legacy API) since the type chip + link already
 // convey what it is and where it points — a "在《game》" prefix is just noise.
 //
-// rows/items must be index-aligned; the caller guarantees this.
+// Galgame-scoped rows whose galgame has NO wiki brief for this viewer — NSFW in
+// SFW mode, or deleted — are DROPPED from the returned slice, so an NSFW galgame
+// never leaks into the public feed as "galgame#N / 未知用户". On wiki failure the
+// items are returned untouched (graceful degradation).
+//
+// When showNoResource is false (the default 显示设置), GALGAME_CREATION rows for
+// galgames with no download resource are ALSO dropped, mirroring the galgame
+// list filter so a hidden game's creation never surfaces in the feed.
+//
+// Returns the kept items (a subset of `items`); rows/items must be
+// index-aligned on entry.
 func (s *ActivityService) enrichGalgameItems(
 	ctx context.Context,
 	rows []repository.ActivityRow,
 	items []dto.ActivityItem,
-	isSFW bool,
-) {
+	isSFW, showNoResource bool,
+) []dto.ActivityItem {
 	idSet := map[int]struct{}{}
 	for _, r := range rows {
 		if r.GalgameID > 0 {
@@ -173,7 +184,7 @@ func (s *ActivityService) enrichGalgameItems(
 		}
 	}
 	if len(idSet) == 0 {
-		return
+		return items
 	}
 	ids := make([]int, 0, len(idSet))
 	for id := range idSet {
@@ -182,36 +193,47 @@ func (s *ActivityService) enrichGalgameItems(
 
 	briefMap, appErr := s.wikiGC.GetBatchPublic(ctx, ids, isSFW)
 	if appErr != nil {
-		return // graceful: leave raw content
+		return items // graceful: wiki down, leave items untouched
 	}
 
-	pickName := func(id int) string {
-		b, ok := briefMap[id]
-		if !ok {
-			return fmt.Sprintf("galgame#%d", id)
-		}
+	// Resource-less galgames are hidden from the feed's GALGAME_CREATION rows
+	// unless the viewer opted into showing them. Only fetched when needed.
+	var resourceful map[int]bool
+	if !showNoResource {
+		resourceful = s.repo.GalgameIDsWithResources(ids)
+	}
+
+	briefName := func(b galgameClient.GalgameBrief) string {
 		for _, n := range []string{b.NameZhCn, b.NameJaJp, b.NameEnUs, b.NameZhTw} {
 			if n != "" {
 				return n
 			}
 		}
-		return fmt.Sprintf("galgame#%d", id)
+		return fmt.Sprintf("galgame#%d", b.ID)
 	}
 
+	kept := make([]dto.ActivityItem, 0, len(items))
 	for i, r := range rows {
 		if r.GalgameID == 0 {
+			kept = append(kept, items[i]) // not galgame-scoped: always keep
 			continue
 		}
-		name := pickName(r.GalgameID)
+		b, ok := briefMap[r.GalgameID]
+		if !ok {
+			// NSFW (SFW viewer) or deleted → drop the whole activity.
+			continue
+		}
+		name := briefName(b)
 		switch r.TypeStr {
 		case "GALGAME_CREATION":
+			if !showNoResource && !resourceful[r.GalgameID] {
+				// Resource-less galgame the viewer is hiding → drop its creation.
+				continue
+			}
 			items[i].Content = name
-			// galgame table has no local user_id; pull the creator from
-			// the wiki brief.
+			// galgame table has no local user_id; pull the creator from the brief.
 			if items[i].Actor.ID == 0 {
-				if b, ok := briefMap[r.GalgameID]; ok {
-					items[i].Actor.ID = b.UserID
-				}
+				items[i].Actor.ID = b.UserID
 			}
 		case "GALGAME_RESOURCE_CREATION":
 			items[i].Content = fmt.Sprintf("在《%s》发布了下载资源", name)
@@ -222,7 +244,9 @@ func (s *ActivityService) enrichGalgameItems(
 				items[i].Content = name
 			}
 		}
+		kept = append(kept, items[i])
 	}
+	return kept
 }
 
 // hydrateActors batch-fetches identity (name/avatar) from OAuth for every

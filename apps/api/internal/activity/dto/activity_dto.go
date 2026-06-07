@@ -10,11 +10,16 @@ type ActivityRequest struct {
 	Page  int    `query:"page" validate:"min=1"`
 	Limit int    `query:"limit" validate:"min=1,max=50"`
 	Type  string `query:"type" validate:"required"`
+	// ShowNoResource mirrors the user's 显示设置 → 显示没有下载资源的 Galgame
+	// preference. Default false (omitted) hides resource-less galgames, so their
+	// GALGAME_CREATION activity is dropped from the feed too.
+	ShowNoResource bool `query:"showNoResource"`
 }
 
 type TimelineRequest struct {
-	Page  int `query:"page" validate:"min=1"`
-	Limit int `query:"limit" validate:"min=1,max=50"`
+	Page           int  `query:"page" validate:"min=1"`
+	Limit          int  `query:"limit" validate:"min=1,max=50"`
+	ShowNoResource bool `query:"showNoResource"`
 }
 
 // ──────────────────────────────────────────
