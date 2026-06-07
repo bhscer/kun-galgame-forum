@@ -92,8 +92,17 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 	if !hasResourceFilter(f) {
 		build := func() *gorm.DB {
 			q := r.db.Table("galgame g")
-			if len(f.RestrictIDs) > 0 {
-				q = q.Where("g.id IN ?", f.RestrictIDs)
+			// nil = no restriction (the global /galgame list). A non-nil set
+			// restricts to it; a non-nil EMPTY set (entity with zero local
+			// members) must yield NO rows, not fall through to the whole
+			// catalogue — hence the explicit 1=0, not a guard that skips on
+			// empty.
+			if f.RestrictIDs != nil {
+				if len(f.RestrictIDs) == 0 {
+					q = q.Where("1 = 0")
+				} else {
+					q = q.Where("g.id IN ?", f.RestrictIDs)
+				}
 			}
 			if ratingSort || ratingFilter {
 				q = q.Joins(ratingAggJoin)
@@ -130,8 +139,13 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 	inner := r.db.Table("galgame g").
 		Select("DISTINCT g.id").
 		Joins("JOIN galgame_resource gr ON gr.galgame_id = g.id")
-	if len(f.RestrictIDs) > 0 {
-		inner = inner.Where("g.id IN ?", f.RestrictIDs)
+	// non-nil empty set → no rows (see the no-resource-filter branch above).
+	if f.RestrictIDs != nil {
+		if len(f.RestrictIDs) == 0 {
+			inner = inner.Where("1 = 0")
+		} else {
+			inner = inner.Where("g.id IN ?", f.RestrictIDs)
+		}
 	}
 	if ratingFilter {
 		inner = inner.Joins(ratingAggJoin)
