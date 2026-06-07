@@ -167,6 +167,8 @@ if (data.value) {
       </template>
     </KunHeader>
 
+    <GalgameCardNav :show-advanced="false" />
+
     <GalgameEngineModal
       v-model="showEngineModal"
       :initial-data="editingEngine"

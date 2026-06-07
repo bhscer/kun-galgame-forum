@@ -93,16 +93,13 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 		build := func() *gorm.DB {
 			q := r.db.Table("galgame g")
 			// nil = no restriction (the global /galgame list). A non-nil set
-			// restricts to it; a non-nil EMPTY set (entity with zero local
-			// members) must yield NO rows, not fall through to the whole
-			// catalogue — hence the explicit 1=0, not a guard that skips on
-			// empty.
+			// restricts to it via `= ANY(array)`: ONE bound param regardless of
+			// size — a mega-tag's ~32k member ids would otherwise expand into a
+			// 32k-placeholder IN list — and an empty array naturally matches
+			// nothing, so an entity with zero local members yields no rows (never
+			// the whole catalogue).
 			if f.RestrictIDs != nil {
-				if len(f.RestrictIDs) == 0 {
-					q = q.Where("1 = 0")
-				} else {
-					q = q.Where("g.id IN ?", f.RestrictIDs)
-				}
+				q = q.Where("g.id = ANY(?::int[])", intArrayLit(f.RestrictIDs))
 			}
 			if ratingSort || ratingFilter {
 				q = q.Joins(ratingAggJoin)
@@ -139,13 +136,9 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 	inner := r.db.Table("galgame g").
 		Select("DISTINCT g.id").
 		Joins("JOIN galgame_resource gr ON gr.galgame_id = g.id")
-	// non-nil empty set → no rows (see the no-resource-filter branch above).
+	// = ANY(array) — one param, empty matches nothing (see the branch above).
 	if f.RestrictIDs != nil {
-		if len(f.RestrictIDs) == 0 {
-			inner = inner.Where("1 = 0")
-		} else {
-			inner = inner.Where("g.id IN ?", f.RestrictIDs)
-		}
+		inner = inner.Where("g.id = ANY(?::int[])", intArrayLit(f.RestrictIDs))
 	}
 	if ratingFilter {
 		inner = inner.Joins(ratingAggJoin)
@@ -311,6 +304,18 @@ func hasResourceFilter(f model.GalgameListFilter) bool {
 
 func providerArrayLit(providers []string) string {
 	return "{" + strings.Join(providers, ",") + "}"
+}
+
+// intArrayLit renders an int slice as a Postgres array literal ("{1,2,3}", or
+// "{}" for empty) for `= ANY(?::int[])` — one bound param instead of an
+// N-placeholder IN list, so a mega-tag's tens-of-thousands of member ids stay
+// cheap. ids come from the wiki (parsed ints), never user text → injection-safe.
+func intArrayLit(ids []int) string {
+	parts := make([]string, len(ids))
+	for i, id := range ids {
+		parts[i] = strconv.Itoa(id)
+	}
+	return "{" + strings.Join(parts, ",") + "}"
 }
 
 func providersExcluding(excluded []string) []string {
