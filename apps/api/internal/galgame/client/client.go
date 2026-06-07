@@ -105,6 +105,28 @@ func (c *GalgameClient) GetWithToken(ctx context.Context, path, token string, qu
 	return c.doRequest(req)
 }
 
+// EntityGalgameIDs fetches the member galgame ids of a wiki entity
+// (kind = "tag" | "official" | "engine") so the forum can run its OWN local
+// resource-based filtering over them — the wiki has no resource concept. The
+// result is always non-nil so the caller's RestrictIDs guard distinguishes
+// "restrict to this (possibly empty) set" from "no restriction".
+func (c *GalgameClient) EntityGalgameIDs(ctx context.Context, kind string, id int) ([]int, *errors.AppError) {
+	data, appErr := c.Get(ctx, fmt.Sprintf("/%s/%d/galgame-ids", kind, id), nil)
+	if appErr != nil {
+		return nil, appErr
+	}
+	var parsed struct {
+		IDs []int `json:"ids"`
+	}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return nil, errors.ErrInternal("解析 Wiki 响应失败")
+	}
+	if parsed.IDs == nil {
+		parsed.IDs = []int{}
+	}
+	return parsed.IDs, nil
+}
+
 // PostWithToken performs a POST with Bearer token.
 //
 // contentType controls how body is forwarded:

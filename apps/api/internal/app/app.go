@@ -241,15 +241,18 @@ func New(cfg *config.Config) *App {
 	galgameResourceMetaRepo := galgameRepo.NewGalgameResourceMetaRepository(db)
 	galgameDetailRatingRepo := galgameRepo.NewGalgameDetailRatingRepository(db)
 	galgameEnricher := galgameService.NewGalgameEnricher(galgameLocalRepo, galgameResourceMetaRepo, uc)
-	galgameSeriesSvc := galgameService.NewSeriesService(gc, galgameEnricher)
-	galgameOfficialSvc := galgameService.NewOfficialService(gc, galgameEnricher)
-	galgameEngineSvc := galgameService.NewEngineService(gc, galgameEnricher)
-	galgameTagSvc := galgameService.NewTagService(gc, galgameEnricher)
-	galgameWikiSvc := galgameService.NewWikiService(gc, galgameLocalRepo, uc)
+	// Core galgame service is built first: the entity (tag/official/engine)
+	// detail services delegate their galgame list to it (shared local
+	// filter/sort/hydrate), so they take it as a dependency.
 	galgameCoreSvc := galgameService.NewGalgameService(
 		galgameLocalRepo, galgameInteractionRepo, galgameListRepo,
 		galgameResourceMetaRepo, galgameDetailRatingRepo, userStateRepo, gc, uc,
 	)
+	galgameSeriesSvc := galgameService.NewSeriesService(gc, galgameEnricher)
+	galgameOfficialSvc := galgameService.NewOfficialService(gc, galgameEnricher, galgameCoreSvc)
+	galgameEngineSvc := galgameService.NewEngineService(gc, galgameEnricher, galgameCoreSvc)
+	galgameTagSvc := galgameService.NewTagService(gc, galgameEnricher, galgameCoreSvc)
+	galgameWikiSvc := galgameService.NewWikiService(gc, galgameLocalRepo, uc)
 	// Submission flow: submit / claim / patch-draft / delete-draft proxies
 	// + local moemoepoint side effects. Per docs/galgame_wiki/07-submission.md.
 	galgameSubmissionSvc := galgameService.NewSubmissionService(gc, galgameLocalRepo)

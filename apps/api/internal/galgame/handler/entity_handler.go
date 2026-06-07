@@ -87,7 +87,7 @@ func (h *EntityHandler) GetOfficialDetail(c *fiber.Ctx) error {
 	detail, appErr := h.officialService.GetDetail(
 		c.Context(),
 		c.Params("name"),
-		normalizeTaxonomySortField(collectQueryWithRenames(c, entityDetailRenames("officialId", "official_id"))),
+		collectQueryWithRenames(c, entityDetailRenames("officialId", "official_id")),
 		utils.IsSFW(c),
 	)
 	if appErr != nil {
@@ -114,7 +114,7 @@ func (h *EntityHandler) GetEngineDetail(c *fiber.Ctx) error {
 	detail, appErr := h.engineService.GetDetail(
 		c.Context(),
 		c.Params("name"),
-		normalizeTaxonomySortField(collectQueryWithRenames(c, entityDetailRenames("engineId", "engine_id"))),
+		collectQueryWithRenames(c, entityDetailRenames("engineId", "engine_id")),
 		utils.IsSFW(c),
 	)
 	if appErr != nil {
@@ -159,7 +159,7 @@ func (h *EntityHandler) GetTagDetail(c *fiber.Ctx) error {
 	detail, appErr := h.tagService.GetDetail(
 		c.Context(),
 		c.Params("name"),
-		normalizeTaxonomySortField(collectQueryWithRenames(c, entityDetailRenames("tagId", "tag_id"))),
+		collectQueryWithRenames(c, entityDetailRenames("tagId", "tag_id")),
 		utils.IsSFW(c),
 	)
 	if appErr != nil {
@@ -199,49 +199,15 @@ func collectQueryWithRenames(c *fiber.Ctx, renames map[string]string) url.Values
 	return q
 }
 
-// entityDetailRenames returns the rename map common to every wiki-backed
-// entity detail handler (tag / official / engine): the FE's per-entity ID
-// key plus the shared `sortField` / `sortOrder` pair the embedded galgame
-// list pages send.
+// entityDetailRenames returns the rename map for a wiki-backed entity detail
+// handler (tag / official / engine): only the FE's per-entity ID key →
+// snake_case so the wiki metadata lookup resolves the entity.
 //
-// Without sortField/sortOrder translation here the wiki silently fell
-// back to its defaults (created/desc) regardless of the user's choice on
-// the FE sort buttons — a bug surfaced by the K-PR6 group-2 audit.
+// sortField/sortOrder are deliberately NOT renamed/normalized: these pages now
+// filter+sort LOCALLY (the wiki's galgames are discarded), and list_repo speaks
+// the FE sort vocabulary (time/view/rating/…). The raw FE sortField must reach
+// buildEntityFilter unchanged — translating it to the wiki's vocabulary here
+// would make list_repo fall back to its default sort.
 func entityDetailRenames(idFrom, idTo string) map[string]string {
-	return map[string]string{
-		idFrom:      idTo,
-		"sortField": "sort_field",
-		"sortOrder": "sort_order",
-	}
-}
-
-// wikiTaxonomySortFields is the closed set of sort_field values the wiki
-// taxonomy detail endpoints (/tag, /official, /engine) accept — see
-// docs/galgame_wiki/04-taxonomy.md.
-var wikiTaxonomySortFields = map[string]bool{
-	"created":              true,
-	"updated":              true,
-	"view":                 true,
-	"resource_update_time": true,
-	"release_date":         true,
-}
-
-// normalizeTaxonomySortField rewrites the FE's sort_field VALUE to one the
-// wiki taxonomy endpoint understands. The detail pages reuse useGalgameFilters
-// (shared with the local /galgame list), whose default `time` (= local
-// "updated order") and `rating` (Bayesian, a kungal-local-only sort) values
-// the wiki does NOT accept — it 500s on them, which broke the whole detail
-// page on first load (default sortField=time). Map `time` to the documented
-// `resource_update_time` and fold any other unsupported value (e.g. `rating`)
-// to it as well, so a stray sort never takes the page down. Empty is left as
-// is (the wiki applies its own default).
-func normalizeTaxonomySortField(q url.Values) url.Values {
-	sf := q.Get("sort_field")
-	if sf == "" {
-		return q
-	}
-	if !wikiTaxonomySortFields[sf] {
-		q.Set("sort_field", "resource_update_time")
-	}
-	return q
+	return map[string]string{idFrom: idTo}
 }

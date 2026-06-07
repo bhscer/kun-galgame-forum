@@ -14,10 +14,11 @@ import (
 type TagService struct {
 	wikiClient *client.GalgameClient
 	enricher   *GalgameEnricher
+	galgameSvc *GalgameService
 }
 
-func NewTagService(wikiClient *client.GalgameClient, enricher *GalgameEnricher) *TagService {
-	return &TagService{wikiClient: wikiClient, enricher: enricher}
+func NewTagService(wikiClient *client.GalgameClient, enricher *GalgameEnricher, galgameSvc *GalgameService) *TagService {
+	return &TagService{wikiClient: wikiClient, enricher: enricher, galgameSvc: galgameSvc}
 }
 
 type wikiTagListItem struct {
@@ -195,16 +196,27 @@ func (s *TagService) GetDetail(
 		return nil, errors.ErrInternal("解析 Wiki 响应失败")
 	}
 
-	filtered := s.enricher.FilterSFW(parsed.Galgames, isSFW)
-
 	t := parsed.Tag
+
+	// The wiki returns the tag's members but can't filter them by platform/
+	// language/资源 (resource data is forum-local). Fetch the member ids and run
+	// the SAME local filter/sort/paginate as /galgame over them.
+	memberIDs, appErr := s.wikiClient.EntityGalgameIDs(ctx, "tag", t.ID)
+	if appErr != nil {
+		return nil, appErr
+	}
+	page, appErr := s.galgameSvc.hydrateListCards(ctx, buildEntityFilter(rawQuery, memberIDs), isSFW)
+	if appErr != nil {
+		return nil, appErr
+	}
+
 	return &dto.TagDetail{
 		ID:           t.ID,
 		Name:         t.Name,
 		Category:     t.Category,
 		Description:  t.Description,
 		Alias:        aliasesToNames(t.Alias),
-		Galgame:      s.enricher.ToCards(ctx, filtered),
-		GalgameCount: parsed.Total,
+		Galgame:      listCardsToEntityCards(page.Galgames),
+		GalgameCount: page.Total,
 	}, nil
 }

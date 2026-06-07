@@ -13,10 +13,11 @@ import (
 type EngineService struct {
 	wikiClient *client.GalgameClient
 	enricher   *GalgameEnricher
+	galgameSvc *GalgameService
 }
 
-func NewEngineService(wikiClient *client.GalgameClient, enricher *GalgameEnricher) *EngineService {
-	return &EngineService{wikiClient: wikiClient, enricher: enricher}
+func NewEngineService(wikiClient *client.GalgameClient, enricher *GalgameEnricher, galgameSvc *GalgameService) *EngineService {
+	return &EngineService{wikiClient: wikiClient, enricher: enricher, galgameSvc: galgameSvc}
 }
 
 type wikiEngineListItem struct {
@@ -82,16 +83,26 @@ func (s *EngineService) GetDetail(
 		return nil, errors.ErrInternal("解析 Wiki 响应失败")
 	}
 
-	filtered := s.enricher.FilterSFW(parsed.Galgames, isSFW)
-
 	e := parsed.Engine
+
+	// Local resource-based filter over the engine's member galgames (the wiki
+	// can't filter by platform/language/资源). See TagService.GetDetail.
+	memberIDs, appErr := s.wikiClient.EntityGalgameIDs(ctx, "engine", e.ID)
+	if appErr != nil {
+		return nil, appErr
+	}
+	page, appErr := s.galgameSvc.hydrateListCards(ctx, buildEntityFilter(rawQuery, memberIDs), isSFW)
+	if appErr != nil {
+		return nil, appErr
+	}
+
 	return &dto.EngineDetail{
 		ID:           e.ID,
 		Name:         e.Name,
 		Description:  e.Description,
 		Alias:        emptyStrSliceIfNil(e.Alias),
-		Galgame:      s.enricher.ToCards(ctx, filtered),
-		GalgameCount: parsed.Total,
+		Galgame:      listCardsToEntityCards(page.Galgames),
+		GalgameCount: page.Total,
 	}, nil
 }
 

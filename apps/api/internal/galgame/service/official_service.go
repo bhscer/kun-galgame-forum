@@ -15,10 +15,11 @@ import (
 type OfficialService struct {
 	wikiClient *client.GalgameClient
 	enricher   *GalgameEnricher
+	galgameSvc *GalgameService
 }
 
-func NewOfficialService(wikiClient *client.GalgameClient, enricher *GalgameEnricher) *OfficialService {
-	return &OfficialService{wikiClient: wikiClient, enricher: enricher}
+func NewOfficialService(wikiClient *client.GalgameClient, enricher *GalgameEnricher, galgameSvc *GalgameService) *OfficialService {
+	return &OfficialService{wikiClient: wikiClient, enricher: enricher, galgameSvc: galgameSvc}
 }
 
 // ──────────────────────────────────────────
@@ -159,13 +160,23 @@ func (s *OfficialService) GetDetail(
 		return nil, errors.ErrInternal("解析 Wiki 响应失败")
 	}
 
-	filtered := s.enricher.FilterSFW(parsed.Galgames, isSFW)
-
 	o := parsed.Official
 	original := ""
 	if o.Original != nil {
 		original = *o.Original
 	}
+
+	// Local resource-based filter over the official's member galgames (the wiki
+	// can't filter by platform/language/资源). See TagService.GetDetail.
+	memberIDs, appErr := s.wikiClient.EntityGalgameIDs(ctx, "official", o.ID)
+	if appErr != nil {
+		return nil, appErr
+	}
+	page, appErr := s.galgameSvc.hydrateListCards(ctx, buildEntityFilter(rawQuery, memberIDs), isSFW)
+	if appErr != nil {
+		return nil, appErr
+	}
+
 	return &dto.OfficialDetail{
 		ID:           o.ID,
 		Name:         o.Name,
@@ -175,8 +186,8 @@ func (s *OfficialService) GetDetail(
 		Lang:         o.Lang,
 		Description:  o.Description,
 		Alias:        aliasesToNames(o.Alias),
-		Galgame:      s.enricher.ToCards(ctx, filtered),
-		GalgameCount: parsed.Total,
+		Galgame:      listCardsToEntityCards(page.Galgames),
+		GalgameCount: page.Total,
 	}, nil
 }
 

@@ -131,8 +131,9 @@ if (data.value) {
       <template #endContent>
         <div class="space-y-3">
           <p class="text-default-500">
-            默认仅显示了 SFW 的 Galgame, 查看 NSFW Galgame 请在设置面板打开 NSFW
-            开关。如果有数据错误请
+            本页仅展示本站已收录下载资源的 Galgame（可按平台 / 语言 / 排序筛选），
+            数量会明显少于百科全量收录。默认仅显示 SFW 的 Galgame, 查看 NSFW
+            Galgame 请在设置面板打开 NSFW 开关。如果有数据错误请
             <KunLink to="/doc/contact"> 联系我们 </KunLink>。
           </p>
 
