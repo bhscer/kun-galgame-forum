@@ -116,11 +116,12 @@ func (s *GalgameService) Create(
 		if err := s.galgameRepo.CreateLocalStub(s.galgameRepo.DB(), created.ID); err != nil {
 			slog.Warn("创建本地 galgame stub 失败", "gid", created.ID, "error", err)
 		}
-		// Award +3 via OAuth post-commit. Stable key per galgame → a retried
-		// create can't double-award (no local += to roll back).
-		moemoepoint.Award(userID, constants.RewardCreateGalgame,
-			moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", created.ID),
-			moemoepoint.Key("create_galgame", strconv.Itoa(created.ID)))
+		// NOTE: deliberately no moemoepoint award here. A fresh create lands as
+		// status=pending on the wiki; +RewardCreateGalgame is granted exactly
+		// once when it is actually approved, via the wiki "approved" message in
+		// wiki_message_sync (Ref "galgame"). Awarding at create time too would
+		// double-count (the same galgame paid twice) and would pay out for
+		// content that may yet be declined.
 	}
 	return data, nil
 }
@@ -163,7 +164,7 @@ func (s *GalgameService) MergePR(
 	if submitter > 0 && submitter != mergerID {
 		s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
 			s.helpers.AdjustMoemoepoint(tx, submitter, constants.RewardPRMerge,
-				moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", gidInt))
+				moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame_pr", gidInt))
 			s.helpers.CreateGalgameMessage(tx, mergerID, submitter, "merged", gidInt)
 			return nil
 		})

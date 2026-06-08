@@ -33,7 +33,8 @@ const REASON_META: Record<string, { label: string; icon: string }> = {
   content_removed: { label: '内容被移除', icon: 'lucide:circle-x' },
   admin_grant: { label: '管理员发放', icon: 'lucide:gift' },
   admin_deduct: { label: '管理员扣除', icon: 'lucide:gavel' },
-  migration: { label: '初始迁移', icon: 'lucide:database' }
+  migration: { label: '初始迁移', icon: 'lucide:database' },
+  register_gift: { label: '注册礼物', icon: 'lucide:party-popper' }
 }
 
 // source_app is whatever OAuth derives from the calling client. Today OAuth
@@ -53,6 +54,7 @@ const SOURCE_LABEL: Record<string, string> = {
 
 const REF_KIND_LABEL: Record<string, string> = {
   galgame: 'Galgame',
+  galgame_pr: 'Galgame 修订',
   galgame_comment: '游戏评论',
   galgame_rating: '游戏评分',
   galgame_resource: '游戏资源',
@@ -69,6 +71,39 @@ const reasonMeta = (reason: string) =>
     icon: 'lucide:lollipop'
   }
 
+// OAuth keeps a tiny generic reason enum; the concrete behavior is carried by
+// the ref-kind (06-moemoepoint.md §2). So the PRIMARY label is derived from
+// (reason, ref-kind): a precise override first, else a composed "<内容><动作>"
+// (e.g. 游戏资源 + 被采纳), else the bare reason label. This is why a single
+// `content_approved` row reads as 通过审核 / 修订被合并 / 资源被采纳 / 评论被采纳…
+const REASON_ACTION: Record<string, string> = {
+  content_approved: '被采纳',
+  liked: '被点赞',
+  content_removed: '被移除'
+}
+
+const BEHAVIOR_LABEL: Record<string, string> = {
+  'content_approved:galgame': 'Galgame 通过审核',
+  'content_approved:galgame_pr': 'Galgame 修订被合并',
+  'content_approved:galgame_resource': '发布的资源被采纳',
+  'content_approved:galgame_comment': '游戏评论被采纳',
+  'content_approved:topic': '发布的话题被采纳',
+  'content_approved:topic_reply': '回复被采纳',
+  'content_approved:topic_comment': '话题评论被采纳'
+}
+
+const refKindOf = (ref: string) => ref.split(':')[0] ?? ''
+
+const behaviorLabel = (entry: MoemoepointLogEntry): string => {
+  const kind = refKindOf(entry.ref)
+  const specific = BEHAVIOR_LABEL[`${entry.reason}:${kind}`]
+  if (specific) return specific
+  const kindLabel = REF_KIND_LABEL[kind]
+  const action = REASON_ACTION[entry.reason]
+  if (kindLabel && action) return `${kindLabel}${action}`
+  return reasonMeta(entry.reason).label
+}
+
 const isOpaqueId = (value: string) => /^[0-9a-f]{16,}$/i.test(value)
 
 const sourceLabel = (app: string): string => {
@@ -78,19 +113,18 @@ const sourceLabel = (app: string): string => {
   return isOpaqueId(slug) ? '' : slug
 }
 
-const refLabel = (refValue: string): string => {
-  if (!refValue) return ''
-  const [kind, id] = refValue.split(':')
-  const label = REF_KIND_LABEL[kind ?? '']
-  if (!label) return ''
-  return id ? `${label} #${id}` : label
+// The ref-kind is now shown in the primary label, so the sub-line only adds
+// the entity id (#123) for disambiguation — empty when the ref has no id.
+const refId = (refValue: string): string => {
+  const id = refValue.split(':')[1]
+  return id ? `#${id}` : ''
 }
 
-// One muted line under the reason: "source · ref · time", omitting empties.
+// One muted line under the behavior: "source · #id · time", omitting empties.
 const entryMeta = (entry: MoemoepointLogEntry): string =>
   [
     sourceLabel(entry.source_app),
-    refLabel(entry.ref),
+    refId(entry.ref),
     formatTimeDifference(entry.created_at)
   ]
     .filter(Boolean)
@@ -174,7 +208,7 @@ watch(isOpen, (open) => {
           />
           <div class="flex min-w-0 grow flex-col">
             <span class="truncate text-sm font-medium">
-              {{ reasonMeta(entry.reason).label }}
+              {{ behaviorLabel(entry) }}
             </span>
             <span class="text-default-400 truncate text-xs">
               {{ entryMeta(entry) }}

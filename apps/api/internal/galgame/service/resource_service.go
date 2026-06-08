@@ -242,7 +242,7 @@ func (s *ResourceService) CreateResource(
 			return err
 		}
 		s.helpers.AdjustMoemoepoint(tx, userID, constants.RewardCreateResource,
-			moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame", req.GalgameID))
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame_resource", req.GalgameID))
 		return nil
 	})
 	if txErr != nil {

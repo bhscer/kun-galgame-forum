@@ -328,7 +328,7 @@ func (s *CommentService) CreateComment(
 		if targetUserID != nil && *targetUserID != userID {
 			// Award via OAuth (no local +=). Comment engagement → content_approved.
 			moemoepoint.Award(*targetUserID, 1, moemoepoint.ReasonContentApproved,
-				moemoepoint.Ref("galgame", galgameID),
+				moemoepoint.Ref("galgame_comment", galgameID),
 				moemoepoint.KeyNonce(moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame_comment", galgameID)))
 
 			link := fmt.Sprintf("/galgame/%d", galgameID)
