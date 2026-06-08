@@ -17,8 +17,9 @@ locally and in production. (Same shape as moyu — no self-contained override.)
 | `kungal/migrate` | `docker/go.Dockerfile`  | same (`--build-arg CMD=migrate`)     | one-off job, `profiles: [jobs]` |
 | `kungal/web`     | `docker/nuxt.Dockerfile`| `node:22-bookworm-slim`              | serves `.output` (Nitro node-server) |
 
-Both Dockerfiles take the **repo root** as build context (`apps/web` extends the
-`packages/ui` Nuxt layer from source, so it must be in context).
+Both Dockerfiles take the **repo root** as build context (it's a pnpm workspace —
+`apps/web` + `apps/api` — so the lockfile and every manifest must be in context).
+KunUI is a published npm dependency (`@kungal/ui-nuxt`), not a local source layer.
 
 ## Host ports
 
