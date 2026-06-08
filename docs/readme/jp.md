@@ -45,14 +45,13 @@ https://www.kungal.com/ja-jp/kungalgame
 |------|------|
 | `apps/api` | **Go (Fiber + GORM) REST API** — 認証、フォーラム、Galgame DB、リソース、検索、メッセージ、定期ジョブ |
 | `apps/web` | **Nuxt 4 SSR フロントエンド** — Vue 3、Go API を呼び出す。Nitro サーバーは RSS フィードのみを提供 |
-| `packages/ui` | **`@kun/ui`** — 共有 Nuxt レイヤー（コンポーネントライブラリ）。`apps/web` が `extends` で利用 |
 
 ## 技術スタック
 
 | レイヤー | 技術 |
 |-------|-----------|
 | フロントエンド | [Nuxt 4](https://nuxt.com/) (Vue 3 SSR + Nitro node-server) |
-| UI レイヤー | `@kun/ui` — 共有 Nuxt レイヤー (`packages/ui`) |
+| UI レイヤー | `@kungal/ui-nuxt` — 共有 Nuxt レイヤー |
 | スタイル | [Tailwind CSS 4](https://tailwindcss.com/) |
 | 状態管理 | [Pinia](https://pinia.vuejs.org/)（永続化付き） |
 | エディター | [Milkdown](https://milkdown.dev/) + [CodeMirror](https://codemirror.net/) |
@@ -80,8 +79,6 @@ https://www.kungal.com/ja-jp/kungalgame
 │       ├── app/             # ページ、コンポーネント、composable、ストア (Pinia)、バリデーション
 │       ├── server/          # Nitro ルート（RSS フィードのみ）
 │       └── shared/          # 共有 TypeScript 型・ユーティリティ
-├── packages/
-│   └── ui/                  # @kun/ui — 共有 Nuxt レイヤー（コンポーネントライブラリ）
 ├── docker/                  # Dockerfile + 環境変数サンプル + Docker README
 ├── docker-compose*.yml      # base (joins infra) + prod
 ├── scripts/                 # PM2 デプロイスクリプト (deploy / start / stop / restart)

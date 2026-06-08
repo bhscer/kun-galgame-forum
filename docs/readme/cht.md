@@ -45,14 +45,13 @@ https://www.kungal.com/zh-tw/kungalgame
 |------|------|
 | `apps/api` | **Go (Fiber + GORM) REST API** — 鑑權、論壇、Galgame 庫、資源、搜尋、訊息、定時任務 |
 | `apps/web` | **Nuxt 4 SSR 前端** — Vue 3，呼叫 Go API；Nitro 伺服端只負責 RSS 訂閱 |
-| `packages/ui` | **`@kun/ui`** — 共享 Nuxt layer（元件庫），由 `apps/web` 透過 `extends` 引入 |
 
 ## 技術棧
 
 | 層 | 技術 |
 |-------|-----------|
 | 前端 | [Nuxt 4](https://nuxt.com/) (Vue 3 SSR + Nitro node-server) |
-| UI 層 | `@kun/ui` — 共享 Nuxt layer (`packages/ui`) |
+| UI 層 | `@kungal/ui-nuxt` — 共享 Nuxt layer |
 | 樣式 | [Tailwind CSS 4](https://tailwindcss.com/) |
 | 狀態管理 | [Pinia](https://pinia.vuejs.org/) (帶持久化) |
 | 文字編輯器 | [Milkdown](https://milkdown.dev/) + [CodeMirror](https://codemirror.net/) |
@@ -80,8 +79,6 @@ https://www.kungal.com/zh-tw/kungalgame
 │       ├── app/             # 頁面、元件、組合式函式、狀態 (Pinia)、校驗
 │       ├── server/          # Nitro 路由（僅 RSS 訂閱）
 │       └── shared/          # 共享 TypeScript 型別與工具
-├── packages/
-│   └── ui/                  # @kun/ui — 共享 Nuxt layer（元件庫）
 ├── docker/                  # Dockerfile + 環境變數範例 + Docker 說明
 ├── docker-compose*.yml      # base (joins infra) + prod
 ├── scripts/                 # PM2 部署腳本 (deploy / start / stop / restart)

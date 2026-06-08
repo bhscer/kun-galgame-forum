@@ -45,14 +45,13 @@ This is a **pnpm workspace monorepo** with a Go backend and a Nuxt frontend. It 
 |---------|------|
 | `apps/api` | **Go (Fiber + GORM) REST API** — auth, forum, Galgame DB, resources, search, messaging, scheduled jobs |
 | `apps/web` | **Nuxt 4 SSR frontend** — Vue 3, calls the Go API; the Nitro server only serves RSS feeds |
-| `packages/ui` | **`@kun/ui`** — shared Nuxt layer (component library), consumed by `apps/web` via `extends` |
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | [Nuxt 4](https://nuxt.com/) (Vue 3 SSR, Nitro node-server) |
-| UI Layer | `@kun/ui` — shared Nuxt layer (`packages/ui`) |
+| UI Layer | `@kungal/ui-nuxt` — shared Nuxt layer |
 | Styling | [Tailwind CSS 4](https://tailwindcss.com/) |
 | State Management | [Pinia](https://pinia.vuejs.org/) with persisted state |
 | Editor | [Milkdown](https://milkdown.dev/) + [CodeMirror](https://codemirror.net/) |
@@ -80,8 +79,6 @@ This is a **pnpm workspace monorepo** with a Go backend and a Nuxt frontend. It 
 │       ├── app/             # pages, components, composables, store (Pinia), validations
 │       ├── server/          # Nitro routes (RSS feeds only)
 │       └── shared/          # shared TypeScript types & utils
-├── packages/
-│   └── ui/                  # @kun/ui — shared Nuxt layer (component library)
 ├── docker/                  # Dockerfiles + env examples + Docker README
 ├── docker-compose*.yml      # base (joins infra) + prod
 ├── scripts/                 # PM2 deploy scripts (deploy / start / stop / restart)

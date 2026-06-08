@@ -89,6 +89,9 @@ importers:
       '@codemirror/language':
         specifier: ^6.11.3
         version: 6.12.2
+      '@codemirror/language-data':
+        specifier: ^6.5.2
+        version: 6.5.2
       '@codemirror/lint':
         specifier: ^6.9.2
         version: 6.9.5
@@ -167,9 +170,18 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
+      '@milkdown/exception':
+        specifier: 7.17.3
+        version: 7.17.3
       '@milkdown/kit':
         specifier: 7.17.3
         version: 7.17.3(@codemirror/language@6.12.2)(@codemirror/state@6.6.0)(@codemirror/view@6.40.0)(typescript@5.9.3)
+      '@milkdown/plugin-upload':
+        specifier: 7.17.3
+        version: 7.17.3
+      '@milkdown/prose':
+        specifier: 7.17.3
+        version: 7.17.3
       '@milkdown/vue':
         specifier: 7.17.3
         version: 7.17.3(@codemirror/language@6.12.2)(@codemirror/state@6.6.0)(@codemirror/view@6.40.0)(prosemirror-model@1.25.3)(prosemirror-state@1.4.4)(prosemirror-view@1.41.7)(typescript@5.9.3)(vue@3.5.35(typescript@5.9.3))
@@ -209,6 +221,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      codemirror:
+        specifier: ^6.0.2
+        version: 6.0.2
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -293,6 +308,9 @@ importers:
       tinyglobby:
         specifier: ^0.2.15
         version: 0.2.17
+      unist-util-visit:
+        specifier: ^5.1.0
+        version: 5.1.0
       vue:
         specifier: ^3.5.35
         version: 3.5.35(typescript@5.9.3)
@@ -345,6 +363,9 @@ importers:
       '@types/sortablejs':
         specifier: ^1.15.9
         version: 1.15.9
+      '@types/unist':
+        specifier: ^3.0.3
+        version: 3.0.3
       '@vue/test-utils':
         specifier: ^2.4.10
         version: 2.4.10(@vue/compiler-dom@3.5.35)(@vue/server-renderer@3.5.35(vue@3.5.35(typescript@5.9.3)))(vue@3.5.35(typescript@5.9.3))
