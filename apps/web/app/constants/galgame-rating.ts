@@ -1,4 +1,4 @@
-import type { KunUIColor } from '@kun/ui/components/kun/ui/type'
+import type { KunUIColor } from '@kungal/ui-core'
 
 export const KUN_GALGAME_RATING_RECOMMEND_CONST = [
   'strong_no',

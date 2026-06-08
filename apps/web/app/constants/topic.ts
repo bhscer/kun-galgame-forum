@@ -1,4 +1,4 @@
-import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
+import type { KunSelectOption } from '@kungal/ui-vue'
 
 export const KUN_TOPIC_CATEGORY: Record<string, string> = {
   galgame: 'Galgame',

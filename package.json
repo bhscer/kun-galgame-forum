@@ -1,6 +1,6 @@
 {
   "name": "kun-galgame-forum",
-  "version": "5.4.82",
+  "version": "5.4.83",
   "private": true,
   "packageManager": "pnpm@10.12.1",
   "workspaces": [
@@ -42,6 +42,7 @@
   },
   "pnpm": {
     "overrides": {
+      "@nuxt/schema": "4.4.7",
       "is-arguments": "npm:@nolyfill/is-arguments@^1",
       "is-core-module": "npm:@nolyfill/is-core-module@^1",
       "is-generator-function": "npm:@nolyfill/is-generator-function@^1",

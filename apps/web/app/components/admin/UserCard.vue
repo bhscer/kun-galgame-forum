@@ -67,7 +67,7 @@ const handlePurge = async () => {
     class="dark:border-default-200 flex flex-col gap-3 rounded-lg border border-transparent p-3"
   >
     <div class="flex items-center justify-between gap-3">
-      <KunUser :user="user" />
+      <KunUserChip :user="user" />
 
       <KunButton
         v-if="!stats"

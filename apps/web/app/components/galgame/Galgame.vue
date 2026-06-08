@@ -103,7 +103,7 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
           <div
             class="text-default-500 flex cursor-default flex-wrap items-center gap-2"
           >
-            <KunUser :user="galgame.user" />
+            <KunUserChip :user="galgame.user" />
             <span class="text-sm">
               <KunTime :time="galgame.created" type="date" show-year /> 创建本游戏
             </span>

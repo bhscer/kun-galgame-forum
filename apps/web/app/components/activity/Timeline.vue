@@ -53,7 +53,7 @@ const { data, status } = await useKunFetch<{
             :to="activity.link"
             class-name="hover:text-primary block space-x-3 break-all transition-colors"
           >
-            <KunContentText
+            <KunText
               class-name="whitespace-normal!"
               :content="activity.content"
             />

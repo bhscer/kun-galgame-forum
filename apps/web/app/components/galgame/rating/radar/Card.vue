@@ -27,7 +27,7 @@ defineProps<{
       >
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-3">
-            <KunUser :disable-floating="true" :user="rating.user" />
+            <KunUserChip :disable-floating="true" :user="rating.user" />
             <span class="text-default-500 text-sm">
               <KunTime :time="rating.created" />
             </span>
@@ -57,7 +57,7 @@ defineProps<{
             class-name="max-h-[110px]"
             class="text-default-700 text-sm"
           >
-            <KunContentText :content="rating.short_summary" />
+            <KunText :content="rating.short_summary" />
           </KunScrollShadow>
         </div>
 

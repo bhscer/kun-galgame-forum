@@ -123,7 +123,7 @@ const { data, status } = await useKunFetch<{
       </KunLink>
 
       <div class="flex items-center space-x-2">
-        <KunUser size="sm" v-if="activity.actor" :user="activity.actor" />
+        <KunUserChip size="sm" v-if="activity.actor" :user="activity.actor" />
         <span class="text-default-500 text-sm">
           <KunTime :time="activity.timestamp" />
         </span>

@@ -150,7 +150,7 @@ const canManage = (comment: ToolsetComment) =>
           </div>
         </div>
 
-        <KunAnimationFadeCard>
+        <KunFadeCard>
           <div v-if="replyTo === com.id" class="mt-2">
             <ToolsetCommentPublish
               :toolset-id="toolsetId"
@@ -158,7 +158,7 @@ const canManage = (comment: ToolsetComment) =>
               @set-new-comment="handleCommitNewComment"
             />
           </div>
-        </KunAnimationFadeCard>
+        </KunFadeCard>
 
         <ToolsetCommentRender
           v-if="com.reply?.length"

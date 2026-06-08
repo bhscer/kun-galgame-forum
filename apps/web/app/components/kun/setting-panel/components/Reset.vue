@@ -19,7 +19,7 @@ const handleRecover = async () => {
   <KunButton
     full-width
     color="danger"
-    variant="faded"
+    variant="flat"
     class-name="p-2"
     @click="handleRecover"
   >

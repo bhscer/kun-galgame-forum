@@ -35,7 +35,7 @@ defineProps<{
           :to="activity.link"
           class-name="hover:text-primary block space-x-3 break-all transition-colors"
         >
-          <KunContentText
+          <KunText
             class-name="whitespace-normal!"
             :content="activity.content"
           />
@@ -45,7 +45,7 @@ defineProps<{
         </KunLink>
 
         <div class="flex items-center space-x-2">
-          <KunUser :disable-floating="true" size="sm" :user="activity.actor" />
+          <KunUserChip :disable-floating="true" size="sm" :user="activity.actor" />
           <span class="text-default-500 text-sm">
             <KunTime :time="activity.timestamp" />
           </span>

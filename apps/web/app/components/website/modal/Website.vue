@@ -6,7 +6,7 @@ import {
   KUN_WEBSITE_ACG_LIMIT_MAP
 } from '~/constants/galgameWebsite'
 import type { CreateWebsitePayload, UpdateWebsitePayload } from './types'
-import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
+import type { KunSelectOption } from '@kungal/ui-vue'
 
 type WebsiteData = CreateWebsitePayload & { websiteId?: number }
 

@@ -17,16 +17,11 @@ const sharedTsConfig: TSConfig = {
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  // @kun/ui is consumed as a Nuxt layer — components / composables /
-  // styles flow in via the layer system instead of duplicated files.
-  extends: ['../../packages/ui'],
-
-  // Alias for explicit type-only imports from the layer (the auto-import
-  // path handles components / composables, but `import type {…}` still
-  // needs a real path).
-  alias: {
-    '@kun/ui': path.resolve(__dirname, '../../packages/ui/app')
-  },
+  // KunUI is consumed as the published Nuxt layer (@kungal/ui-nuxt): it
+  // auto-imports all components & composables from @kungal/ui-vue and wires
+  // NuxtLink / @nuxt/icon / @nuxt/image. The app owns its Tailwind entry
+  // (app/styles/tailwindcss.css → @kungal/ui-tokens + ui-vue style + @source).
+  extends: ['@kungal/ui-nuxt'],
 
   devtools: { enabled: false },
 
@@ -99,7 +94,17 @@ export default defineNuxtConfig({
   routeRules: {},
 
   imports: {
-    dirs: ['./composables', './config', './utils']
+    dirs: ['./composables', './config', './utils'],
+    // The old @kun/ui layer auto-imported `cn` (the classname helper) globally;
+    // the published @kungal/ui-nuxt layer only auto-imports its Kun* composables,
+    // so re-register `cn` (and the shared types) from @kungal/ui-core here — the
+    // forum uses `cn(...)` unimported in ~80 components.
+    presets: [
+      {
+        from: '@kungal/ui-core',
+        imports: ['cn', 'randomNum']
+      }
+    ]
   },
 
   site: {

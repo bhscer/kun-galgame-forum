@@ -189,7 +189,7 @@ const handleSaveEdit = async (comment: TopicComment) => {
           </div>
         </div>
 
-        <KunAnimationFadeCard>
+        <KunFadeCard>
           <LazyTopicCommentPanel
             v-if="activeCommentId === comment.id && targetUserForPanel"
             :reply-id="replyId"
@@ -197,7 +197,7 @@ const handleSaveEdit = async (comment: TopicComment) => {
             @get-comment="handleNewComment"
             @close-panel="activeCommentId = null"
           />
-        </KunAnimationFadeCard>
+        </KunFadeCard>
       </div>
     </div>
   </div>

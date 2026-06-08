@@ -69,7 +69,7 @@ watch(
           class="flex flex-col justify-between gap-2"
         >
           <div class="flex items-center gap-3">
-            <KunUser :disable-floating="true" :user="log.user" />
+            <KunUserChip :disable-floating="true" :user="log.user" />
             <div class="text-default-500 text-sm">
               <KunTime :time="log.created" type="datetime" show-year />
             </div>

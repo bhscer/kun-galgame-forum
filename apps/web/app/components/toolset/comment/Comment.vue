@@ -142,7 +142,7 @@ const onReplied = () => {
         </div>
       </div>
 
-      <KunAnimationFadeCard>
+      <KunFadeCard>
         <div v-if="isShowReply" class="mt-2">
           <ToolsetCommentPublish
             :toolset-id="comment.toolsetId"
@@ -150,7 +150,7 @@ const onReplied = () => {
             @set-new-comment="onReplied"
           />
         </div>
-      </KunAnimationFadeCard>
+      </KunFadeCard>
     </div>
   </KunCard>
 </template>

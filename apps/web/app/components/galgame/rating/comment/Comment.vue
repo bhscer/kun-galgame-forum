@@ -155,7 +155,7 @@ const handleCreateSuccess = (newComment: GalgameRatingComment) => {
         </div>
       </div>
 
-      <KunAnimationFadeCard>
+      <KunFadeCard>
         <GalgameRatingCommentPanel
           v-if="isShowReply"
           :rating-id="ratingId"
@@ -163,7 +163,7 @@ const handleCreateSuccess = (newComment: GalgameRatingComment) => {
           @close="isShowReply = false"
           @on-success="handleCreateSuccess"
         />
-      </KunAnimationFadeCard>
+      </KunFadeCard>
     </div>
   </KunCard>
 </template>

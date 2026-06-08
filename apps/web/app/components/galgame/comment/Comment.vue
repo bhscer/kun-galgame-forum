@@ -223,7 +223,7 @@ const handleDelete = async () => {
         </KunTooltip>
       </div>
 
-      <KunAnimationFadeCard>
+      <KunFadeCard>
         <GalgameCommentPanel
           v-if="isShowReply"
           :parent-comment-id="comment.id"
@@ -231,7 +231,7 @@ const handleDelete = async () => {
           @close="isShowReply = false"
           @submitted="(reply) => emit('replyAdded', reply)"
         />
-      </KunAnimationFadeCard>
+      </KunFadeCard>
 
       <!-- Replies render flush — single visual tier, no indent or
            border-l. Smaller avatar on the children is the only

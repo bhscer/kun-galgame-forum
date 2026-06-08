@@ -5,7 +5,7 @@ import {
 } from '~/constants/galgameOfficial'
 import { updateGalgameOfficialSchema } from '~/validations/galgame-official'
 import type { UpdateGalgameOfficialPayload } from '../types'
-import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
+import type { KunSelectOption } from '@kungal/ui-vue'
 
 const props = defineProps<{
   modelValue: boolean

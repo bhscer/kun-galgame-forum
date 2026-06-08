@@ -1,3 +1,4 @@
+import type { KunMessageType, KunMessagePosition } from '@kungal/ui-vue'
 import { infoMessages } from '~/error/kunMessage'
 
 // kungal-side wrapper around the layer's useKunMessage. The only

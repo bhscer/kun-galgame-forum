@@ -97,7 +97,7 @@ const handleCommitNewComment = (comment: WebsiteComment) => {
         </div>
       </div>
 
-      <KunAnimationFadeCard>
+      <KunFadeCard>
         <div class="mt-2" v-if="replyTo === com.id">
           <WebsiteCommentPublish
             :website-id="websiteId"
@@ -107,7 +107,7 @@ const handleCommitNewComment = (comment: WebsiteComment) => {
             @set-new-comment="handleCommitNewComment"
           />
         </div>
-      </KunAnimationFadeCard>
+      </KunFadeCard>
 
       <div v-if="com.reply && com.reply.length > 0" className="mt-2">
         <WebsiteCommentRender

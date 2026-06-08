@@ -2,7 +2,7 @@
 import { KUN_GALGAME_TAG_CATEGORY_MAP } from '~/constants/galgameTag'
 import { updateGalgameTagSchema } from '~/validations/galgame-tag'
 import type { UpdateGalgameTagPayload } from '../types'
-import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
+import type { KunSelectOption } from '@kungal/ui-vue'
 
 const props = defineProps<{
   modelValue: boolean

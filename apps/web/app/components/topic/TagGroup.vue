@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { KUN_TOPIC_SECTION } from '~/constants/topic'
-import type { KunUIColor, KunUISize } from '@kun/ui/components/kun/ui/type'
+import type { KunUIColor, KunUISize } from '@kungal/ui-core'
 
 const props = withDefaults(
   defineProps<{

@@ -126,7 +126,9 @@ onMounted(() => {
 
 <template>
   <div class="kun">
-    <KunAlert />
+    <KunAlertProvider />
+    <KunMessageProvider />
+    <KunLoliProvider />
 
     <KunCapture />
 

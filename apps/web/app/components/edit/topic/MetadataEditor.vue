@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { KunTagInputInvalidReason } from '@kun/ui/components/kun/tag-input/type'
+import type { KunTagInputInvalidReason } from '@kungal/ui-vue'
 import { useTopicEditorStore } from '~/composables/topic/useTopicEditorStore'
 import {
   TOPIC_CATEGORIES,

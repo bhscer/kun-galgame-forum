@@ -1,4 +1,4 @@
-import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
+import type { KunSelectOption } from '@kungal/ui-vue'
 
 export const KUN_GALGAME_TOOLSET_TYPE_MAP: Record<string, string> = {
   all: '全部类型',

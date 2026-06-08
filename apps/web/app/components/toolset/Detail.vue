@@ -158,7 +158,7 @@ const handleResourceUpdated = (res: ToolsetResource) => {
         <div class="space-y-6 md:col-span-1">
           <div class="space-y-2">
             <h3 class="font-semibold">发布者</h3>
-            <KunUser :user="data.user" />
+            <KunUserChip :user="data.user" />
           </div>
 
           <div v-if="data.homepage.length" class="space-y-2">

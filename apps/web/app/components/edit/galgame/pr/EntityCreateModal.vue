@@ -15,7 +15,7 @@ import {
 import {
   KUN_GALGAME_OFFICIAL_CATEGORY_MAP
 } from '~/constants/galgameOfficial'
-import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
+import type { KunSelectOption } from '@kungal/ui-vue'
 
 interface CreatedEntity {
   id: number

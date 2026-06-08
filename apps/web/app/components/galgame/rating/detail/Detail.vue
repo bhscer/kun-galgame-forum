@@ -143,7 +143,7 @@ const handleDeleteRating = async () => {
             </KunChip>
           </div>
 
-          <KunContentText
+          <KunText
             :content="data.short_summary"
             class-name="leading-7"
           />

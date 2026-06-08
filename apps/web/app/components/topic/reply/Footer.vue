@@ -100,7 +100,7 @@ const handleNewComment = (comment: TopicComment) => {
       </div>
     </div>
 
-    <KunAnimationFadeCard>
+    <KunFadeCard>
       <LazyTopicCommentPanel
         v-if="isCommentPanelVisible"
         class="mt-4"
@@ -109,6 +109,6 @@ const handleNewComment = (comment: TopicComment) => {
         @get-comment="handleNewComment"
         @close-panel="isCommentPanelVisible = false"
       />
-    </KunAnimationFadeCard>
+    </KunFadeCard>
   </div>
 </template>

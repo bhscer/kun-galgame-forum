@@ -12,7 +12,7 @@
 //
 // Footer.vue strips `cdn_url` (server-injected preview) from the wire
 // payload — wiki doesn't accept it on write.
-import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
+import type { KunSelectOption } from '@kungal/ui-vue'
 
 const { galgamePR } = storeToRefs(useTempGalgamePRStore())
 

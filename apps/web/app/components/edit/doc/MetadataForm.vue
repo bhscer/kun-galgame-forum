@@ -2,7 +2,7 @@
 import { KUN_DOC_CATEGORY_MAP, KUN_DOC_STATUS_OPTIONS } from '~/constants/doc'
 import { useDocEditorContext } from './context'
 import { normalizeDocSlug } from '~/utils/doc'
-import type { KunSelectOption } from '@kun/ui/components/kun/select/type'
+import type { KunSelectOption } from '@kungal/ui-vue'
 
 const { form, categories, tags, refreshTags, readingMinute } =
   useDocEditorContext()
