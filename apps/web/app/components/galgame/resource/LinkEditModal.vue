@@ -147,7 +147,7 @@ const platformOptions = computed(() =>
 </script>
 
 <template>
-  <KunModal v-model="open" inner-class-name="max-w-2xl w-[92vw]">
+  <KunModal v-model="open" inner-class-name="max-w-2xl w-[92vw]" :is-dismissable="false">
     <div class="space-y-4">
       <div class="space-y-1">
         <h2 class="text-lg font-semibold">{{ modalTitle }}</h2>

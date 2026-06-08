@@ -303,6 +303,7 @@ const handleConfirmReason = async () => {
     <KunModal
       :model-value="isReasonModalOpen"
       inner-class-name="w-full max-w-lg"
+      :is-dismissable="false"
       @update:model-value="closeReasonModal"
     >
       <div class="space-y-4">

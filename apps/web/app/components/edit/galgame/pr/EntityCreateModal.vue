@@ -122,7 +122,7 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <KunModal v-model="open" inner-class-name="max-w-md">
+  <KunModal v-model="open" inner-class-name="max-w-md" :is-dismissable="false">
     <form class="space-y-4" @submit.prevent>
       <h2 class="text-xl font-bold">{{ title }}</h2>
 
