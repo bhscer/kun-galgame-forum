@@ -112,16 +112,23 @@ var Sources = map[string]ActivitySource{
 	},
 	"GALGAME_RATING_CREATION": {
 		TypeStr: "GALGAME_RATING_CREATION",
+		// Link to the rating's OWN detail page (/galgame-rating/:ratingId =
+		// galgame-rating/[id].vue, keyed by the rating id t.id), NOT the parent
+		// galgame page — a "X 评分了 Y" activity should open that review.
+		// galgame_id is still selected for actor/content enrichment.
 		Query: `SELECT 'GALGAME_RATING_CREATION' AS type_str, t.id,
 			SUBSTRING(COALESCE(t.short_summary,''), 1, 100) AS content,
-			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
+			'/galgame-rating/' || t.id AS link, t.created, t.user_id, t.galgame_id
 			FROM galgame_rating t`,
 	},
 	"GALGAME_RATING_COMMENT_CREATION": {
 		TypeStr: "GALGAME_RATING_COMMENT_CREATION",
+		// A comment ON a rating links to that rating's detail page
+		// (/galgame-rating/:ratingId), NOT /galgame/:ratingId — the old prefix
+		// fed a rating id into the galgame route, so the jump went nowhere.
 		Query: `SELECT 'GALGAME_RATING_COMMENT_CREATION' AS type_str, t.id,
 			SUBSTRING(t.content, 1, 100) AS content,
-			'/galgame/' || t.galgame_rating_id AS link, t.created, t.user_id, 0 AS galgame_id
+			'/galgame-rating/' || t.galgame_rating_id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM galgame_rating_comment t`,
 	},
 	// GALGAME_PR_CREATION removed: galgame_pr table moved to wiki service
