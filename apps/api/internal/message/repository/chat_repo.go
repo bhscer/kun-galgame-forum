@@ -143,10 +143,15 @@ func (r *ChatRepository) FindPrivateRoomBetween(uid1, uid2 int) RoomRef {
 // failed.
 func (r *ChatRepository) CreatePrivateRoom(roomName string, uid1, uid2 int) (RoomRef, error) {
 	var room RoomRef
+	// Own the clock in Go (like the rest of the app) instead of Postgres NOW():
+	// the columns are timestamptz, so this stores a correct absolute instant, and
+	// it keeps every chat write on one clock — the NOW()/time.Now() mix is what
+	// made these columns zone-inconsistent before migration 023.
+	now := time.Now()
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Exec(
-			`INSERT INTO chat_room (name, type, created, updated) VALUES (?, 'private', NOW(), NOW())`,
-			roomName,
+			`INSERT INTO chat_room (name, type, created, updated) VALUES (?, 'private', ?, ?)`,
+			roomName, now, now,
 		).Error; err != nil {
 			return err
 		}
@@ -155,8 +160,8 @@ func (r *ChatRepository) CreatePrivateRoom(roomName string, uid1, uid2 int) (Roo
 		}
 		if room.ID > 0 {
 			if err := tx.Exec(
-				`INSERT INTO chat_room_participant (chat_room_id, user_id, created, updated) VALUES (?, ?, NOW(), NOW()), (?, ?, NOW(), NOW())`,
-				room.ID, uid1, room.ID, uid2,
+				`INSERT INTO chat_room_participant (chat_room_id, user_id, created, updated) VALUES (?, ?, ?, ?), (?, ?, ?, ?)`,
+				room.ID, uid1, now, now, room.ID, uid2, now, now,
 			).Error; err != nil {
 				return err
 			}
@@ -243,11 +248,12 @@ func (r *ChatRepository) MarkMessagesRead(msgIDs []int, userID int) error {
 	if len(msgIDs) == 0 {
 		return nil
 	}
+	now := time.Now()
 	placeholders := make([]string, 0, len(msgIDs))
-	args := make([]any, 0, len(msgIDs)*2)
+	args := make([]any, 0, len(msgIDs)*4)
 	for _, mid := range msgIDs {
-		placeholders = append(placeholders, "(?, ?, NOW(), NOW())")
-		args = append(args, mid, userID)
+		placeholders = append(placeholders, "(?, ?, ?, ?)")
+		args = append(args, mid, userID, now, now)
 	}
 	sql := `INSERT INTO chat_message_read_by (chat_message_id, user_id, created, updated) VALUES ` +
 		strings.Join(placeholders, ", ") + ` ON CONFLICT DO NOTHING`
