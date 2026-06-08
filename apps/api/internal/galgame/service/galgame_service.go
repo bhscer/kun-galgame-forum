@@ -162,10 +162,15 @@ func (s *GalgameService) MergePR(
 
 	submitter := prInfo.PR.UserID
 	if submitter > 0 && submitter != mergerID {
+		// Resolve the galgame name up front (wiki call, kept out of the tx) so
+		// the "已被 X 合并" notification can show WHICH game. This merge notice
+		// was the one galgame notification still created with empty content —
+		// surfacing as a blank preview + no game name in the message center.
+		_, name := s.fetchOwnerAndName(ctx, gidInt)
 		s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
 			s.helpers.AdjustMoemoepoint(tx, submitter, constants.RewardPRMerge,
 				moemoepoint.ReasonContentApproved, moemoepoint.Ref("galgame_pr", gidInt))
-			s.helpers.CreateGalgameMessage(tx, mergerID, submitter, "merged", gidInt)
+			s.helpers.CreateGalgameMessageWithContent(tx, mergerID, submitter, "merged", name, gidInt)
 			return nil
 		})
 	}
