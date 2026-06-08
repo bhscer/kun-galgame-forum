@@ -44,15 +44,19 @@ const handleSubmit = async () => {
   }
 
   isSubmitting.value = true
-  const id = await kunFetch<number>('/toolset', {
+  // POST /toolset returns the full created toolset row (CreatedToolsetResponse
+  // = the GalgameToolset model), NOT a bare id. Read `.id` off it — interpolating
+  // the whole object into the URL yielded `/toolset/[object Object]`, which the
+  // detail page parsed to NaN and rendered as "未找到该工具资源".
+  const created = await kunFetch<{ id: number }>('/toolset', {
     method: 'POST',
     body: form
   })
   isSubmitting.value = false
 
-  if (id) {
+  if (created) {
     useMessage('创建工具成功', 'success')
-    navigateTo(`/toolset/${id}`)
+    navigateTo(`/toolset/${created.id}`)
   }
 }
 
