@@ -7,8 +7,8 @@ const messageTemplates: Record<string, Record<string, string>> = {
     commented: ' commented you!',
     expired: ' report for your resource link has expired!',
     requested: ' has requested an update from you!',
-    merged: 'Your update request has been merged by the !',
-    declined: 'Your update request declined by the !',
+    merged: ' merged your update request!',
+    declined: ' declined your update request!',
     admin: 'System message',
     mentioned: ' mentioned you!',
     default: ' {{action}} you!'
@@ -21,8 +21,8 @@ const messageTemplates: Record<string, Record<string, string>> = {
     commented: ' があなたにコメントしました！',
     expired: ' があなたのリソースリンクの期限切れを報告しました！',
     requested: ' があなたに更新リクエストを送信しました！',
-    merged: 'あなたの更新リクエストが  によってマージされました！',
-    declined: 'あなたの更新リクエストが  によって拒否されました！',
+    merged: ' があなたの更新リクエストをマージしました！',
+    declined: ' があなたの更新リクエストを拒否しました！',
     admin: 'システムメッセージ',
     mentioned: ' があなたをメンションしました！'
   },
@@ -35,8 +35,8 @@ const messageTemplates: Record<string, Record<string, string>> = {
     expired: ' 报告了您的资源链接已过期！',
     requested: ' 向您提出更新请求！',
     solution: '您的回复被标记为最佳答案!',
-    merged: '您的更新请求已被  合并！',
-    declined: '您的更新请求被  拒绝！',
+    merged: ' 合并了您的更新请求！',
+    declined: ' 拒绝了您的更新请求！',
     admin: '系统消息',
     mentioned: ' 提到了您！'
   },
@@ -48,8 +48,8 @@ const messageTemplates: Record<string, Record<string, string>> = {
     commented: ' 評論了您!',
     expired: ' 報告了您的資源鏈接已過期！',
     requested: ' 嚮您提出更新請求！',
-    merged: '您的更新請求已被  合併！',
-    declined: '您的更新請求被  拒絕！',
+    merged: ' 合併了您的更新請求！',
+    declined: ' 拒絕了您的更新請求！',
     admin: '繫統消息',
     mentioned: ' 提到了您！'
   }
