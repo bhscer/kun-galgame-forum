@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Scans the app (apps/web/app) AND the shared UI layer (packages/ui/app) for
+ * Scans the app (apps/web/app) for
  * icon names used in `KunIcon` / `Icon` components and generates
  * `apps/web/lib/icon.ts` with two exports:
  *
@@ -16,17 +16,13 @@
  *     clientBundle: { icons: ICON_NAMES, scan: false }
  *   }
  *
- * Why the layer is scanned too: layer components (KunLightbox, etc.) render
- * their own icons during SSR. @nuxt/icon's `scan: true` only globs the app's
- * rootDir (excluding node_modules) at build time, so it CANNOT see the layer —
- * an icon the layer renders but isn't in the client bundle gets inlined on the
- * server yet fetched on the client at hydration. Vue 3.5 then discards the
- * mismatched subtree and re-renders it ("double load"). Scanning app + layer
- * keeps the client bundle a superset of everything rendered, so server and
- * client emit identical markup and hydration is stable.
+ * KunUI's own component icons are NOT scanned here: the published
+ * @kungal/ui-vue renders <KunIcon> from its own bundled in-memory registry
+ * (it never hits @nuxt/icon for them), so the forum's @nuxt/icon bundle only
+ * needs the icons the forum itself references in apps/web/app.
  *
  * The collection allowlist is derived from the installed `@iconify-json/*`
- * packages (app + layer package.json), so only bundleable collections are
+ * packages (app package.json), so only bundleable collections are
  * emitted (a stray `foo:bar` CSS/time string can't leak in) and the list stays
  * correct when a collection is added or removed. Icons referenced from a
  * collection that ISN'T installed are reported as warnings — they cannot be
@@ -49,13 +45,13 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..') // apps/web
-const LAYER = join(ROOT, '..', '..', 'packages', 'ui', 'app')
-const SCAN_DIRS = [join(ROOT, 'app'), LAYER]
+// Only the app is scanned now. KunUI moved to the published @kungal/ui-vue,
+// whose <KunIcon> renders from its OWN bundled in-memory registry (it never
+// hits @nuxt/icon for its components' icons), so the forum's @nuxt/icon bundle
+// only needs the icons the forum itself references.
+const SCAN_DIRS = [join(ROOT, 'app')]
 const OUTPUT_FILE = join(ROOT, 'lib/icon.ts')
-const PACKAGE_JSONS = [
-  join(ROOT, 'package.json'),
-  join(ROOT, '..', '..', 'packages', 'ui', 'package.json')
-]
+const PACKAGE_JSONS = [join(ROOT, 'package.json')]
 
 const SCAN_EXTENSIONS = new Set(['.vue', '.ts', '.tsx', '.js', '.mjs'])
 const SKIP_DIRS = new Set(['node_modules', '.nuxt', '.output', 'dist', '.git'])
@@ -89,7 +85,7 @@ const NON_ICON_PREFIXES = new Set([
   'not', 'group', 'peer', 'aria', 'data', 'supports', 'min', 'max', 'update'
 ])
 
-// Read the installed @iconify-json/* packages from the app + layer manifests.
+// Read the installed @iconify-json/* packages from the app manifest.
 // These are the only collections that can actually be bundled/served.
 const installedCollections = async () => {
   const set = new Set()
@@ -167,7 +163,7 @@ async function main() {
 
   const rel = relative(ROOT, OUTPUT_FILE)
   console.log(
-    `Scanned ${scanned} files (app + layer), found ${names.length} icons across ${collections.length} collections`
+    `Scanned ${scanned} files (app), found ${names.length} icons across ${collections.length} collections`
   )
   console.log(`Wrote ${rel}`)
 
