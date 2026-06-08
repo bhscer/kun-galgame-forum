@@ -1,27 +1,41 @@
 <script setup lang="ts">
+import { watchDebounced } from '@vueuse/core'
+
 const { searchHistory } = storeToRefs(usePersistKUNGalgameSearchStore())
 const { keywords } = storeToRefs(useTempSearchStore())
 
 const isFocus = ref(false)
 const input = ref<HTMLElement | null>(null)
+// The box is the single source of truth for what the user typed; the shared
+// `keywords` (which Container's fetch watcher reads) is DERIVED from it.
 const inputValue = ref('')
 
 onBeforeMount(() => {
   keywords.value = ''
 })
 
-const debouncedSearch = debounce((inputValue: string) => {
-  keywords.value = inputValue.trim() || ''
-}, 500)
-
-watch(
-  () => keywords.value,
-  () => {
-    if (!inputValue.value) {
-      inputValue.value = keywords.value
-    }
-  }
+// Typing → keywords, debounced. We WATCH the v-model ref instead of reading
+// the value inside an @input handler: that handler captured the value from
+// *before* the keystroke applied, so every search ran the previous term and
+// clearing the box still searched the old keyword. Watching the ref always
+// publishes the latest text. No maxWait — for a search box it adds a second
+// (maxWait) invocation on top of the trailing one, firing each query twice.
+watchDebounced(
+  () => inputValue.value,
+  (value) => {
+    keywords.value = value.trim()
+  },
+  { debounce: 500 }
 )
+
+// Reflect EXTERNAL keyword changes (clicking a search-history entry sets the
+// store directly) back into the box. The trim guard skips our own debounced
+// echo, so it never strips a space the user is still typing.
+watch(keywords, (value) => {
+  if (value !== inputValue.value.trim()) {
+    inputValue.value = value
+  }
+})
 
 onMounted(() => input.value?.focus())
 
@@ -35,6 +49,11 @@ const handleInputBlur = () => {
     searchHistory.value.push(keywords.value)
   }
 }
+
+// Enter searches immediately rather than waiting out the debounce window.
+const handleEnter = () => {
+  keywords.value = inputValue.value.trim()
+}
 </script>
 
 <template>
@@ -47,7 +66,6 @@ const handleInputBlur = () => {
     placeholder="输入内容以自动搜索"
     @focus="isFocus = true"
     @blur="handleInputBlur"
-    @input="debouncedSearch(inputValue)"
-    @keydown.enter="debouncedSearch(inputValue)"
+    @keydown.enter="handleEnter"
   />
 </template>
