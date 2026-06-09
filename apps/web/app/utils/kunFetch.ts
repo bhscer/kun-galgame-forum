@@ -62,6 +62,18 @@ const extractForwardedCookies = (
   return kept.length > 0 ? kept.join('; ') : undefined
 }
 
+// Client-only debounced auth-expiry handling. The Go auth middleware
+// deliberately returns transient 205s for the brief window while it refreshes
+// the OAuth access token — the session stays intact and recovers (see
+// apps/api/internal/middleware/auth.go: "we'd rather get many 205s during a
+// refresh window"). A page refresh fires many authed requests into that window
+// at once, so reacting to each 205 spammed "登录失效" toasts and reset a user
+// who was never actually logged out. Instead the FIRST 205 arms a single timer
+// that, after the window has passed, RE-VERIFIES the session with one fresh
+// authed request and only logs out if it's genuinely dead. Concurrent 205s in
+// the same window collapse into that one pending check (authExpiryTimer latch).
+let authExpiryTimer: ReturnType<typeof setTimeout> | null = null
+
 const handleApiError = async (code: number, message: string) => {
   if (import.meta.server) return
 
@@ -75,18 +87,47 @@ const handleApiError = async (code: number, message: string) => {
   }
 
   if (code === CODE_AUTH_EXPIRED) {
-    const { default: Cookies } = await import('js-cookie')
-    const navigateCookie = Cookies.get('kun-is-navigate-to-login')
     const userStore = usePersistUserStore()
-
-    if (!navigateCookie && userStore.id) {
-      userStore.resetUser()
-      useMessage(message || '登录已失效，请重新登录', 'error', 7777)
-      Cookies.set('kun-is-navigate-to-login', 'navigated', {
-        expires: 1 / 1440
-      })
-      await navigateTo('/')
+    // Nothing to log out, or a re-check is already pending for this expiry
+    // window (the latch that collapses a refresh's burst of 205s into one).
+    if (!userStore.id || authExpiryTimer) {
+      return
     }
+    // Capture the Nuxt context + config now (still inside the request's call
+    // stack) so the deferred re-verify / navigate work from the bare timer.
+    const nuxtApp = useNuxtApp()
+    const config = useRuntimeConfig()
+    authExpiryTimer = setTimeout(async () => {
+      authExpiryTimer = null
+      const store = usePersistUserStore()
+      if (!store.id) {
+        return
+      }
+      // The refresh window has passed; re-verify once with a fresh authed
+      // request. Raw $fetch (not kunFetch) so a 205 here can't recurse back
+      // into this handler. Code 0 → session was only mid-refresh, stay logged
+      // in silently. A 401/403 → genuinely dead, log out once. Any other
+      // failure (network blip) is left alone — we don't log out on a maybe.
+      let dead = false
+      try {
+        const resp = await $fetch<KunApiResponse<unknown>>(
+          `${config.public.apiBaseUrl}/api/user/status`,
+          { credentials: 'include' }
+        )
+        dead = !resp || resp.code !== 0
+      } catch (e) {
+        const status =
+          (e as { status?: number; response?: { status?: number } })?.status ??
+          (e as { response?: { status?: number } })?.response?.status
+        dead = status === 401 || status === 403
+      }
+      if (!dead || !store.id) {
+        return
+      }
+      store.resetUser()
+      useMessage(message || '登录已失效，请重新登录', 'error', 7777)
+      nuxtApp.runWithContext(() => navigateTo('/'))
+    }, 1500)
     return
   }
 
