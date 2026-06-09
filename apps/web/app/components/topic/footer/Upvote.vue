@@ -33,7 +33,7 @@ const upvoteTopic = async () => {
 
 const handleClickUpvote = async () => {
   if (!id) {
-    useMessage(10240, 'warn', 5000)
+    useAuthModal().open()
     return
   }
 

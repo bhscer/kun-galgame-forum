@@ -18,7 +18,7 @@ const isSaving = ref(false)
 
 const handleClickComment = (comment: TopicComment) => {
   if (!currentUserId) {
-    useMessage(10216, 'warn', 5000)
+    useAuthModal().open()
     return
   }
 

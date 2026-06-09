@@ -32,7 +32,7 @@ const likeResource = async () => {
 
 const handleClickLike = async () => {
   if (!id) {
-    useMessage(10532, 'warn', 5000)
+    useAuthModal().open()
     return
   }
 

@@ -87,7 +87,7 @@ defineExpose({ prefetch: fetchDetail })
 // and the button silently does nothing — exactly the "似乎失效" symptom.
 const handleReportExpire = async () => {
   if (!currentUserId) {
-    useMessage(10546, 'warn')
+    useAuthModal().open()
     return
   }
   const res = await useComponentMessageStore().alert(

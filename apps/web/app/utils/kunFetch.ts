@@ -27,6 +27,17 @@ const CODE_AUTH_EXPIRED = 205
 // surface the message prominently and stop there.
 const CODE_BANNED = 234
 
+// Business codes the Go backend returns when an action needs a logged-in user
+// (distinct from 205 = a dead/expired session). The client gates most of these
+// BEFORE the request via requireLogin(), but this is the safety net: any that
+// slip through (an ungated control, a direct API call) pop the login modal for
+// a logged-out user instead of a dead-end toast. Mirrors the "您需要登录…" set
+// in app/error/kunMessage.ts.
+const LOGIN_REQUIRED_CODES = new Set([
+  10115, 10142, 10146, 10216, 10220, 10228, 10232, 10235, 10237, 10240, 10249,
+  10529, 10532, 10546
+])
+
 // Forward a SMALL ALLOWLIST of cookies to the Go backend during SSR — never
 // the whole jar.
 //
@@ -128,6 +139,14 @@ const handleApiError = async (code: number, message: string) => {
       useMessage(message || '登录已失效，请重新登录', 'error', 7777)
       nuxtApp.runWithContext(() => navigateTo('/'))
     }, 1500)
+    return
+  }
+
+  // Login-required business error for a logged-out user → pop the login modal
+  // (the same one requireLogin() opens) instead of a toast. A logged-IN user
+  // hitting one of these is a real error, so fall through to the message.
+  if (LOGIN_REQUIRED_CODES.has(code) && !usePersistUserStore().id) {
+    useAuthModal().open()
     return
   }
 

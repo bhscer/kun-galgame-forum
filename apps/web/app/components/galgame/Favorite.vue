@@ -34,7 +34,7 @@ const handleClickFavoriteThrottled = throttle(toggleFavoriteGalgame, 1007, () =>
 
 const handleClickFavorite = () => {
   if (!id) {
-    useMessage(10529, 'warn', 5000)
+    useAuthModal().open()
     return
   }
   handleClickFavoriteThrottled()

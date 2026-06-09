@@ -42,7 +42,7 @@ const handleClickLikeThrottled = throttle(toggleLike, 1007, () =>
 
 const handleClickLike = () => {
   if (!id) {
-    useMessage(10235, 'warn', 5000)
+    useAuthModal().open()
     return
   }
   if (id === props.targetUserId) {

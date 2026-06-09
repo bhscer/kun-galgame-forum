@@ -5,11 +5,10 @@ const { showKUNGalgamePanel, messageStatus } = storeToRefs(
 )
 
 // Single solid-primary "登录" button replaces the previous (登录 + 注册)
-// pair. Click opens KunAuthModal which offers both options as OAuth
-// jumps. Pre-L1 there were standalone /login + /register pages; both
-// were deleted in this refactor since the actual auth work is owned
-// by OAuth account-center anyway.
-const isAuthModalOpen = ref(false)
+// pair. Click opens the global KunAuthModal (mounted in app.vue) which offers
+// both options as OAuth jumps. Pre-L1 there were standalone /login + /register
+// pages; both were deleted since the actual auth work is owned by OAuth.
+const { open: openAuthModal } = useAuthModal()
 
 // KunPopover stays open on inside-clicks by design (it's a generic overlay).
 // For this menu we want item clicks to dismiss it, so we hold a ref and call
@@ -84,16 +83,10 @@ const statusClasses = computed(() => {
     </KunPopover>
 
     <template v-if="!id">
-      <KunButton
-        size="lg"
-        color="primary"
-        @click="isAuthModalOpen = true"
-      >
+      <KunButton size="lg" color="primary" @click="openAuthModal()">
         登录
       </KunButton>
     </template>
-
-    <KunAuthModal v-model="isAuthModalOpen" />
 
     <!-- 萌萌点明细 modal — mounted here (not inside the avatar popover, which
          v-if-unmounts its content on click-away). Self-binds to the temp

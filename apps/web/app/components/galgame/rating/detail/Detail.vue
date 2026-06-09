@@ -34,7 +34,7 @@ const isEditOpen = ref(false)
 
 const handleDeleteRating = async () => {
   if (!userId) {
-    useMessage('请登陆后再操作', 'warn', 7000)
+    useAuthModal().open()
     return
   }
 

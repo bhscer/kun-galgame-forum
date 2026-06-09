@@ -117,7 +117,7 @@ const handleAction = async (
   }
 
   if (!id) {
-    useMessage('请登陆后再进行操作', 'warn', 5000)
+    useAuthModal().open()
     return
   }
 

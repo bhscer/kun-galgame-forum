@@ -13,7 +13,7 @@ const isCommentPanelVisible = ref(false)
 
 const handleClickComment = () => {
   if (!id) {
-    useMessage(10216, 'warn', 5000)
+    useAuthModal().open()
     return
   }
   isCommentPanelVisible.value = !isCommentPanelVisible.value

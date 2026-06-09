@@ -36,7 +36,7 @@ const handleClickDislikeThrottled = throttle(toggleDislike, 1007, () =>
 
 const handleClickDislike = () => {
   if (!id) {
-    useMessage(10228, 'warn', 5000)
+    useAuthModal().open()
     return
   }
   if (id === props.targetUserId) {

@@ -21,7 +21,7 @@ const canManageToolset = computed(
 const isDeleting = ref(false)
 const handleDeleteToolset = async () => {
   if (!userId) {
-    useMessage('请登陆后再删除', 'warn', 7000)
+    useAuthModal().open()
     return
   }
 
@@ -85,7 +85,7 @@ onMounted(loadPracticalityMine)
 
 const handleSetStar = async (val: number) => {
   if (!userId) {
-    useMessage('请登陆后再评分, 否则我们无法统计数据', 'warn', 7000)
+    useAuthModal().open()
     return
   }
   isSubmittingRate.value = true

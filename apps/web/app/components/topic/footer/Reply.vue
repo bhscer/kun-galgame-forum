@@ -12,7 +12,7 @@ const props = defineProps<{
 
 const handleClickReply = () => {
   if (!id) {
-    useMessage('请登录以发布回复', 'warn', 5000)
+    useAuthModal().open()
     return
   }
 

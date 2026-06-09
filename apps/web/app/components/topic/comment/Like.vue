@@ -36,7 +36,7 @@ const likeComment = async () => {
 
 const handleClickLike = async () => {
   if (!id) {
-    useMessage(10220, 'warn', 5000)
+    useAuthModal().open()
     return
   }
   await likeComment()

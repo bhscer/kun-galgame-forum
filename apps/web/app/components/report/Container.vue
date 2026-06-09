@@ -9,7 +9,7 @@ const isFetching = ref(false)
 
 const handleSubmitReport = async () => {
   if (!id) {
-    useMessage(10142, 'warn')
+    useAuthModal().open()
     return
   }
 

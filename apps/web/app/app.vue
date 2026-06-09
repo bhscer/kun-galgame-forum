@@ -4,6 +4,11 @@ import { showMoeMessage } from '~/widget/showMoeMessage'
 const { showKUNGalgamePageTransparency, showKUNGalgameBackgroundBlur } =
   storeToRefs(usePersistSettingsStore())
 
+// The single global login/register modal. Bound to useAuthModal()'s shared
+// state so the top-bar 登录 button AND every requireLogin() gate open this one
+// instance — mounted at app root so it works on every layout / page.
+const { isOpen: isAuthModalOpen } = useAuthModal()
+
 const route = useRoute()
 const config = useRuntimeConfig()
 
@@ -129,6 +134,8 @@ onMounted(() => {
     <KunAlertProvider />
     <KunMessageProvider />
     <KunLoliProvider />
+
+    <KunAuthModal v-model="isAuthModalOpen" />
 
     <KunCapture />
 

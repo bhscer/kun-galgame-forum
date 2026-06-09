@@ -71,6 +71,7 @@ const handleOptionClick = (optionId: number) => {
 }
 
 const handleVote = async () => {
+  if (!requireLogin()) return
   if (selectedOptions.value.length === 0) return
   isLoading.value = true
   await submitVote(props.poll.id, selectedOptions.value)

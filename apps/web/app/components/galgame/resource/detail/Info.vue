@@ -58,7 +58,7 @@ const handleDeleteResource = async () => {
 
 const handleReportExpire = async () => {
   if (!id) {
-    useMessage(10546, 'warn')
+    useAuthModal().open()
     return
   }
 

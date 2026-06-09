@@ -17,7 +17,7 @@ const isPublishing = ref(false)
 
 const handlePostComment = async () => {
   if (!userStore.id) {
-    useMessage('请登陆后再发表评论', 'warn')
+    useAuthModal().open()
     return
   }
   if (!newCommentContent.value.trim()) {
