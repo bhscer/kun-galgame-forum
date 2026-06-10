@@ -179,6 +179,10 @@ func New(cfg *config.Config) *App {
 		BaseURL:      cfg.OAuth.ServerURL,
 		ClientID:     cfg.OAuth.ClientID,
 		ClientSecret: cfg.OAuth.ClientSecret,
+		// Same image_service CDN base the wiki client uses — lets userclient
+		// resolve users' avatar_image_hash into URLs (new avatars store only the
+		// hash; the legacy `avatar` field is empty).
+		ImageCDNBase: cfg.GalgameWiki.ImageCDNBase,
 	})
 
 	// Install the process-wide moemoepoint Awarder: OAuth is the single source

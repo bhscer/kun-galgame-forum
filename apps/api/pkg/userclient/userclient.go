@@ -27,6 +27,8 @@ import (
 	"sync"
 	"time"
 
+	"kun-galgame-api/pkg/imageclient"
+
 	"golang.org/x/sync/singleflight"
 )
 
@@ -36,6 +38,7 @@ type Config struct {
 	BaseURL       string        // OAuth server, e.g. http://127.0.0.1:9277/api/v1
 	ClientID      string        // OAuth Client (e.g. "kungal-backend")
 	ClientSecret  string        // OAuth Client secret
+	ImageCDNBase  string        // image_service CDN base, for resolving avatar_image_hash → URL
 	CacheTTL      time.Duration // hot cache TTL — defaults to 10 min
 	NegCacheTTL   time.Duration // negative (not_found) TTL — defaults to 1 min
 	HTTPTimeout   time.Duration // single-request timeout — defaults to 5 sec
@@ -59,6 +62,8 @@ type Client struct {
 	cfg    Config
 	http   *http.Client
 	authHd string
+
+	imageCDNBase string
 
 	mu       sync.RWMutex
 	hot      map[int]cacheEntry
@@ -89,15 +94,31 @@ func New(cfg Config) *Client {
 		cfg.BatchPageSize = 100
 	}
 	return &Client{
-		cfg:      cfg,
-		http:     &http.Client{Timeout: cfg.HTTPTimeout},
-		authHd:   "Basic " + base64.StdEncoding.EncodeToString([]byte(cfg.ClientID+":"+cfg.ClientSecret)),
-		hot:      map[int]cacheEntry{},
-		miss:     map[int]time.Time{},
-		hotTTL:   cfg.CacheTTL,
-		negTTL:   cfg.NegCacheTTL,
-		pageSize: cfg.BatchPageSize,
+		cfg:          cfg,
+		http:         &http.Client{Timeout: cfg.HTTPTimeout},
+		authHd:       "Basic " + base64.StdEncoding.EncodeToString([]byte(cfg.ClientID+":"+cfg.ClientSecret)),
+		imageCDNBase: strings.TrimRight(cfg.ImageCDNBase, "/"),
+		hot:          map[int]cacheEntry{},
+		miss:         map[int]time.Time{},
+		hotTTL:       cfg.CacheTTL,
+		negTTL:       cfg.NegCacheTTL,
+		pageSize:     cfg.BatchPageSize,
 	}
+}
+
+// resolveAvatarURL maps a user's avatar to a render-ready URL. The new avatar
+// pipeline (POST /auth/me/avatar) writes only `avatar_image_hash` and leaves the
+// legacy `avatar` URL empty, so prefer the content hash → image_service URL and
+// fall back to the legacy `avatar` (old users not yet migrated). Without this,
+// every user who set a new avatar renders blank — OAuth returns an empty
+// `avatar` and nothing resolved the hash.
+func (c *Client) resolveAvatarURL(u User) string {
+	if c.imageCDNBase != "" && u.AvatarImageHash != "" {
+		if url := imageclient.MainURL(c.imageCDNBase, u.AvatarImageHash, "webp"); url != "" {
+			return url
+		}
+	}
+	return u.Avatar
 }
 
 // envelope is the OAuth API envelope shape `{code, message, data}`.
@@ -229,6 +250,9 @@ func (c *Client) SearchUsers(ctx context.Context, q string, limit int) ([]User, 
 	if err := c.do(ctx, "GET", endpoint, &sd); err != nil {
 		return nil, err
 	}
+	for i := range sd.Users {
+		sd.Users[i].Avatar = c.resolveAvatarURL(sd.Users[i])
+	}
 	// Opportunistically warm the hot cache so a subsequent batch hit is free.
 	now := time.Now()
 	c.mu.Lock()
@@ -254,6 +278,11 @@ func (c *Client) fetchBatch(ctx context.Context, ids []int) (batchData, error) {
 	var bd batchData
 	if err := c.do(ctx, "GET", endpoint, &bd); err != nil {
 		return bd, err
+	}
+	// Resolve avatar_image_hash → URL once here so the resolved value is what
+	// gets cached and handed to every consumer (top bar, comment lists, …).
+	for i := range bd.Users {
+		bd.Users[i].Avatar = c.resolveAvatarURL(bd.Users[i])
 	}
 	return bd, nil
 }

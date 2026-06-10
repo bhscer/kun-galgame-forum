@@ -96,6 +96,16 @@ func (s *AuthService) OAuthCallback(
 
 	role := middleware.RoleFromOAuthRoles(oauthUser.Roles)
 
+	// /oauth/userinfo's `picture` only carries the legacy avatar URL (empty for
+	// users who set a new image_service avatar). Resolve through userclient,
+	// which maps avatar_image_hash → the image_service URL, and fall back to
+	// `picture` if the lookup fails — otherwise the top-bar avatar shows blank
+	// right after login for anyone on a new avatar.
+	avatar := oauthUser.Picture
+	if u, ok, uerr := s.userClient.User(ctx, oauthUser.ID); uerr == nil && ok && u.Avatar != "" {
+		avatar = u.Avatar
+	}
+
 	sessionToken, err := generateSessionToken()
 	if err != nil {
 		return nil, errors.ErrInternal("生成会话令牌失败")
@@ -125,7 +135,7 @@ func (s *AuthService) OAuthCallback(
 		User: &dto.UserProfile{
 			ID:          oauthUser.ID,
 			Name:        oauthUser.Name,
-			Avatar:      oauthUser.Picture,
+			Avatar:      avatar,
 			Role:        role,
 			Moemoepoint: moe,
 			Bio:         "", // bio is OAuth-owned, available via /auth/me
