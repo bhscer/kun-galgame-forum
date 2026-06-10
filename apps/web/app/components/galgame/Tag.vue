@@ -6,11 +6,38 @@ import {
   type KunGalgameTagSpoiler
 } from '~/constants/galgameTag'
 
-const props = defineProps<{
-  tags: GalgameDetailTag[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    tags: GalgameDetailTag[]
+    // 'mobile' renders the original inline-checkbox filter + larger chips and is
+    // mounted right under the page header; 'desktop' keeps the compact popover
+    // filter + small chips in the sidebar. Two instances are mounted (one per
+    // breakpoint via Galgame.vue) because position, chip size and filter UI all
+    // differ between them.
+    variant?: 'mobile' | 'desktop'
+  }>(),
+  { variant: 'desktop' }
+)
 
-const selectedCategories = ref<KunGalgameTagCategory[]>(['content'])
+const isMobile = computed(() => props.variant === 'mobile')
+
+// Adult tags are off by default and only pre-selected when the viewer has NSFW
+// enabled (cookie-persisted, so this is correct at SSR setup — same source the
+// page's isNsfwMode reads in [gid]/index.vue). A SFW viewer can still opt in by
+// ticking the 成人内容 checkbox.
+const { showKUNGalgameContentLimit } = storeToRefs(usePersistSettingsStore())
+const isNsfwEnabled = computed(
+  () =>
+    showKUNGalgameContentLimit.value === 'nsfw' ||
+    showKUNGalgameContentLimit.value === 'all'
+)
+
+// Default filter: 游戏内容 + 技术细节 (+ 成人内容 when NSFW is on), 无剧透 only.
+const selectedCategories = ref<KunGalgameTagCategory[]>(
+  isNsfwEnabled.value
+    ? ['content', 'technical', 'sexual']
+    : ['content', 'technical']
+)
 const selectedSpoilerLevels = ref<KunGalgameTagSpoiler[]>([0])
 
 const toggleItemInArray = <T,>(arrayRef: Ref<T[]>, item: T) => {
@@ -66,10 +93,38 @@ const countColorByCategory = (category: string): string => {
     class-name="overflow-visible"
     content-class="space-y-3"
   >
+    <!-- Mobile: the original inline-checkbox filter (horizontal scroll), above
+         the tag list. The sidebar/desktop variant uses the popover below. -->
+    <KunScrollShadow v-if="isMobile" shadow-size="5rem">
+      <div class="flex w-fit items-center gap-3 whitespace-nowrap">
+        <KunCheckBox
+          v-for="(name, key) in KUN_GALGAME_TAG_CATEGORY_MAP"
+          :key="key"
+          class-name="gap-2"
+          :model-value="selectedCategories.includes(key)"
+          color="primary"
+          @click="toggleCategory(key)"
+        >
+          {{ name }}
+        </KunCheckBox>
+
+        <KunCheckBox
+          v-for="(name, key) in KUN_GALGAME_TAG_SPOILER_MAP"
+          :key="key"
+          class-name="gap-2"
+          :model-value="selectedSpoilerLevels.includes(Number(key) as 0)"
+          color="primary"
+          @click="toggleSpoilerLevel(Number(key) as KunGalgameTagSpoiler)"
+        >
+          {{ name }}
+        </KunCheckBox>
+      </div>
+    </KunScrollShadow>
+
     <KunScrollShadow
       axis="vertical"
       shadow-size="3rem"
-      class-name="max-h-[200px] md:max-h-[400px]"
+      :class-name="isMobile ? 'max-h-[300px]' : 'max-h-[200px] md:max-h-[400px]'"
     >
       <TransitionGroup name="tag-list" tag="div" class="flex flex-wrap gap-1.5">
         <KunLink
@@ -78,7 +133,10 @@ const countColorByCategory = (category: string): string => {
           underline="none"
           :to="`/galgame-tag/${tag.id}`"
         >
-          <KunChip class-name="bg-default-500/10 cursor-pointer" size="sm">
+          <KunChip
+            class-name="bg-default-500/10 cursor-pointer"
+            :size="isMobile ? 'md' : 'sm'"
+          >
             {{ tag.name }}
             <span :class="cn('text-xs', countColorByCategory(tag.category))">
               {{ `+${tag.galgameCount}` }}
@@ -96,7 +154,8 @@ const countColorByCategory = (category: string): string => {
       />
     </KunScrollShadow>
 
-    <KunPopover position="top-start">
+    <!-- Desktop: compact popover filter (fits the narrow sidebar column). -->
+    <KunPopover v-if="!isMobile" position="top-start">
       <template #trigger>
         <KunButton variant="flat" color="primary" size="sm" full-width>
           <KunIcon name="lucide:filter" />

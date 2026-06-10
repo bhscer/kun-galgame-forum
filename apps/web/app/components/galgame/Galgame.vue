@@ -18,11 +18,19 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
 </script>
 
 <template>
-  <div class="space-y-3">
+  <div class="flex flex-col gap-3">
     <GalgameHeader
       :galgame="galgame"
       @on-rating-created="handleRatingCreated"
     />
+
+    <!-- Mobile: tags sit right under the header. On desktop they live at the top
+         of the sidebar instead (the stacked single-column layout would otherwise
+         push them below all the main content). Two breakpoint-gated instances —
+         see GalgameTag's `variant`. -->
+    <div class="md:hidden">
+      <GalgameTag :tags="galgame.tag" variant="mobile" />
+    </div>
 
     <div
       v-if="sortedRatings.length && sortedRatings.length >= 3"
@@ -77,8 +85,10 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
         </KunCard>
       </div>
 
-      <div class="space-y-3 md:col-span-1">
-        <GalgameTag :tags="galgame.tag" />
+      <div class="flex flex-col gap-3 md:col-span-1">
+        <div class="hidden md:block">
+          <GalgameTag :tags="galgame.tag" variant="desktop" />
+        </div>
 
         <GalgameInfo
           :official="galgame.official"
