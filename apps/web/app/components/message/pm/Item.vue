@@ -10,6 +10,15 @@ const emit = defineEmits<{
   (event: 'context-menu', payload: { event: MouseEvent; message: ChatMessage }): void
 }>()
 
+// Chat bubbles render contentHtml via v-html (not through KunContent), so they
+// don't get KunContent's built-in image lightbox. Wire the SAME composable here
+// so clicking an inline image opens the fullscreen viewer. The composable's
+// onClick stops propagation, so tapping an image never triggers the bubble's
+// recall menu.
+const contentRef = ref<HTMLElement | null>(null)
+const { isLightboxOpen, images, currentImageIndex } =
+  useContentLightbox(contentRef)
+
 const isMobile = useMediaQuery('(max-width: 640px)')
 const canRecall = computed(() => props.isSent && !props.message.isRecall)
 const recallText = computed(
@@ -91,7 +100,8 @@ const handleClick = (event: MouseEvent) => {
             flat paragraphs, inline code chips, primary links, and bounded images.
           -->
           <div
-            class="kun-message-content break-words [&_a]:text-primary [&_a]:underline [&_code]:bg-default-200/70 [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] [&_img]:my-1 [&_img]:max-h-60 [&_img]:max-w-full [&_img]:rounded-lg [&_p]:m-0 [&_strong]:font-semibold"
+            ref="contentRef"
+            class="kun-message-content break-words [&_a]:text-primary [&_a]:underline [&_code]:bg-default-200/70 [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] [&_img]:my-1 [&_img]:max-h-60 [&_img]:max-w-full [&_img]:cursor-zoom-in [&_img]:rounded-lg [&_p]:m-0 [&_strong]:font-semibold"
             v-html="message.contentHtml"
           />
           <div class="text-default-500 mt-0.5 text-right text-xs">
@@ -100,5 +110,11 @@ const handleClick = (event: MouseEvent) => {
         </div>
       </div>
     </template>
+
+    <KunLightbox
+      v-model:is-open="isLightboxOpen"
+      :images="images"
+      :initial-index="currentImageIndex"
+    />
   </div>
 </template>

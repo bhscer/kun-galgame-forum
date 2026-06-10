@@ -107,7 +107,7 @@ func rowToCard(r model.GalgameResourceRow, u userclient.User, isLiked bool) dto.
 		LinkDomain:    "",
 		ProviderNames: decodeProviderNames(r.ProviderName),
 		Note:          r.Note,
-		NoteHtml:      markdown.Render(r.Note),
+		NoteHtml:      markdown.RenderHardWrap(r.Note),
 		Created:       r.Created,
 		Edited:        r.Edited,
 	}
@@ -144,7 +144,7 @@ func rowToMeta(
 		LinkDomain:    linkDomain,
 		ProviderNames: decodeProviderNames(r.ProviderName),
 		Note:          r.Note,
-		NoteHtml:      markdown.Render(r.Note),
+		NoteHtml:      markdown.RenderHardWrap(r.Note),
 		Created:       r.Created,
 		Edited:        r.Edited,
 	}

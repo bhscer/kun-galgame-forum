@@ -24,8 +24,9 @@ var (
 	videoLinkRegex = regexp.MustCompile(`kv:<a href="(https?://[^\s]+?\.(mp4))">[^<]+</a>`)
 	codeBlockRegex = regexp.MustCompile(`(?s)<pre><code class="language-(\w+)"`)
 
-	md        goldmark.Markdown
-	sanitizer *bluemonday.Policy
+	md         goldmark.Markdown
+	mdHardWrap goldmark.Markdown
+	sanitizer  *bluemonday.Policy
 )
 
 // TocLink is one entry in a table of contents tree. The JSON shape matches
@@ -38,18 +39,36 @@ type TocLink struct {
 }
 
 func init() {
-	md = goldmark.New(
+	md = newGoldmark(false)
+	// Hard-wrap variant: every newline becomes a <br>. Used for the galgame
+	// resource note, which was a plain-text <textarea> before it became Markdown,
+	// so single newlines in existing notes are real line breaks and must survive
+	// (CommonMark would otherwise fold a lone newline into a space). See
+	// RenderHardWrap.
+	mdHardWrap = newGoldmark(true)
+
+	sanitizer = newSanitizePolicy()
+}
+
+// newGoldmark builds a goldmark instance with the project's shared extension /
+// parser config. hardWraps adds html.WithHardWraps() so a single newline renders
+// as <br> instead of a space.
+func newGoldmark(hardWraps bool) goldmark.Markdown {
+	// No server-side syntax highlighting. goldmark-highlighting (Chroma, style
+	// "monokai") stamps a hard-coded dark inline background onto <pre> — so code
+	// blocks render dark in BOTH light/dark mode — and it rewrites the markup to
+	// `<pre class="chroma">`, which bypasses the codeBlockRegex wrapper below.
+	// Emitting plain `<pre><code class="language-x">` lets every fence flow
+	// through the .kun-code-container wrapper and be themed by the shared
+	// prose.css (project color system), matching moyu / wiki.
+	rendererOpts := []renderer.Option{html.WithUnsafe()}
+	if hardWraps {
+		rendererOpts = append(rendererOpts, html.WithHardWraps())
+	}
+	return goldmark.New(
 		goldmark.WithExtensions(
 			extension.GFM,
 			mathjax.MathJax,
-			// No server-side syntax highlighting. goldmark-highlighting (Chroma,
-			// style "monokai") stamps a hard-coded dark inline background onto
-			// <pre> — so code blocks render dark in BOTH light/dark mode — and it
-			// rewrites the markup to `<pre class="chroma">`, which bypasses the
-			// codeBlockRegex wrapper below. Emitting plain `<pre><code
-			// class="language-x">` lets every fence flow through the
-			// .kun-code-container wrapper and be themed by the shared prose.css
-			// (project color system), matching moyu / wiki.
 			&h1ToH2Extension{},
 			&lazyImageExtension{},
 		),
@@ -60,12 +79,8 @@ func init() {
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
 		),
-		goldmark.WithRendererOptions(
-			html.WithUnsafe(),
-		),
+		goldmark.WithRendererOptions(rendererOpts...),
 	)
-
-	sanitizer = newSanitizePolicy()
 }
 
 // newSanitizePolicy builds the allow-list applied to goldmark's HTML output.
@@ -105,6 +120,14 @@ func Render(source string) string {
 	return html
 }
 
+// RenderHardWrap is Render with hard line breaks (every newline → <br>). Use it
+// for content that was plain text before becoming Markdown — currently the
+// galgame resource note, where existing notes' single-newline line breaks must
+// survive. Same extensions / transforms / sanitization as Render; no TOC.
+func RenderHardWrap(source string) string {
+	return renderWith(mdHardWrap, source)
+}
+
 // RenderWithTOC converts markdown to HTML and also returns a nested TOC tree
 // built from the document's h2/h3 headings (h1 is promoted to h2 to match the
 // h1→h2 render transform).
@@ -121,8 +144,30 @@ func RenderWithTOC(source string) (string, []TocLink) {
 		return source, nil
 	}
 
-	result := buf.String()
+	return applyTransforms(buf.String()), toc
+}
 
+// renderWith parses + renders `source` with the given goldmark instance and runs
+// the shared post-render transforms. Used by RenderHardWrap (and mirrors what
+// RenderWithTOC does, minus the TOC).
+func renderWith(m goldmark.Markdown, source string) string {
+	src := []byte(source)
+	reader := text.NewReader(src)
+	ctx := parser.NewContext(parser.WithIDs(newUnicodeIDs()))
+	root := m.Parser().Parse(reader, parser.WithContext(ctx))
+
+	var buf bytes.Buffer
+	if err := m.Renderer().Render(&buf, src, root); err != nil {
+		return source
+	}
+
+	return applyTransforms(buf.String())
+}
+
+// applyTransforms runs the post-render HTML rewrites (code/table/spoiler/video
+// wrappers) and the single server-side sanitization pass shared by every
+// renderer entry point.
+func applyTransforms(result string) string {
 	// Code block wrapper:
 	// <pre><code class="language-go"... → wrapped in div.kun-code-container
 	result = codeBlockRegex.ReplaceAllStringFunc(result, func(match string) string {
@@ -154,9 +199,7 @@ func RenderWithTOC(source string) (string, []TocLink) {
 	// Sanitize the full rendered HTML (incl. the transform-added wrappers and
 	// any raw user HTML that html.WithUnsafe let through). Done once here,
 	// server-side; the frontend now renders contentHtml directly without jsdom.
-	result = sanitizer.Sanitize(result)
-
-	return result, toc
+	return sanitizer.Sanitize(result)
 }
 
 // ──────────────────────────────────────────
