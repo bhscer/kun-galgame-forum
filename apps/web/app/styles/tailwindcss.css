@@ -25,14 +25,19 @@
 @source '../../node_modules/@kungal/ui-core';
 
 /*
- * Global corner-radius knob. The forum's own components use default Tailwind
- * `rounded-*` (→ --radius-*), KunUI components use `rounded-kun-*`
- * (→ --radius-kun-*). Re-derive BOTH scales from one multiplier so the 圆角
- * setting (setKUNGalgameRounded → --kun-radius-scale) rounds the WHOLE UI
- * — kungal + KunUI — in one place. `rounded-full` (pills / avatars / switches)
- * is intentionally untouched (it's not a --radius-* var). This is an unlayered
- * `:root` — the override point ui-tokens documents — so it beats @theme's
- * static radius values. Scale 1 = the stock look; 0 = fully square.
+ * Global corner-radius knob. A single multiplier — --kun-radius-scale, set by
+ * the 圆角 setting (setKUNGalgameRounded) — rounds the WHOLE UI:
+ *
+ *   • KunUI components (rounded-kun-*) read --kun-radius-scale on their OWN
+ *     (@kungal/ui-tokens >= 0.5.1 bakes `calc(base * var(--kun-radius-scale,1))`
+ *     into --radius-kun-*), so we must NOT redeclare --radius-kun-* here — the
+ *     tokens' own :root would win the cascade anyway. We just set the variable.
+ *   • The forum's OWN components use default Tailwind `rounded-*` (→ --radius-*),
+ *     which the tokens don't touch — so we re-derive those from the same
+ *     multiplier below. Unlayered :root, so it beats @theme's static values.
+ *
+ * `rounded-full` (pills / avatars / switches) and the kun none/full buckets are
+ * intentionally untouched. Scale 1 = the stock look; 0 = fully square.
  */
 :root {
   --kun-radius-scale: 1;
@@ -44,8 +49,4 @@
   --radius-xl: calc(0.75rem * var(--kun-radius-scale));
   --radius-2xl: calc(1rem * var(--kun-radius-scale));
   --radius-3xl: calc(1.5rem * var(--kun-radius-scale));
-
-  --radius-kun-sm: calc(0.25rem * var(--kun-radius-scale));
-  --radius-kun-md: calc(0.5rem * var(--kun-radius-scale));
-  --radius-kun-lg: calc(0.75rem * var(--kun-radius-scale));
 }
