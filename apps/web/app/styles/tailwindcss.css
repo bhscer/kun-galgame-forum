@@ -50,3 +50,13 @@
   --radius-2xl: calc(1rem * var(--kun-radius-scale));
   --radius-3xl: calc(1.5rem * var(--kun-radius-scale));
 }
+
+/*
+ * Bare `rounded` is the one Tailwind v4 radius utility that bakes a fixed
+ * 0.25rem literal instead of reading a --radius-* var, so it would ignore the
+ * scale (it's used by a few elements like checkboxes). Re-point it at the
+ * scaled small radius so the 圆角 setting reaches those too. Unlayered → wins.
+ */
+.rounded {
+  border-radius: calc(0.25rem * var(--kun-radius-scale));
+}
