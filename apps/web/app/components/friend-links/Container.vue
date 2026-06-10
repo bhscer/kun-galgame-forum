@@ -7,6 +7,9 @@ import {
 // Friend links are now admin-managed (DB) instead of the static config/friend.ts.
 const { data } = await useKunFetch<GroupedFriendLinks>('/friend-link')
 
+// Tag every outbound friend link with utm_source=<current domain>.
+const utmLink = useUtmLink()
+
 // Render the 3 fixed categories in order; skip empty groups.
 const groups = computed(() =>
   FRIEND_LINK_CATEGORIES.map((category) => ({
@@ -40,7 +43,7 @@ const groups = computed(() =>
           :is-transparent="true"
           v-for="friend in group.links"
           :key="friend.id"
-          :href="friend.link"
+          :href="utmLink(friend.link)"
           target="_blank"
           rel="noopener noreferrer"
         >

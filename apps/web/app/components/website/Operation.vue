@@ -13,6 +13,9 @@ type WebsiteData = (CreateWebsitePayload & { websiteId?: number }) | undefined
 
 const { id, role } = usePersistUserStore()
 
+// Tag the outbound 访问网站 jump with utm_source=<current domain>.
+const utmLink = useUtmLink()
+
 const isLiked = ref(props.website.isLiked)
 const likeCount = ref(props.website.likeCount)
 const isFavorited = ref(props.website.isFavorited)
@@ -190,7 +193,7 @@ const handleAction = async (
 
     <KunButton
       target="_blank"
-      :href="`https://${website.url}`"
+      :href="utmLink(`https://${website.url}`)"
       class-name="ml-auto"
     >
       访问网站

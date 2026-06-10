@@ -7,6 +7,9 @@ import {
 defineProps<{
   data: WebsiteDetail
 }>()
+
+// Tag the outbound domain jumps with utm_source=<current domain>.
+const utmLink = useUtmLink()
 </script>
 
 <template>
@@ -53,7 +56,7 @@ defineProps<{
           :key="index"
           class="mt-1 space-x-1"
         >
-          <KunLink :to="dom" class-name="font-mono">
+          <KunLink :to="utmLink(dom)" class-name="font-mono">
             {{ dom }}
           </KunLink>
           <KunButton
