@@ -16,6 +16,60 @@ const props = defineProps<{
 
 const open = defineModel<boolean>({ required: true })
 
+// Long notes collapse behind a "展开全部" toggle, same principle as the resource
+// card (Link.vue): clamp + fade anything taller than this, reveal in full on
+// expand. The note here is rich (KunContent), and lives inside the modal — which
+// only lays out its content once open — so we measure (and start observing for
+// async image loads / re-wrap) when the modal opens, not on mount.
+const NOTE_COLLAPSED_MAX_HEIGHT = 240
+const noteRef = ref<HTMLElement | null>(null)
+const isNoteExpanded = ref(false)
+const isNoteOverflowing = ref(false)
+let noteResizeObserver: ResizeObserver | null = null
+
+const measureNoteOverflow = () => {
+  const el = noteRef.value
+  if (!el) {
+    isNoteOverflowing.value = false
+    return
+  }
+  // scrollHeight reports full content height even while max-height clamps the
+  // box, so this stays accurate in the collapsed state.
+  isNoteOverflowing.value = el.scrollHeight > NOTE_COLLAPSED_MAX_HEIGHT
+}
+
+const noteStyle = computed(() => {
+  if (!isNoteOverflowing.value || isNoteExpanded.value) return undefined
+  const fade = 'linear-gradient(to bottom, #000 70%, transparent)'
+  return {
+    maxHeight: `${NOTE_COLLAPSED_MAX_HEIGHT}px`,
+    maskImage: fade,
+    WebkitMaskImage: fade
+  }
+})
+
+const teardownNoteObserver = () => {
+  noteResizeObserver?.disconnect()
+  noteResizeObserver = null
+}
+
+watch(open, (isOpen) => {
+  if (!isOpen) {
+    teardownNoteObserver()
+    return
+  }
+  isNoteExpanded.value = false
+  nextTick(() => {
+    if (!noteRef.value) return
+    teardownNoteObserver()
+    noteResizeObserver = new ResizeObserver(() => measureNoteOverflow())
+    noteResizeObserver.observe(noteRef.value)
+    measureNoteOverflow()
+  })
+})
+
+onBeforeUnmount(teardownNoteObserver)
+
 // Capture the Nuxt app at setup; reused by every post-await branch
 // (handleReportExpire / handleDelete / handleEdit) to re-enter the
 // captured Nuxt context. After `await kunFetch` resumes the active
@@ -234,7 +288,25 @@ const handleEditDone = () => {
           variant="flat"
           title="发布者备注 — 请先阅读"
         >
-          <KunContent :content="resource.noteHtml" />
+          <div class="space-y-1.5">
+            <div ref="noteRef" :style="noteStyle" class="overflow-hidden">
+              <KunContent :content="resource.noteHtml" />
+            </div>
+
+            <button
+              v-if="isNoteOverflowing"
+              type="button"
+              class="text-default-500 hover:text-primary flex items-center gap-1 px-1 text-xs transition-colors"
+              @click="isNoteExpanded = !isNoteExpanded"
+            >
+              <KunIcon
+                :name="
+                  isNoteExpanded ? 'lucide:chevron-up' : 'lucide:chevron-down'
+                "
+              />
+              {{ isNoteExpanded ? '收起' : '展开全部' }}
+            </button>
+          </div>
         </KunInfo>
 
         <div v-if="isFetching" class="flex justify-center py-8">
