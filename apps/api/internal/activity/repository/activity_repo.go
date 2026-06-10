@@ -233,103 +233,121 @@ func (r *ActivityRepository) GetSource(typeStr string) (ActivitySource, bool) {
 	return s, ok
 }
 
-// GalgameIDsWithResources returns the subset of ids that have at least one
-// download resource (a galgame_resource row). The activity feed uses it to drop
-// GALGAME_CREATION rows for resource-less galgames when the viewer is hiding
-// them (显示设置 → 显示没有下载资源的 Galgame, default off).
-func (r *ActivityRepository) GalgameIDsWithResources(ids []int) map[int]bool {
-	out := make(map[int]bool, len(ids))
-	if len(ids) == 0 {
-		return out
-	}
-	var found []int
-	r.db.Table("galgame_resource").
-		Where("galgame_id IN ?", ids).
-		Distinct().
-		Pluck("galgame_id", &found)
-	for _, id := range found {
-		out[id] = true
-	}
-	return out
-}
-
-// FetchSingleSource runs a single activity source with pagination and count.
-// Identity is hydrated at the service layer via userclient.
-func (r *ActivityRepository) FetchSingleSource(src ActivitySource, page, limit int, isSFW bool) ([]ActivityRow, int64, error) {
-	query := sourceQuery(src, isSFW)
-	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS sub`, query)
-	var total int64
-	if err := r.db.Raw(countSQL).Scan(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
+// FetchTimelineRows returns the newest `n` activity rows across ALL sources
+// (offset 0), resource-filtered per showNoResource. It returns no total: the
+// service over-fetches a window with this and slices the requested page in
+// *filtered* space (after enrichment drops brief-missing rows). That's the fix
+// for the under-filled feed — the old fixed `LIMIT n` followed by a post-fetch
+// drop left every page short, because a dropped galgame row had already spent a
+// LIMIT slot.
+func (r *ActivityRepository) FetchTimelineRows(n int, isSFW, showNoResource bool) ([]ActivityRow, error) {
 	dataSQL := fmt.Sprintf(
-		`SELECT sub.*
-		FROM (%s) AS sub
-		ORDER BY sub.created DESC
-		LIMIT %d OFFSET %d`,
-		query, limit, (page-1)*limit,
+		`SELECT u.* FROM (%s) AS u ORDER BY u.created DESC LIMIT %d`,
+		buildLimitedUnionAll(n, isSFW, showNoResource), n,
 	)
 	var rows []ActivityRow
 	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return rows, total, nil
+	return rows, nil
 }
 
-// FetchTimeline runs a single UNION ALL query across all source tables,
-// letting PostgreSQL handle sort and pagination in one pass. Identity is
-// hydrated at the service layer via userclient.
-func (r *ActivityRepository) FetchTimeline(page, limit int, isSFW bool) ([]ActivityRow, int64, error) {
-	// Exact total over the UNLIMITED union for pagination (the /activity page
-	// renders ceil(total/limit) page count). COUNT(*) lets Postgres prune each
-	// branch's target list to a bare row count — message's `WHERE type = ...`
-	// rides idx_message_type_created, the rest are small tables — so this stays
-	// cheap even though it spans every source.
-	var total int64
-	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS u`, buildUnionAll(isSFW))
-	if err := r.db.Raw(countSQL).Scan(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	// Data: push `ORDER BY created DESC LIMIT (offset+limit)` INTO each source
-	// before the UNION. The global top (offset+limit) rows are guaranteed to be
-	// contained in the union of each source's own top (offset+limit) — a single
-	// source can contribute at most that many rows to a global top-N — so the
-	// outer ORDER BY/LIMIT/OFFSET still returns the exact page, but each branch
-	// is now an index-backed top-N (idx_<table>_created) instead of a full scan
-	// + global sort of every row across all ~17 source tables.
+// FetchTimelinePage is the legacy offset-paged fetch, kept for DEEP pages
+// (beyond the service's over-fetch window) where filtered-space slicing from the
+// top would be too expensive. Those pages keep the old "sparse but non-empty"
+// behavior. Pushes `ORDER BY created DESC LIMIT (offset+limit)` into each source
+// so every branch is an index-backed top-N, not a full scan.
+func (r *ActivityRepository) FetchTimelinePage(page, limit int, isSFW, showNoResource bool) ([]ActivityRow, error) {
 	offset := (page - 1) * limit
 	perSource := offset + limit
 	dataSQL := fmt.Sprintf(
-		`SELECT u.*
-		FROM (%s) AS u
-		ORDER BY u.created DESC
-		LIMIT %d OFFSET %d`,
-		buildLimitedUnionAll(perSource, isSFW), limit, offset,
+		`SELECT u.* FROM (%s) AS u ORDER BY u.created DESC LIMIT %d OFFSET %d`,
+		buildLimitedUnionAll(perSource, isSFW, showNoResource), limit, offset,
 	)
 	var rows []ActivityRow
 	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return rows, total, nil
+	return rows, nil
 }
 
-// sourceQuery returns src.Query, appending the SFW predicate (as a fresh WHERE)
-// for SFW viewers when the source defines one. See ActivitySource.SFWWhere.
-func sourceQuery(src ActivitySource, isSFW bool) string {
-	if isSFW && src.SFWWhere != "" {
-		return src.Query + " WHERE " + src.SFWWhere
+// CountTimeline is the exact total over the (resource-filtered) union, used for
+// the /activity page bar (ceil(total/limit) pages). COUNT(*) lets Postgres prune
+// each branch's target list to a bare row count, so it stays cheap even spanning
+// every source.
+func (r *ActivityRepository) CountTimeline(isSFW, showNoResource bool) (int64, error) {
+	var total int64
+	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS u`, buildUnionAll(isSFW, showNoResource))
+	if err := r.db.Raw(countSQL).Scan(&total).Error; err != nil {
+		return 0, err
 	}
-	return src.Query
+	return total, nil
+}
+
+// FetchSingleSourceRows / FetchSingleSourcePage / CountSingleSource mirror the
+// timeline trio for a single type-filtered source.
+func (r *ActivityRepository) FetchSingleSourceRows(src ActivitySource, n int, isSFW, showNoResource bool) ([]ActivityRow, error) {
+	dataSQL := fmt.Sprintf(
+		`SELECT sub.* FROM (%s) AS sub ORDER BY sub.created DESC LIMIT %d`,
+		sourceQuery(src, isSFW, showNoResource), n,
+	)
+	var rows []ActivityRow
+	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (r *ActivityRepository) FetchSingleSourcePage(src ActivitySource, page, limit int, isSFW, showNoResource bool) ([]ActivityRow, error) {
+	dataSQL := fmt.Sprintf(
+		`SELECT sub.* FROM (%s) AS sub ORDER BY sub.created DESC LIMIT %d OFFSET %d`,
+		sourceQuery(src, isSFW, showNoResource), limit, (page-1)*limit,
+	)
+	var rows []ActivityRow
+	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (r *ActivityRepository) CountSingleSource(src ActivitySource, isSFW, showNoResource bool) (int64, error) {
+	var total int64
+	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS sub`, sourceQuery(src, isSFW, showNoResource))
+	if err := r.db.Raw(countSQL).Scan(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+// sourceQuery returns src.Query with the dynamic predicates appended:
+//
+//   - Resource-less filter: for GALGAME_CREATION when the viewer hides
+//     resource-less galgames (showNoResource=false, the default 显示设置), drop
+//     creations of galgames with no download resource. Pushed into SQL so these
+//     rows never occupy a LIMIT slot and then get dropped during enrichment —
+//     that post-LIMIT drop was the root cause of the under-filled feed. Mirrors
+//     the galgame list's default filter.
+//   - SFW predicate: the source's SFWWhere (as a fresh WHERE) for SFW viewers.
+//
+// GALGAME_CREATION's base Query has no WHERE and no SFWWhere, so appending a
+// single fresh WHERE for the resource filter is unambiguous.
+func sourceQuery(src ActivitySource, isSFW, showNoResource bool) string {
+	q := src.Query
+	if !showNoResource && src.TypeStr == "GALGAME_CREATION" {
+		q += " WHERE EXISTS (SELECT 1 FROM galgame_resource r WHERE r.galgame_id = t.id)"
+	}
+	if isSFW && src.SFWWhere != "" {
+		q += " WHERE " + src.SFWWhere
+	}
+	return q
 }
 
 // buildUnionAll joins all source queries with UNION ALL (no per-source limit).
 // Used only for the exact COUNT(*) over the full activity set.
-func buildUnionAll(isSFW bool) string {
+func buildUnionAll(isSFW, showNoResource bool) string {
 	parts := make([]string, 0, len(Sources))
 	for _, src := range Sources {
-		parts = append(parts, "("+sourceQuery(src, isSFW)+")")
+		parts = append(parts, "("+sourceQuery(src, isSFW, showNoResource)+")")
 	}
 	return strings.Join(parts, " UNION ALL ")
 }
@@ -338,13 +356,13 @@ func buildUnionAll(isSFW bool) string {
 // source to its own `ORDER BY created DESC LIMIT perSource`. Every source SELECTs
 // `t.created` off its base table aliased `t`, so each per-branch ORDER BY/LIMIT
 // can use idx_<table>_created and read only the newest perSource rows. perSource
-// MUST be >= the page's offset+limit (see FetchTimeline) for the page to be
-// exact. Parenthesising each operand keeps the per-branch ORDER BY/LIMIT local
-// to that SELECT (not applied to the whole UNION).
-func buildLimitedUnionAll(perSource int, isSFW bool) string {
+// MUST be >= the page's offset+limit for the page to be exact. Parenthesising
+// each operand keeps the per-branch ORDER BY/LIMIT local to that SELECT (not
+// applied to the whole UNION).
+func buildLimitedUnionAll(perSource int, isSFW, showNoResource bool) string {
 	parts := make([]string, 0, len(Sources))
 	for _, src := range Sources {
-		parts = append(parts, fmt.Sprintf("(%s ORDER BY t.created DESC LIMIT %d)", sourceQuery(src, isSFW), perSource))
+		parts = append(parts, fmt.Sprintf("(%s ORDER BY t.created DESC LIMIT %d)", sourceQuery(src, isSFW, showNoResource), perSource))
 	}
 	return strings.Join(parts, " UNION ALL ")
 }

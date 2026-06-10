@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"time"
 
 	"kun-galgame-api/internal/activity/dto"
@@ -20,6 +21,24 @@ import (
 // + wiki name-enrichment + OAuth identity round-trips) into one computation per
 // window, while still surfacing new activity within seconds.
 const activityCacheTTL = 30 * time.Second
+
+const (
+	// activityShallowMax: pages whose page*limit ≤ this get the over-fetch+slice
+	// treatment that fills them to `limit` despite enrichment drops. Deeper pages
+	// fall back to the legacy offset fetch (cheap, sparse, but non-empty).
+	activityShallowMax = 100
+	// activityOverfetchFactor / Max: a shallow page fetches page*limit*factor raw
+	// rows (capped at Max) so the post-fetch enrichment drop (resource-less rows
+	// are already gone via SQL; this absorbs the deleted-from-wiki tail) still
+	// leaves ≥ limit survivors to slice. Capped to bound enrichment cost and the
+	// wiki-batch fan-out.
+	activityOverfetchFactor = 2
+	activityOverfetchMax    = 200
+	// wikiBatchChunk caps ids per GetBatchPublic call — it sends every id in one
+	// query param (no chunking), and over-fetch can surface more distinct
+	// galgames than a single batch should carry. Matches the ≤100 batch convention.
+	wikiBatchChunk = 100
+)
 
 type ActivityService struct {
 	repo       *repository.ActivityRepository
@@ -76,13 +95,21 @@ func (s *ActivityService) computeActivity(ctx context.Context, typeStr string, p
 		return &Result{Items: []dto.ActivityItem{}, Total: 0}, nil
 	}
 
-	rows, total, err := s.repo.FetchSingleSource(src, page, limit, isSFW)
+	total, err := s.repo.CountSingleSource(src, isSFW, showNoResource)
 	if err != nil {
 		return nil, errors.ErrInternal("查询活动数据失败")
 	}
-	items := rowsToItems(rows)
-	items = s.enrichGalgameItems(ctx, rows, items, isSFW, showNoResource)
-	s.hydrateActors(ctx, items)
+	items, appErr := s.servePage(ctx, page, limit, isSFW,
+		func(n int) ([]repository.ActivityRow, error) {
+			return s.repo.FetchSingleSourceRows(src, n, isSFW, showNoResource)
+		},
+		func(p, l int) ([]repository.ActivityRow, error) {
+			return s.repo.FetchSingleSourcePage(src, p, l, isSFW, showNoResource)
+		},
+	)
+	if appErr != nil {
+		return nil, appErr
+	}
 	return &Result{Items: items, Total: total}, nil
 }
 
@@ -119,14 +146,69 @@ func (s *ActivityService) cacheResult(ctx context.Context, key string, result *R
 
 // GetTimeline returns a mixed activity timeline across all sources.
 func (s *ActivityService) GetTimeline(ctx context.Context, page, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
-	rows, total, err := s.repo.FetchTimeline(page, limit, isSFW)
+	total, err := s.repo.CountTimeline(isSFW, showNoResource)
 	if err != nil {
 		return nil, errors.ErrInternal("查询活动列表失败")
 	}
-	items := rowsToItems(rows)
-	items = s.enrichGalgameItems(ctx, rows, items, isSFW, showNoResource)
-	s.hydrateActors(ctx, items)
+	items, appErr := s.servePage(ctx, page, limit, isSFW,
+		func(n int) ([]repository.ActivityRow, error) {
+			return s.repo.FetchTimelineRows(n, isSFW, showNoResource)
+		},
+		func(p, l int) ([]repository.ActivityRow, error) {
+			return s.repo.FetchTimelinePage(p, l, isSFW, showNoResource)
+		},
+	)
+	if appErr != nil {
+		return nil, appErr
+	}
 	return &Result{Items: items, Total: total}, nil
+}
+
+// servePage fills a page to `limit` items despite enrichment drops. Shallow
+// pages over-fetch a top-of-feed window and slice the requested page in
+// *filtered* space (after enrichment), so a page no longer under-fills when
+// galgame rows get dropped. Deep pages fall back to the legacy offset fetch
+// (cheap, sparse, unchanged) — filtered-space slicing from the top would mean
+// re-enriching everything before them.
+func (s *ActivityService) servePage(
+	ctx context.Context, page, limit int, isSFW bool,
+	fetchNewest func(n int) ([]repository.ActivityRow, error),
+	fetchPage func(p, l int) ([]repository.ActivityRow, error),
+) ([]dto.ActivityItem, *errors.AppError) {
+	if page*limit <= activityShallowMax {
+		window := min(page*limit*activityOverfetchFactor, activityOverfetchMax)
+		rows, err := fetchNewest(window)
+		if err != nil {
+			return nil, errors.ErrInternal("查询活动数据失败")
+		}
+		return pageSlice(s.enrichAndHydrate(ctx, rows, isSFW), page, limit), nil
+	}
+
+	rows, err := fetchPage(page, limit)
+	if err != nil {
+		return nil, errors.ErrInternal("查询活动数据失败")
+	}
+	return s.enrichAndHydrate(ctx, rows, isSFW), nil
+}
+
+// enrichAndHydrate runs the full row → item pipeline: galgame name/brief
+// enrichment (which drops brief-missing rows) then OAuth identity hydration.
+func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repository.ActivityRow, isSFW bool) []dto.ActivityItem {
+	items := rowsToItems(rows)
+	items = s.enrichGalgameItems(ctx, rows, items, isSFW)
+	s.hydrateActors(ctx, items)
+	return items
+}
+
+// pageSlice returns the [(page-1)*limit, page*limit) slice of the enriched
+// (filtered) items, clamped to the available length.
+func pageSlice(items []dto.ActivityItem, page, limit int) []dto.ActivityItem {
+	start := (page - 1) * limit
+	if start >= len(items) {
+		return []dto.ActivityItem{}
+	}
+	end := min(start+limit, len(items))
+	return items[start:end]
 }
 
 // rowsToItems converts DB rows into response items (no enrichment yet).
@@ -165,9 +247,8 @@ func rowsToItems(rows []repository.ActivityRow) []dto.ActivityItem {
 // never leaks into the public feed as "galgame#N / 未知用户". On wiki failure the
 // items are returned untouched (graceful degradation).
 //
-// When showNoResource is false (the default 显示设置), GALGAME_CREATION rows for
-// galgames with no download resource are ALSO dropped, mirroring the galgame
-// list filter so a hidden game's creation never surfaces in the feed.
+// Resource-less GALGAME_CREATION rows are NOT handled here anymore — they're
+// excluded in SQL (sourceQuery) so they never spend a LIMIT slot; see the repo.
 //
 // Returns the kept items (a subset of `items`); rows/items must be
 // index-aligned on entry.
@@ -175,7 +256,7 @@ func (s *ActivityService) enrichGalgameItems(
 	ctx context.Context,
 	rows []repository.ActivityRow,
 	items []dto.ActivityItem,
-	isSFW, showNoResource bool,
+	isSFW bool,
 ) []dto.ActivityItem {
 	idSet := map[int]struct{}{}
 	for _, r := range rows {
@@ -191,16 +272,16 @@ func (s *ActivityService) enrichGalgameItems(
 		ids = append(ids, id)
 	}
 
-	briefMap, appErr := s.wikiGC.GetBatchPublic(ctx, ids, isSFW)
-	if appErr != nil {
-		return items // graceful: wiki down, leave items untouched
-	}
-
-	// Resource-less galgames are hidden from the feed's GALGAME_CREATION rows
-	// unless the viewer opted into showing them. Only fetched when needed.
-	var resourceful map[int]bool
-	if !showNoResource {
-		resourceful = s.repo.GalgameIDsWithResources(ids)
+	// Chunk: GetBatchPublic sends every id in one query param, and the over-fetch
+	// window can surface more distinct galgames than a single batch should carry.
+	briefMap := make(map[int]galgameClient.GalgameBrief, len(ids))
+	for start := 0; start < len(ids); start += wikiBatchChunk {
+		end := min(start+wikiBatchChunk, len(ids))
+		m, appErr := s.wikiGC.GetBatchPublic(ctx, ids[start:end], isSFW)
+		if appErr != nil {
+			return items // graceful: wiki down, leave items untouched
+		}
+		maps.Copy(briefMap, m)
 	}
 
 	briefName := func(b galgameClient.GalgameBrief) string {
@@ -228,10 +309,6 @@ func (s *ActivityService) enrichGalgameItems(
 		name := briefName(b)
 		switch r.TypeStr {
 		case "GALGAME_CREATION":
-			if !showNoResource && !resourceful[r.GalgameID] {
-				// Resource-less galgame the viewer is hiding → drop its creation.
-				continue
-			}
 			items[i].Content = name
 			// galgame table has no local user_id; pull the creator from the brief.
 			if items[i].Actor.ID == 0 {

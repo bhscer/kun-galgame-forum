@@ -13,7 +13,7 @@ const [{ data }, { data: activityData }] = await Promise.all([
   }>('/activity', {
     query: {
       page: 1,
-      limit: 20,
+      limit: 30,
       type: 'all',
       showNoResource: settings.showKUNGalgameNoResource
     }
