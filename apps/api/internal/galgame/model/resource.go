@@ -16,7 +16,7 @@ type GalgameResource struct {
 	Size      string `gorm:"type:varchar(107)" json:"size"`
 	Code      string `gorm:"type:varchar(1007)" json:"code"`
 	Password  string `gorm:"type:varchar(1007)" json:"password"`
-	Note      string `gorm:"type:varchar(1007)" json:"note"`
+	Note      string `gorm:"type:varchar(10000)" json:"note"`
 	View      int    `gorm:"default:0" json:"view"`
 	Status    int    `gorm:"default:0" json:"status"`
 	Download  int    `gorm:"default:0" json:"download"`

@@ -68,7 +68,7 @@ export const checkGalgameResourcePublish = (link: GalgameResourceStoreTemp) => {
     return false
   }
 
-  if (link.note.length > 1007) {
+  if (link.note.length > 10000) {
     useMessage(10565, 'warn')
     return false
   }

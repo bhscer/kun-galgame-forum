@@ -139,9 +139,7 @@ const handleEditDone = () => {
       color="info"
       title="下载备注信息"
     >
-      <pre class="break-all whitespace-pre-line">
-        {{ resource.note }}
-      </pre>
+      <KunContent :content="resource.noteHtml" />
     </KunInfo>
 
     <KunAdAIFYBanner class-name="block lg:hidden" />

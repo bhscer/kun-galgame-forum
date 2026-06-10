@@ -19,6 +19,12 @@ export interface GalgameResource {
    */
   providerNames: string[]
   note: string
+  /**
+   * Server-rendered, sanitized HTML of `note` (Markdown → HTML via the shared
+   * markdown.Render pipeline, same as topic/comment content). Render this with
+   * `<KunContent>`; keep `note` (raw markdown) only for re-seeding the editor.
+   */
+  noteHtml: string
   created: Date | string
   edited: Date | string | null
 }

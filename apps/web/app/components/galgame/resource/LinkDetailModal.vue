@@ -234,9 +234,7 @@ const handleEditDone = () => {
           variant="flat"
           title="发布者备注 — 请先阅读"
         >
-          <p class="text-default-700 text-sm whitespace-pre-line">
-            {{ resource.note }}
-          </p>
+          <KunContent :content="resource.noteHtml" />
         </KunInfo>
 
         <div v-if="isFetching" class="flex justify-center py-8">

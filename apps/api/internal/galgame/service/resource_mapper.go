@@ -6,6 +6,7 @@ import (
 	"kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/galgame/dto"
 	"kun-galgame-api/internal/galgame/model"
+	"kun-galgame-api/internal/infrastructure/markdown"
 	"kun-galgame-api/pkg/userclient"
 )
 
@@ -106,6 +107,7 @@ func rowToCard(r model.GalgameResourceRow, u userclient.User, isLiked bool) dto.
 		LinkDomain:    "",
 		ProviderNames: decodeProviderNames(r.ProviderName),
 		Note:          r.Note,
+		NoteHtml:      markdown.Render(r.Note),
 		Created:       r.Created,
 		Edited:        r.Edited,
 	}
@@ -142,6 +144,7 @@ func rowToMeta(
 		LinkDomain:    linkDomain,
 		ProviderNames: decodeProviderNames(r.ProviderName),
 		Note:          r.Note,
+		NoteHtml:      markdown.Render(r.Note),
 		Created:       r.Created,
 		Edited:        r.Edited,
 	}

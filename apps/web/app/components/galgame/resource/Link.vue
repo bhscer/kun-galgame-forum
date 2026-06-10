@@ -186,12 +186,16 @@ const handleMarkValid = async () => {
     </div>
 
     <div v-if="resource.note" class="space-y-1.5">
+      <!-- Compact list card shows a plain-text excerpt of the (now Markdown)
+           note — markdownToText strips syntax/images so the card stays tight
+           and the existing clamp / 展开 toggle keeps working. The full rich
+           render lives in LinkDetailModal / the detail page (KunContent). -->
       <p
         ref="noteRef"
         :style="noteStyle"
         class="text-default-700 bg-default-100/60 overflow-hidden rounded-md px-3 py-2 text-sm whitespace-pre-line"
       >
-        {{ resource.note }}
+        {{ markdownToText(resource.note) }}
       </p>
 
       <button

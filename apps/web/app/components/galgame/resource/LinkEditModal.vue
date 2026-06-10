@@ -203,10 +203,15 @@ const platformOptions = computed(() =>
         </KunSelect>
       </div>
 
-      <KunTextarea
-        v-model="form.note"
-        placeholder="资源备注 — 注意事项, 介绍信息, 作者信息等 (可选)"
-      />
+      <div class="space-y-1">
+        <p class="text-default-600 text-sm font-medium">
+          资源备注 (可选) — 注意事项 / 介绍 / 作者信息, 支持 Markdown 与图片
+        </p>
+        <KunMilkdownDualEditorProvider
+          :value-markdown="form.note"
+          @set-markdown="(v) => (form.note = v)"
+        />
+      </div>
 
       <div class="flex justify-end gap-2">
         <KunButton variant="light" color="default" @click="handleCancel">

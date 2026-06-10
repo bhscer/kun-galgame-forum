@@ -22,7 +22,7 @@ type CreateGalgameResourceRequest struct {
 	Size      string   `json:"size" validate:"required,max=107"`
 	Code      string   `json:"code" validate:"max=1007"`
 	Password  string   `json:"password" validate:"max=1007"`
-	Note      string   `json:"note" validate:"max=1007"`
+	Note      string   `json:"note" validate:"max=10000"`
 	Link      []string `json:"link" validate:"required,min=1,max=20,dive,url"`
 }
 
@@ -36,7 +36,7 @@ type UpdateGalgameResourceRequest struct {
 	Size              string   `json:"size" validate:"required,max=107"`
 	Code              string   `json:"code" validate:"max=1007"`
 	Password          string   `json:"password" validate:"max=1007"`
-	Note              string   `json:"note" validate:"max=1007"`
+	Note              string   `json:"note" validate:"max=10000"`
 	Link              []string `json:"link" validate:"required,min=1,max=20,dive,url"`
 }
 
@@ -91,6 +91,7 @@ type ResourceCard struct {
 	LinkDomain    string      `json:"linkDomain"`
 	ProviderNames []string    `json:"providerNames"`
 	Note          string      `json:"note"`
+	NoteHtml      string      `json:"noteHtml"`
 	Created       string      `json:"created"`
 	Edited        *string     `json:"edited"`
 	GalgameName   KunLanguage `json:"galgameName,omitempty"`
@@ -124,6 +125,7 @@ type ResourceMeta struct {
 	LinkDomain    string    `json:"linkDomain"`
 	ProviderNames []string  `json:"providerNames"`
 	Note          string    `json:"note"`
+	NoteHtml      string    `json:"noteHtml"`
 	Created       string    `json:"created"`
 	Edited        *string   `json:"edited"`
 }
