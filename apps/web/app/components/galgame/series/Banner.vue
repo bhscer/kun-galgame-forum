@@ -7,8 +7,13 @@ const props = defineProps<{
 // Prefer the U2 derived banner — `g.banner` is the legacy free-form URL
 // and is empty for newly-uploaded (covers-only) galgames, so reading it
 // directly leaves the carousel blank for fresh series entries.
+// Drop covers-less galgames (empty banner) so the montage fills with up to 5
+// real covers instead of blank slots, then cap at 5.
 const banners = computed(() =>
-  props.galgames.map((g) => getEffectiveBanner(g)).slice(0, 5)
+  props.galgames
+    .map((g) => getEffectiveBanner(g))
+    .filter(Boolean)
+    .slice(0, 5)
 )
 
 const hoverTranslations = [
@@ -33,7 +38,7 @@ const hoverTranslations = [
     <div class="absolute inset-0">
       <div
         v-for="(banner, index) in banners"
-        :key="banner"
+        :key="index"
         :class="
           cn(
             'absolute aspect-video h-full rounded-lg transition-transform duration-500 ease-out',

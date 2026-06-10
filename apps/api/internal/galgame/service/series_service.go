@@ -94,7 +94,7 @@ func (s *SeriesService) GetList(
 			Name:          item.Name,
 			Description:   item.Description,
 			IsNSFW:        s.enricher.HasNSFW(filtered),
-			SampleGalgame: s.enricher.Samples(filtered, 4),
+			SampleGalgame: s.enricher.Samples(filtered, 5),
 			GalgameCount:  count,
 			Created:       item.Created,
 			Updated:       item.Updated,
@@ -106,11 +106,16 @@ func (s *SeriesService) GetList(
 	return &dto.SeriesListPage{Series: items, Total: total}, nil
 }
 
-// backfillGalgames fetches galgame data for series entries whose galgame slice
-// is empty but galgame_count > 0 (wiki list endpoint sometimes returns sparse).
+// backfillGalgames fetches the full galgame list for series whose included
+// galgame slice is INCOMPLETE (fewer than galgame_count). The wiki list endpoint
+// returns sparse galgame arrays — usually empty, but sometimes PARTIAL (e.g. 2
+// of 14, as for series 51). The old "only when empty" check left those partial
+// series stuck at their handful of games, so the card's 5-cover montage showed
+// far fewer covers than the series has. Backfilling whenever len < count fixes
+// both the empty and the partial case.
 func (s *SeriesService) backfillGalgames(ctx context.Context, items []wikiSeriesListItem) {
 	for i := range items {
-		if len(items[i].Galgame) > 0 || items[i].GalgameCount == 0 {
+		if items[i].GalgameCount == 0 || len(items[i].Galgame) >= items[i].GalgameCount {
 			continue
 		}
 		data, err := s.wikiClient.Get(ctx, fmt.Sprintf("/series/%d", items[i].ID), nil)
