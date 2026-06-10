@@ -55,7 +55,8 @@ const isRatingOpen = ref(false)
           <KunImage
             class="size-full cursor-zoom-in object-cover"
             :src="getEffectiveBanner(galgame)"
-            loading="lazy"
+            loading="eager"
+            fetchpriority="high"
             :alt="getPreferredLanguageText(galgame.name)"
             @click="open"
           />

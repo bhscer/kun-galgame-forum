@@ -143,14 +143,18 @@ onBeforeUnmount(() => {
         }"
       >
         <div
-          v-for="post in pinnedPosts"
+          v-for="(post, index) in pinnedPosts"
           :key="post.path"
           class="w-full flex-shrink-0"
         >
           <div class="relative h-[200px] w-full select-none sm:h-[300px]">
+            <!-- First slide is the above-the-fold LCP candidate → eager +
+                 high priority; the rest stay lazy (off-screen carousel). -->
             <KunImageNative
               :src="post.banner || '/kungalgame.webp'"
               :alt="post.title"
+              :loading="index === 0 ? 'eager' : 'lazy'"
+              :fetchpriority="index === 0 ? 'high' : undefined"
               class-name="pointer-events-none h-full w-full object-cover select-none"
             />
             <KunCard

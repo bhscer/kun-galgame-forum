@@ -63,6 +63,8 @@ const handleDelete = async () => {
             :alt="metadata.title"
             class="size-full cursor-zoom-in rounded-lg object-cover"
             :src="metadata.banner || '/kungalgame.webp'"
+            loading="eager"
+            fetchpriority="high"
             width="100%"
             height="100%"
             @click="open"
