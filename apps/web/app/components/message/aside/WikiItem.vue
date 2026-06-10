@@ -71,7 +71,7 @@ const typeLabel = (t: string | undefined) => {
     class-name="hover:bg-primary/20 flex cursor-pointer flex-nowrap gap-3 rounded-lg p-2 transition-colors hover:opacity-80"
     to="/message/wiki"
   >
-    <KunImage src="/apple-touch-icon.png" class="h-12 w-12 rounded-full" />
+    <KunImage src="/apple-touch-icon.png" class="h-12 w-12 shrink-0 rounded-full" />
     <div class="justify-space flex w-full flex-col">
       <div class="flex items-center justify-between">
         <span class="font-bold">Wiki 通知</span>

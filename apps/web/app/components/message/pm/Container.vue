@@ -345,54 +345,63 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="flex items-end gap-1">
-      <!-- Emoji + sticker picker, opening above the input. -->
-      <KunPopover position="top-start" :auto-position="true">
-        <template #trigger>
-          <KunButton
-            :is-icon-only="true"
-            variant="light"
-            size="lg"
-            aria-label="表情和贴纸"
-          >
-            <KunIcon name="lucide:smile" />
-          </KunButton>
-        </template>
-        <MessagePmEmojiStickerPicker @emoji="onEmoji" @sticker="onSticker" />
-      </KunPopover>
+    <!--
+      Mobile: emoji + image buttons sit on their own row ABOVE the input, and
+      the input + 发送 share one line below — keeps the cramped phone width from
+      squeezing the textarea. Desktop (sm+): everything on a single line.
+    -->
+    <div class="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-1">
+      <div class="flex gap-1">
+        <!-- Emoji + sticker picker, opening above the input. -->
+        <KunPopover position="top-start" :auto-position="true">
+          <template #trigger>
+            <KunButton
+              :is-icon-only="true"
+              variant="light"
+              size="lg"
+              aria-label="表情和贴纸"
+            >
+              <KunIcon name="lucide:smile" />
+            </KunButton>
+          </template>
+          <MessagePmEmojiStickerPicker @emoji="onEmoji" @sticker="onSticker" />
+        </KunPopover>
 
-      <!-- Upload image (same upload path as paste/drop). -->
-      <KunButton
-        :is-icon-only="true"
-        variant="light"
-        size="lg"
-        @click="openFilePicker"
-        aria-label="上传图片"
-      >
-        <KunIcon name="lucide:image" />
-      </KunButton>
-      <input
-        ref="fileInput"
-        type="file"
-        accept="image/*"
-        multiple
-        class="hidden"
-        @change="onFileChange"
-      />
+        <!-- Upload image (same upload path as paste/drop). -->
+        <KunButton
+          :is-icon-only="true"
+          variant="light"
+          size="lg"
+          @click="openFilePicker"
+          aria-label="上传图片"
+        >
+          <KunIcon name="lucide:image" />
+        </KunButton>
+        <input
+          ref="fileInput"
+          type="file"
+          accept="image/*"
+          multiple
+          class="hidden"
+          @change="onFileChange"
+        />
+      </div>
 
-      <KunTextarea
-        ref="messageTextarea"
-        v-model="messageInput"
-        placeholder="输入消息... (可粘贴或拖拽图片, Enter 发送, Shift+Enter 换行)"
-        class="flex-1"
-        :auto-grow="true"
-        :rows="1"
-        max-height="160px"
-        @keydown.enter="handleEnter"
-      />
-      <KunButton @click="sendMessage" :loading="isSending" size="lg">
-        发送
-      </KunButton>
+      <div class="flex flex-1 items-end gap-1">
+        <KunTextarea
+          ref="messageTextarea"
+          v-model="messageInput"
+          placeholder="输入消息... (可粘贴或拖拽图片, Enter 发送, Shift+Enter 换行)"
+          class="flex-1"
+          :auto-grow="true"
+          :rows="1"
+          max-height="160px"
+          @keydown.enter="handleEnter"
+        />
+        <KunButton @click="sendMessage" :loading="isSending" size="lg">
+          发送
+        </KunButton>
+      </div>
     </div>
   </div>
 </template>
