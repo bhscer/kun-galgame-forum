@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { showMoeMessage } from '~/widget/showMoeMessage'
 
-const { showKUNGalgamePageTransparency, showKUNGalgameBackgroundBlur } =
-  storeToRefs(usePersistSettingsStore())
+const {
+  showKUNGalgamePageTransparency,
+  showKUNGalgameBackgroundBlur,
+  showKUNGalgameRounded
+} = storeToRefs(usePersistSettingsStore())
 
 // The single global login/register modal. Bound to useAuthModal()'s shared
 // state so the top-bar 登录 button AND every requireLogin() gate open this one
@@ -114,6 +117,10 @@ onMounted(() => {
   usePersistSettingsStore().setKUNGalgameBackgroundBlur(
     showKUNGalgameBackgroundBlur.value
   )
+
+  // Restore the persisted global corner radius — the forum-side CSS multiplier
+  // (--kun-radius-scale). KunUI's side is handled reactively above.
+  usePersistSettingsStore().setKUNGalgameRounded(showKUNGalgameRounded.value)
 
   if (process.env.NODE_ENV === 'development') {
     // Disable pinia console info for dev

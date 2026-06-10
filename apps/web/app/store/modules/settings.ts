@@ -34,6 +34,12 @@ export const usePersistSettingsStore = defineStore(
     // galgames across all local galgame lists. See KUNGalgameSettingsStore.
     const showKUNGalgameNoResource =
       ref<KUNGalgameSettingsStore['showKUNGalgameNoResource']>(false)
+    // Global corner-radius level (直角/小/中/大). One knob rounds the WHOLE UI:
+    // both the forum's own rounded-* and KunUI's rounded-kun-* derive from the
+    // --kun-radius-scale CSS multiplier this sets (see styles/tailwindcss.css).
+    // 'md' = stock look.
+    const showKUNGalgameRounded =
+      ref<KUNGalgameSettingsStore['showKUNGalgameRounded']>('md')
 
     const toggleKUNGalgameSidebarCollapsed = () => {
       showKUNGalgameSidebarCollapsed.value =
@@ -66,6 +72,25 @@ export const usePersistSettingsStore = defineStore(
       document.documentElement.style.setProperty(
         '--kun-background-brightness',
         `${brightness}%`
+      )
+    }
+
+    // Radius multiplier per level. md (1) keeps every radius at its stock
+    // value; the rest scale the whole hierarchy proportionally. Both the
+    // forum's --radius-* and KunUI's --radius-kun-* derive from this one
+    // multiplier (styles/tailwindcss.css), so it rounds everything at once.
+    const ROUNDED_SCALE: Record<
+      KUNGalgameSettingsStore['showKUNGalgameRounded'],
+      number
+    > = { none: 0, sm: 0.5, md: 1, lg: 1.5 }
+
+    const setKUNGalgameRounded = (
+      level: KUNGalgameSettingsStore['showKUNGalgameRounded']
+    ) => {
+      showKUNGalgameRounded.value = level
+      document.documentElement.style.setProperty(
+        '--kun-radius-scale',
+        `${ROUNDED_SCALE[level]}`
       )
     }
 
@@ -112,11 +137,13 @@ export const usePersistSettingsStore = defineStore(
       showKUNGalgameBackLoli,
       showKUNGalgameSidebarCollapsed,
       showKUNGalgameNoResource,
+      showKUNGalgameRounded,
       toggleKUNGalgameSidebarCollapsed,
       setKUNGalgameFontStyle,
       setKUNGalgameTransparency,
       setKUNGalgameBackgroundBlur,
       setKUNGalgameBackgroundBrightness,
+      setKUNGalgameRounded,
       setSystemBackground,
       setCustomBackground,
       getCurrentBackground,

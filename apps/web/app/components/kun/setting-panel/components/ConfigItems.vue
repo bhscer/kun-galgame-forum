@@ -4,8 +4,16 @@ const showItemIndex = ref(1)
 const {
   showKUNGalgamePageTransparency,
   showKUNGalgameBackgroundBlur,
-  showKUNGalgameBackgroundBrightness
+  showKUNGalgameBackgroundBrightness,
+  showKUNGalgameRounded
 } = storeToRefs(usePersistSettingsStore())
+
+const roundedOptions = [
+  { value: 'none', label: '直角' },
+  { value: 'sm', label: '小' },
+  { value: 'md', label: '中' },
+  { value: 'lg', label: '大' }
+] as const
 
 watch(
   () => showKUNGalgamePageTransparency.value,
@@ -33,6 +41,7 @@ watch(
     )
   }, 300)
 )
+
 </script>
 
 <template>
@@ -73,6 +82,17 @@ watch(
           @click="showItemIndex = 3"
         >
           <KunIcon class="text-inherit" name="lucide:lightbulb" />
+        </span>
+        <span
+          :class="
+            cn(
+              'flex rounded-lg p-2 transition-colors',
+              showItemIndex === 4 ? 'bg-primary-50 text-primary' : ''
+            )
+          "
+          @click="showItemIndex = 4"
+        >
+          <KunIcon class="text-inherit" name="tabler:border-radius" />
         </span>
       </div>
     </div>
@@ -134,6 +154,25 @@ watch(
             v-model="showKUNGalgameBackgroundBrightness"
           />
           <span>100%</span>
+        </div>
+      </div>
+
+      <div class="w-full space-y-2" v-if="showItemIndex === 4">
+        <div class="flex justify-between text-sm">
+          <span>全局圆角</span>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2">
+          <KunButton
+            v-for="opt in roundedOptions"
+            :key="opt.value"
+            size="sm"
+            :variant="showKUNGalgameRounded === opt.value ? 'solid' : 'flat'"
+            :color="showKUNGalgameRounded === opt.value ? 'primary' : 'default'"
+            @click="usePersistSettingsStore().setKUNGalgameRounded(opt.value)"
+          >
+            {{ opt.label }}
+          </KunButton>
         </div>
       </div>
     </TransitionGroup>

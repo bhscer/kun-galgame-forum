@@ -14,6 +14,9 @@ export interface KUNGalgameSettingsStore {
   // user pages — NOT wiki-proxied entity pages or search). Cookie-persisted
   // (this store) so it's SSR-readable + remembered.
   showKUNGalgameNoResource: boolean
+  // Global corner-radius level (直角/小/中/大, default 'md'). Maps to a
+  // --kun-radius-scale multiplier that rounds both the forum and KunUI at once.
+  showKUNGalgameRounded: 'none' | 'sm' | 'md' | 'lg'
 }
 
 export interface TempSettingStore {
