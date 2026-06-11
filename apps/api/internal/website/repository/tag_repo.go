@@ -123,7 +123,10 @@ func (r *TagRepository) LevelSumsAll() map[int]int {
 // ReplaceWebsiteTagRelations deletes existing website↔tag rows and re-adds the given tag IDs.
 // Call inside a tx.
 func (r *TagRepository) ReplaceWebsiteTagRelations(tx *gorm.DB, websiteID int, tagIDs []int) {
-	tx.Where("website_id = ?", websiteID).Delete(&model.GalgameWebsiteTagRelation{})
+	// The join table's FK column is `galgame_website_id` (see the model); a stray
+	// `website_id` here raised 42703 (undefined_column), which aborted the whole
+	// update tx (every following tag INSERT then failed 25P02 → 500 on edit).
+	tx.Where("galgame_website_id = ?", websiteID).Delete(&model.GalgameWebsiteTagRelation{})
 	for _, tagID := range tagIDs {
 		tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&model.GalgameWebsiteTagRelation{
 			GalgameWebsiteID: websiteID, GalgameWebsiteTagID: tagID,
