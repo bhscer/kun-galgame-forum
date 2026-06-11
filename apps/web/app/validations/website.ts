@@ -2,6 +2,30 @@ import { z } from 'zod'
 
 /* website */
 
+// The `url` field holds the site's BARE main domain (no scheme) — that's how
+// every row is stored and how the UI links to it (`https://${url}` in
+// website/Operation.vue). Zod's `z.url()` requires a scheme, so validating
+// `url` as a full URL rejected every existing entry and broke 编辑/创建.
+// Validate it as a domain instead, mirroring the BE's `fqdn` tag. We also
+// leniently strip a pasted scheme / path so an admin can paste either form.
+const DOMAIN_RE =
+  /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]?$/i
+
+const domainField = z
+  .string()
+  .min(1, '网站主域名不能为空')
+  .max(500, '网站主域名最多 500 个字符')
+  .transform((value) =>
+    value
+      .trim()
+      .replace(/^https?:\/\//i, '') // tolerate a pasted scheme
+      .replace(/\/.*$/, '') // drop any path / trailing slash
+      .replace(/\.$/, '') // drop a trailing dot
+  )
+  .refine((value) => DOMAIN_RE.test(value), {
+    message: '无效的网站主域名 (示例: www.kungal.com)'
+  })
+
 export const getWebsiteDetailSchema = z.object({
   domain: z.string().max(100, '网站可用域名最多 100 个字符')
 })
@@ -14,7 +38,7 @@ export const getWebsiteDetailSchema = z.object({
 // match the existing BE tag).
 export const createWebsiteSchema = z.object({
   name: z.string().min(1, '网站名称不能为空').max(233, '网站名称最多 233 个字符'),
-  url: z.url('无效的网站 URL').max(500, '网站 URL 最多 500 个字符'),
+  url: domainField,
   description: z
     .string()
     .min(10, '网站介绍最少 10 个字符')

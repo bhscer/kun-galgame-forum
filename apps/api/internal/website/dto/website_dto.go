@@ -15,9 +15,15 @@ import (
 // BE silently accepted empty descriptions and non-URL icons that the FE
 // would have rejected. Tightened the BE to match what the product
 // actually requires.
+//
+// `URL` is the site's BARE main domain (no scheme — e.g. `www.kungal.com`),
+// which is how every row is stored and how the UI links to it
+// (`https://${url}`). The `url` tag requires a scheme, so it rejected every
+// existing entry on edit/create; `fqdn` validates a bare domain instead.
+// `Icon`, by contrast, IS a full URL, so it keeps the `url` tag.
 type CreateWebsiteRequest struct {
 	Name        string   `json:"name" validate:"required,max=233"`
-	URL         string   `json:"url" validate:"required,url,max=500"`
+	URL         string   `json:"url" validate:"required,fqdn,max=500"`
 	Description string   `json:"description" validate:"required,min=10,max=1000"`
 	Icon        string   `json:"icon" validate:"required,url,max=500"`
 	CategoryID  int      `json:"categoryId" validate:"required,min=1"`
@@ -31,7 +37,7 @@ type CreateWebsiteRequest struct {
 type UpdateWebsiteRequest struct {
 	WebsiteID   int      `json:"websiteId" validate:"required,min=1"`
 	Name        string   `json:"name" validate:"required,max=233"`
-	URL         string   `json:"url" validate:"required,url,max=500"`
+	URL         string   `json:"url" validate:"required,fqdn,max=500"`
 	Description string   `json:"description" validate:"required,min=10,max=1000"`
 	Icon        string   `json:"icon" validate:"required,url,max=500"`
 	CategoryID  int      `json:"categoryId" validate:"required,min=1"`
