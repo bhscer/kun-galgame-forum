@@ -125,6 +125,14 @@
     @apply bg-warning-100 text-warning-800 rounded px-1;
   }
 
+  /* Strikethrough — mirror of editor.css `.milkdown del` so the rendered
+     article matches the editor preview (muted default-500, not body color).
+     Covers both <del> and <s> since renderers differ on which `~~` emits. */
+  & del,
+  & s {
+    @apply text-default-500 line-through;
+  }
+
   /* Inline code */
   & code {
     @apply bg-primary/15 rounded-lg px-2 py-0.5 font-mono text-sm;
