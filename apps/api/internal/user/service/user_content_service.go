@@ -60,6 +60,17 @@ func (s *UserContentService) GetUserGalgameCards(
 		return s.buildGalgameCards(ctx, briefs), total, nil
 	}
 
+	// "贡献的" (galgame_contributed): created ∪ edited — also wiki-owned, same
+	// wiki-paginated/NSFW-filtered list shape as 已发布, just a different
+	// endpoint. Superset of galgame_publish.
+	if req.Type == "galgame_contributed" {
+		briefs, total, wikiErr := s.wikiClient.GetUserContributedGalgames(ctx, userID, req.Page, req.Limit, isSFW)
+		if wikiErr != nil {
+			return []dto.UserGalgameCard{}, 0, nil
+		}
+		return s.buildGalgameCards(ctx, briefs), total, nil
+	}
+
 	ids, total, err := s.userContentRepo.FindUserGalgameIDs(userID, req.Type, req.Page, req.Limit, req.ShowNoResource)
 	if err != nil {
 		return nil, 0, errors.ErrInternal("获取用户 Galgame 列表失败")

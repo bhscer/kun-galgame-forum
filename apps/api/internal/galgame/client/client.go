@@ -253,6 +253,33 @@ func (c *GalgameClient) GetUserGalgames(ctx context.Context, userID, page, limit
 	return resp.Galgames, resp.Total, nil
 }
 
+// GetUserContributedGalgames fetches a user's CONTRIBUTED galgames — the
+// games they created OR edited/claimed — from the wiki (briefs, paginated,
+// same shape + NSFW gating as GetUserGalgames). Source for the profile
+// "贡献的 Galgame" tab. This is the superset of the "已发布" (created) list:
+// "已发布" answers "what did this user create", "贡献的" adds games they only
+// edited. Backed by wiki's GET /galgame/user/:id/contributed.
+func (c *GalgameClient) GetUserContributedGalgames(ctx context.Context, userID, page, limit int, isSFW bool) ([]GalgameBrief, int64, *errors.AppError) {
+	contentLimit := "all"
+	if isSFW {
+		contentLimit = "sfw"
+	}
+	query := url.Values{
+		"page":          {strconv.Itoa(page)},
+		"limit":         {strconv.Itoa(limit)},
+		"content_limit": {contentLimit},
+	}
+	data, appErr := c.Get(ctx, fmt.Sprintf("/galgame/user/%d/contributed", userID), query)
+	if appErr != nil {
+		return nil, 0, appErr
+	}
+	var resp WikiUserGalgames
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, 0, errors.ErrInternal("解析 Wiki 用户贡献 Galgame 列表失败")
+	}
+	return resp.Galgames, resp.Total, nil
+}
+
 // WikiAdminStats is the admin stats response from wiki service.
 type WikiAdminStats struct {
 	Totals map[string]int64   `json:"totals"`
