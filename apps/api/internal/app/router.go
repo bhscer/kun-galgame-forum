@@ -10,6 +10,11 @@ import (
 )
 
 func (a *App) setupRoutes() {
+	// Session cookies are Secure (HTTPS-only) in prod, plain in dev over HTTP.
+	// Drives renewSlidingSession's re-issued cookie; mirrors the login
+	// handler's secure flag (NewOAuthHandler(_, cfg.Server.Mode == "prod")).
+	middleware.SecureCookies = a.Config.Server.Mode == "prod"
+
 	a.Fiber.Use(fiberCors.New(middleware.CORS(a.Config.CORS.AllowOrigins)))
 
 	// Liveness probe for the container HEALTHCHECK (`server healthcheck`) and

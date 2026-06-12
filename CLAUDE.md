@@ -18,5 +18,5 @@
 
 ## 本仓要点
 
-- JWT / OptionalJWT 在 `internal/middleware/auth.go`（仅验签）。
+- 鉴权在 `internal/middleware/auth.go`：是 **BFF 不透明会话**（`kungal_session` cookie + Redis 存 OAuth token），不是纯 JWT 验签。会话 **90 天滑动续期**（活跃用户不再每周掉线）——模型与 2026-06 修复见 `docs/proj/session-lifetime.md`。
 - 修改 `docs/{oauth,image_service,galgame_wiki}/` 下任何文件都是**错的**——那是 infra 的镜像；要改去 infra 改、再 `docs:sync`。

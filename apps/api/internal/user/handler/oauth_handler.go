@@ -40,7 +40,7 @@ func (h *OAuthHandler) Callback(c *fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     middleware.SessionCookieName,
 		Value:    session.Token,
-		MaxAge:   7 * 24 * 3600, // 7 days
+		MaxAge:   int(middleware.SessionTTL.Seconds()), // sliding; renewed on activity
 		HTTPOnly: true,
 		Secure:   h.secure,
 		SameSite: "Lax",

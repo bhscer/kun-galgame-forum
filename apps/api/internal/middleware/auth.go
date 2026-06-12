@@ -34,7 +34,28 @@ const (
 	// SessionPrefix namespaces session keys in Redis so a shared Redis
 	// instance can't collide kungal vs moyu. kungal: "kungal:session:".
 	SessionPrefix = "kungal:session:"
+	// SessionTTL is the SLIDING lifetime of a kungal session — applied to
+	// both the Redis entry and the browser cookie, and re-extended while the
+	// user is active (see renewSlidingSession). 90 days matches the OAuth
+	// refresh_token default (oauth_clients.refresh_token_ttl_seconds=7776000),
+	// so for an idle user the local session and the upstream grant lapse
+	// together; for an active user both slide forward indefinitely. The hard
+	// ceiling is the upstream refresh_token itself: once it can no longer
+	// refresh, refreshSession deletes the session regardless of this window.
+	//
+	// Was a FIXED 7 days set once at login and never renewed — which logged
+	// every user out exactly 7 days after login regardless of activity.
+	SessionTTL = 90 * 24 * time.Hour
+	// sessionRenewPrefix keys the per-session cookie-renewal throttle marker.
+	// Kept OFF SessionPrefix so it never matches a "kungal:session:*" scan.
+	sessionRenewPrefix = "kungal:session-renew:"
 )
+
+// SecureCookies controls whether the renewed session cookie is marked Secure
+// (HTTPS-only). Set at startup from the server mode (see App.setupRoutes) —
+// must be false in dev over plain HTTP or the browser silently drops the
+// cookie. Mirrors the login handler's own secure flag (OAuthHandler.secure).
+var SecureCookies = true
 
 // SessionKey returns the Redis key for a session token.
 func SessionKey(token string) string { return SessionPrefix + token }
@@ -143,6 +164,11 @@ func Auth(rdb *redis.Client, oauthClient *oauth.Client) fiber.Handler {
 			}
 		}
 
+		// Rolling session: while the user is active, slide the cookie + Redis
+		// TTL forward so a returning user is never bounced as long as they
+		// came back within SessionTTL. Throttled to once per half-window.
+		renewSlidingSession(c, rdb, token)
+
 		c.Locals(string(UserInfoKey), &session.UserInfo)
 		// Expose the session's OAuth access token to handlers that need to
 		// forward authority to the wiki service. Sourcing this from Redis
@@ -196,6 +222,10 @@ func OptionalAuth(rdb *redis.Client, oauthClient *oauth.Client) fiber.Handler {
 			}
 		}
 
+		// Rolling session: same sliding renewal as Auth() for logged-in users
+		// browsing optAuth routes (anonymous callers already returned above).
+		renewSlidingSession(c, rdb, token)
+
 		c.Locals(string(UserInfoKey), &session.UserInfo)
 		// Mirror Auth(): also attach the session's OAuth access token so
 		// GetAccessToken works on optAuth routes for logged-in users.
@@ -244,17 +274,17 @@ func GetAccessToken(c *fiber.Ctx) string {
 //
 // Failure branches (matters for the user-experience side of the 401 loop):
 //   - oauth.IsBanned(err)            → delete session, surface CodeBanned;
-//                                      frontend stops the user from looping
-//                                      through /login (a re-login hits 10014
-//                                      again at the very next refresh).
+//     frontend stops the user from looping
+//     through /login (a re-login hits 10014
+//     again at the very next refresh).
 //   - oauth.IsRefreshTokenDead(err)  → delete session, surface 205; user
-//                                      must do a fresh /oauth/authorize.
-//                                      Covers refresh_token expired, client_id
-//                                      mismatch, invalid_grant, secret mismatch.
+//     must do a fresh /oauth/authorize.
+//     Covers refresh_token expired, client_id
+//     mismatch, invalid_grant, secret mismatch.
 //   - oauth.IsTransient(err)         → keep session, surface 205; the next
-//                                      request retries the refresh. This is
-//                                      what makes OAuth restarts / network
-//                                      hiccups not auto-logout every user.
+//     request retries the refresh. This is
+//     what makes OAuth restarts / network
+//     hiccups not auto-logout every user.
 func refreshSession(
 	ctx context.Context,
 	rdb *redis.Client,
@@ -286,7 +316,7 @@ func refreshSession(
 
 	// Re-derive Role from fresh userinfo so an upstream role change (a demoted
 	// admin / promoted mod) takes effect at the next token refresh instead of
-	// being frozen at login for the whole 7-day session. A ban surfaced here is
+	// being frozen at login for the whole session. A ban surfaced here is
 	// enforced immediately; a transient userinfo failure is non-fatal — the
 	// tokens already refreshed, so we keep the previously cached Role.
 	if info, uErr := oauthClient.FetchUserInfo(refreshed.AccessToken); uErr == nil {
@@ -304,8 +334,46 @@ func refreshSession(
 		slog.Error("序列化 session 失败", "error", mErr)
 		return errors.ErrInternal("服务器内部错误")
 	}
-	rdb.Set(ctx, SessionKey(token), data, 7*24*time.Hour)
+	// Bump the Redis TTL so it never expires before the cookie. The cookie's
+	// own sliding renewal is handled separately by renewSlidingSession (which
+	// also persists RenewedAt) — RenewedAt set on this struct is preserved
+	// here because we marshal the whole session.
+	rdb.Set(ctx, SessionKey(token), data, SessionTTL)
 	return nil
+}
+
+// renewSlidingSession implements the rolling half of the session-timeout
+// model: while the user is active it slides the cookie + Redis TTL forward, so
+// a returning user is never logged out as long as they came back within
+// SessionTTL of their last visit. The absolute ceiling is the upstream OAuth
+// refresh_token — once that can no longer refresh, refreshSession deletes the
+// session and the user re-logs in regardless of this window.
+//
+// To avoid a Set-Cookie on every request it renews at most once per
+// half-window — the same heuristic ASP.NET Core's SlidingExpiration uses. The
+// throttle is a marker key whose SetNX succeeds only after the previous marker
+// has expired (i.e. >SessionTTL/2 since the last renewal).
+//
+// The TTL is slid with EXPIRE, NOT a blob rewrite, so this can never race a
+// concurrent token refresh / rotation and clobber freshly-rotated tokens.
+// Best-effort: a Redis hiccup just skips this round; the cookie keeps its
+// current expiry and the next qualifying request retries. Call only with a
+// validated session present.
+func renewSlidingSession(c *fiber.Ctx, rdb *redis.Client, token string) {
+	ctx := c.Context()
+	if ok, _ := rdb.SetNX(ctx, sessionRenewPrefix+token, "1", SessionTTL/2).Result(); !ok {
+		return
+	}
+	rdb.Expire(ctx, SessionKey(token), SessionTTL)
+	c.Cookie(&fiber.Cookie{
+		Name:     SessionCookieName,
+		Value:    token,
+		MaxAge:   int(SessionTTL.Seconds()),
+		HTTPOnly: true,
+		Secure:   SecureCookies,
+		SameSite: "Lax",
+		Path:     "/",
+	})
 }
 
 // waitForRefresh is the lock-loser path. Another request is currently
@@ -360,5 +428,3 @@ func waitForRefresh(
 		}
 	}
 }
-
-

@@ -113,7 +113,7 @@ func (s *AuthService) OAuthCallback(
 
 	sessionData := middleware.SessionData{
 		UserInfo: middleware.UserInfo{
-			ID:   oauthUser.ID,
+			ID:    oauthUser.ID,
 			Sub:   oauthUser.Sub,
 			Name:  oauthUser.Name,
 			Email: oauthUser.Email,
@@ -128,7 +128,7 @@ func (s *AuthService) OAuthCallback(
 	if err != nil {
 		return nil, errors.ErrInternal("序列化会话数据失败")
 	}
-	s.rdb.Set(ctx, middleware.SessionKey(sessionToken), data, 7*24*time.Hour)
+	s.rdb.Set(ctx, middleware.SessionKey(sessionToken), data, middleware.SessionTTL)
 
 	return &dto.SessionResponse{
 		Token: sessionToken,
