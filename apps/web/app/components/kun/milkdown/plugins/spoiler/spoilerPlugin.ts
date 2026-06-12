@@ -22,7 +22,7 @@ export const spoilerAttr = $nodeAttr('kun-spoiler', () => ({
   container: {
     class: 'kun-spoiler',
     style:
-      'background: var(--color-default-500); border-radius: 8px; padding: 0 4px; cursor: pointer;'
+      'background: var(--color-default-500); border-radius: var(--radius-sm); padding: 0 4px; cursor: pointer;'
   }
 }))
 
