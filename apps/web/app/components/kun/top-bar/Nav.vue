@@ -101,7 +101,14 @@ onMounted(async () => {
       </KunButton>
     </KunTooltip>
 
-    <KunTopBarSideCollapsed v-if="showKUNGalgameSidebarCollapsed" />
+    <!-- Collapsed-sidebar quick-nav icons. This is a md+ feature (the sidebar
+         and its collapse toggle are both `hidden md:*`); without the `md:`
+         gate, a collapse state persisted from desktop injected these 7 icons
+         into the mobile topbar and overflowed it. `md:contents` keeps them an
+         inline flex item on md+, hidden on phones. -->
+    <div v-if="showKUNGalgameSidebarCollapsed" class="hidden md:contents">
+      <KunTopBarSideCollapsed />
+    </div>
 
     <!-- Logged-out GitHub-star promo. Hidden on phones (< md); the ad slot below
          takes this spot on mobile, while desktop keeps showing both. -->
