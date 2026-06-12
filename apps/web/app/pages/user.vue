@@ -1,4 +1,12 @@
 <script setup lang="ts">
+// Key by the :id param so navigating between two profiles client-side
+// (e.g. someone else's → your own via the user menu) REMOUNTS this page —
+// otherwise the parent route component is reused and the one-shot setup fetch
+// below keeps showing the previous user until a hard refresh. Keyed on id (not
+// path) so switching subpages of the same user (info → topic → …) doesn't
+// remount needlessly.
+definePageMeta({ key: (route) => (route.params as { id: string }).id })
+
 const route = useRoute()
 
 const userId = computed(() => {
