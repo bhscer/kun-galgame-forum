@@ -63,8 +63,21 @@ const { data, status, refresh } = await useKunFetch<AdminQueueEnvelope>(
 // typeBadge stays local: the admin queue wants queue-specific wording
 // ("新提交" / "修订重审") distinct from the user-facing notification
 // wording in the message center, so this is intentionally NOT shared.
-const nameOf = (g: AdminQueueGalgame | null) =>
-  g ? galgameNameFromWire(g, `#${g.id}`) : '(已删除)'
+// Row title. Prefer the galgame's localized name; for a brand-new submission
+// whose names aren't imported yet (name_* all empty), fall back to the VNDB id
+// carried in the `submitted` payload so the row stays identifiable, then to
+// #id. (The message brief itself carries no vndb_id — only the payload does.)
+// Once infra ships reviewer-visible drafts, 查看 opens the full detail anyway.
+const displayName = (msg: AdminQueueMessage): string => {
+  const named = msg.galgame ? galgameNameFromWire(msg.galgame, '') : ''
+  if (named) return named
+  const vndb =
+    msg.payload && typeof msg.payload.vndb_id === 'string'
+      ? msg.payload.vndb_id
+      : ''
+  if (vndb) return `VNDB ${vndb}`
+  return msg.galgame ? `#${msg.galgame.id}` : `#${msg.galgame_id}`
+}
 
 const typeBadge = (t: string) => {
   switch (t) {
@@ -103,7 +116,7 @@ const reasonText = ref('')
 
 const modalTitle = computed(() => {
   if (!reasonContext.value) return ''
-  const name = nameOf(reasonContext.value.target.galgame)
+  const name = displayName(reasonContext.value.target)
   return reasonContext.value.action === 'decline'
     ? `拒绝《${name}》`
     : `封禁《${name}》`
@@ -163,7 +176,7 @@ const applyStatus = async (
 
 const handleApprove = async (msg: AdminQueueMessage) => {
   const ok = await useComponentMessageStore().alert(
-    `通过《${nameOf(msg.galgame)}》?`,
+    `通过《${displayName(msg)}》?`,
     '通过后该 Galgame 立即公开发布, 提交者会收到通知并自动获得 +3 萌萌点 (通过 wiki cron 同步)。'
   )
   if (!ok) return
@@ -230,7 +243,7 @@ const handleConfirmReason = async () => {
         <div class="min-w-0 flex-1 space-y-1">
           <div class="flex flex-wrap items-center gap-2">
             <h3 class="truncate text-lg font-medium">
-              {{ nameOf(msg.galgame) }}
+              {{ displayName(msg) }}
             </h3>
             <KunChip size="xs" variant="flat" :color="typeBadge(msg.type).color">
               {{ typeBadge(msg.type).label }}
