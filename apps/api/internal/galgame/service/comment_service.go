@@ -100,9 +100,9 @@ const inlineRepliesPerRoot = 3
 // FLATTENED into a single list, plus a ReplyCount = total descendants.
 // The drawer (GET /comment/thread/:rootId) fetches the whole thread
 // on demand for the "查看更多" path.
-func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit, currentUserID int) *CommentListResult {
+func (s *CommentService) GetComments(ctx context.Context, galgameID, page, limit, currentUserID int, sortOrder string) *CommentListResult {
 	total := s.commentRepo.CountRootsByGalgame(galgameID)
-	roots := s.commentRepo.FindRootsPaginated(galgameID, page, limit)
+	roots := s.commentRepo.FindRootsPaginated(galgameID, page, limit, sortOrder)
 	if len(roots) == 0 {
 		return &CommentListResult{Items: []*CommentItem{}, Total: total}
 	}

@@ -82,12 +82,15 @@ func (r *CommentRepository) CountRootsByGalgame(galgameID int) int64 {
 // FindRootsPaginated returns paginated ROOT comments for a galgame.
 // Replies are pulled in a second call via FindRepliesByRoots so the
 // service can assemble the tree.
-func (r *CommentRepository) FindRootsPaginated(galgameID, page, limit int) []CommentRow {
+// sortOrder is "asc" or "desc" (caller-normalized); roots are ordered by
+// created so the comment list's 正序/倒序 toggle actually flips the order
+// (it used to hardcode DESC, so both directions looked identical).
+func (r *CommentRepository) FindRootsPaginated(galgameID, page, limit int, sortOrder string) []CommentRow {
 	var rows []CommentRow
 	r.db.Table("galgame_comment gc").
 		Select(commentSelect).
 		Where("gc.galgame_id = ? AND gc.parent_comment_id IS NULL", galgameID).
-		Order("gc.created DESC").
+		Order("gc.created " + sortOrder).
 		Offset((page - 1) * limit).Limit(limit).
 		Find(&rows)
 	return rows

@@ -26,14 +26,21 @@ func (h *CommentHandler) GetComments(c *fiber.Ctx) error {
 	gid, _ := strconv.Atoi(c.Params("gid"))
 
 	var req struct {
-		Page  int `query:"page" validate:"min=1"`
-		Limit int `query:"limit" validate:"min=1,max=50"`
+		Page      int    `query:"page" validate:"min=1"`
+		Limit     int    `query:"limit" validate:"min=1,max=50"`
+		SortOrder string `query:"sortOrder" validate:"omitempty,oneof=asc desc"`
 	}
 	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
-	result := h.commentService.GetComments(c.Context(), gid, req.Page, req.Limit, optionalUID(c))
+	// Default to newest-first; only "asc" flips it. Validated above.
+	sortOrder := "desc"
+	if req.SortOrder == "asc" {
+		sortOrder = "asc"
+	}
+
+	result := h.commentService.GetComments(c.Context(), gid, req.Page, req.Limit, optionalUID(c), sortOrder)
 	return response.Paginated(c, result.Items, result.Total)
 }
 
