@@ -4,7 +4,9 @@ export interface GalgameStorePersist {
   introduction: KunLanguage
   contentLimit: 'sfw' | 'nsfw'
   ageLimit: 'all' | 'r18'
-  originalLanguage: Language
+  // Wiki-owned code (30+ values, e.g. ja-jp / ko-kr / ru), NOT one of the 4
+  // content locales — must be a plain string so any wiki language round-trips.
+  originalLanguage: string
   aliases: string[]
   // U1: "" = unknown; sent as wire `release_date` (snake_case at boundary
   // by Footer). releaseDateTBA can coexist with a concrete date (semantic
@@ -34,7 +36,9 @@ export interface GalgameEditStoreTemp {
   introduction: KunLanguage
   contentLimit: 'sfw' | 'nsfw'
   ageLimit: 'all' | 'r18'
-  originalLanguage: Language
+  // Wiki-owned code (30+ values, e.g. ja-jp / ko-kr / ru), NOT one of the 4
+  // content locales — must be a plain string so any wiki language round-trips.
+  originalLanguage: string
   alias: string[]
   tags: GalgameTagItem[]
   officials: GalgameOfficialItem[]

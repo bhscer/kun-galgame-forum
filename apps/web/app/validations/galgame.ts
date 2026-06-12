@@ -8,6 +8,18 @@ import { PROVIDER_KEY_OPTIONS } from '~/constants/galgameResource'
 
 const SORT_ORDER_CONST = ['asc', 'desc'] as const
 
+// The wiki owns galgame `original_language` (30+ codes and growing: ja-jp /
+// en-us / ru / zh-cn / ko-kr / es / uk / fr / …, both `xx` and `xx-yy`). The
+// forum must accept any code the wiki already stored, or re-editing such a
+// draft fails validation here and forces a manual re-pick. So validate the
+// SHAPE (a BCP-47-ish short code) plus the legacy 'others' sentinel, rather
+// than a hard enum of only the few we render names for.
+const originalLanguageCode = z
+  .string()
+  .refine((v) => v === 'others' || /^[a-z]{2}(-[a-z]{2})?$/i.test(v), {
+    message: '无效的游戏原语言代码'
+  })
+
 /*
  * Galgame
  */
@@ -99,9 +111,7 @@ export const createGalgameSchema = z
       .default(''),
     content_limit: z.enum(['sfw', 'nsfw']),
     age_limit: z.enum(['all', 'r18']).default('all'),
-    original_language: z
-      .enum(['ja-jp', 'en-us', 'zh-cn', 'zh-tw', 'others'])
-      .default('ja-jp'),
+    original_language: originalLanguageCode.default('ja-jp'),
     // U1: "" = unknown (cleared on update). TBA is independent of date.
     release_date: z
       .string()
@@ -200,9 +210,7 @@ export const submitGalgameSchema = z
       .default(''),
     content_limit: z.enum(['sfw', 'nsfw']),
     age_limit: z.enum(['all', 'r18']).default('all'),
-    original_language: z
-      .enum(['ja-jp', 'en-us', 'zh-cn', 'zh-tw', 'others'])
-      .default('ja-jp'),
+    original_language: originalLanguageCode.default('ja-jp'),
     // U1: see createGalgameSchema; same rule + default.
     release_date: z
       .string()
@@ -276,9 +284,7 @@ export const patchDraftSchema = z.object({
   intro_zh_tw: z.string().max(100007).optional(),
   content_limit: z.enum(['sfw', 'nsfw']).optional(),
   age_limit: z.enum(['all', 'r18']).optional(),
-  original_language: z
-    .enum(['ja-jp', 'en-us', 'zh-cn', 'zh-tw', 'others'])
-    .optional(),
+  original_language: originalLanguageCode.optional(),
   // U1: optional on patch — nil = keep; "" = clear to unknown; concrete
   // "YYYY-MM-DD" = set.
   release_date: z
@@ -342,9 +348,7 @@ export const updateGalgameSchema = z
       .default(''),
     content_limit: z.enum(['sfw', 'nsfw']),
     age_limit: z.enum(['all', 'r18']).default('all'),
-    original_language: z
-      .enum(['ja-jp', 'en-us', 'zh-cn', 'zh-tw', 'others'])
-      .default('ja-jp'),
+    original_language: originalLanguageCode.default('ja-jp'),
     // U1: "" = clear to unknown; concrete "YYYY-MM-DD" = set; TBA is
     // independent (true may coexist with a predicted date).
     release_date: z

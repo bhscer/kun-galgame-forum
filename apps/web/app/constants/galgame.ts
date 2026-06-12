@@ -87,6 +87,52 @@ export const KUN_RESOURCE_LANGUAGE_CONST = [
   'others'
 ] as const
 
+// A galgame's ORIGINAL language (wiki field `original_language`), distinct from
+// the resource-language filter above. The wiki owns this set and stores 30+
+// codes (ja-jp / en-us / ru / zh-cn / ko-kr / es / uk / fr / … — both `xx` and
+// `xx-yy` forms). The forum used to know only 4, so any Korean/Russian/French/…
+// title showed its raw code and — worse — failed the edit form's strict enum on
+// re-edit. This is the display set (common languages get a 中文 name; the long
+// tail falls back to the raw code). Validation is kept LENIENT separately (see
+// validations/galgame.ts) so no wiki code is ever rejected.
+export const KUN_GALGAME_ORIGINAL_LANGUAGE_MAP: Record<string, string> = {
+  'ja-jp': '日语',
+  'en-us': '英语',
+  'zh-cn': '简体中文',
+  'zh-tw': '繁体中文',
+  'ko-kr': '韩语',
+  ru: '俄语',
+  es: '西班牙语',
+  uk: '乌克兰语',
+  fr: '法语',
+  de: '德语',
+  it: '意大利语',
+  'pt-br': '葡萄牙语 (巴西)',
+  'pt-pt': '葡萄牙语',
+  pl: '波兰语',
+  id: '印尼语',
+  th: '泰语',
+  vi: '越南语',
+  tr: '土耳其语',
+  cs: '捷克语',
+  ar: '阿拉伯语',
+  nl: '荷兰语',
+  sv: '瑞典语',
+  others: '其它'
+}
+
+// Edit-form dropdown options, derived from the display map (insertion order =
+// roughly by prevalence). KunSelect needs the current value to be present or it
+// renders blank, which is what forced the manual re-pick before.
+export const kunGalgameOriginalLanguageOptions: KunSelectOption[] = Object.entries(
+  KUN_GALGAME_ORIGINAL_LANGUAGE_MAP
+).map(([value, label]) => ({ value, label }))
+
+// Render a galgame original-language code as a name, falling back to the raw
+// code for the rare long-tail (so it shows e.g. `ca` rather than breaking).
+export const getGalgameOriginalLanguageName = (langCode: string): string =>
+  KUN_GALGAME_ORIGINAL_LANGUAGE_MAP[langCode?.toLowerCase()] || langCode
+
 export const KUN_GALGAME_RESOURCE_PLATFORM_MAP: Record<string, string> = {
   name: '资源链接的平台',
   all: '全部平台',

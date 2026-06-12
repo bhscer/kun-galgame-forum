@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { KUN_GALGAME_AGE_LIMIT_MAP } from '~/constants/galgame'
+import {
+  KUN_GALGAME_AGE_LIMIT_MAP,
+  getGalgameOriginalLanguageName
+} from '~/constants/galgame'
 
 defineProps<{
   official: GalgameOfficialItem[]
@@ -16,16 +19,7 @@ defineProps<{
 // sidebar cards that used to sit below this info card.
 const isActivityOpen = ref(false)
 
-const getLanguageName = (langCode: string) => {
-  // TODO: support more language names
-  const map: Record<string, string> = {
-    'ja-jp': '日本語',
-    'en-us': 'English',
-    'zh-cn': '简体中文',
-    'zh-tw': '繁体中文'
-  }
-  return map[langCode.toLowerCase()] || langCode
-}
+const getLanguageName = getGalgameOriginalLanguageName
 </script>
 
 <template>

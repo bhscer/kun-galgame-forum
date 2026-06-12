@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { kunGalgameOriginalLanguageOptions } from '~/constants/galgame'
+
 // Wiki accepts these fields on POST /galgame; defaults (ja-jp / r18) are
 // fine for most Japanese visual novels but we expose them as choices so
 // authors can correct non-default games (English VNs, all-ages titles) at
@@ -17,13 +19,11 @@ const ageLimitOptions = [
   { value: 'r18', label: 'R18 (本游戏含成人内容)' }
 ] as const
 
-const originalLanguageOptions = [
-  { value: 'ja-jp', label: '日语' },
-  { value: 'en-us', label: '英语' },
-  { value: 'zh-cn', label: '简体中文' },
-  { value: 'zh-tw', label: '繁体中文' },
-  { value: 'others', label: '其它' }
-] as const
+// Full set the wiki actually uses (Korean / Russian / French / …), shared from
+// constants so display + dropdown + validation stay in sync. A claimed draft in
+// any of these now round-trips on re-edit instead of failing the old 4-value
+// enum and forcing a manual re-pick.
+const originalLanguageOptions = kunGalgameOriginalLanguageOptions
 </script>
 
 <template>
