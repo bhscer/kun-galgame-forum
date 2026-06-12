@@ -1,5 +1,7 @@
 export const KUN_ADMIN_OVERVIEW_STATS_MODEL_ITEM = [
-  'user',
+  // No 'user' stat — the legacy local user table is obsolete after the OAuth
+  // cutover, so a registration count off it is misleading (kept off the BE
+  // catalog too, see admin/service/overview_service.go).
   'topic',
   'topic_reply',
   'topic_comment',
@@ -30,7 +32,6 @@ export const KUN_ADMIN_OVERVIEW_STATS_MODEL_MAP: Record<
   StatsModelType,
   ChartItem
 > = {
-  user: { label: '用户', color: '#006FEE' },
   topic: { label: '话题', color: '#7828C8' },
   topic_reply: { label: '话题回复', color: '#17C964' },
   topic_comment: { label: '话题评论', color: '#F31260' },

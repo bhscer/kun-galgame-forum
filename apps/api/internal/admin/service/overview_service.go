@@ -35,7 +35,10 @@ type localModel struct {
 
 func localModels() []localModel {
 	return []localModel{
-		{"user", `"user"`, "用户"},
+		// Note: no "user" stat — the legacy local `user` table is obsolete post
+		// OAuth cutover (identity lives in OAuth; the forum only knows users who
+		// logged in here), so a registration count off it is misleading. Dropped
+		// on purpose; see the admin overview constants on the FE.
 		{"topic", "topic", "话题"},
 		{"topic_reply", "topic_reply", "话题回复"},
 		{"topic_comment", "topic_comment", "话题评论"},

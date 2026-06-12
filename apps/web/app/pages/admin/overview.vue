@@ -63,7 +63,7 @@ const totalStats = computed(() => {
 useKunSeoMeta({
   title: '数据总览',
   description:
-    '查看过去一段时间内用户, 话题, Galgame, Galgame 资源, Galgame 网站, Galgame 评论, Galgame 网站评论的增长趋势'
+    '查看过去一段时间内话题, Galgame, Galgame 资源, Galgame 网站, Galgame 评论, Galgame 网站评论的增长趋势'
 })
 </script>
 
@@ -75,7 +75,7 @@ useKunSeoMeta({
   >
     <KunHeader
       name="数据总览"
-      description="查看过去一段时间内用户, 话题, Galgame, Galgame 资源, Galgame 网站, Galgame 评论, Galgame 网站评论的增长趋势。好的网站理应的开放的, 您有权利知道这个网站的一切, 当天的数据将会延时更新若干小时。"
+      description="查看过去一段时间内话题, Galgame, Galgame 资源, Galgame 网站, Galgame 评论, Galgame 网站评论的增长趋势。好的网站理应的开放的, 您有权利知道这个网站的一切, 当天的数据将会延时更新若干小时。"
     />
 
     <div class="space-y-3">
