@@ -156,7 +156,12 @@ const openThreadRootId = ref<number | null>(null)
       </template>
     </KunHeader>
 
-    <div v-if="targetUser" class="flex items-center gap-2">
+    <!-- Only show "评论给" when there's an actual choice. `userData` is
+         galgame.contributor; for a claimed/migrated galgame with no edit
+         history it's empty (or just the owner), so the dropdown had nothing to
+         pick — looked broken. Commenting still works regardless: the target is
+         optional and defaults to the owner (targetUser), set in onMounted. -->
+    <div v-if="targetUser && userData.length > 1" class="flex items-center gap-2">
       <div class="whitespace-nowrap">评论给</div>
       <KunSelect
         :model-value="username"
