@@ -55,6 +55,12 @@ type User struct {
 	Bio             string   `json:"bio"`
 	Status          int      `json:"status"`
 	Roles           []string `json:"roles"`
+	// CreatedAt is the user's OAuth registration time (UTC RFC3339). This is
+	// the authoritative "join date" — render it from here, NOT from a local
+	// kungal_user_state.created (which marks first-seen-on-kungal: blank for
+	// users who never logged into the forum, wrong for those whose first
+	// login lagged registration).
+	CreatedAt string `json:"created_at"`
 }
 
 // Client is safe for concurrent use across goroutines.

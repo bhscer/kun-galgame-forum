@@ -83,9 +83,15 @@ func (s *UserService) GetUserProfile(ctx context.Context, userID int) (*dto.User
 		Moemoepoint: moe,
 		Bio:         u.Bio,
 	}
-	// CreatedAt: kungal_user_state.created marks "first seen on this
-	// site" — close enough for a community profile.
-	if state != nil {
+	// CreatedAt is the user's real OAuth registration time (the authoritative
+	// "join date"), sourced from the OAuth brief. We deliberately do NOT use
+	// kungal_user_state.created — that only marks "first seen on kungal":
+	// blank for users who registered but never logged into the forum, and
+	// wrong for those whose first forum login lagged their registration. Fall
+	// back to the local state row only if OAuth somehow omitted created_at.
+	if t, perr := time.Parse(time.RFC3339, u.CreatedAt); perr == nil {
+		profile.CreatedAt = t
+	} else if state != nil {
 		profile.CreatedAt = state.CreatedAt
 	}
 
