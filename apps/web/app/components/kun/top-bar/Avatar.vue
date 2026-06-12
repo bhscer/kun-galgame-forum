@@ -79,7 +79,18 @@ const statusClasses = computed(() => {
         </div>
       </template>
 
-      <LazyKunTopBarUserInfo @close="userMenu?.close()" />
+      <!-- UserInfo is a code-split (Lazy) chunk; on the first menu open it
+           downloads, which on a cold/slow connection left the popover blank
+           for a beat. UserInfo itself renders from the store (no fetch), so
+           the only async is the chunk — show a KunLoading until it resolves. -->
+      <Suspense>
+        <LazyKunTopBarUserInfo @close="userMenu?.close()" />
+        <template #fallback>
+          <div class="flex min-h-48 min-w-56 items-center justify-center py-6">
+            <KunLoading />
+          </div>
+        </template>
+      </Suspense>
     </KunPopover>
 
     <template v-if="!id">
