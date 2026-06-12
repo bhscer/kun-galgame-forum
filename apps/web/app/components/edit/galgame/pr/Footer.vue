@@ -56,6 +56,16 @@ const handlePublishGalgamePR = async () => {
     source_key: s.source_key
   }))
 
+  // Presence-replace semantics: only send covers/screenshots when the user
+  // actually edited them (vs the hydrated baseline). Sending an unchanged set
+  // re-replaces the live image array with the form's hydration, which rolls
+  // the cover back if that hydration was at all stale — the reported "edit
+  // intro → cover reverts" bug. Untouched → omit → wiki keeps the current set.
+  const coversChanged =
+    JSON.stringify(galgame.covers) !== (galgame.coversBaseline ?? '')
+  const screenshotsChanged =
+    JSON.stringify(galgame.screenshots) !== (galgame.screenshotsBaseline ?? '')
+
   const data: Record<
     string,
     | number
@@ -86,9 +96,16 @@ const handlePublishGalgamePR = async () => {
     official_ids: galgame.officials.map((o) => o.id),
     engine_ids: galgame.engines.map((e) => e.id),
     links,
-    covers: coversWire,
-    screenshots: screenshotsWire,
     note: galgame.note
+  }
+
+  // Only when the user actually touched the image set (see above) — otherwise
+  // the key is absent and wiki keeps the live covers/screenshots.
+  if (coversChanged) {
+    data.covers = coversWire
+  }
+  if (screenshotsChanged) {
+    data.screenshots = screenshotsWire
   }
 
   const result = updateGalgameSchema.safeParse(data)

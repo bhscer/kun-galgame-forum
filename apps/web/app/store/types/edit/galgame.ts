@@ -57,6 +57,16 @@ export interface GalgameEditStoreTemp {
   // strips it before sending to wiki (wiki doesn't accept it on write).
   covers: GalgameCover[]
   screenshots: GalgameScreenshot[]
+  // JSON snapshot of covers/screenshots AS HYDRATED. Footer compares the
+  // current arrays against these to tell whether the user actually edited the
+  // image set; if not, it OMITS covers/screenshots from the PR payload
+  // (presence-replace: nil = keep). Without this, every intro/tag/title-only
+  // edit re-sent the hydrated covers — and if that hydration was even slightly
+  // stale (cached detail, or the cover changed elsewhere after the form
+  // opened) the live cover silently rolled back. Optional: only the
+  // rewrite/PR flow sets them (Draft's PATCH never touches images).
+  coversBaseline?: string
+  screenshotsBaseline?: string
   // True when the current user is the galgame's creator or an
   // admin/moderator (role>=2): wiki lets them edit directly via
   // PUT /galgame/:gid (instant, new revision) instead of opening a PR.
