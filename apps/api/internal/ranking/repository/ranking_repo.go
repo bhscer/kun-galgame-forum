@@ -20,6 +20,36 @@ var galgameSortColumn = map[string]string{
 	"resource": "resource_count",
 }
 
+// topicSortColumn maps the FE's short topic-ranking sort names to the real
+// topic columns. The FE sends `upvote`/`like`/… but the columns are
+// `upvote_count`/`like_count`/… — the old validator listed the column names
+// the FE never sends, so every non-view topic sort 400'd. Same fix the
+// galgame ranking already had.
+var topicSortColumn = map[string]string{
+	"view":     "view",
+	"upvote":   "upvote_count",
+	"like":     "like_count",
+	"reply":    "reply_count",
+	"comment":  "comment_count",
+	"favorite": "favorite_count",
+}
+
+// userCountSource maps the FE's user-ranking sort names to a LOCAL table whose
+// per-user COUNT(*) is the ranking value. `moemoepoint` is handled separately
+// (it's a kungal_user_state column, not a count). The `galgame` ("Galgame 数")
+// metric is intentionally absent: post-wiki-migration the local `galgame`
+// table has no creator column, so it has no local source — ranking by it would
+// need wiki data (infra-owned).
+var userCountSource = map[string]struct {
+	table string
+	where string
+}{
+	"topic":            {table: "topic", where: "status != 1"}, // exclude banned, mirrors topic ranking
+	"reply_created":    {table: "topic_reply"},
+	"comment_created":  {table: "topic_comment"},
+	"galgame_resource": {table: "galgame_resource"},
+}
+
 type RankingRepository struct {
 	db *gorm.DB
 }
@@ -116,13 +146,17 @@ func (r *RankingRepository) FindGalgameLocal(sortField, sortOrder string, page, 
 // which lives only on wiki).
 func (r *RankingRepository) FindTopicRanking(sortField, sortOrder string, page, limit int, isSFW bool) []TopicRankingRow {
 	var rows []TopicRankingRow
+	col := topicSortColumn[sortField]
+	if col == "" {
+		col = "view"
+	}
 	q := r.db.Table("topic t").
-		Select(`t.id, t.title, t.user_id, t.` + sortField + ` AS value`).
+		Select(`t.id, t.title, t.user_id, t.` + col + ` AS value`).
 		Where("t.status != 1")
 	if isSFW {
 		q = q.Where("t.is_nsfw = false")
 	}
-	q.Order("t." + sortField + " " + sortOrder).
+	q.Order("t." + col + " " + sortOrder).
 		Offset((page - 1) * limit).Limit(limit).
 		Find(&rows)
 	return rows
@@ -134,9 +168,31 @@ func (r *RankingRepository) FindTopicRanking(sortField, sortOrder string, page, 
 // source of truth.
 func (r *RankingRepository) FindUserRanking(sortField, sortOrder string, page, limit int) []UserRankingRow {
 	var rows []UserRankingRow
-	r.db.Table("kungal_user_state").
-		Select(`user_id, ` + sortField + ` AS value`).
-		Order(sortField + " " + sortOrder).
+
+	// moemoepoint is the only rankable column on kungal_user_state.
+	if sortField == "moemoepoint" {
+		r.db.Table("kungal_user_state").
+			Select("user_id, moemoepoint AS value").
+			Order("moemoepoint " + sortOrder).
+			Offset((page - 1) * limit).Limit(limit).
+			Find(&rows)
+		return rows
+	}
+
+	// The other metrics are per-user COUNT(*) over a local content table.
+	// sortField is validator-constrained, so the map lookup is safe and only
+	// known sources reach the SQL. Users with zero of a metric simply don't
+	// appear — fine for a leaderboard.
+	src, ok := userCountSource[sortField]
+	if !ok {
+		return rows
+	}
+	q := r.db.Table(src.table).Select("user_id, COUNT(*) AS value")
+	if src.where != "" {
+		q = q.Where(src.where)
+	}
+	q.Group("user_id").
+		Order("value " + sortOrder).
 		Offset((page - 1) * limit).Limit(limit).
 		Find(&rows)
 	return rows

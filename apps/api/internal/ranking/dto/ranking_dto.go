@@ -19,17 +19,23 @@ type GalgameRankingRequest struct {
 	ShowNoResource bool `query:"showNoResource"`
 }
 
+// SortField uses the FE's short names; the repo (topicSortColumn) maps them to
+// the real `*_count` columns. Previously the oneof listed the column names the
+// FE never sends, so every non-view topic sort 400'd.
 type TopicRankingRequest struct {
 	Page      int    `query:"page" validate:"min=1"`
 	Limit     int    `query:"limit" validate:"min=1,max=50"`
-	SortField string `query:"sortField" validate:"required,oneof=view upvote_count like_count reply_count comment_count favorite_count"`
+	SortField string `query:"sortField" validate:"required,oneof=view upvote like reply comment favorite"`
 	SortOrder string `query:"sortOrder" validate:"required,oneof=asc desc"`
 }
 
+// SortField: moemoepoint reads kungal_user_state; the rest are per-user COUNT(*)
+// over local content tables (see userCountSource). `galgame` is omitted — the
+// local galgame table has no creator column post-wiki-migration.
 type UserRankingRequest struct {
 	Page      int    `query:"page" validate:"min=1"`
 	Limit     int    `query:"limit" validate:"min=1,max=50"`
-	SortField string `query:"sortField" validate:"required,oneof=moemoepoint"`
+	SortField string `query:"sortField" validate:"required,oneof=moemoepoint topic reply_created comment_created galgame_resource"`
 	SortOrder string `query:"sortOrder" validate:"required,oneof=asc desc"`
 }
 

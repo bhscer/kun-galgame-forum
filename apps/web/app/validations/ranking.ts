@@ -5,11 +5,9 @@ export const getUserRankingSchema = z.object({
   limit: z.coerce.number<number>().min(1).max(100),
   sortField: z.enum([
     'moemoepoint',
-    'follower_relation',
     'topic',
     'reply_created',
     'comment_created',
-    'galgame',
     'galgame_resource'
   ]),
   sortOrder: z.enum(['asc', 'desc'])
