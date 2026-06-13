@@ -6,6 +6,9 @@ import { activeTab } from './atom'
 defineProps<{
   valueMarkdown: string
   language?: Language
+  // Forwarded to the editor: true removes all image insertion (upload button,
+  // paste/drop, sticker). The galgame 简介 editor sets it.
+  disableImage?: boolean
 }>()
 
 const emits = defineEmits<{
@@ -34,6 +37,7 @@ const setCmAPI = (api: { update: (markdown: string) => void }) => {
           :value-markdown="valueMarkdown"
           @save-markdown="saveMarkdown"
           :language="language ?? 'zh-cn'"
+          :disable-image="disableImage"
         >
           <template #footer>
             <slot />

@@ -29,6 +29,7 @@ const saveMarkdown = debounce((editorMarkdown: string) => {
     :value-markdown="valueMarkdown"
     @set-markdown="saveMarkdown"
     :language="lang ?? 'zh-cn'"
+    :disable-image="true"
   >
     <KunLink target="_blank" to="/doc/galgame-publish-rule">
       Galgame 发布规定

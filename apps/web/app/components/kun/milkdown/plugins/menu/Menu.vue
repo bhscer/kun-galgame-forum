@@ -8,7 +8,11 @@ import type { CmdKey } from '@milkdown/kit/core'
 
 const props = defineProps<{
   editorInfo: UseEditorReturn
-  isShowUploadImage: boolean
+  // Whether this editor permits images. Gates BOTH the upload-image button and
+  // the sticker inserter (stickers are images). false → text-only toolbar
+  // (still keeps unicode emoji, which are plain text). The galgame 简介 editor
+  // passes false.
+  allowImage: boolean
 }>()
 
 const { get } = props.editorInfo
@@ -83,7 +87,7 @@ const currentTabLabel = computed(() => {
 
       <KunButton
         :is-icon-only="true"
-        v-if="props.isShowUploadImage"
+        v-if="props.allowImage"
         variant="light"
         class-name="text-xl"
         @click="input?.click()"
@@ -108,7 +112,7 @@ const currentTabLabel = computed(() => {
         <KunMilkdownPluginsEmojiContainer :editor-info="editorInfo" />
       </KunPopover>
 
-      <KunPopover inner-class="-left-28">
+      <KunPopover v-if="props.allowImage" inner-class="-left-28">
         <template #trigger>
           <KunButton variant="light" class-name="text-xl" :is-icon-only="true">
             <KunIcon class="text-foreground" name="lucide:sticker" />

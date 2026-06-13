@@ -64,6 +64,11 @@ import type { KatexOptions } from 'katex'
 const props = defineProps<{
   valueMarkdown: string
   language: Language
+  // When true, all image-insertion paths are removed: the toolbar upload
+  // button, paste/drop upload, AND the sticker inserter (stickers render as
+  // images). Used by the galgame 简介 editor — intro images now live in the
+  // wiki gallery, so the introduction itself must stay image-free.
+  disableImage?: boolean
 }>()
 
 const emits = defineEmits<{
@@ -87,8 +92,8 @@ const renderLatex = (content: string, options?: KatexOptions) => {
   return html
 }
 
-const editorInfo = useEditor((root) =>
-  Editor.make()
+const editorInfo = useEditor((root) => {
+  const editor = Editor.make()
     .config((ctx) => {
       ctx.set(rootCtx, root)
       ctx.set(defaultValueCtx, valueMarkdown.value)
@@ -101,15 +106,20 @@ const editorInfo = useEditor((root) =>
         }
       })
 
-      ctx.update(uploadConfig.key, (prev) => ({
-        ...prev,
-        // kunUploader is typed against @milkdown/plugin-upload's Uploader, whose
-        // Ctx resolves to a different (duplicated) @milkdown/ctx copy than kit's
-        // re-export. The two Ctx types are runtime-identical but nominally
-        // distinct (private brand), so go through `unknown` to unify them.
-        uploader: kunUploader as unknown as Uploader,
-        uploadWidgetFactory: kunUploadWidgetFactory
-      }))
+      // Only wire the uploader when images are allowed. uploadConfig.key is
+      // registered by the `upload` plugin, which we omit below when
+      // disableImage is set — touching the key without the plugin would throw.
+      if (!props.disableImage) {
+        ctx.update(uploadConfig.key, (prev) => ({
+          ...prev,
+          // kunUploader is typed against @milkdown/plugin-upload's Uploader, whose
+          // Ctx resolves to a different (duplicated) @milkdown/ctx copy than kit's
+          // re-export. The two Ctx types are runtime-identical but nominally
+          // distinct (private brand), so go through `unknown` to unify them.
+          uploader: kunUploader as unknown as Uploader,
+          uploadWidgetFactory: kunUploadWidgetFactory
+        }))
+      }
 
       ctx.set(tooltip.key, {
         view: pluginViewFactory({
@@ -173,7 +183,6 @@ const editorInfo = useEditor((root) =>
     .use(indent)
     .use(trailing)
     .use(tooltip)
-    .use(upload)
     .use(codeBlockComponent)
     .use([kunSpoilerPlugin, stopLinkCommand, linkCustomKeymap].flat())
     .use(remarkMathPlugin)
@@ -183,7 +192,16 @@ const editorInfo = useEditor((root) =>
     .use(mathBlockInputRule)
     .use(blockKatexSchema)
     .use(toggleLatexCommand)
-)
+
+  // Image upload (toolbar + paste/drop) is opt-out: omit the `upload` plugin
+  // entirely for image-free editors (galgame 简介). The toolbar button and the
+  // sticker inserter are hidden separately via the menu's allow-image prop.
+  if (!props.disableImage) {
+    editor.use(upload)
+  }
+
+  return editor
+})
 
 const textCount = computed(() => markdownToText(props.valueMarkdown).length)
 
@@ -200,7 +218,7 @@ watch(
     <KunMilkdownPluginsMenu
       ref="toolbar"
       :editor-info="editorInfo"
-      :is-show-upload-image="true"
+      :allow-image="!disableImage"
     />
 
     <template v-if="activeTab === 'preview'">
