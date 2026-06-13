@@ -22,8 +22,8 @@ const FRAME_H = 602
 // imgs get a real containing block and aren't crushed by a global max-width).
 const CANVAS_W = ORIGIN_X + FRAME_W // 504
 const CANVAS_H = ORIGIN_Y + FRAME_H // 925
-// Scale the ~602px portrait down to a panel-friendly height (~331px).
-const SCALE = 0.55
+// Scale the ~602px portrait down to a panel-friendly height (~421px).
+const SCALE = 0.7
 const stageW = Math.round(FRAME_W * SCALE)
 const stageH = Math.round(FRAME_H * SCALE)
 
