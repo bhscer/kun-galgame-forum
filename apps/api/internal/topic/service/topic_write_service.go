@@ -45,6 +45,30 @@ func NewTopicWriteService(
 	}
 }
 
+// anyConsumeSection reports whether any section name is a paid
+// (moemoepoint-consuming) one — see constants.TopicSectionConsume.
+func anyConsumeSection(sections []string) bool {
+	for _, sec := range sections {
+		if constants.TopicSectionConsume[sec] {
+			return true
+		}
+	}
+	return false
+}
+
+// topicSectionFootprint is a topic's moemoepoint outcome given whether it sits
+// in a paid section, mirroring Create: a paid section is a net deduction
+// (−CostConsumeSection) and forfeits the +RewardCreateTopic base reward a free
+// section earns. Update applies the DIFFERENCE between the old and new footprint
+// so moving a topic between section tiers leaves the author exactly where a
+// fresh post in the new tier would — charging on move-in, refunding on move-out.
+func topicSectionFootprint(consume bool) int {
+	if consume {
+		return -constants.CostConsumeSection
+	}
+	return constants.RewardCreateTopic
+}
+
 // ──────────────────────────────────────────
 // Create — all checks inside transaction
 // ──────────────────────────────────────────
@@ -54,13 +78,7 @@ func (s *TopicWriteService) Create(
 	userID int,
 	req *dto.CreateTopicRequest,
 ) (int, *errors.AppError) {
-	hasConsumeSection := false
-	for _, sec := range req.Sections {
-		if constants.TopicSectionConsume[sec] {
-			hasConsumeSection = true
-			break
-		}
-	}
+	hasConsumeSection := anyConsumeSection(req.Sections)
 
 	var newTopicID int
 
@@ -115,11 +133,12 @@ func (s *TopicWriteService) Create(
 			}
 		}
 
-		pointsDelta := constants.RewardCreateTopic
+		// Posting in a paid section is a net deduction (cost > reward); a free
+		// section earns the base reward. topicSectionFootprint owns this rule so
+		// Update's section-change adjustment stays in lock-step.
+		pointsDelta := topicSectionFootprint(hasConsumeSection)
 		mpReason := moemoepoint.ReasonContentApproved
 		if hasConsumeSection {
-			// Posting in a paid section is a net deduction (cost > reward).
-			pointsDelta = -constants.CostConsumeSection
 			mpReason = moemoepoint.ReasonContentRemoved
 		}
 		s.helpers.AdjustMoemoepoint(tx, userID, pointsDelta, mpReason, moemoepoint.Ref("topic", topic.ID))
@@ -157,6 +176,19 @@ func (s *TopicWriteService) Update(
 		return errors.ErrForbidden("您没有权限编辑此话题")
 	}
 
+	// Snapshot the current sections BEFORE the replace below so we can tell
+	// whether this edit moves the topic between the free/paid section tiers.
+	// Create only charged at publish time; changing the section afterwards
+	// (e.g. an admin moving someone else's topic into a paid section) must
+	// charge/refund the AUTHOR too — otherwise a paid section is free if you
+	// publish elsewhere first and get moved in.
+	oldSections, err := s.taxonomyRepo.FindSectionNamesByTopicID(topicID)
+	if err != nil {
+		return errors.ErrInternal("更新话题失败")
+	}
+	oldConsume := anyConsumeSection(oldSections)
+	newConsume := anyConsumeSection(req.Sections)
+
 	now := time.Now()
 	txErr := s.topicRepo.DB().Transaction(func(tx *gorm.DB) error {
 		if err := s.topicRepo.UpdateTopicFields(tx, topicID, map[string]any{
@@ -190,7 +222,24 @@ func (s *TopicWriteService) Update(
 		for i, sec := range sections {
 			sectionIDs[i] = sec.ID
 		}
-		return s.taxonomyRepo.ReplaceSectionRelations(tx, topicID, sectionIDs)
+		if err := s.taxonomyRepo.ReplaceSectionRelations(tx, topicID, sectionIDs); err != nil {
+			return err
+		}
+
+		// Charge/refund the AUTHOR (not the editor) when this edit crosses the
+		// free/paid section tier. delta is the footprint difference; its sign
+		// picks the audit reason, mirroring Create. No-op when the tier is
+		// unchanged. Like Create, the award is async/best-effort and not gated
+		// on the author's balance here — an admin moderating a topic shouldn't
+		// be blocked by, or have to reason about, someone else's wallet.
+		if delta := topicSectionFootprint(newConsume) - topicSectionFootprint(oldConsume); delta != 0 {
+			mpReason := moemoepoint.ReasonContentApproved
+			if delta < 0 {
+				mpReason = moemoepoint.ReasonContentRemoved
+			}
+			s.helpers.AdjustMoemoepoint(tx, topic.UserID, delta, mpReason, moemoepoint.Ref("topic", topicID))
+		}
+		return nil
 	})
 
 	if txErr != nil {
