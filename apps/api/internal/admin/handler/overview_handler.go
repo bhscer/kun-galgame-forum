@@ -3,6 +3,7 @@ package handler
 import (
 	"kun-galgame-api/internal/admin/dto"
 	"kun-galgame-api/internal/admin/service"
+	"kun-galgame-api/internal/middleware"
 	"kun-galgame-api/pkg/response"
 	"kun-galgame-api/pkg/utils"
 
@@ -20,7 +21,11 @@ func NewOverviewHandler(overviewService *service.OverviewService) *OverviewHandl
 // GetOverview returns counts for all major models.
 // GET /api/admin/overview/all
 func (h *OverviewHandler) GetOverview(c *fiber.Ctx) error {
-	items, appErr := h.overviewService.GetOverview(c.Context())
+	// Forward the admin's OAuth Bearer so the wiki /admin/stats merge is
+	// authorized; an empty token just degrades the wiki rows to zero (the
+	// forum-local counts still render). See OverviewService.GetOverview.
+	token := middleware.GetAccessToken(c)
+	items, appErr := h.overviewService.GetOverview(c.Context(), token)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
@@ -35,7 +40,8 @@ func (h *OverviewHandler) GetStats(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	stats, appErr := h.overviewService.GetStats(c.Context(), req.Days)
+	token := middleware.GetAccessToken(c)
+	stats, appErr := h.overviewService.GetStats(c.Context(), req.Days, token)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}

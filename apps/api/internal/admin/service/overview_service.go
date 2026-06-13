@@ -71,7 +71,7 @@ func wikiModels() []wikiModel {
 // GetOverview — GET /admin/overview/all
 // ──────────────────────────────────────────
 
-func (s *OverviewService) GetOverview(ctx context.Context) ([]dto.OverviewItem, *errors.AppError) {
+func (s *OverviewService) GetOverview(ctx context.Context, token string) ([]dto.OverviewItem, *errors.AppError) {
 	locals := localModels()
 	wikis := wikiModels()
 
@@ -90,7 +90,7 @@ func (s *OverviewService) GetOverview(ctx context.Context) ([]dto.OverviewItem, 
 
 	// Merge wiki totals (non-blocking — on error we still emit zero rows).
 	var totals map[string]int64
-	if wikiStats, err := s.wikiGC.GetAdminStats(ctx, 1); err == nil && wikiStats != nil {
+	if wikiStats, err := s.wikiGC.GetAdminStats(ctx, 1, token); err == nil && wikiStats != nil {
 		totals = wikiStats.Totals
 	}
 	for _, m := range wikis {
@@ -108,7 +108,7 @@ func (s *OverviewService) GetOverview(ctx context.Context) ([]dto.OverviewItem, 
 // GetStats — GET /admin/overview/stats
 // ──────────────────────────────────────────
 
-func (s *OverviewService) GetStats(ctx context.Context, days int) ([]dto.DailyStatRow, *errors.AppError) {
+func (s *OverviewService) GetStats(ctx context.Context, days int, token string) ([]dto.DailyStatRow, *errors.AppError) {
 	if days == 0 {
 		days = 30
 	}
@@ -142,7 +142,7 @@ func (s *OverviewService) GetStats(ctx context.Context, days int) ([]dto.DailySt
 	}
 
 	// Merge wiki daily stats (non-blocking).
-	if wikiStats, err := s.wikiGC.GetAdminStats(ctx, days); err == nil && wikiStats != nil {
+	if wikiStats, err := s.wikiGC.GetAdminStats(ctx, days, token); err == nil && wikiStats != nil {
 		for _, day := range wikiStats.Daily {
 			date, _ := day["date"].(string)
 			if date == "" {

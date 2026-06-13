@@ -286,10 +286,15 @@ type WikiAdminStats struct {
 	Daily  []map[string]any   `json:"daily"`
 }
 
-// GetAdminStats fetches wiki-side admin stats for the last N days.
-func (c *GalgameClient) GetAdminStats(ctx context.Context, days int) (*WikiAdminStats, error) {
+// GetAdminStats fetches wiki-side admin stats for the last N days. The wiki's
+// /admin/stats is an authenticated admin endpoint (401s anonymously), so the
+// caller MUST forward the requesting admin's OAuth Bearer — sourced from the
+// kungal session via middleware.GetAccessToken, exactly like the submission-
+// review (/admin/galgame*) calls. An empty token degrades to an anonymous call
+// the wiki rejects, which the overview merges as zeroes (non-blocking).
+func (c *GalgameClient) GetAdminStats(ctx context.Context, days int, token string) (*WikiAdminStats, error) {
 	query := url.Values{"days": {fmt.Sprintf("%d", days)}}
-	data, appErr := c.Get(ctx, "/admin/stats", query)
+	data, appErr := c.GetWithToken(ctx, "/admin/stats", token, query)
 	if appErr != nil {
 		return nil, appErr
 	}
