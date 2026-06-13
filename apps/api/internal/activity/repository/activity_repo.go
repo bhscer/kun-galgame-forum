@@ -108,7 +108,19 @@ var Sources = map[string]ActivitySource{
 		Query: `SELECT 'GALGAME_EDIT' AS type_str, t.id,
 			'' AS content,
 			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
-			FROM galgame_activity t`,
+			FROM galgame_activity t WHERE t.type = 'GALGAME_EDIT'`,
+	},
+	// GALGAME_PR_CREATION: a user submitted an update request (PR). The galgame_pr
+	// table lives in the wiki and can't be queried locally, so SubmitPR mirrors
+	// each submission into galgame_activity — restoring the timeline entry that
+	// was dropped in the wiki migration. user_id is the submitter; content gets
+	// the game name during enrichment (same as GALGAME_EDIT).
+	"GALGAME_PR_CREATION": {
+		TypeStr: "GALGAME_PR_CREATION",
+		Query: `SELECT 'GALGAME_PR_CREATION' AS type_str, t.id,
+			'' AS content,
+			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
+			FROM galgame_activity t WHERE t.type = 'GALGAME_PR_CREATION'`,
 	},
 	"GALGAME_RATING_CREATION": {
 		TypeStr: "GALGAME_RATING_CREATION",

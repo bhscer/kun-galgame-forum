@@ -318,6 +318,8 @@ func (s *ActivityService) enrichGalgameItems(
 			items[i].Content = fmt.Sprintf("在《%s》发布了下载资源", name)
 		case "GALGAME_EDIT":
 			items[i].Content = fmt.Sprintf("编辑了《%s》", name)
+		case "GALGAME_PR_CREATION":
+			items[i].Content = fmt.Sprintf("对《%s》提出了更新请求", name)
 		case "GALGAME_RATING_CREATION":
 			if r.Content != "" {
 				items[i].Content = fmt.Sprintf("%s · %s", name, r.Content)

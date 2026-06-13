@@ -181,15 +181,19 @@ func (s *GalgameService) MergePR(
 // SubmitPR — POST /galgame/:gid/prs
 // ──────────────────────────────────────────
 
-// SubmitPR proxies a PR submission to wiki, then notifies the galgame's owner
-// that someone proposed an update. The wiki emits NO message on PR submit (its
-// only 7 message types are submission-review events — see
-// docs/galgame_wiki/08-messages.md), and the owner otherwise has to dig into
-// the (easily-missed) PR tab to discover pending edits, so the "requested"
-// notice is created locally here — the mirror of MergePR's "merged" notice.
+// SubmitPR proxies a PR submission to wiki, then records two local, best-effort
+// side effects (the wiki emits NO message on PR submit — its only 7 message
+// types are submission-review events, see docs/galgame_wiki/08-messages.md):
+//
+//  1. a "requested" notification to the galgame owner (mirror of MergePR's
+//     "merged" notice), so the owner doesn't have to dig into the PR tab;
+//  2. a GALGAME_PR_CREATION row in galgame_activity, so the submission shows on
+//     the site-wide activity timeline — discoverable WITHOUT entering the game
+//     page. This restores the timeline entry that was dropped when the galgame_pr
+//     table moved to the wiki (the table can no longer be queried locally).
 //
 // body/contentType are forwarded byte-for-byte so the multipart (banner-in-PR)
-// submit mode keeps working. The notification is best-effort and never fails
+// submit mode keeps working. Both side effects are best-effort and never fail
 // the already-applied PR.
 func (s *GalgameService) SubmitPR(
 	ctx context.Context,
@@ -216,6 +220,30 @@ func (s *GalgameService) SubmitPR(
 			s.helpers.CreateGalgameMessageWithContent(tx, submitterID, ownerID, "requested", name, gidInt)
 			return nil
 		})
+
+		// Mirror onto the activity timeline. The wiki PR id (from the create
+		// response — shape is either {id} or {pr:{id}}) is the idempotency key; if
+		// we can't read it we skip rather than risk a dupe. The content/name is
+		// filled from the galgame brief at render time (enrichGalgameItems).
+		var created struct {
+			ID int `json:"id"`
+			PR struct {
+				ID int `json:"id"`
+			} `json:"pr"`
+		}
+		_ = json.Unmarshal(data, &created)
+		if prID := created.ID; prID > 0 || created.PR.ID > 0 {
+			if prID == 0 {
+				prID = created.PR.ID
+			}
+			if err := s.galgameRepo.DB().Exec(`
+				INSERT INTO galgame_activity (wiki_pr_id, galgame_id, user_id, type, created)
+				VALUES (?, ?, ?, 'GALGAME_PR_CREATION', now())
+				ON CONFLICT (wiki_pr_id) DO NOTHING
+			`, prID, gidInt, submitterID).Error; err != nil {
+				slog.Warn("submitPR: 写入活动时间线失败", "gid", gidInt, "pr_id", prID, "error", err)
+			}
+		}
 	}
 	return data, nil
 }
