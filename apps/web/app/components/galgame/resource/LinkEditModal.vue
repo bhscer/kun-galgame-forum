@@ -147,8 +147,8 @@ const platformOptions = computed(() =>
 </script>
 
 <template>
-  <KunModal v-model="open" inner-class-name="max-w-2xl w-[92vw]" :is-dismissable="false">
-    <div class="space-y-4">
+  <KunModal v-model="open" inner-class-name="max-w-3xl w-[92vw]" :is-dismissable="false">
+    <div class="space-y-5">
       <div class="space-y-1">
         <h2 class="text-lg font-semibold">{{ modalTitle }}</h2>
         <p class="text-default-500 text-sm">{{ modalSubtitle }}</p>
@@ -168,13 +168,13 @@ const platformOptions = computed(() =>
         placeholder="资源链接 (网盘 | 磁链 | 网址); 同一资源多链接用英文逗号分隔"
       />
 
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <KunInput v-model="form.size" placeholder="资源体积 (MB 或 GB)" />
         <KunInput v-model="form.code" placeholder="提取码 (可选)" />
         <KunInput v-model="form.password" placeholder="解压码 (可选)" />
       </div>
 
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <KunSelect
           label="资源类型"
           :model-value="form.type"

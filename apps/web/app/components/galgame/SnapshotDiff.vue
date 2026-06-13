@@ -26,8 +26,8 @@
 //      the user can compare attributes line-by-line.
 //
 //   3. ARRAY OF SCALARS   — tag_ids / official_ids / engine_ids / aliases.
-//      LEFT  = removed values as ➖ chips.
-//      RIGHT = added values as ➕ chips.
+//      LEFT  = removed values as "-" chips.
+//      RIGHT = added values as "+" chips.
 //
 // On mobile (<md) the two columns stack vertically (old on top, new
 // below) since side-by-side at narrow viewports is unreadable.
@@ -303,7 +303,7 @@ const inlineRow = (item: Record<string, unknown>): string =>
                 size="sm"
                 variant="flat"
               >
-                ➖ {{ lookupName(row.key, v) }}
+                - {{ lookupName(row.key, v) }}
               </KunChip>
               <span
                 v-if="!row.arrayScalar.removed.length"
@@ -325,7 +325,7 @@ const inlineRow = (item: Record<string, unknown>): string =>
               >
                 <div class="flex items-center gap-1.5">
                   <KunChip color="warning" size="sm" variant="flat"
-                    >✏️ 修改</KunChip
+                    >修改</KunChip
                   >
                   <span class="text-default-500 text-xs">
                     {{ ch.fields.join(' / ') }}
@@ -341,7 +341,7 @@ const inlineRow = (item: Record<string, unknown>): string =>
                 class="space-y-1"
               >
                 <KunChip color="danger" size="sm" variant="flat"
-                  >➖ 删除</KunChip
+                  >- 删除</KunChip
                 >
                 <code class="text-default-600 block text-xs break-all">
                   {{ inlineRow(item) }}
@@ -397,7 +397,7 @@ const inlineRow = (item: Record<string, unknown>): string =>
                 size="sm"
                 variant="flat"
               >
-                ➕ {{ lookupName(row.key, v) }}
+                + {{ lookupName(row.key, v) }}
               </KunChip>
               <span
                 v-if="!row.arrayScalar.added.length"
@@ -419,7 +419,7 @@ const inlineRow = (item: Record<string, unknown>): string =>
               >
                 <div class="flex items-center gap-1.5">
                   <KunChip color="warning" size="sm" variant="flat"
-                    >✏️ 修改</KunChip
+                    >修改</KunChip
                   >
                   <span class="text-default-500 text-xs">
                     {{ ch.fields.join(' / ') }}
@@ -435,7 +435,7 @@ const inlineRow = (item: Record<string, unknown>): string =>
                 class="space-y-1"
               >
                 <KunChip color="success" size="sm" variant="flat"
-                  >➕ 新增</KunChip
+                  >+ 新增</KunChip
                 >
                 <code class="text-default-700 block text-xs break-all">
                   {{ inlineRow(item) }}

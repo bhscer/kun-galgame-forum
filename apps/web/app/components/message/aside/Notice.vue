@@ -6,6 +6,16 @@ const props = defineProps<{
   refresh: () => void
 }>()
 
+// The content preview is the linked entity's title (galgame / topic name).
+// Some rows legitimately carry no content — older `merged` notices written
+// before the name was captured, or a galgame that has no localized name yet —
+// which rendered as a blank, oddly-tall line that "shows no game". Fall back to
+// a clickable label so the row always points somewhere meaningful.
+const contentPreview = computed(() => {
+  const text = markdownToText(props.message.content).trim()
+  return text || '点击查看详情'
+})
+
 const handleDeleteMessage = async (messageId: number) => {
   const res = await useComponentMessageStore().alert(
     '您确定要删除这条消息吗？此操作不可撤销。'
@@ -63,9 +73,8 @@ const handleDeleteMessage = async (messageId: number) => {
       >
         <pre
           class="break-word text-sm leading-8 whitespace-pre-line text-inherit"
+          >{{ contentPreview }}</pre
         >
-          {{ markdownToText(message.content) }}
-        </pre>
       </KunLink>
     </div>
 

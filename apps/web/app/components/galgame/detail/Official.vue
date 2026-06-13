@@ -69,7 +69,12 @@ const getOfficialCategoryInfo = (category: string) => {
             </span>
           </div>
 
+          <!-- Only a real anchor when there's a site to go to. An empty
+               item.link used to render a link-styled element that looked
+               clickable but went nowhere — confusing. No site → a plain
+               muted label instead. -->
           <KunLink
+            v-if="item.link"
             :is-show-anchor-icon="true"
             target="_blank"
             :to="item.link"
@@ -79,6 +84,7 @@ const getOfficialCategoryInfo = (category: string) => {
           >
             官方网站
           </KunLink>
+          <span v-else class="text-default-400 text-xs"> 暂无官网 </span>
         </div>
 
         <div
