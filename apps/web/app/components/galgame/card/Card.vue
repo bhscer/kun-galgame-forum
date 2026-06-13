@@ -141,7 +141,7 @@ const {
           v-if="showPublisher"
           class="text-default-600 mt-auto flex items-center gap-1 pt-3 text-sm"
         >
-          <KunAvatar :disable-floating="true" :user="galgame.user" size="xs" />
+          <KunAvatar :disable-floating="true" :user="galgame.user" size="xs" :is-navigation="false" />
           {{ galgame.user.name }} · <KunTime :time="galgame.resourceUpdateTime" />
         </div>
       </div>

@@ -27,7 +27,7 @@ defineProps<{
 
     <div class="flex flex-wrap items-center gap-2">
       <div class="flex items-center">
-        <KunAvatar :user="comment.user" />
+        <KunAvatar :user="comment.user" :is-navigation="false" />
         <span class="ml-2 text-sm">{{ comment.user.name }}</span>
       </div>
       <!--
@@ -39,7 +39,7 @@ defineProps<{
       <template v-if="comment.targetUser">
         <KunIcon name="lucide:arrow-right" class="h-4 w-4" />
         <div class="flex items-center">
-          <KunAvatar :user="comment.targetUser" />
+          <KunAvatar :user="comment.targetUser" :is-navigation="false" />
           <span class="ml-2 text-sm">{{ comment.targetUser.name }}</span>
         </div>
       </template>

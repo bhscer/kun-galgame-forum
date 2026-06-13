@@ -46,7 +46,7 @@ const actionsCount = computed(
     </div>
 
     <div class="text-default-600 flex items-center gap-1 text-sm">
-      <KunAvatar :disable-floating="true" :user="topic.user" size="xs" />
+      <KunAvatar :disable-floating="true" :user="topic.user" size="xs" :is-navigation="false" />
       {{ topic.user.name }} · <KunTime :time="topic.statusUpdateTime" />
     </div>
   </KunCard>

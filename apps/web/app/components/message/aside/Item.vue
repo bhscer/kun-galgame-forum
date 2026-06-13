@@ -19,6 +19,7 @@ defineProps<{
       }"
       size="xl"
       :disable-floating="true"
+      :is-navigation="false"
     />
     <div class="justify-space flex w-full flex-col">
       <div class="flex items-center justify-between">

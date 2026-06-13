@@ -125,6 +125,7 @@ const submit = async () => {
           name: userStore.name
         }"
         size="lg"
+        :is-navigation="false"
       />
       <div class="flex-1 text-sm">
         <p v-if="!pendingFile" class="text-default-500">

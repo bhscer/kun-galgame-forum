@@ -23,7 +23,7 @@ const { data } = await useKunFetch<RankingUserItem[]>('/ranking/user', {
       >
         <RankingMedal :index="index" />
 
-        <KunAvatar :user="user" size="lg" />
+        <KunAvatar :user="user" size="lg" :is-navigation="false" />
         <div class="flex-1 overflow-hidden">
           <h3 class="flex items-center gap-2 font-semibold">
             <span>{{ user.name }}</span>

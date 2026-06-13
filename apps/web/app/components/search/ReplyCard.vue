@@ -21,7 +21,7 @@ defineProps<{
 
     <div v-if="reply.content" class="my-2 rounded">
       <div class="mb-2 flex items-center">
-        <KunAvatar :user="reply.user" />
+        <KunAvatar :user="reply.user" :is-navigation="false" />
         <span class="ml-2 text-sm">{{ reply.user.name }}</span>
       </div>
       {{ reply.content }}
@@ -39,12 +39,12 @@ defineProps<{
       >
         <div class="flex items-center gap-2">
           <div class="flex items-center">
-            <KunAvatar :user="reply.user" />
+            <KunAvatar :user="reply.user" :is-navigation="false" />
             <span class="ml-2 text-sm">{{ reply.user.name }}</span>
           </div>
           <KunIcon name="lucide:arrow-right" class="h-4 w-4" />
           <div class="flex items-center">
-            <KunAvatar :user="target.user" />
+            <KunAvatar :user="target.user" :is-navigation="false" />
             <span class="ml-2 text-sm">{{ target.user.name }}</span>
           </div>
         </div>

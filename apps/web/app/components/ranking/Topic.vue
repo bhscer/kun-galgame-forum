@@ -26,7 +26,7 @@ const { data } = await useKunFetch<RankingTopicItem[]>('/ranking/topic', {
         <div class="flex-1">
           <h3 class="truncate font-semibold">{{ topic.title }}</h3>
           <div class="mt-1 flex items-center gap-2">
-            <KunAvatar :user="topic.user" size="sm" />
+            <KunAvatar :user="topic.user" size="sm" :is-navigation="false" />
             <span class="text-default-500 text-sm">{{ topic.user.name }}</span>
 
             <div class="flex shrink-0 items-center gap-2 sm:hidden">

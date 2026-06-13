@@ -68,7 +68,7 @@ const overall = computed(() => props.rating.overall.toFixed(1))
     class="hover:bg-default-100/50 group block rounded-md px-2 py-2 transition-colors"
   >
     <div class="flex flex-wrap items-center gap-2 text-sm">
-      <KunAvatar :user="rating.user" size="sm" />
+      <KunAvatar :user="rating.user" size="sm" :is-navigation="false" />
       <span class="text-default-800 font-medium">{{ rating.user.name }}</span>
       <span class="text-default-500">
         <template v-if="rating.play_status === 'not_started'">

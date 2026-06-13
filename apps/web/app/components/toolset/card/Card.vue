@@ -46,7 +46,7 @@ defineProps<{
       </div>
 
       <div class="flex items-center gap-2">
-        <KunUserChip size="sm" :user="t.user" />
+        <KunUserChip size="sm" :user="t.user" :is-navigation="false" />
         <span class="text-default-500 text-xs">
           <KunTime :time="t.resource_update_time" />
         </span>
