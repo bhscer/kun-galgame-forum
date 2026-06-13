@@ -59,13 +59,17 @@ func (h *GalgameHandler) MergePR(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrAuthExpired())
 	}
 
-	data, appErr := h.galgameService.MergePR(
+	if _, appErr := h.galgameService.MergePR(
 		c.Context(), user.ID, c.Params("gid"), c.Params("id"), token,
-	)
-	if appErr != nil {
+	); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return c.JSON(fiber.Map{"code": 0, "message": "成功", "data": data})
+	// The wiki merge payload is empty and unused by clients. Emit a message-only
+	// success so the FE's `if (result)` gate stays truthy — returning `data: null`
+	// (what c.JSON produced from the empty wiki body) read as a FAILURE there, so
+	// the merge silently gave no toast / no refresh and the PR sat on 进行中 until
+	// a hard reload. See kunFetch's transform (message fallback).
+	return response.OKMessage(c, "已合并更新请求")
 }
 
 // SubmitPR — POST /api/galgame/:gid/prs
@@ -107,13 +111,14 @@ func (h *GalgameHandler) DeclinePR(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrAuthExpired())
 	}
 
-	data, appErr := h.galgameService.DeclinePR(
+	if _, appErr := h.galgameService.DeclinePR(
 		c.Context(), user.ID, c.Params("gid"), c.Params("id"), token, c.Body(), c.Get("Content-Type"),
-	)
-	if appErr != nil {
+	); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return c.JSON(fiber.Map{"code": 0, "message": "成功", "data": data})
+	// Message-only success — same rationale as MergePR (empty wiki body must not
+	// surface as `data: null`, which the FE reads as failure).
+	return response.OKMessage(c, "已拒绝更新请求")
 }
 
 // ──────────────────────────────────────────
