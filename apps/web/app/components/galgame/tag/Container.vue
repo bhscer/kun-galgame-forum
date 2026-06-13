@@ -32,6 +32,16 @@ const displayTags = computed(() => {
   return data.value!.tags
 })
 
+// True when we're showing the FULL paginated tag list (the BE returns the
+// SFW-filtered `total`, so the pager is correct): single mode with no active
+// search, or multi mode with no tags selected. A single-mode search shows the
+// unpaginated /search results instead, so no pager there.
+const isBrowsingList = computed(() =>
+  searchMode.value === 'single'
+    ? !searchQuery.value.trim()
+    : !selectedTags.value.length
+)
+
 const inputFocused = ref(false)
 const isDropdownOpen = computed(
   () =>
@@ -236,12 +246,7 @@ watch(
     />
 
     <KunPagination
-      v-if="
-        searchMode === 'multi' &&
-        !selectedTags.length &&
-        data &&
-        data.total > pageData.limit
-      "
+      v-if="isBrowsingList && data && data.total > pageData.limit"
       v-model:current-page="pageData.page"
       :total-page="Math.ceil(data.total / pageData.limit)"
       :is-loading="status === 'pending'"
