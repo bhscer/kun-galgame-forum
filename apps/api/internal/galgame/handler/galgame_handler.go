@@ -68,6 +68,54 @@ func (h *GalgameHandler) MergePR(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"code": 0, "message": "成功", "data": data})
 }
 
+// SubmitPR — POST /api/galgame/:gid/prs
+//
+// Thin wrapper over the generic write-proxy that additionally notifies the
+// galgame owner ("requested"). See GalgameService.SubmitPR.
+func (h *GalgameHandler) SubmitPR(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	token := middleware.GetAccessToken(c)
+	if token == "" {
+		return response.Error(c, errors.ErrAuthExpired())
+	}
+
+	data, appErr := h.galgameService.SubmitPR(
+		c.Context(), user.ID, c.Params("gid"), token, c.Body(), c.Get("Content-Type"),
+	)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return c.JSON(fiber.Map{"code": 0, "message": "成功", "data": data})
+}
+
+// DeclinePR — PUT /api/galgame/:gid/prs/:id/decline
+//
+// Thin wrapper over the generic write-proxy that additionally notifies the PR
+// submitter ("declined"). See GalgameService.DeclinePR.
+func (h *GalgameHandler) DeclinePR(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	token := middleware.GetAccessToken(c)
+	if token == "" {
+		return response.Error(c, errors.ErrAuthExpired())
+	}
+
+	data, appErr := h.galgameService.DeclinePR(
+		c.Context(), user.ID, c.Params("gid"), c.Params("id"), token, c.Body(), c.Get("Content-Type"),
+	)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return c.JSON(fiber.Map{"code": 0, "message": "成功", "data": data})
+}
+
 // ──────────────────────────────────────────
 // GetDetail / GetList
 // ──────────────────────────────────────────

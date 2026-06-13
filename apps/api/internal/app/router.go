@@ -342,7 +342,9 @@ func (a *App) setupRoutes() {
 	// every wiki write must traverse kungal so the middleware can attach
 	// the session-stored bearer token; ProxyWriteWithToken is the thin
 	// shim that does that. Endpoints with kungal-local side effects
-	// (Create/MergePR) go through GalgameHandler instead.
+	// (Create/MergePR + PR submit/decline, which emit local "requested"/
+	// "declined"/"merged" notifications the wiki doesn't) go through
+	// GalgameHandler instead.
 	// POST /galgame is the "admin direct publish" bypass — wiki gates it
 	// to admin/moderator (see docs/galgame_wiki/01-galgame.md §POST). Most
 	// users go through POST /galgame/submit instead. We mirror the gate
@@ -354,8 +356,8 @@ func (a *App) setupRoutes() {
 	authed.Put("/galgame/:gid", a.GalgameWikiHandler.ProxyWriteWithToken("PUT"))
 	authed.Put("/galgame/:gid/prs/:id/merge", a.GalgameHandler.MergePR)
 	authed.Post("/galgame/:gid/revert", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
-	authed.Post("/galgame/:gid/prs", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
-	authed.Put("/galgame/:gid/prs/:id/decline", a.GalgameWikiHandler.ProxyWriteWithToken("PUT"))
+	authed.Post("/galgame/:gid/prs", a.GalgameHandler.SubmitPR)
+	authed.Put("/galgame/:gid/prs/:id/decline", a.GalgameHandler.DeclinePR)
 	authed.Post("/galgame/:gid/links", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))
 	authed.Delete("/galgame/:gid/links", a.GalgameWikiHandler.ProxyWriteWithToken("DELETE"))
 	authed.Post("/galgame/:gid/aliases", a.GalgameWikiHandler.ProxyWriteWithToken("POST"))

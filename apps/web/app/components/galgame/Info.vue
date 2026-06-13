@@ -15,9 +15,19 @@ defineProps<{
   releaseDateTBA?: boolean
 }>()
 
-// Merged "编辑历史 + 更新请求" launcher — replaces two persistent
-// sidebar cards that used to sit below this info card.
-const isActivityOpen = ref(false)
+// Merged "编辑历史 + 更新请求" launcher. The modal itself now lives once at the
+// page root (Galgame.vue) so the pending-PR banner can share the same instance;
+// this button just opens it on the 编辑历史 tab via the injected controller.
+const activity = inject<{ open: boolean; tab: 'history' | 'pr' }>(
+  'galgameActivity'
+)
+const openHistory = () => {
+  if (!activity) {
+    return
+  }
+  activity.tab = 'history'
+  activity.open = true
+}
 
 const getLanguageName = getGalgameOriginalLanguageName
 </script>
@@ -102,12 +112,10 @@ const getLanguageName = getGalgameOriginalLanguageName
       color="primary"
       size="sm"
       full-width
-      @click="isActivityOpen = true"
+      @click="openHistory"
     >
       <KunIcon name="lucide:history" />
       查看编辑历史与更新请求
     </KunButton>
-
-    <GalgameActivityModal v-model="isActivityOpen" />
   </KunCard>
 </template>

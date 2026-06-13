@@ -178,6 +178,92 @@ func (s *GalgameService) MergePR(
 }
 
 // ──────────────────────────────────────────
+// SubmitPR — POST /galgame/:gid/prs
+// ──────────────────────────────────────────
+
+// SubmitPR proxies a PR submission to wiki, then notifies the galgame's owner
+// that someone proposed an update. The wiki emits NO message on PR submit (its
+// only 7 message types are submission-review events — see
+// docs/galgame_wiki/08-messages.md), and the owner otherwise has to dig into
+// the (easily-missed) PR tab to discover pending edits, so the "requested"
+// notice is created locally here — the mirror of MergePR's "merged" notice.
+//
+// body/contentType are forwarded byte-for-byte so the multipart (banner-in-PR)
+// submit mode keeps working. The notification is best-effort and never fails
+// the already-applied PR.
+func (s *GalgameService) SubmitPR(
+	ctx context.Context,
+	submitterID int,
+	gid, token string,
+	body []byte,
+	contentType string,
+) (json.RawMessage, *errors.AppError) {
+	data, appErr := s.wikiClient.PostWithToken(
+		ctx, fmt.Sprintf("/galgame/%s/prs", gid), token, json.RawMessage(body), contentType,
+	)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	gidInt, _ := strconv.Atoi(gid)
+	if gidInt > 0 {
+		ownerID, name := s.fetchOwnerAndName(ctx, gidInt)
+		// Dedup on (sender, receiver, type, link) means repeat PRs from the same
+		// user to the same galgame notify the owner once — intentional anti-spam
+		// (the owner opens the PR tab to review them all). The helper no-ops when
+		// ownerID == submitterID or ownerID <= 0.
+		s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
+			s.helpers.CreateGalgameMessageWithContent(tx, submitterID, ownerID, "requested", name, gidInt)
+			return nil
+		})
+	}
+	return data, nil
+}
+
+// ──────────────────────────────────────────
+// DeclinePR — PUT /galgame/:gid/prs/:id/decline
+// ──────────────────────────────────────────
+
+// DeclinePR proxies a PR decline to wiki, then notifies the PR's submitter that
+// their update request was rejected — symmetric with MergePR's "merged" notice.
+// The submitter is read from the PR detail BEFORE the decline (wiki may purge
+// pending info after). No moemoepoint change: only a *merged* contribution earns
+// +RewardPRMerge. body carries the reviewer's optional {note}; the notification
+// is best-effort.
+func (s *GalgameService) DeclinePR(
+	ctx context.Context,
+	declinerID int,
+	gid, prID, token string,
+	body []byte,
+	contentType string,
+) (json.RawMessage, *errors.AppError) {
+	prData, appErr := s.wikiClient.Get(ctx, fmt.Sprintf("/galgame/%s/prs/%s", gid, prID), nil)
+	if appErr != nil {
+		return nil, appErr
+	}
+	var prInfo dto.WikiPRDetail
+	_ = json.Unmarshal(prData, &prInfo)
+
+	data, appErr := s.wikiClient.PutWithToken(
+		ctx, fmt.Sprintf("/galgame/%s/prs/%s/decline", gid, prID), token, json.RawMessage(body), contentType,
+	)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	gidInt, _ := strconv.Atoi(gid)
+	submitter := prInfo.PR.UserID
+	if submitter > 0 && submitter != declinerID && gidInt > 0 {
+		_, name := s.fetchOwnerAndName(ctx, gidInt)
+		s.galgameRepo.DB().Transaction(func(tx *gorm.DB) error {
+			s.helpers.CreateGalgameMessageWithContent(tx, declinerID, submitter, "declined", name, gidInt)
+			return nil
+		})
+	}
+	return data, nil
+}
+
+// ──────────────────────────────────────────
 // Interactions — PUT /galgame/:gid/like|favorite
 // ──────────────────────────────────────────
 

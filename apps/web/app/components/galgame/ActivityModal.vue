@@ -9,10 +9,27 @@
 // are self-contained: they fetch their own data, manage their own
 // pagination, and own their own UI. We just provide the KunTab
 // switcher + KunModal frame.
-const open = defineModel<boolean>({ required: true })
-
 type Tab = 'history' | 'pr'
-const activeTab = ref<Tab>('history')
+
+const open = defineModel<boolean>({ required: true })
+const props = withDefaults(
+  defineProps<{
+    // Tab to land on when the modal opens. The info-card button opens 编辑历史
+    // (default); the pending-PR banner deep-links straight to 更新请求.
+    initialTab?: Tab
+  }>(),
+  { initialTab: 'history' }
+)
+
+const activeTab = ref<Tab>(props.initialTab)
+
+// Re-pin to initialTab on every open, so a banner-triggered open always lands
+// on 更新请求 even if the user previously left the modal on 编辑历史.
+watch(open, (isOpen) => {
+  if (isOpen) {
+    activeTab.value = props.initialTab
+  }
+})
 
 const tabs = [
   { value: 'history' as const, textValue: '编辑历史', icon: 'lucide:history' },

@@ -5,6 +5,17 @@ const props = defineProps<{
 
 provide<GalgameDetail>('galgame', props.galgame)
 
+// One shared "编辑历史 / 更新请求" modal for the whole detail page. Info.vue's
+// button opens it on 编辑历史; the pending-PR banner (GalgamePrBanner, creator/
+// admin only) deep-links to 更新请求. Owned here — the one place that has
+// `galgame` — so both triggers drive a SINGLE modal instance (no duplicate
+// PR/history fetches, no async-mount-without-Suspense risk).
+const activity = reactive<{ open: boolean; tab: 'history' | 'pr' }>({
+  open: false,
+  tab: 'history'
+})
+provide('galgameActivity', activity)
+
 const ratings = ref([...props.galgame.ratings])
 const sortedRatings = computed(() => {
   return [...ratings.value].sort(
@@ -19,6 +30,9 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
 
 <template>
   <div class="flex flex-col gap-3">
+    <!-- Creator/admin-only; renders nothing (no flex gap) for everyone else. -->
+    <GalgamePrBanner :galgame="galgame" />
+
     <GalgameHeader
       :galgame="galgame"
       @on-rating-created="handleRatingCreated"
@@ -131,5 +145,7 @@ const handleRatingCreated = (newRating: GalgameRatingCardOnGalgamePage) => {
         </div>
       </div>
     </div>
+
+    <GalgameActivityModal v-model="activity.open" :initial-tab="activity.tab" />
   </div>
 </template>
