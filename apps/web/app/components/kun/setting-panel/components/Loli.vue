@@ -19,17 +19,35 @@ const loliData = ref({
   face: ''
 })
 
-onMounted(async () => {
-  loliData.value = await getLoli()
-})
+// The 差分图 is 5 webp layers fetched + blob-encoded on demand. The FIRST load
+// is slow (cold cache, several images downloaded in parallel), during which the
+// panel showed nothing — so surface a KunLoading until it resolves. Clicking
+// re-rolls a fresh random character (usually warm-cached, but the loader covers
+// it too).
+const isLoading = ref(true)
+
+const reroll = async () => {
+  isLoading.value = true
+  try {
+    loliData.value = await getLoli()
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(reroll)
 </script>
 
 <template>
-  <div class="hidden size-full shrink-0 sm:block">
+  <div class="hidden w-80 shrink-0 sm:block">
+    <div v-if="isLoading" class="flex min-h-80 items-center justify-center">
+      <KunLoading />
+    </div>
+
     <div
+      v-else-if="loliData.body"
       class="relative min-w-80"
-      @click="async () => (loliData = await getLoli())"
-      v-if="loliData.body"
+      @click="reroll"
     >
       <div class="absolute -top-80 -left-32 size-full shrink-0">
         <img
