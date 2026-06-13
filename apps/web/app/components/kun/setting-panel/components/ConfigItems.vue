@@ -1,6 +1,4 @@
 <script setup lang="ts">
-const showItemIndex = ref(1)
-
 const {
   showKUNGalgamePageTransparency,
   showKUNGalgameBackgroundBlur,
@@ -15,6 +13,8 @@ const roundedOptions = [
   { value: 'lg', label: '大' }
 ] as const
 
+// Debounce the persisted writes — the store setter re-applies CSS vars across
+// the whole app, which is wasteful to run on every drag tick.
 watch(
   () => showKUNGalgamePageTransparency.value,
   debounce(() => {
@@ -41,158 +41,85 @@ watch(
     )
   }, 300)
 )
-
 </script>
 
 <template>
-  <div class="flex flex-col space-y-2">
-    <div class="flex items-center justify-between">
-      可配置选项
-
-      <div class="flex items-center">
-        <span
-          :class="
-            cn(
-              'flex rounded-lg p-2 transition-colors',
-              showItemIndex === 1 ? 'bg-primary-50 text-primary' : ''
-            )
-          "
-          @click="showItemIndex = 1"
-        >
-          <KunIcon class="text-inherit" name="mdi:circle-transparent" />
-        </span>
-        <span
-          :class="
-            cn(
-              'flex rounded-lg p-2 transition-colors',
-              showItemIndex === 2 ? 'bg-primary-50 text-primary' : ''
-            )
-          "
-          @click="showItemIndex = 2"
-        >
-          <KunIcon class="text-inherit" name="tabler:blur" />
-        </span>
-        <span
-          :class="
-            cn(
-              'flex rounded-lg p-2 transition-colors',
-              showItemIndex === 3 ? 'bg-primary-50 text-primary' : ''
-            )
-          "
-          @click="showItemIndex = 3"
-        >
-          <KunIcon class="text-inherit" name="lucide:lightbulb" />
-        </span>
-        <span
-          :class="
-            cn(
-              'flex rounded-lg p-2 transition-colors',
-              showItemIndex === 4 ? 'bg-primary-50 text-primary' : ''
-            )
-          "
-          @click="showItemIndex = 4"
-        >
-          <KunIcon class="text-inherit" name="tabler:border-radius" />
+  <div class="space-y-5">
+    <!-- 页面透明度 -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="text-default-700 flex items-center gap-2 font-medium">
+          <KunIcon class="text-primary" name="mdi:circle-transparent" />
+          <span>页面透明度</span>
+        </div>
+        <span class="text-default-500 text-sm tabular-nums">
+          {{ showKUNGalgamePageTransparency }}%
         </span>
       </div>
+      <KunSlider
+        :min="10"
+        :max="90"
+        :step="1"
+        v-model="showKUNGalgamePageTransparency"
+      />
     </div>
 
-    <TransitionGroup name="item" tag="div">
-      <div class="w-full space-y-2" v-if="showItemIndex === 1">
-        <div class="flex justify-between text-sm">
-          <span>页面透明度</span>
-          <span>{{ showKUNGalgamePageTransparency }}%</span>
-        </div>
-
-        <div class="flex items-center">
-          <span>10%</span>
-
-          <KunSlider
-            class="mx-4 w-full"
-            :min="10"
-            :max="90"
-            :step="1"
-            v-model="showKUNGalgamePageTransparency"
-          />
-
-          <span>90%</span>
-        </div>
-      </div>
-
-      <div class="w-full space-y-2" v-if="showItemIndex === 2">
-        <div class="flex justify-between text-sm">
+    <!-- 页面模糊度 -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="text-default-700 flex items-center gap-2 font-medium">
+          <KunIcon class="text-primary" name="tabler:blur" />
           <span>页面模糊度</span>
-          <span>{{ showKUNGalgameBackgroundBlur }}px</span>
         </div>
-
-        <div class="flex w-full items-center">
-          <span>0px</span>
-          <KunSlider
-            class="mx-4 w-full"
-            :min="0"
-            :max="32"
-            :step="1"
-            v-model="showKUNGalgameBackgroundBlur"
-          />
-          <span>32px</span>
-        </div>
+        <span class="text-default-500 text-sm tabular-nums">
+          {{ showKUNGalgameBackgroundBlur }}px
+        </span>
       </div>
+      <KunSlider
+        :min="0"
+        :max="32"
+        :step="1"
+        v-model="showKUNGalgameBackgroundBlur"
+      />
+    </div>
 
-      <div class="w-full space-y-2" v-if="showItemIndex === 3">
-        <div class="flex justify-between text-sm">
+    <!-- 背景亮度 -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="text-default-700 flex items-center gap-2 font-medium">
+          <KunIcon class="text-primary" name="lucide:lightbulb" />
           <span>背景亮度</span>
-          <span>{{ showKUNGalgameBackgroundBrightness }}%</span>
         </div>
-
-        <div class="flex w-full items-center">
-          <span>10%</span>
-          <KunSlider
-            class="mx-4 w-full"
-            :min="10"
-            :max="100"
-            :step="1"
-            v-model="showKUNGalgameBackgroundBrightness"
-          />
-          <span>100%</span>
-        </div>
+        <span class="text-default-500 text-sm tabular-nums">
+          {{ showKUNGalgameBackgroundBrightness }}%
+        </span>
       </div>
+      <KunSlider
+        :min="10"
+        :max="100"
+        :step="1"
+        v-model="showKUNGalgameBackgroundBrightness"
+      />
+    </div>
 
-      <div class="w-full space-y-2" v-if="showItemIndex === 4">
-        <div class="flex justify-between text-sm">
-          <span>全局圆角</span>
-        </div>
-
-        <div class="grid grid-cols-4 gap-2">
-          <KunButton
-            v-for="opt in roundedOptions"
-            :key="opt.value"
-            size="sm"
-            :variant="showKUNGalgameRounded === opt.value ? 'solid' : 'flat'"
-            :color="showKUNGalgameRounded === opt.value ? 'primary' : 'default'"
-            @click="usePersistSettingsStore().setKUNGalgameRounded(opt.value)"
-          >
-            {{ opt.label }}
-          </KunButton>
-        </div>
+    <!-- 全局圆角 -->
+    <div class="space-y-2">
+      <div class="text-default-700 flex items-center gap-2 font-medium">
+        <KunIcon class="text-primary" name="tabler:border-radius" />
+        <span>全局圆角</span>
       </div>
-    </TransitionGroup>
+      <div class="grid grid-cols-4 gap-2">
+        <KunButton
+          v-for="opt in roundedOptions"
+          :key="opt.value"
+          size="sm"
+          :variant="showKUNGalgameRounded === opt.value ? 'solid' : 'flat'"
+          :color="showKUNGalgameRounded === opt.value ? 'primary' : 'default'"
+          @click="usePersistSettingsStore().setKUNGalgameRounded(opt.value)"
+        >
+          {{ opt.label }}
+        </KunButton>
+      </div>
+    </div>
   </div>
 </template>
-
-<style  scoped>
-.item-move,
-.item-enter-active,
-.item-leave-active {
-  transition: all 0.5s ease;
-}
-
-.item-enter-from,
-.item-leave-to {
-  opacity: 0;
-  transform: translateY(77px);
-}
-
-.item-leave-active {
-  position: absolute;
-}
-</style>

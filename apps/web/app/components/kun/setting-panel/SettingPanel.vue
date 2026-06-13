@@ -20,7 +20,7 @@ const activeTab = ref('appearance')
   <KunModal
     :model-value="showKUNGalgamePanel"
     @update:model-value="(value) => (showKUNGalgamePanel = value)"
-    inner-class-name="overflow-visible w-[92vw] sm:max-w-3xl"
+    inner-class-name="overflow-visible w-[92vw] sm:max-w-2xl"
   >
     <div class="space-y-4">
       <div class="flex items-center gap-2 text-lg">
@@ -51,7 +51,7 @@ const activeTab = ref('appearance')
         />
       </div>
 
-      <div class="flex flex-col gap-4 sm:flex-row">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
         <!-- Desktop: category tabs as a left rail (same wrapper rationale). -->
         <div class="hidden shrink-0 sm:block sm:w-24">
           <KunTab
