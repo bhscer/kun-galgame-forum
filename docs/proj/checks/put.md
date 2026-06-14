@@ -6,11 +6,11 @@
 >
 > 配套文档:[post.md](./post.md) / [delete.md](./delete.md)
 
-## 图例
+## 图例 (状态列取值)
 
-- ✅ 已审计,FE/BE 对齐无问题
-- 🔧 已审计,**发现错位并修复**
-- ⏭️ 已审计,设计上有意保持当前行为(详见备注)
+- 无问题 — 已审计,FE/BE 对齐无问题
+- 已修复 — 已审计,**发现错位并修复**
+- 已跳过 — 已审计,设计上有意保持当前行为(详见备注)
 
 ## 统计
 
@@ -27,113 +27,113 @@
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/user/bio` | ⏭️ | OAuth 代理 → `PATCH /auth/me { bio }`,bio max=107 双端对齐 |
-| `/user/username` | ⏭️ | OAuth 代理 → `PATCH /auth/me { name }`(handler 翻译 username→name),max=17 + `isValidName` regex `{1,17}` 对齐 |
+| `/user/bio` | 已跳过 | OAuth 代理 → `PATCH /auth/me { bio }`,bio max=107 双端对齐 |
+| `/user/username` | 已跳过 | OAuth 代理 → `PATCH /auth/me { name }`(handler 翻译 username→name),max=17 + `isValidName` regex `{1,17}` 对齐 |
 
 ## 消息(2)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/message/system/read` | ✅ | 无 body,通用"全部已读" |
-| `/message/admin/read` | ✅ | 无 body,管理员消息已读 |
+| `/message/system/read` | 无问题 | 无 body,通用"全部已读" |
+| `/message/admin/read` | 无问题 | 无 body,管理员消息已读 |
 
 ## 话题(13)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/topic/:tid` | ✅ | 完整 update,字段全对齐 |
-| `/topic/:tid/like` | 🔧 | 清死 body(BE 只用 path) |
-| `/topic/:tid/dislike` | 🔧 | 清死 body |
-| `/topic/:tid/upvote` | 🔧 | 清死 body |
-| `/topic/:tid/favorite` | 🔧 | 清死 body |
-| `/topic/:tid/hide` | 🔧 | 清死 body |
-| `/topic/:tid/best-answer` | ✅ | body 带 `topicId+replyId` BE 都用 |
-| `/topic/:tid/reply` | 🔧 | BE service 加 content+targets 全空兜底 |
-| `/topic/:tid/reply/like` | ✅ | body 带 `replyId` |
-| `/topic/:tid/reply/dislike` | ✅ | body 带 `replyId` |
-| `/topic/:tid/reply/pin` | ✅ | body 带 `topicId+replyId` |
-| `/topic/:tid/comment/like` | 🔧 | FE URL path 改用 `comment.topicId`(原来错填 `comment.id`) |
-| `/topic/:tid/poll` | 🔧 | 字段对齐;BE service 修 `role <= 2` → `role < 2`(原 bug 让 admin 改不了别人投票) |
+| `/topic/:tid` | 无问题 | 完整 update,字段全对齐 |
+| `/topic/:tid/like` | 已修复 | 清死 body(BE 只用 path) |
+| `/topic/:tid/dislike` | 已修复 | 清死 body |
+| `/topic/:tid/upvote` | 已修复 | 清死 body |
+| `/topic/:tid/favorite` | 已修复 | 清死 body |
+| `/topic/:tid/hide` | 已修复 | 清死 body |
+| `/topic/:tid/best-answer` | 无问题 | body 带 `topicId+replyId` BE 都用 |
+| `/topic/:tid/reply` | 已修复 | BE service 加 content+targets 全空兜底 |
+| `/topic/:tid/reply/like` | 无问题 | body 带 `replyId` |
+| `/topic/:tid/reply/dislike` | 无问题 | body 带 `replyId` |
+| `/topic/:tid/reply/pin` | 无问题 | body 带 `topicId+replyId` |
+| `/topic/:tid/comment/like` | 已修复 | FE URL path 改用 `comment.topicId`(原来错填 `comment.id`) |
+| `/topic/:tid/poll` | 已修复 | 字段对齐;BE service 修 `role <= 2` → `role < 2`(原 bug 让 admin 改不了别人投票) |
 
 ## 网站(2 公开)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/website/:domain/like` | ✅ | BE 用 path 参数 |
-| `/website/:domain/favorite` | ✅ | BE 用 path 参数 |
+| `/website/:domain/like` | 无问题 | BE 用 path 参数 |
+| `/website/:domain/favorite` | 无问题 | BE 用 path 参数 |
 
 ## Galgame 核心(9)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/galgame/messages/read-state` | ✅ | wiki 消息读取游标 |
-| `/galgame/:gid/like` | 🔧 | 清死 body(BE 只用 path) |
-| `/galgame/:gid/favorite` | 🔧 | 清死 body |
-| `/galgame/:gid/comment` | ✅ | `commentId+content` 对齐,content max=5000 |
-| `/galgame/:gid/comment/like` | 🔧 | FE 字段 `galgameCommentId → commentId`(组件层 + schema 层) |
-| `/galgame/:gid/resource` | 🔧 | FE `link.max 107→20` 对齐 BE(POST 创建也受益) |
-| `/galgame/:gid/resource/like` | ✅ | body 带 `galgameResourceId` |
-| `/galgame/:gid/resource/valid` | ✅ | body 带 `galgameResourceId` |
-| `/galgame/:gid/resource/expired` | ✅ | body 带 `galgameResourceId` |
+| `/galgame/messages/read-state` | 无问题 | wiki 消息读取游标 |
+| `/galgame/:gid/like` | 已修复 | 清死 body(BE 只用 path) |
+| `/galgame/:gid/favorite` | 已修复 | 清死 body |
+| `/galgame/:gid/comment` | 无问题 | `commentId+content` 对齐,content max=5000 |
+| `/galgame/:gid/comment/like` | 已修复 | FE 字段 `galgameCommentId → commentId`(组件层 + schema 层) |
+| `/galgame/:gid/resource` | 已修复 | FE `link.max 107→20` 对齐 BE(POST 创建也受益) |
+| `/galgame/:gid/resource/like` | 无问题 | body 带 `galgameResourceId` |
+| `/galgame/:gid/resource/valid` | 无问题 | body 带 `galgameResourceId` |
+| `/galgame/:gid/resource/expired` | 无问题 | body 带 `galgameResourceId` |
 
 ## Galgame 评分(3)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/galgame-rating/:id` | ✅ | snake_case 字段(`play_status` 等)双端对齐 |
-| `/galgame-rating/:id/like` | ✅ | body 带 `galgameRatingId` |
-| `/galgame-rating/:id/comment` | ✅ | content max=1314 双端对齐 |
+| `/galgame-rating/:id` | 无问题 | snake_case 字段(`play_status` 等)双端对齐 |
+| `/galgame-rating/:id/like` | 无问题 | body 带 `galgameRatingId` |
+| `/galgame-rating/:id/comment` | 无问题 | content max=1314 双端对齐 |
 
 ## Galgame Wiki 代理(7)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/galgame/:gid` | ✅ | wiki 写代理(PATCH draft 也走这里) |
-| `/galgame/:gid/prs/:id/merge` | ✅ | PR 合并,wiki 端鉴权 |
-| `/galgame/:gid/prs/:id/decline` | ✅ | PR 拒绝 |
-| `/galgame-tag` | 🔧 | BE proxy 自动翻译 `tagId → tag_id` 给 wiki(见 `wiki_service.go renameTaxonomyIDField`) |
-| `/galgame-official` | 🔧 | BE proxy 翻译 `officialId → official_id` |
-| `/galgame-engine` | 🔧 | BE proxy 翻译 `engineId → engine_id` |
-| `/galgame-series/:id` | ✅ | FE `Detail.vue:38` 手工把 `galgameIds → galgame_ids` |
+| `/galgame/:gid` | 无问题 | wiki 写代理(PATCH draft 也走这里) |
+| `/galgame/:gid/prs/:id/merge` | 无问题 | PR 合并,wiki 端鉴权 |
+| `/galgame/:gid/prs/:id/decline` | 无问题 | PR 拒绝 |
+| `/galgame-tag` | 已修复 | BE proxy 自动翻译 `tagId → tag_id` 给 wiki(见 `wiki_service.go renameTaxonomyIDField`) |
+| `/galgame-official` | 已修复 | BE proxy 翻译 `officialId → official_id` |
+| `/galgame-engine` | 已修复 | BE proxy 翻译 `engineId → engine_id` |
+| `/galgame-series/:id` | 无问题 | FE `Detail.vue:38` 手工把 `galgameIds → galgame_ids` |
 
 ## 工具集(4)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/toolset/:id` | ✅ | 主信息更新对齐 |
-| `/toolset/:id/practicality` | 🔧 | FE 删多余 `toolsetId`(BE DTO 只接 `rate`) |
-| `/toolset/:id/comment` | ✅ | `commentId+content` 对齐 |
-| `/toolset/:id/resource` | 🔧 | BE 改返回 resource 而非 `OKMessage`;schema 加 `type` superRefine 按 s3/user 模式分支 |
+| `/toolset/:id` | 无问题 | 主信息更新对齐 |
+| `/toolset/:id/practicality` | 已修复 | FE 删多余 `toolsetId`(BE DTO 只接 `rate`) |
+| `/toolset/:id/comment` | 无问题 | `commentId+content` 对齐 |
+| `/toolset/:id/resource` | 已修复 | BE 改返回 resource 而非 `OKMessage`;schema 加 `type` superRefine 按 s3/user 模式分支 |
 
 ## 管理员(2)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/admin/setting/register` | ✅ | 无 body,切换注册开关 |
-| `/admin/galgame/:gid/status` | ✅ | wiki proxy,审核通过 / 拒绝 |
+| `/admin/setting/register` | 无问题 | 无 body,切换注册开关 |
+| `/admin/galgame/:gid/status` | 无问题 | wiki proxy,审核通过 / 拒绝 |
 
 ## 文档(Doc, admin)(3)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/doc/article` | 🔧 | camelCase 统一 + `banner.max 777→500` 对齐 BE,`description` 改 optionalString(1000)(原 FE min(1).max(777) 太紧 + 上限太低) |
-| `/doc/category` | 🔧 | `slug.max 233→100`、`description.max 777→500`、`icon.max 128→200` 对齐 BE |
-| `/doc/tag` | 🔧 | `slug.max 233→100`、`title.max 128→100`、`description.max 255→500` 对齐 BE |
+| `/doc/article` | 已修复 | camelCase 统一 + `banner.max 777→500` 对齐 BE,`description` 改 optionalString(1000)(原 FE min(1).max(777) 太紧 + 上限太低) |
+| `/doc/category` | 已修复 | `slug.max 233→100`、`description.max 777→500`、`icon.max 128→200` 对齐 BE |
+| `/doc/tag` | 已修复 | `slug.max 233→100`、`title.max 128→100`、`description.max 255→500` 对齐 BE |
 
 ## 网站(admin)(3)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/website/:domain` | 🔧 | BE 加 `Domain[]` + `CreateTime`,FE 字段 camelCase 对齐;BE 加 `description.min=10` + `icon` url validate(原 FE 严 BE 松) |
-| `/website-category` | 🔧 | BE 加 name/label/description max 约束(原 BE 完全无 max) |
-| `/website-tag` | 🔧 | FE `level` 补 `min(0)` 对齐 BE |
+| `/website/:domain` | 已修复 | BE 加 `Domain[]` + `CreateTime`,FE 字段 camelCase 对齐;BE 加 `description.min=10` + `icon` url validate(原 FE 严 BE 松) |
+| `/website-category` | 已修复 | BE 加 name/label/description max 约束(原 BE 完全无 max) |
+| `/website-tag` | 已修复 | FE `level` 补 `min(0)` 对齐 BE |
 
 ## 更新日志(admin)(2)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/update/history` | 🔧 | BE 加 version/content_* max 约束(原 BE 完全无 max) |
-| `/update/todo` | 🔧 | BE 加 status `min=0,max=10` + content_* max 约束 |
+| `/update/history` | 已修复 | BE 加 version/content_* max 约束(原 BE 完全无 max) |
+| `/update/todo` | 已修复 | BE 加 status `min=0,max=10` + content_* max 约束 |
 
 ---
 

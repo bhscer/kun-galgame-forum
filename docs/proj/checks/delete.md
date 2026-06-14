@@ -6,11 +6,11 @@
 >
 > 配套文档:[post.md](./post.md) / [put.md](./put.md)
 
-## 图例
+## 图例 (状态列取值)
 
-- ✅ 已审计,FE/BE 对齐无问题
-- 🔧 已审计,**发现错位并修复**
-- ⏭️ 已审计,设计上有意保持当前行为(详见备注)
+- 无问题 — 已审计,FE/BE 对齐无问题
+- 已修复 — 已审计,**发现错位并修复**
+- 已跳过 — 已审计,设计上有意保持当前行为(详见备注)
 
 ## 统计
 
@@ -27,78 +27,78 @@
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/topic/:tid/reply` | ✅ | BE 用 query `replyId`,FE 同名传入 |
-| `/topic/:tid/comment` | ✅ | BE 用 query `commentId`,FE 同名传入 |
-| `/topic/:tid/poll` | ✅ | BE 用 query `poll_id`(snake_case),FE 用 snake_case |
+| `/topic/:tid/reply` | 无问题 | BE 用 query `replyId`,FE 同名传入 |
+| `/topic/:tid/comment` | 无问题 | BE 用 query `commentId`,FE 同名传入 |
+| `/topic/:tid/poll` | 无问题 | BE 用 query `poll_id`(snake_case),FE 用 snake_case |
 
 ## 消息(1)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/message/:id` | 🔧 | 清掉 FE 多余的 `?messageId=` query(BE 只用 path `:id`) |
+| `/message/:id` | 已修复 | 清掉 FE 多余的 `?messageId=` query(BE 只用 path `:id`) |
 
 ## 网站(1 公开)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/website/:domain/comment` | 🔧 | 删除前端死的 `updateCommentSchema`(BE 没有 PUT 端点) |
+| `/website/:domain/comment` | 已修复 | 删除前端死的 `updateCommentSchema`(BE 没有 PUT 端点) |
 
 ## Galgame 核心(3)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/galgame/:gid` | ✅ | 删除草稿(status IN (3,4) + 拥有者),wiki 端双重校验 |
-| `/galgame/:gid/comment` | ✅ | BE 用 query `commentId`,FE 同名 |
-| `/galgame/:gid/resource` | ✅ | BE 用 query `galgameResourceId`,FE 同名 |
+| `/galgame/:gid` | 无问题 | 删除草稿(status IN (3,4) + 拥有者),wiki 端双重校验 |
+| `/galgame/:gid/comment` | 无问题 | BE 用 query `commentId`,FE 同名 |
+| `/galgame/:gid/resource` | 无问题 | BE 用 query `galgameResourceId`,FE 同名 |
 
 ## Galgame 评分(2)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/galgame-rating/:id` | ✅ | BE 用 query `galgameRatingId`,FE 同名 |
-| `/galgame-rating/:id/comment` | ✅ | BE 用 query `galgameRatingCommentId`,FE 同名 |
+| `/galgame-rating/:id` | 无问题 | BE 用 query `galgameRatingId`,FE 同名 |
+| `/galgame-rating/:id/comment` | 无问题 | BE 用 query `galgameRatingCommentId`,FE 同名 |
 
 ## Galgame Wiki 代理(7)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/galgame/:gid/links` | ✅ | wiki 端 body 含 `link_id`,FE 已对齐 snake_case |
-| `/galgame/:gid/aliases` | ✅ | wiki 端 body 含 `alias`,FE 已对齐 |
-| `/galgame/:gid/contributors/:id` | ✅ | 路径删除,无 body |
-| `/galgame-tag/:id` | ✅ | 路径删除,支持 `?force=true` 二阶段(query 透传给 wiki) |
-| `/galgame-official/:id` | ✅ | 同上 |
-| `/galgame-engine/:id` | ✅ | 同上 |
-| `/galgame-series/:id` | ✅ | 路径删除,无 body |
+| `/galgame/:gid/links` | 无问题 | wiki 端 body 含 `link_id`,FE 已对齐 snake_case |
+| `/galgame/:gid/aliases` | 无问题 | wiki 端 body 含 `alias`,FE 已对齐 |
+| `/galgame/:gid/contributors/:id` | 无问题 | 路径删除,无 body |
+| `/galgame-tag/:id` | 无问题 | 路径删除,支持 `?force=true` 二阶段(query 透传给 wiki) |
+| `/galgame-official/:id` | 无问题 | 同上 |
+| `/galgame-engine/:id` | 无问题 | 同上 |
+| `/galgame-series/:id` | 无问题 | 路径删除,无 body |
 
 ## 工具集(3)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/toolset/:id` | ✅ | 路径删除;BE 同步清 S3 资源(`s3.Delete`) |
-| `/toolset/:id/comment` | ✅ | BE 用 query `commentId`,FE 同名 |
-| `/toolset/:id/resource` | ✅ | BE 用 query `toolsetResourceId`,FE 同名;BE 同步清 S3 对象 |
+| `/toolset/:id` | 无问题 | 路径删除;BE 同步清 S3 资源(`s3.Delete`) |
+| `/toolset/:id/comment` | 无问题 | BE 用 query `commentId`,FE 同名 |
+| `/toolset/:id/resource` | 无问题 | BE 用 query `toolsetResourceId`,FE 同名;BE 同步清 S3 对象 |
 
 ## 文档(Doc, admin)(3)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/doc/article` | ✅ | BE 用 query `articleId`,FE 同名 |
-| `/doc/category` | ✅ | BE 用 query `categoryId`,FE 同名 |
-| `/doc/tag` | ✅ | BE 用 query `tagId`,FE 同名 |
+| `/doc/article` | 无问题 | BE 用 query `articleId`,FE 同名 |
+| `/doc/category` | 无问题 | BE 用 query `categoryId`,FE 同名 |
+| `/doc/tag` | 无问题 | BE 用 query `tagId`,FE 同名 |
 
 ## 网站(admin)(2)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/website/:domain` | ✅ | BE 用 query `websiteId`,FE 同名(注意:domain 在 path 是为了人类可读,实际删除用 ID) |
-| `/website-tag` | ✅ | BE 用 query `tagId`,FE 同名 |
+| `/website/:domain` | 无问题 | BE 用 query `websiteId`,FE 同名(注意:domain 在 path 是为了人类可读,实际删除用 ID) |
+| `/website-tag` | 无问题 | BE 用 query `tagId`,FE 同名 |
 
 ## 更新日志(admin)(2)
 
 | 路径 | 状态 | 备注 |
 |---|---|---|
-| `/update/history` | ✅ | BE 用 query `updateLogId`,FE 同名 |
-| `/update/todo` | ✅ | BE 用 query `todoId`,FE 同名 |
+| `/update/history` | 无问题 | BE 用 query `updateLogId`,FE 同名 |
+| `/update/todo` | 无问题 | BE 用 query `todoId`,FE 同名 |
 
 ---
 

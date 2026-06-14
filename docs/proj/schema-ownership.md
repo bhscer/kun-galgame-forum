@@ -21,7 +21,7 @@
 
 ## 在 Go 代码里依赖 FK CASCADE 时的规则
 
-1. **DB FK CASCADE 由 PostgreSQL 直接执行**,Go 不需要在事务里手动删子行。但 GORM model 里同时 ☐ 用 association(`hasMany` / `belongsTo`)时,GORM 也会尝试操作 —— 这种 model 在 kungalgame 里几乎不存在(我们都用扁平 `xxx_id int` 字段),所以无冲突。
+1. **DB FK CASCADE 由 PostgreSQL 直接执行**,Go 不需要在事务里手动删子行。但 GORM model 里同时也用 association(`hasMany` / `belongsTo`)时,GORM 也会尝试操作 —— 这种 model 在 kungalgame 里几乎不存在(我们都用扁平 `xxx_id int` 字段),所以无冲突。
 
 2. **CASCADE 行为对依赖端 (denorm counter) 不可见**。例如 `galgame_website_comment.parent_id` 是 CASCADE,删 root 时 PG 自动删所有子评论。**但 `galgame_website.comment_count` 不会自动减** —— 这是 app 层 denorm,要手动 `AdjustCommentCount(-subtreeSize)`。已有先例:
    - `internal/galgame/service/comment_service.go:DeleteComment` 用 recursive CTE 算 subtreeSize

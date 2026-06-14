@@ -4,11 +4,11 @@
 >
 > 路由源:`apps/api/internal/app/router.go`
 
-## 图例
+## 图例 (状态列取值)
 
-- ✅ 已审计,FE/BE 对齐无问题
-- 🔧 已审计,**发现错位并修复**
-- ⏭️ 已审计,设计上有意保持当前行为(详见备注)
+- 无问题 — 已审计,FE/BE 对齐无问题
+- 已修复 — 已审计,**发现错位并修复**
+- 已跳过 — 已审计,设计上有意保持当前行为(详见备注)
 
 ## 统计
 
@@ -18,7 +18,7 @@
 
 > **复核轮次:** (1) 第一轮分模块审计 → 找到 13 项;
 > (2) 第二轮深度全量审计(每个 agent 无字数限制)→ 又找到 15 项;
-> (3) 第三轮专门复核所有 ⏭️ 标记,确认全部跳过项实际行为正确,只额外发现 1 处 callback 类型断言不准并修复。
+> (3) 第三轮专门复核所有「已跳过」标记,确认全部跳过项实际行为正确,只额外发现 1 处 callback 类型断言不准并修复。
 
 ---
 
@@ -26,191 +26,191 @@
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| POST | `/oauth/callback` | 🔧 | code+code_verifier 对齐;FE 类型断言清掉 BE 不返回的 `email`(email 由 OAuth `/oauth/userinfo` 单独获取) |
-| POST | `/logout` | ⏭️ | 无 body,BE 撤销 session 并清 cookie。FE 暂未调用此端点(本地清 store 即可) |
-| POST | `/user/check-in` | ✅ | |
-| PUT | `/user/bio` | ⏭️ | OAuth 代理 → `PATCH /auth/me { bio }`,bio max=107 双端对齐 |
-| PUT | `/user/username` | ⏭️ | OAuth 代理 → `PATCH /auth/me { name }`(handler 翻译 username→name),max=17 + `isValidName` regex `{1,17}` 对齐 |
-| POST | `/user/avatar` | ⏭️ | multipart 原样转发到 OAuth `/auth/me/avatar`,field 名 `file`,响应 `{hash,url,variant_urls,...}` 来自 OAuth |
+| POST | `/oauth/callback` | 已修复 | code+code_verifier 对齐;FE 类型断言清掉 BE 不返回的 `email`(email 由 OAuth `/oauth/userinfo` 单独获取) |
+| POST | `/logout` | 已跳过 | 无 body,BE 撤销 session 并清 cookie。FE 暂未调用此端点(本地清 store 即可) |
+| POST | `/user/check-in` | 无问题 | |
+| PUT | `/user/bio` | 已跳过 | OAuth 代理 → `PATCH /auth/me { bio }`,bio max=107 双端对齐 |
+| PUT | `/user/username` | 已跳过 | OAuth 代理 → `PATCH /auth/me { name }`(handler 翻译 username→name),max=17 + `isValidName` regex `{1,17}` 对齐 |
+| POST | `/user/avatar` | 已跳过 | multipart 原样转发到 OAuth `/auth/me/avatar`,field 名 `file`,响应 `{hash,url,variant_urls,...}` 来自 OAuth |
 
 ## 消息 / 聊天
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| DELETE | `/message/:id` | 🔧 | 删除多余 `?messageId=` query |
-| PUT | `/message/system/read` | ✅ | |
-| PUT | `/message/admin/read` | ✅ | |
-| POST | `/message/chat/send` | ✅ | |
-| POST | `/message/chat/recall` | 🔧 | FE 之前完全没接,补上 context-menu 触发 |
+| DELETE | `/message/:id` | 已修复 | 删除多余 `?messageId=` query |
+| PUT | `/message/system/read` | 无问题 | |
+| PUT | `/message/admin/read` | 无问题 | |
+| POST | `/message/chat/send` | 无问题 | |
+| POST | `/message/chat/recall` | 已修复 | FE 之前完全没接,补上 context-menu 触发 |
 
 ## 图片上传
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| POST | `/image/topic` | ✅ | multipart,key `image` |
-| POST | `/image/galgame` | ✅ | multipart,preset `galgame_banner` |
+| POST | `/image/topic` | 无问题 | multipart,key `image` |
+| POST | `/image/galgame` | 无问题 | multipart,preset `galgame_banner` |
 
 ## 举报
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| POST | `/report/submit` | 🔧 | `reason.max` 1000→1007 对齐 FE |
+| POST | `/report/submit` | 已修复 | `reason.max` 1000→1007 对齐 FE |
 
 ## 话题 (Topic)
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| POST | `/topic` | ✅ | |
-| PUT | `/topic/:tid` | ✅ | |
-| PUT | `/topic/:tid/like` | 🔧 | 清死 body |
-| PUT | `/topic/:tid/dislike` | 🔧 | 清死 body |
-| PUT | `/topic/:tid/upvote` | 🔧 | 清死 body |
-| PUT | `/topic/:tid/favorite` | 🔧 | 清死 body |
-| PUT | `/topic/:tid/hide` | 🔧 | 清死 body |
-| PUT | `/topic/:tid/best-answer` | ✅ | |
-| POST | `/topic/:tid/reply` | ✅ | |
-| PUT | `/topic/:tid/reply` | 🔧 | BE 加 content+targets 全空兜底 |
-| DELETE | `/topic/:tid/reply` | ✅ | |
-| PUT | `/topic/:tid/reply/like` | ✅ | |
-| PUT | `/topic/:tid/reply/dislike` | ✅ | |
-| PUT | `/topic/:tid/reply/pin` | ✅ | |
-| POST | `/topic/:tid/comment` | ✅ | |
-| PUT | `/topic/:tid/comment/like` | 🔧 | URL path 改用 `comment.topicId` |
-| DELETE | `/topic/:tid/comment` | ✅ | |
-| POST | `/topic/:tid/poll` | ✅ | |
-| PUT | `/topic/:tid/poll` | ✅ | |
-| DELETE | `/topic/:tid/poll` | ✅ | |
-| POST | `/topic/:tid/poll/vote` | ✅ | |
+| POST | `/topic` | 无问题 | |
+| PUT | `/topic/:tid` | 无问题 | |
+| PUT | `/topic/:tid/like` | 已修复 | 清死 body |
+| PUT | `/topic/:tid/dislike` | 已修复 | 清死 body |
+| PUT | `/topic/:tid/upvote` | 已修复 | 清死 body |
+| PUT | `/topic/:tid/favorite` | 已修复 | 清死 body |
+| PUT | `/topic/:tid/hide` | 已修复 | 清死 body |
+| PUT | `/topic/:tid/best-answer` | 无问题 | |
+| POST | `/topic/:tid/reply` | 无问题 | |
+| PUT | `/topic/:tid/reply` | 已修复 | BE 加 content+targets 全空兜底 |
+| DELETE | `/topic/:tid/reply` | 无问题 | |
+| PUT | `/topic/:tid/reply/like` | 无问题 | |
+| PUT | `/topic/:tid/reply/dislike` | 无问题 | |
+| PUT | `/topic/:tid/reply/pin` | 无问题 | |
+| POST | `/topic/:tid/comment` | 无问题 | |
+| PUT | `/topic/:tid/comment/like` | 已修复 | URL path 改用 `comment.topicId` |
+| DELETE | `/topic/:tid/comment` | 无问题 | |
+| POST | `/topic/:tid/poll` | 无问题 | |
+| PUT | `/topic/:tid/poll` | 无问题 | |
+| DELETE | `/topic/:tid/poll` | 无问题 | |
+| POST | `/topic/:tid/poll/vote` | 无问题 | |
 
 ## 网站 (Website)
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| POST | `/website` | 🔧 | BE 加 `Domain[]` + `CreateTime` 字段;FE 字段命名对齐 |
-| PUT | `/website/:domain` | 🔧 | 同上 |
-| DELETE | `/website/:domain` | ✅ | |
-| PUT | `/website/:domain/like` | ✅ | |
-| PUT | `/website/:domain/favorite` | ✅ | |
-| POST | `/website/:domain/comment` | ✅ | |
-| DELETE | `/website/:domain/comment` | 🔧 | 删除死的 `updateCommentSchema` |
-| PUT | `/website-category` | ✅ | |
-| POST | `/website-tag` | 🔧 | 新增 `CreateWebsiteTagRequest` DTO + validate |
-| PUT | `/website-tag` | ✅ | |
-| DELETE | `/website-tag` | ✅ | |
+| POST | `/website` | 已修复 | BE 加 `Domain[]` + `CreateTime` 字段;FE 字段命名对齐 |
+| PUT | `/website/:domain` | 已修复 | 同上 |
+| DELETE | `/website/:domain` | 无问题 | |
+| PUT | `/website/:domain/like` | 无问题 | |
+| PUT | `/website/:domain/favorite` | 无问题 | |
+| POST | `/website/:domain/comment` | 无问题 | |
+| DELETE | `/website/:domain/comment` | 已修复 | 删除死的 `updateCommentSchema` |
+| PUT | `/website-category` | 无问题 | |
+| POST | `/website-tag` | 已修复 | 新增 `CreateWebsiteTagRequest` DTO + validate |
+| PUT | `/website-tag` | 无问题 | |
+| DELETE | `/website-tag` | 无问题 | |
 
 ## Galgame 核心
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| PUT | `/galgame/:gid/like` | 🔧 | 清死 body |
-| PUT | `/galgame/:gid/favorite` | 🔧 | 清死 body |
-| POST | `/galgame/:gid/comment` | 🔧 | content max 1007→5000;targetUserId 改可选;补 parentCommentId |
-| PUT | `/galgame/:gid/comment` | ✅ | |
-| DELETE | `/galgame/:gid/comment` | ✅ | |
-| PUT | `/galgame/:gid/comment/like` | 🔧 | FE `galgameCommentId` → `commentId` |
-| POST | `/galgame/:gid/resource` | ✅ | |
-| PUT | `/galgame/:gid/resource` | ✅ | |
-| DELETE | `/galgame/:gid/resource` | ✅ | |
-| PUT | `/galgame/:gid/resource/like` | ✅ | |
-| PUT | `/galgame/:gid/resource/valid` | ✅ | |
-| PUT | `/galgame/:gid/resource/expired` | ✅ | |
+| PUT | `/galgame/:gid/like` | 已修复 | 清死 body |
+| PUT | `/galgame/:gid/favorite` | 已修复 | 清死 body |
+| POST | `/galgame/:gid/comment` | 已修复 | content max 1007→5000;targetUserId 改可选;补 parentCommentId |
+| PUT | `/galgame/:gid/comment` | 无问题 | |
+| DELETE | `/galgame/:gid/comment` | 无问题 | |
+| PUT | `/galgame/:gid/comment/like` | 已修复 | FE `galgameCommentId` → `commentId` |
+| POST | `/galgame/:gid/resource` | 无问题 | |
+| PUT | `/galgame/:gid/resource` | 无问题 | |
+| DELETE | `/galgame/:gid/resource` | 无问题 | |
+| PUT | `/galgame/:gid/resource/like` | 无问题 | |
+| PUT | `/galgame/:gid/resource/valid` | 无问题 | |
+| PUT | `/galgame/:gid/resource/expired` | 无问题 | |
 
 ## Galgame 评分
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| POST | `/galgame-rating` | ✅ | |
-| PUT | `/galgame-rating/:id` | ✅ | |
-| DELETE | `/galgame-rating/:id` | ✅ | |
-| PUT | `/galgame-rating/:id/like` | ✅ | |
-| POST | `/galgame-rating/:id/comment` | 🔧 | content max 1007→1314 |
-| PUT | `/galgame-rating/:id/comment` | ✅ | |
-| DELETE | `/galgame-rating/:id/comment` | ✅ | |
+| POST | `/galgame-rating` | 无问题 | |
+| PUT | `/galgame-rating/:id` | 无问题 | |
+| DELETE | `/galgame-rating/:id` | 无问题 | |
+| PUT | `/galgame-rating/:id/like` | 无问题 | |
+| POST | `/galgame-rating/:id/comment` | 已修复 | content max 1007→1314 |
+| PUT | `/galgame-rating/:id/comment` | 无问题 | |
+| DELETE | `/galgame-rating/:id/comment` | 无问题 | |
 
 ## Galgame 提交 / Wiki 代理
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| POST | `/galgame/submit` | ⏭️ | raw-body 透传到 wiki;`tag_ids/official_ids/engine_ids/series_id` FE 故意省略(`Galgame.vue:201-203` 跟 `07-submission.md` 明示审核后再用 PR 补) |
-| POST | `/galgame/:gid/claim` | ✅ | |
-| DELETE | `/galgame/:gid` | ✅ | |
-| PUT | `/galgame/messages/read-state` | ✅ | |
-| POST | `/galgame` (proxy) | ✅ | wiki 写 |
-| PUT | `/galgame/:gid` (proxy) | ✅ | wiki 写 |
-| PUT | `/galgame/:gid/prs/:id/merge` | ✅ | |
-| POST | `/galgame/:gid/revert` | ✅ | |
-| POST | `/galgame/:gid/prs` | ✅ | |
-| PUT | `/galgame/:gid/prs/:id/decline` | ✅ | |
-| POST | `/galgame/:gid/links` | ✅ | |
-| DELETE | `/galgame/:gid/links` | ✅ | |
-| POST | `/galgame/:gid/aliases` | ✅ | |
-| DELETE | `/galgame/:gid/aliases` | ✅ | |
-| DELETE | `/galgame/:gid/contributors/:id` | ✅ | |
-| POST | `/galgame-tag` | ✅ | |
-| PUT | `/galgame-tag` | 🔧 | BE proxy 翻译 `tagId`→`tag_id` |
-| DELETE | `/galgame-tag/:id` | ✅ | |
-| POST | `/galgame-official` | ✅ | |
-| PUT | `/galgame-official` | 🔧 | BE proxy 翻译 `officialId`→`official_id` |
-| DELETE | `/galgame-official/:id` | ✅ | |
-| POST | `/galgame-engine` | ✅ | |
-| PUT | `/galgame-engine` | 🔧 | BE proxy 翻译 `engineId`→`engine_id` |
-| DELETE | `/galgame-engine/:id` | ✅ | |
-| POST | `/galgame-{tag,official,engine,series}/:id/revert` | ✅ | revert 系列 |
-| POST | `/galgame-series` | ✅ | FE Container.vue 手工转 `galgame_ids` |
-| POST | `/galgame-series/modal` | ✅ | |
-| PUT | `/galgame-series/:id` | ✅ | FE Detail.vue 手工转 `galgame_ids` |
-| DELETE | `/galgame-series/:id` | ✅ | |
+| POST | `/galgame/submit` | 已跳过 | raw-body 透传到 wiki;`tag_ids/official_ids/engine_ids/series_id` FE 故意省略(`Galgame.vue:201-203` 跟 `07-submission.md` 明示审核后再用 PR 补) |
+| POST | `/galgame/:gid/claim` | 无问题 | |
+| DELETE | `/galgame/:gid` | 无问题 | |
+| PUT | `/galgame/messages/read-state` | 无问题 | |
+| POST | `/galgame` (proxy) | 无问题 | wiki 写 |
+| PUT | `/galgame/:gid` (proxy) | 无问题 | wiki 写 |
+| PUT | `/galgame/:gid/prs/:id/merge` | 无问题 | |
+| POST | `/galgame/:gid/revert` | 无问题 | |
+| POST | `/galgame/:gid/prs` | 无问题 | |
+| PUT | `/galgame/:gid/prs/:id/decline` | 无问题 | |
+| POST | `/galgame/:gid/links` | 无问题 | |
+| DELETE | `/galgame/:gid/links` | 无问题 | |
+| POST | `/galgame/:gid/aliases` | 无问题 | |
+| DELETE | `/galgame/:gid/aliases` | 无问题 | |
+| DELETE | `/galgame/:gid/contributors/:id` | 无问题 | |
+| POST | `/galgame-tag` | 无问题 | |
+| PUT | `/galgame-tag` | 已修复 | BE proxy 翻译 `tagId`→`tag_id` |
+| DELETE | `/galgame-tag/:id` | 无问题 | |
+| POST | `/galgame-official` | 无问题 | |
+| PUT | `/galgame-official` | 已修复 | BE proxy 翻译 `officialId`→`official_id` |
+| DELETE | `/galgame-official/:id` | 无问题 | |
+| POST | `/galgame-engine` | 无问题 | |
+| PUT | `/galgame-engine` | 已修复 | BE proxy 翻译 `engineId`→`engine_id` |
+| DELETE | `/galgame-engine/:id` | 无问题 | |
+| POST | `/galgame-{tag,official,engine,series}/:id/revert` | 无问题 | revert 系列 |
+| POST | `/galgame-series` | 无问题 | FE Container.vue 手工转 `galgame_ids` |
+| POST | `/galgame-series/modal` | 无问题 | |
+| PUT | `/galgame-series/:id` | 无问题 | FE Detail.vue 手工转 `galgame_ids` |
+| DELETE | `/galgame-series/:id` | 无问题 | |
 
 ## 工具集 (Toolset)
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| POST | `/toolset` | ✅ | |
-| PUT | `/toolset/:id` | ✅ | |
-| DELETE | `/toolset/:id` | ✅ | |
-| PUT | `/toolset/:id/practicality` | 🔧 | FE 删多余 `toolsetId` 字段 |
-| POST | `/toolset/:id/comment` | ✅ | |
-| PUT | `/toolset/:id/comment` | ✅ | |
-| DELETE | `/toolset/:id/comment` | ✅ | |
-| POST | `/toolset/:id/resource` | 🔧 | 加 `type` + `content=key` (s3 模式);删 `salt` |
-| PUT | `/toolset/:id/resource` | 🔧 | BE 改返回 resource 而非 OKMessage;schema 加 `type` superRefine |
-| DELETE | `/toolset/:id/resource` | ✅ | |
-| POST | `/toolset/:id/upload/small` | 🔧 | 补 `contentType`;响应 `presignedUrl` |
-| POST | `/toolset/:id/upload/large` | 🔧 | 补 `contentType`;响应 `parts/presignedUrl` |
-| POST | `/toolset/:id/upload/complete` | 🔧 | parts 字段 camelCase |
-| POST | `/toolset/:id/upload/abort` | 🔧 | 移除多余 `uploadId` |
+| POST | `/toolset` | 无问题 | |
+| PUT | `/toolset/:id` | 无问题 | |
+| DELETE | `/toolset/:id` | 无问题 | |
+| PUT | `/toolset/:id/practicality` | 已修复 | FE 删多余 `toolsetId` 字段 |
+| POST | `/toolset/:id/comment` | 无问题 | |
+| PUT | `/toolset/:id/comment` | 无问题 | |
+| DELETE | `/toolset/:id/comment` | 无问题 | |
+| POST | `/toolset/:id/resource` | 已修复 | 加 `type` + `content=key` (s3 模式);删 `salt` |
+| PUT | `/toolset/:id/resource` | 已修复 | BE 改返回 resource 而非 OKMessage;schema 加 `type` superRefine |
+| DELETE | `/toolset/:id/resource` | 无问题 | |
+| POST | `/toolset/:id/upload/small` | 已修复 | 补 `contentType`;响应 `presignedUrl` |
+| POST | `/toolset/:id/upload/large` | 已修复 | 补 `contentType`;响应 `parts/presignedUrl` |
+| POST | `/toolset/:id/upload/complete` | 已修复 | parts 字段 camelCase |
+| POST | `/toolset/:id/upload/abort` | 已修复 | 移除多余 `uploadId` |
 
 ## 管理员
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| PUT | `/admin/setting/register` | ✅ | |
-| PUT | `/admin/galgame/:gid/status` | ✅ | wiki proxy |
+| PUT | `/admin/setting/register` | 无问题 | |
+| PUT | `/admin/galgame/:gid/status` | 无问题 | wiki proxy |
 
 ## 文档 (Doc, admin)
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| POST | `/doc/article` | 🔧 | model + DTO 全量 JSON tag 改 camelCase |
-| PUT | `/doc/article` | 🔧 | 同上 |
-| DELETE | `/doc/article` | ✅ | |
-| POST | `/doc/category` | 🔧 | 新增 `CreateCategoryRequest` DTO + validate |
-| PUT | `/doc/category` | ✅ | |
-| DELETE | `/doc/category` | ✅ | |
-| POST | `/doc/tag` | 🔧 | 新增 `CreateTagRequest` DTO + validate |
-| PUT | `/doc/tag` | ✅ | |
-| DELETE | `/doc/tag` | ✅ | |
+| POST | `/doc/article` | 已修复 | model + DTO 全量 JSON tag 改 camelCase |
+| PUT | `/doc/article` | 已修复 | 同上 |
+| DELETE | `/doc/article` | 无问题 | |
+| POST | `/doc/category` | 已修复 | 新增 `CreateCategoryRequest` DTO + validate |
+| PUT | `/doc/category` | 无问题 | |
+| DELETE | `/doc/category` | 无问题 | |
+| POST | `/doc/tag` | 已修复 | 新增 `CreateTagRequest` DTO + validate |
+| PUT | `/doc/tag` | 无问题 | |
+| DELETE | `/doc/tag` | 无问题 | |
 
 ## 更新日志 (admin)
 
 | 方法 | 路径 | 状态 | 备注 |
 |---|---|---|---|
-| POST | `/update/history` | 🔧 | FE 补 `content_ja_jp`/`content_zh_tw` |
-| PUT | `/update/history` | ✅ | (沿用 create schema) |
-| DELETE | `/update/history` | ✅ | |
-| POST | `/update/todo` | 🔧 | 同 update/history |
-| PUT | `/update/todo` | ✅ | |
-| DELETE | `/update/todo` | ✅ | |
+| POST | `/update/history` | 已修复 | FE 补 `content_ja_jp`/`content_zh_tw` |
+| PUT | `/update/history` | 无问题 | (沿用 create schema) |
+| DELETE | `/update/history` | 无问题 | |
+| POST | `/update/todo` | 已修复 | 同 update/history |
+| PUT | `/update/todo` | 无问题 | |
+| DELETE | `/update/todo` | 无问题 | |
 
 ---
 
@@ -255,7 +255,7 @@
 
 ## 跳过项复核结果(第三轮)
 
-复核确认下列 5 个 ⏭️ 标记的端点实际行为完全符合标注,没有意外副作用:
+复核确认下列 5 个「已跳过」标记的端点实际行为完全符合标注,没有意外副作用:
 
 | 端点 | 验证要点 |
 |---|---|
@@ -265,11 +265,11 @@
 | `POST /user/avatar` | multipart 原 body 透传,multipart key `file` 跟 OAuth 端约定一致;响应 `{hash,url,variant_urls,...}` 由 OAuth 提供,FE 用 `result.url` 读取 |
 | `POST /galgame/submit` | raw-body 透传到 wiki,taxonomy 字段缺失是文档化的设计决策(注释 + `07-submission.md` 双重确认),wiki 端也是可选字段 |
 
-副作用检查:
-- ❌ OAuth 代理无静默失败路径(全部明确返回 `ErrAuthExpired`)
-- ❌ multipart 上传 `c.Body()` 单次读取,无重复缓存
-- ❌ callback handler 明确禁止 log 请求体(code / code_verifier 是短期凭证)
-- ❌ logout 清的 cookie name 跟设置时一致,无残留
+副作用检查(均确认无问题):
+- 无隐患:OAuth 代理无静默失败路径(全部明确返回 `ErrAuthExpired`)
+- 无隐患:multipart 上传 `c.Body()` 单次读取,无重复缓存
+- 无隐患:callback handler 明确禁止 log 请求体(code / code_verifier 是短期凭证)
+- 无隐患:logout 清的 cookie name 跟设置时一致,无残留
 
 ---
 

@@ -40,11 +40,11 @@
 
 | 状态 | 页面数 | 代表 |
 |---|---|---|
-| ✅ 完整 SEO + JSON-LD | 5 | `/galgame/:gid`, `/topic/:id`, `/galgame-rating/:id`, `/toolset/:id`, `/website/:domain` |
-| ✅ 完整 SEO（无 JSON-LD） | 52 | 其余所有列表 / 详情 / 导航 / 公开页 |
-| 🚫 始终 noindex | 13 | OAuth callback / admin setting/submissions/user / edit-rewrite / 7 个 user 子标签 / sexual tag |
-| ⚙ NSFW / 404 条件 noindex | 12 | 所有公开详情页（详见 §2）|
-| ⏸ 无 SEO 调用 | 3 | category/ranking/update wrapper（子页面已处理） |
+| 完整 SEO + JSON-LD | 5 | `/galgame/:gid`, `/topic/:id`, `/galgame-rating/:id`, `/toolset/:id`, `/website/:domain` |
+| 完整 SEO（无 JSON-LD） | 52 | 其余所有列表 / 详情 / 导航 / 公开页 |
+| 始终 noindex | 13 | OAuth callback / admin setting/submissions/user / edit-rewrite / 7 个 user 子标签 / sexual tag |
+| NSFW / 404 条件 noindex | 12 | 所有公开详情页（详见 §2）|
+| 无 SEO 调用 | 3 | category/ranking/update wrapper（子页面已处理） |
 
 ---
 
@@ -101,27 +101,27 @@
 
 | 路径 | Title | Description（关键词主体） | 启用 SEO |
 |---|---|---|:---:|
-| `/`（`index.vue`） | `主页` | `kungal.description` | ✅ |
-| `/galgame` | `Galgame 资源 wiki` | Galgame 下载/Wiki/汉化/Windows/macOS/PC/Android/Linux 等 | ✅ |
-| `/galgame-resource` | `最新 Galgame 资源下载` | PC/Windows/手机/模拟器/KRKR/Tyranor 等 | ✅ |
-| `/galgame-rating` | `Galgame 评分列表` | 评分 / 短评 / 剧透等级 / 游玩状态 / 排序维度 | ✅ |
-| `/galgame-series` | `Galgame 系列` | 美少女万华镜/灰色/近月少女的礼仪/巧克力与香子兰/9-nine 等 | ✅ |
-| `/galgame-official` | `Galgame 会社 / 制作商 Wiki` | アリスソフト / Frontwing / HOOKSOFT / minori / CIRCUS / ゆずソフト 等 | ✅ |
-| `/galgame-engine` | `Galgame 引擎 Wiki` | 引擎列表 + 关联 Galgame | ✅ |
-| `/galgame-tag` | `Galgame 标签 Wiki` | 青梅竹马/幼驯染/高中生/萝莉/白毛 等 | ✅ |
-| `/website` | `Galgame 网站 Wiki` | 资源/社区/论坛/资讯/Wiki/Telegram 等仅免费、严禁付费 | ✅ |
-| `/toolset` | `Galgame 工具资源下载` | 模拟器 / 解包 / 补丁 / 汉化工具 | ✅ |
-| `/topic` | `话题列表` | Galgame 交流 / 资源 / 补丁 / 逆向 / 汉化 / 新作 / 技术 | ✅ |
-| `/resource` | `资源和求助话题列表` | Galgame 下载 + 技术求助话题 | ✅ |
-| `/doc` | `Galgame 帮助文档` | 发布 / 交流 / 资源 / 联系我们 | ✅ |
-| `/activity` | `动态时间线` | 全站话题、回复、Galgame 与社区动态 | ✅ |
-| `/activity/category` | `站内动态列表` | 分类动态 | ✅ |
-| `/ranking/galgame` | from `rankingPageMetaData['galgame']` | 同上 | ✅ |
-| `/ranking/topic` | from `rankingPageMetaData['topic']` | 同上 | ✅ |
-| `/ranking/user` | from `rankingPageMetaData['user']` | 同上 | ✅ |
-| `/search` | `搜索 Galgame` | 搜索 Galgame / 资源 / 话题 / 用户 / 回复 / 评论 | ✅ |
-| `/rss` | `Galgame 和话题订阅` | RSS 订阅入口 | ✅ |
-| `/friend-links` | `友情链接网站` | 友链列表 + `articleAuthor` 列友链 URL | ✅ |
+| `/`（`index.vue`） | `主页` | `kungal.description` | 是 |
+| `/galgame` | `Galgame 资源 wiki` | Galgame 下载/Wiki/汉化/Windows/macOS/PC/Android/Linux 等 | 是 |
+| `/galgame-resource` | `最新 Galgame 资源下载` | PC/Windows/手机/模拟器/KRKR/Tyranor 等 | 是 |
+| `/galgame-rating` | `Galgame 评分列表` | 评分 / 短评 / 剧透等级 / 游玩状态 / 排序维度 | 是 |
+| `/galgame-series` | `Galgame 系列` | 美少女万华镜/灰色/近月少女的礼仪/巧克力与香子兰/9-nine 等 | 是 |
+| `/galgame-official` | `Galgame 会社 / 制作商 Wiki` | アリスソフト / Frontwing / HOOKSOFT / minori / CIRCUS / ゆずソフト 等 | 是 |
+| `/galgame-engine` | `Galgame 引擎 Wiki` | 引擎列表 + 关联 Galgame | 是 |
+| `/galgame-tag` | `Galgame 标签 Wiki` | 青梅竹马/幼驯染/高中生/萝莉/白毛 等 | 是 |
+| `/website` | `Galgame 网站 Wiki` | 资源/社区/论坛/资讯/Wiki/Telegram 等仅免费、严禁付费 | 是 |
+| `/toolset` | `Galgame 工具资源下载` | 模拟器 / 解包 / 补丁 / 汉化工具 | 是 |
+| `/topic` | `话题列表` | Galgame 交流 / 资源 / 补丁 / 逆向 / 汉化 / 新作 / 技术 | 是 |
+| `/resource` | `资源和求助话题列表` | Galgame 下载 + 技术求助话题 | 是 |
+| `/doc` | `Galgame 帮助文档` | 发布 / 交流 / 资源 / 联系我们 | 是 |
+| `/activity` | `动态时间线` | 全站话题、回复、Galgame 与社区动态 | 是 |
+| `/activity/category` | `站内动态列表` | 分类动态 | 是 |
+| `/ranking/galgame` | from `rankingPageMetaData['galgame']` | 同上 | 是 |
+| `/ranking/topic` | from `rankingPageMetaData['topic']` | 同上 | 是 |
+| `/ranking/user` | from `rankingPageMetaData['user']` | 同上 | 是 |
+| `/search` | `搜索 Galgame` | 搜索 Galgame / 资源 / 话题 / 用户 / 回复 / 评论 | 是 |
+| `/rss` | `Galgame 和话题订阅` | RSS 订阅入口 | 是 |
+| `/friend-links` | `友情链接网站` | 友链列表 + `articleAuthor` 列友链 URL | 是 |
 
 ---
 
@@ -136,13 +136,13 @@
 
 | 分支 | 行为 |
 |---|---|
-| `data === 'banned'` | `useHead({ meta: [robots:noindex,nofollow] })` + `useKunSeoMeta({ title: '这个 Galgame 已被封禁' })` ⚠ |
+| `data === 'banned'` | `useHead({ meta: [robots:noindex,nofollow] })` + `useKunSeoMeta({ title: '这个 Galgame 已被封禁' })`（注：见下方说明） |
 | `contentLimit === 'nsfw'` + 匿名 + SFW cookie | `useKunDisableSeo('')`（空 title） + 模板显示 "确认显示" 拦截卡 |
 | `contentLimit === 'nsfw'` + 登录 或 NSFW cookie | `useKunDisableSeo(title)`（保留 tab title） + 直接渲染 |
 | SFW 正常 | `useKunSeoMeta({ title, description, ogImage, articleAuthor/PublishedTime/ModifiedTime })` + **JSON-LD `VideoGame`**（含 `publisher` 来自 official、`isPartOf: CreativeWorkSeries`、`genre/keywords` 来自 tag、`interactionStatistic` 来自 like/view、`author/contributor`） |
 | 数据缺失 | `useKunDisableSeo('请求 Galgame 错误')` |
 
-⚠ `banned` 分支使用 `useHead` 手设 robots 而非 `useKunDisableSeo`，是历史路径。
+注意：`banned` 分支使用 `useHead` 手设 robots 而非 `useKunDisableSeo`，是历史路径。
 新加分支统一用 `useKunDisableSeo`。
 
 ### 2.2 `/topic/:id` — `pages/topic/[id]/index.vue`
@@ -253,12 +253,12 @@
 
 | 路径 | Title 来源 | Description 来源 | 启用 SEO |
 |---|---|---|:---:|
-| `/category/:name` | `KUN_TOPIC_CATEGORY[name]` | `KUN_CATEGORY_DESCRIPTION_MAP[name]` | ✅ |
-| `/section/:section` | `KUN_TOPIC_CATEGORY[section[0]] - KUN_TOPIC_SECTION[section]` | `KUN_TOPIC_SECTION_DESCRIPTION_MAP[section.toLowerCase()]` | ✅ |
-| `/website-category/:name` | `data.label` | `data.description` | ✅ 正常 / `useKunDisableSeo('未找到该网站分类')` 失败 |
-| `/website-tag/:name` | `data.name` | `data.description` | ✅ 正常 / `useKunDisableSeo('未找到该网站标签')` 失败 |
+| `/category/:name` | `KUN_TOPIC_CATEGORY[name]` | `KUN_CATEGORY_DESCRIPTION_MAP[name]` | 是 |
+| `/section/:section` | `KUN_TOPIC_CATEGORY[section[0]] - KUN_TOPIC_SECTION[section]` | `KUN_TOPIC_SECTION_DESCRIPTION_MAP[section.toLowerCase()]` | 是 |
+| `/website-category/:name` | `data.label` | `data.description` | 正常 / `useKunDisableSeo('未找到该网站分类')` 失败 |
+| `/website-tag/:name` | `data.name` | `data.description` | 正常 / `useKunDisableSeo('未找到该网站标签')` 失败 |
 
-⚠ **`/category/:name` 与 `/section/:section` 已知小问题**：当 URL 参数命中不到
+注意：**`/category/:name` 与 `/section/:section` 已知小问题**：当 URL 参数命中不到
 常量 map 时，title 会出现 `"undefined - undefined"` 字面值。属低优先级，因为
 正常路径下用户不会到这个 URL。如要修：包一层 `if (KUN_TOPIC_CATEGORY[name]) {
 useKunSeoMeta(...) } else { useKunDisableSeo('未找到该分类') }`。
@@ -272,7 +272,7 @@ useKunSeoMeta(...) } else { useKunDisableSeo('未找到该分类') }`。
 
 | 路径 | 标题（仅做 tab） | 备注 |
 |---|---|---|
-| `/user/:id/info` | `${user.name} 的主页` ⚠ | **唯一例外**：profile 主页是值得索引的（用户名 + bio），用 `useKunSeoMeta`。同时设置 `canonical` 链接收敛 SEO 信号 |
+| `/user/:id/info` | `${user.name} 的主页`（例外） | **唯一例外**：profile 主页是值得索引的（用户名 + bio），用 `useKunSeoMeta`。同时设置 `canonical` 链接收敛 SEO 信号 |
 | `/user/:id/topic/[type]` | 动态 | `useKunDisableSeo` |
 | `/user/:id/reply/[type]` | 动态 | `useKunDisableSeo` |
 | `/user/:id/comment/[type]` | 动态 | `useKunDisableSeo` |
@@ -373,8 +373,8 @@ useKunSeoMeta(...) } else { useKunDisableSeo('未找到该分类') }`。
 **但 `robots: noindex` 不会被覆盖**（因为它由 `useHead({ meta })` 设置，而
  `useKunSeoMeta` 操作的是 `useSeoMeta` 的 OG 系列）。这意味着如果两个都调用：
 
-- 爬虫看到 `robots: noindex` → 不索引 ✓（safe）
-- 但 `<title>` / `<meta description>` / `og:image` 仍正常显示 ✗（leak）
+- 爬虫看到 `robots: noindex` → 不索引（safe）
+- 但 `<title>` / `<meta description>` / `og:image` 仍正常显示（leak）
 
 部分爬虫（非 Google）可能忽略 robots 仍抓 meta。**所以一定要 if/else 分支**，
 不能让两个 helper 同时生效。
