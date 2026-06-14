@@ -55,6 +55,17 @@ type ResourceStatusRequest struct {
 	GalgameResourceID int `json:"galgameResourceId" validate:"required,min=1"`
 }
 
+// ReportExpireResult is the 200 body of PUT /resource/expired. `verdict` is the
+// link checker's resource-level result ("alive" / "dead" / "unknown", or "" when
+// the checker is unconfigured or the resource has no links). `marked` is whether
+// the resource was actually flipped to expired — false ONLY when the link was
+// verified still reachable ("alive"). The FE drives its check → mark status UI
+// off these so "still alive" reads as a friendly outcome, not a failure.
+type ReportExpireResult struct {
+	Verdict string `json:"verdict"`
+	Marked  bool   `json:"marked"`
+}
+
 // ──────────────────────────────────────────
 // Responses
 // ──────────────────────────────────────────

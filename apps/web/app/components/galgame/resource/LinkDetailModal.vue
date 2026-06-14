@@ -133,40 +133,13 @@ const fetchDetail = async () => {
 // to drive the button loading state directly off the returned promise.
 defineExpose({ prefetch: fetchDetail })
 
-// IMPORTANT: every kunFetch call below runs AFTER an `await` on the
-// confirm alert (the user might sit on the dialog for many seconds),
-// which loses the active Nuxt app context. Without runWithContext the
-// `useRuntimeConfig` at the top of kunFetch hits `$nuxt of null`,
-// kunFetch's catch returns null, the `if (result)` branch is skipped,
-// and the button silently does nothing — exactly the "似乎失效" symptom.
-const handleReportExpire = async () => {
-  if (!currentUserId) {
-    useAuthModal().open()
-    return
-  }
-  const res = await useComponentMessageStore().alert(
-    '您确定报告资源链接失效吗？',
-    '这将通知资源发布者链接失效, 并将该链接标记为失效。若 17 天内资源发布者没有更换有效链接, 该资源链接将会被删除。恶意报告失效将会被处罚。'
-  )
-  if (!res) return
-
-  isFetching.value = true
-  const result = await nuxtApp.runWithContext(() =>
-    kunFetch(`/galgame/${props.resource.galgameId}/resource/expired`, {
-      method: 'PUT',
-      body: { galgameResourceId: props.resource.id }
-    })
-  )
-  isFetching.value = false
-
-  if (result) {
-    nuxtApp.runWithContext(() => {
-      useMessage(10547, 'success')
-      props.refresh()
-      open.value = false
-    })
-  }
-}
+// "报告失效" — delegated to useReportResourceExpired, which owns auth +
+// confirm + the gated check→mark flow (and the runWithContext dance across the
+// alert await) and exposes a status for the inline checklist below the button.
+// We keep the modal OPEN on success so the user actually sees the result.
+const { status: reportStatus, report: reportExpire } = useReportResourceExpired()
+const handleReportExpire = () =>
+  reportExpire(props.resource.galgameId, props.resource.id, () => props.refresh())
 
 const handleDelete = async () => {
   const res = await useComponentMessageStore().alert(
@@ -401,13 +374,16 @@ const handleEditDone = () => {
               v-if="!isOwner && !isExpired"
               variant="light"
               color="warning"
-              :loading="isFetching"
+              :loading="reportStatus === 'checking'"
+              :disabled="reportStatus === 'checking'"
               @click="handleReportExpire"
             >
               <KunIcon name="lucide:triangle-alert" />
               报告失效
             </KunButton>
           </div>
+
+          <GalgameResourceExpireStatus :status="reportStatus" />
 
           <div class="flex flex-wrap items-center gap-1">
             <KunButton

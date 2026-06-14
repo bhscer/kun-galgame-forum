@@ -417,13 +417,13 @@ func (s *ResourceService) MarkValid(userID int, resourceID int) *errors.AppError
 	return nil
 }
 
-func (s *ResourceService) MarkExpired(ctx context.Context, userID int, resourceID int) *errors.AppError {
+func (s *ResourceService) MarkExpired(ctx context.Context, userID int, resourceID int) (*dto.ReportExpireResult, *errors.AppError) {
 	row, ok := s.resourceRepo.FindByID(resourceID)
 	if !ok {
-		return errors.ErrNotFound("未找到该 Galgame 资源")
+		return nil, errors.ErrNotFound("未找到该 Galgame 资源")
 	}
 	if row.Status == 1 {
-		return errors.ErrBadRequest("该资源已经被标记为失效")
+		return nil, errors.ErrBadRequest("该资源已经被标记为失效")
 	}
 
 	links := s.resourceRepo.FindLinks(resourceID)
@@ -431,13 +431,15 @@ func (s *ResourceService) MarkExpired(ctx context.Context, userID int, resourceI
 	// Objective gate: don't let one subjective click expire a resource. Ask the
 	// link-live-checker (when configured AND the resource has links) using the
 	// share passcode (Code = 提取码; Password = 解压码 is irrelevant to access).
-	//   alive   → verifiably reachable → reject the false report.
+	//   alive   → verifiably reachable → reject (NOT an error: marked=false).
 	//   dead    → every link verified gone → expire (one report suffices).
 	//   unknown → unsupported netdisk / no passcode / rate-limited / checker
 	//             down / mixed → fall through to the legacy single-report flow.
+	verdict := ""
 	if s.linkChecker != nil && len(links) > 0 {
-		if s.linkChecker.CheckShare(ctx, links, row.Code) == linkcheck.StatusAlive {
-			return errors.ErrBadRequest("经核验该资源链接仍可访问, 未标记为失效")
+		verdict = string(s.linkChecker.CheckShare(ctx, links, row.Code))
+		if verdict == string(linkcheck.StatusAlive) {
+			return &dto.ReportExpireResult{Verdict: verdict, Marked: false}, nil
 		}
 	}
 
@@ -456,9 +458,9 @@ func (s *ResourceService) MarkExpired(ctx context.Context, userID int, resourceI
 		return nil
 	})
 	if txErr != nil {
-		return errors.ErrInternal("更新失败")
+		return nil, errors.ErrInternal("更新失败")
 	}
-	return nil
+	return &dto.ReportExpireResult{Verdict: verdict, Marked: true}, nil
 }
 
 // ──────────────────────────────────────────

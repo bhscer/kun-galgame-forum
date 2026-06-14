@@ -56,34 +56,11 @@ const handleDeleteResource = async () => {
   }
 }
 
-const handleReportExpire = async () => {
-  if (!id) {
-    useAuthModal().open()
-    return
-  }
-
-  const res = await useComponentMessageStore().alert(
-    '您确定报告资源链接失效吗？',
-    '这将会通知资源发布者链接失效, 并将该链接标记为失效。若 17 天内资源发布者没有更换有效链接，该资源链接将会被删除。若恶意报告失效, 将会被处罚。'
-  )
-  if (!res) return
-
-  isFetching.value = true
-  const result = await nuxtApp.runWithContext(() =>
-    kunFetch(`/galgame/${props.resource.galgameId}/resource/expired`, {
-      method: 'PUT',
-      body: { galgameResourceId: props.resource.id }
-    })
-  )
-  isFetching.value = false
-
-  if (result) {
-    nuxtApp.runWithContext(() => {
-      useMessage(10547, 'success')
-      props.refresh()
-    })
-  }
-}
+// "报告失效" — delegated to useReportResourceExpired (auth + confirm + the
+// gated check→mark flow); reportStatus drives the inline checklist below.
+const { status: reportStatus, report: reportExpire } = useReportResourceExpired()
+const handleReportExpire = () =>
+  reportExpire(props.resource.galgameId, props.resource.id, () => props.refresh())
 
 const handleGetResourceLink = async () => {
   if (detail.value) return
@@ -264,7 +241,8 @@ const handleEditDone = () => {
           variant="flat"
           color="danger"
           @click="handleReportExpire"
-          :loading="isFetching"
+          :loading="reportStatus === 'checking'"
+          :disabled="reportStatus === 'checking'"
         >
           报告链接过期
         </KunButton>
@@ -274,6 +252,8 @@ const handleEditDone = () => {
         反馈资源问题
       </KunButton>
     </div>
+
+    <GalgameResourceExpireStatus :status="reportStatus" class="mt-3" />
 
     <GalgameResourceLinkEditModal
       v-if="detail"

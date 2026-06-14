@@ -194,8 +194,9 @@ func (h *ResourceHandler) MarkExpired(c *fiber.Ctx) error {
 	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
 		return response.Error(c, appErr)
 	}
-	if appErr := h.resourceService.MarkExpired(c.Context(), user.ID, req.GalgameResourceID); appErr != nil {
+	res, appErr := h.resourceService.MarkExpired(c.Context(), user.ID, req.GalgameResourceID)
+	if appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return response.OKMessage(c, "资源已标记为失效")
+	return response.OK(c, res)
 }
