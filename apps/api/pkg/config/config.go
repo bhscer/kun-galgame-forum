@@ -18,6 +18,23 @@ type Config struct {
 	CORS        CORSConfig
 	GalgameWiki GalgameWikiConfig
 	ImageClient ImageClientConfig
+	LinkChecker LinkCheckerConfig
+}
+
+// LinkCheckerConfig holds the s2s credentials kungal uses to call the
+// kungal-link-live-checker service — the "report expired" gate that returns a
+// conservative alive/dead/unknown verdict for a netdisk share link. When
+// BaseURL/APIKey are unset the gate is skipped and a report falls back to the
+// legacy single-report-expires behavior (see resource_service.MarkExpired).
+type LinkCheckerConfig struct {
+	BaseURL string // checker base, e.g. https://link-checker-kungal.nextmoe.dev
+	APIKey  string // service Bearer key (one of the checker's LLC_API_KEYS)
+	// Cloudflare Access service-token headers. The checker sits behind CF Access
+	// (zero public anonymous exposure), so every request must carry
+	// CF-Access-Client-Id / -Secret on top of the Bearer key. Leave both empty
+	// when reaching a checker NOT behind CF Access (e.g. a local dev instance).
+	CFAccessClientID     string
+	CFAccessClientSecret string
 }
 
 // ImageClientConfig holds the credentials kungal uses to call the image
@@ -192,6 +209,12 @@ func Load() (*Config, error) {
 			BaseURL:      envOrDefault("KUN_IMAGE_CLIENT_BASE_URL", "http://127.0.0.1:9278"),
 			ClientID:     envOrDefault("KUN_IMAGE_CLIENT_ID", ""),
 			ClientSecret: envOrDefault("KUN_IMAGE_CLIENT_SECRET", ""),
+		},
+		LinkChecker: LinkCheckerConfig{
+			BaseURL:              envOrDefault("LINK_CHECKER_BASE_URL", ""),
+			APIKey:               envOrDefault("LINK_CHECKER_API_KEY", ""),
+			CFAccessClientID:     envOrDefault("CF_ACCESS_CLIENT_ID", ""),
+			CFAccessClientSecret: envOrDefault("CF_ACCESS_CLIENT_SECRET", ""),
 		},
 	}, nil
 }

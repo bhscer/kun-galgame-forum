@@ -10,6 +10,7 @@ import (
 	"kun-galgame-api/internal/galgame/repository"
 	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/pkg/errors"
+	"kun-galgame-api/pkg/linkcheck"
 	"kun-galgame-api/pkg/userclient"
 	"kun-galgame-api/pkg/utils"
 
@@ -22,14 +23,23 @@ type ResourceService struct {
 	wikiClient   *client.GalgameClient
 	userClient   *userclient.Client
 	helpers      InteractionHelpers
+	// linkChecker gates "report expired" on an objective netdisk-API verdict.
+	// nil when unconfigured → MarkExpired falls back to the legacy flow.
+	linkChecker *linkcheck.Client
 }
 
 func NewResourceService(
 	resourceRepo *repository.ResourceRepository,
 	wikiClient *client.GalgameClient,
 	userClient *userclient.Client,
+	linkChecker *linkcheck.Client,
 ) *ResourceService {
-	return &ResourceService{resourceRepo: resourceRepo, wikiClient: wikiClient, userClient: userClient}
+	return &ResourceService{
+		resourceRepo: resourceRepo,
+		wikiClient:   wikiClient,
+		userClient:   userClient,
+		linkChecker:  linkChecker,
+	}
 }
 
 // ──────────────────────────────────────────
@@ -407,7 +417,7 @@ func (s *ResourceService) MarkValid(userID int, resourceID int) *errors.AppError
 	return nil
 }
 
-func (s *ResourceService) MarkExpired(userID int, resourceID int) *errors.AppError {
+func (s *ResourceService) MarkExpired(ctx context.Context, userID int, resourceID int) *errors.AppError {
 	row, ok := s.resourceRepo.FindByID(resourceID)
 	if !ok {
 		return errors.ErrNotFound("未找到该 Galgame 资源")
@@ -417,6 +427,20 @@ func (s *ResourceService) MarkExpired(userID int, resourceID int) *errors.AppErr
 	}
 
 	links := s.resourceRepo.FindLinks(resourceID)
+
+	// Objective gate: don't let one subjective click expire a resource. Ask the
+	// link-live-checker (when configured AND the resource has links) using the
+	// share passcode (Code = 提取码; Password = 解压码 is irrelevant to access).
+	//   alive   → verifiably reachable → reject the false report.
+	//   dead    → every link verified gone → expire (one report suffices).
+	//   unknown → unsupported netdisk / no passcode / rate-limited / checker
+	//             down / mixed → fall through to the legacy single-report flow.
+	if s.linkChecker != nil && len(links) > 0 {
+		if s.linkChecker.CheckShare(ctx, links, row.Code) == linkcheck.StatusAlive {
+			return errors.ErrBadRequest("经核验该资源链接仍可访问, 未标记为失效")
+		}
+	}
+
 	preview := ""
 	if len(links) > 0 {
 		preview = truncate(links[0], constants.TextPreviewLength)

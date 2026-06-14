@@ -12,6 +12,8 @@ import (
 	docHandler "kun-galgame-api/internal/doc/handler"
 	docRepo "kun-galgame-api/internal/doc/repository"
 	docService "kun-galgame-api/internal/doc/service"
+	friendHandler "kun-galgame-api/internal/friendlink/handler"
+	friendRepo "kun-galgame-api/internal/friendlink/repository"
 	galgameClient "kun-galgame-api/internal/galgame/client"
 	galgameHandler "kun-galgame-api/internal/galgame/handler"
 	galgameRepo "kun-galgame-api/internal/galgame/repository"
@@ -22,7 +24,6 @@ import (
 	imageHandler "kun-galgame-api/internal/image/handler"
 	imageRepo "kun-galgame-api/internal/image/repository"
 	imageService "kun-galgame-api/internal/image/service"
-	"kun-galgame-api/pkg/imageclient"
 	"kun-galgame-api/internal/infrastructure/cache"
 	cronPkg "kun-galgame-api/internal/infrastructure/cron"
 	"kun-galgame-api/internal/infrastructure/database"
@@ -53,8 +54,6 @@ import (
 	topicService "kun-galgame-api/internal/topic/service"
 	unmoeHandler "kun-galgame-api/internal/unmoe/handler"
 	unmoeRepo "kun-galgame-api/internal/unmoe/repository"
-	friendHandler "kun-galgame-api/internal/friendlink/handler"
-	friendRepo "kun-galgame-api/internal/friendlink/repository"
 	updateHandler "kun-galgame-api/internal/update/handler"
 	updateRepo "kun-galgame-api/internal/update/repository"
 	"kun-galgame-api/internal/user/handler"
@@ -66,6 +65,8 @@ import (
 	websiteService "kun-galgame-api/internal/website/service"
 	"kun-galgame-api/pkg/config"
 	"kun-galgame-api/pkg/errors"
+	"kun-galgame-api/pkg/imageclient"
+	"kun-galgame-api/pkg/linkcheck"
 	"kun-galgame-api/pkg/response"
 	"kun-galgame-api/pkg/userclient"
 
@@ -211,6 +212,25 @@ func New(cfg *config.Config) *App {
 		slog.Warn("image_service client NOT configured; /image/galgame upload will return 未配置 — set KUN_IMAGE_CLIENT_ID / KUN_IMAGE_CLIENT_SECRET")
 	}
 
+	// kungal-link-live-checker client — the "report resource expired" gate.
+	// Only construct when BOTH base URL + API key are set; otherwise the gate is
+	// nil and MarkExpired falls back to the legacy single-report-expires flow
+	// (so the feature degrades safely when the checker isn't deployed).
+	var linkChecker *linkcheck.Client
+	if cfg.LinkChecker.BaseURL != "" && cfg.LinkChecker.APIKey != "" {
+		linkChecker = linkcheck.New(linkcheck.Config{
+			BaseURL:              cfg.LinkChecker.BaseURL,
+			APIKey:               cfg.LinkChecker.APIKey,
+			CFAccessClientID:     cfg.LinkChecker.CFAccessClientID,
+			CFAccessClientSecret: cfg.LinkChecker.CFAccessClientSecret,
+		})
+		slog.Info("link-live-checker gate configured",
+			"base_url", cfg.LinkChecker.BaseURL,
+			"cf_access", cfg.LinkChecker.CFAccessClientID != "")
+	} else {
+		slog.Warn("link-live-checker NOT configured; resource 报告失效 falls back to legacy single-report-expires — set LINK_CHECKER_BASE_URL / LINK_CHECKER_API_KEY")
+	}
+
 	// Services
 	authService := service.NewAuthService(userStateRepo, rdb, oauthClient, uc)
 	userService := service.NewUserService(userStateRepo, userStatsRepo, rdb, gc, uc)
@@ -236,7 +256,7 @@ func New(cfg *config.Config) *App {
 	galgameCommentRepo := galgameRepo.NewCommentRepository(db)
 	galgameCommentSvc := galgameService.NewCommentService(galgameCommentRepo, userStateRepo, uc)
 	galgameResourceRepo := galgameRepo.NewResourceRepository(db)
-	galgameResourceSvc := galgameService.NewResourceService(galgameResourceRepo, gc, uc)
+	galgameResourceSvc := galgameService.NewResourceService(galgameResourceRepo, gc, uc, linkChecker)
 	galgameRatingRepo := galgameRepo.NewRatingRepository(db)
 	galgameRatingSvc := galgameService.NewRatingService(galgameRatingRepo, gc, uc)
 	galgameLocalRepo := galgameRepo.NewGalgameRepository(db)
@@ -313,8 +333,8 @@ func New(cfg *config.Config) *App {
 	// Handlers
 	app := &App{
 		DB: db, Redis: rdb, S3: s3Client, Mailer: mailer, Config: cfg, OAuthClient: oauthClient,
-		UserState:  userStateRepo,
-		UserClient: uc,
+		UserState:              userStateRepo,
+		UserClient:             uc,
 		OAuthHandler:           handler.NewOAuthHandler(authService, cfg.Server.Mode == "prod"),
 		UserHandler:            handler.NewUserHandler(userService, userContentService),
 		UserProfileHandler:     handler.NewProfileHandler(oauthClient, uc),
