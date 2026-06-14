@@ -67,7 +67,7 @@ defineProps<{
         :show-addition="false"
       />
 
-      <KunContent class="kun-master" :content="topic.contentHtml ?? ''" />
+      <KunContent class="kun-master" :content="renderKatex(topic.contentHtml)" />
 
       <p class="text-default-500 ml-auto text-sm">
         本文版权遵循

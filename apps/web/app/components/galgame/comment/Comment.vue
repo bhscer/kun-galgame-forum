@@ -159,7 +159,7 @@ const handleDelete = async () => {
            via DOMPurify and applies project-wide kun-prose styling). -->
       <KunContent
         v-if="!isEditing"
-        :content="comment.contentHtml"
+        :content="renderKatex(comment.contentHtml)"
         class-name="text-default-700 text-sm break-words"
       />
 

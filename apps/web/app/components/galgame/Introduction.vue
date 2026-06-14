@@ -33,7 +33,7 @@ defineProps<{
     </div>
 
     <KunContent
-      :content="getPreferredLanguageText(introduction, introductionLanguage)"
+      :content="renderKatex(getPreferredLanguageText(introduction, introductionLanguage))"
     />
   </div>
 </template>

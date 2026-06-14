@@ -33,7 +33,7 @@ if (data.value) {
 
       <article class="flex-1 space-y-6 pl-0 lg:pr-67 xl:pl-67">
         <DocDetailHeader :metadata="data" />
-        <KunContent :content="data.contentHtml ?? ''" />
+        <KunContent :content="renderKatex(data.contentHtml)" />
         <DocDetailFooter />
       </article>
 

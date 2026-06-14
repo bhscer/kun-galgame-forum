@@ -139,7 +139,7 @@ const handleResourceUpdated = (res: ToolsetResource) => {
 
         <KunDivider class-name="my-6" />
 
-        <KunContent :content="data.contentHtml" />
+        <KunContent :content="renderKatex(data.contentHtml)" />
       </div>
 
       <div class="grid grid-cols-1 gap-6 md:grid-cols-3">

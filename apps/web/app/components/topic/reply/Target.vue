@@ -43,6 +43,6 @@ const handleClick = () => {
 
     <KunLoading v-if="isLoading" description="正在加载完整回复内容" />
 
-    <KunContent :content="target.replyContentHtml ?? ''" class="mt-2" />
+    <KunContent :content="renderKatex(target.replyContentHtml)" class="mt-2" />
   </blockquote>
 </template>

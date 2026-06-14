@@ -139,7 +139,7 @@ const handleEditDone = () => {
       color="info"
       title="下载备注信息"
     >
-      <KunContent :content="resource.noteHtml" />
+      <KunContent :content="renderKatex(resource.noteHtml)" />
     </KunInfo>
 
     <KunAdAIFYBanner class-name="block lg:hidden" />
