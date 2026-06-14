@@ -35,7 +35,6 @@ const articles = computed(() => articleResponse.value?.items || [])
       v-if="articles.length"
     >
       <KunCard
-        :dark-border="true"
         :is-transparent="true"
         v-for="post in articles"
         :key="post.id"

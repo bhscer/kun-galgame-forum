@@ -36,7 +36,6 @@ const getOfficialCategoryInfo = (category: string) => {
     :is-transparent="true"
     :is-hoverable="true"
     :href="`/galgame-official/${official.id}`"
-    :dark-border="true"
   >
     <h3 class="text-default-900 font-semibold">
       {{ official.name }}

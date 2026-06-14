@@ -180,7 +180,6 @@ const getBackgroundColor = (color: string): string => {
         :is-hoverable="true"
         v-for="category in categoryStats"
         :key="category.name"
-        :dark-border="true"
         content-class="justify-start"
       >
         <div class="mb-3 flex items-center justify-between">

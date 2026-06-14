@@ -38,7 +38,7 @@ const onInvalid = (reason: KunTagInputInvalidReason) => {
       :max-tag-length="500"
       :transform="(raw) => raw.toLowerCase()"
       placeholder="请输入游戏别名"
-      helper-text="别名最多 17 个, 可以输入别名按下回车创建别名"
+      description="别名最多 17 个, 可以输入别名按下回车创建别名"
       color="primary"
       @invalid="onInvalid"
     />

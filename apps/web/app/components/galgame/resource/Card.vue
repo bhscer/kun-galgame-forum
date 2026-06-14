@@ -19,7 +19,6 @@ defineProps<{
     :is-transparent="true"
     :is-hoverable="true"
     :href="`/galgame-resource/${resource.id}`"
-    :dark-border="true"
     content-class="space-y-2"
   >
     <div class="flex flex-wrap items-center gap-2">

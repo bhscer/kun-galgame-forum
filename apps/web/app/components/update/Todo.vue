@@ -80,7 +80,6 @@ const handleTodoAction = async (data: UpdateTodoPayload) => {
     <KunCard
       :is-hoverable="false"
       :is-transparent="true"
-      :dark-border="true"
       v-for="todo in data.todos"
       :key="todo.id"
       content-class="space-y-3"

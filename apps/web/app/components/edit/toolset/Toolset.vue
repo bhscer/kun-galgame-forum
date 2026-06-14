@@ -146,7 +146,7 @@ const handleUpdatePageLink = (value: string | number) => {
         :max-tags="17"
         :max-tag-length="500"
         placeholder="输入别名后按下回车添加"
-        helper-text="按 Enter 添加，最多 17 个"
+        description="按 Enter 添加，最多 17 个"
         color="primary"
         @invalid="onAliasInvalid"
       />

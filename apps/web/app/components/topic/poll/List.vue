@@ -89,7 +89,6 @@ const handleDelete = async () => {
   <KunCard
     :is-hoverable="false"
     :is-transparent="false"
-    dark-border
     content-class="space-y-3"
   >
     <div class="flex flex-wrap items-center justify-between gap-3">

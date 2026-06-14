@@ -28,7 +28,6 @@ const {
   >
     <KunCard
       :is-transparent="isTransparent"
-      :dark-border="true"
       v-for="galgame in galgames"
       :key="galgame.id"
       :href="`/galgame/${galgame.id}`"

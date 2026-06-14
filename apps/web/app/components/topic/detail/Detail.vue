@@ -84,7 +84,7 @@ watch(
         v-if="status === 'pending' && replies.length === 0"
         class="flex justify-center py-16"
       >
-        <KunLoading hint="少女祈祷中..." />
+        <KunLoading description="少女祈祷中..." />
       </div>
 
       <TopicReplyList

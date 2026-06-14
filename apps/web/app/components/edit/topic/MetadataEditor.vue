@@ -142,7 +142,7 @@ const onTagInvalid = (reason: KunTagInputInvalidReason) => {
         :max-tags="MAX_TAGS"
         :max-tag-length="17"
         placeholder="输入后按回车添加..."
-        helper-text="话题至少选择一个标签，最多 7 个"
+        description="话题至少选择一个标签，最多 7 个"
         color="primary"
         @invalid="onTagInvalid"
       />

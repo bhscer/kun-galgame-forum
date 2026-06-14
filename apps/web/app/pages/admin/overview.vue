@@ -90,7 +90,6 @@ useKunSeoMeta({
           :is-hoverable="false"
           v-for="stat in allStats"
           :key="stat.name"
-          :dark-border="true"
         >
           <p
             class="truncate text-sm font-medium text-gray-500 dark:text-gray-400"
@@ -116,7 +115,6 @@ useKunSeoMeta({
           :is-hoverable="false"
           v-for="stat in totalStats"
           :key="stat.name"
-          :dark-border="true"
         >
           <p
             class="truncate text-sm font-medium text-gray-500 dark:text-gray-400"
@@ -148,7 +146,6 @@ useKunSeoMeta({
       <KunCard
         :is-transparent="true"
         :is-hoverable="false"
-        :dark-border="true"
       >
         <AdminOverviewChart v-if="data" :data="data" />
       </KunCard>

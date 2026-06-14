@@ -64,7 +64,6 @@ const handleUpdateLogAction = async (data: UpdateUpdateLogPayload) => {
     <KunCard
       :is-hoverable="false"
       :is-transparent="true"
-      :dark-border="true"
       v-for="update in data.updates"
       :key="update.id"
     >
