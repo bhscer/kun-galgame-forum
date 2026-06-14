@@ -48,18 +48,35 @@ const handleCheckIn = async () => {
   }
 }
 
-const logOut = async () => {
+// Logout opens a scope chooser: "this site only" vs "this site + OAuth". Two
+// session layers exist (forum's own + the central OAuth/SSO session); we let the
+// user pick which to end and explain the impact. See docs/oauth/07-logout.md.
+const showLogoutModal = ref(false)
+const logoutPending = ref<'local' | 'everywhere' | null>(null)
+
+const logOut = () => {
   emit('close')
-  const res = await useComponentMessageStore().alert('您确定退出登录吗？')
-  if (res) {
-    useMessage(10110, 'success')
-    usePersistUserStore().resetUser()
-    // RP-initiated logout: clearing the forum's own state isn't enough — also
-    // clear the central OP session, else the next login silently re-consents
-    // into the same account. Top-level redirect to the OP logout entrypoint,
-    // which returns to '/'. See docs/oauth/07-logout.md.
-    startOAuthLogout()
-  }
+  showLogoutModal.value = true
+}
+
+// "This site only" — reset the forum's own session; the OAuth (SSO) session and
+// other sites stay logged in, so re-login here is silent (auto-consent).
+const logoutLocal = () => {
+  if (logoutPending.value) return
+  logoutPending.value = 'local'
+  usePersistUserStore().resetUser()
+  useMessage(10110, 'success')
+  showLogoutModal.value = false
+  logoutPending.value = null
+}
+
+// "Everywhere" — also end the central OP session via RP-initiated logout, so no
+// site can silently re-login and the OAuth account is signed out.
+const logoutEverywhere = () => {
+  if (logoutPending.value) return
+  logoutPending.value = 'everywhere'
+  usePersistUserStore().resetUser()
+  startOAuthLogout() // top-level redirect to the OP; clears the SSO session
 }
 </script>
 
@@ -149,5 +166,67 @@ const logOut = async () => {
       <KunIcon class="size-4" name="lucide:log-out" />
       退出登录
     </KunButton>
+
+    <KunModal v-model="showLogoutModal" inner-class-name="max-w-lg">
+      <div class="space-y-4 p-2">
+        <div class="space-y-1">
+          <h2 class="text-foreground text-lg font-semibold">退出登录</h2>
+          <p class="text-default-500 text-sm">请选择退出范围：</p>
+        </div>
+
+        <button
+          type="button"
+          :disabled="!!logoutPending"
+          class="border-primary-200 bg-primary-50/50 hover:bg-primary-100/60 w-full rounded-xl border p-4 text-left transition-colors disabled:opacity-60"
+          @click="logoutEverywhere"
+        >
+          <div class="flex items-start gap-3">
+            <KunIcon
+              :name="logoutPending === 'everywhere' ? 'lucide:loader-circle' : 'lucide:log-out'"
+              :class="`text-primary mt-0.5 size-5 shrink-0 ${logoutPending === 'everywhere' ? 'animate-spin' : ''}`"
+            />
+            <div class="space-y-1">
+              <div class="text-foreground flex items-center gap-2 font-medium">
+                退出本站和 OAuth 账号
+                <span class="bg-primary-100 text-primary-700 rounded px-1.5 py-0.5 text-xs">推荐</span>
+              </div>
+              <p class="text-default-500 text-xs leading-relaxed">
+                本站与 OAuth 账号都会退出；其它已登录的站点会在下次刷新登录态时一并退出；再次登录需重新验证身份。适合公共 / 共享设备。
+              </p>
+            </div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          :disabled="!!logoutPending"
+          class="border-default-200 hover:bg-default-100 w-full rounded-xl border p-4 text-left transition-colors disabled:opacity-60"
+          @click="logoutLocal"
+        >
+          <div class="flex items-start gap-3">
+            <KunIcon
+              :name="logoutPending === 'local' ? 'lucide:loader-circle' : 'lucide:monitor'"
+              :class="`text-default-500 mt-0.5 size-5 shrink-0 ${logoutPending === 'local' ? 'animate-spin' : ''}`"
+            />
+            <div class="space-y-1">
+              <div class="text-foreground font-medium">仅退出本站</div>
+              <p class="text-default-500 text-xs leading-relaxed">
+                只退出本站；OAuth 账号与其它站点保持登录；再次登录本站可免密直接进入。适合自己的设备。
+              </p>
+            </div>
+          </div>
+        </button>
+
+        <div class="flex justify-end pt-1">
+          <KunButton
+            variant="light"
+            :disabled="!!logoutPending"
+            @click="showLogoutModal = false"
+          >
+            取消
+          </KunButton>
+        </div>
+      </div>
+    </KunModal>
   </div>
 </template>
