@@ -48,7 +48,7 @@ export const useTopicSubmitter = () => {
     const result = createTopicSchema.safeParse(submitData)
     if (!result.success) {
       const error = JSON.parse(result.error.message)[0]
-      useMessage(`位置: ${error.path[0]} - 错误提示: ${error.message}`, 'warn')
+      useMessage(formatKunZodIssue(error), 'warn')
       return
     }
 

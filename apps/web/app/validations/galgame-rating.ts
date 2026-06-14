@@ -16,7 +16,7 @@ export const createGalgameRatingSchema = z
     overall: z.coerce.number<number>().int().min(1).max(10),
     galgameType: z
       .array(z.enum(KUN_GALGAME_RATING_GAME_TYPE_CONST))
-      .min(1, { message: '您至少选择一个 Galgame 类型' }),
+      .min(1, { message: '请至少选择一个' }),
     play_status: z.enum(KUN_GALGAME_RATING_PLAY_STATUS_CONST),
     short_summary: z.string().default(''),
     spoiler_level: z.enum(KUN_GALGAME_RATING_SPOILER_CONST).default('none'),
@@ -37,7 +37,7 @@ export const createGalgameRatingSchema = z
     ) {
       ctx.addIssue({
         code: 'custom',
-        message: '当 overall 为 1 或 10 时, short_summary 需不少于 100 字',
+        message: '当总分为 1 或 10 分时需不少于 100 字',
         path: ['short_summary']
       })
     }
@@ -50,7 +50,7 @@ export const updateGalgameRatingSchema = z
     overall: z.coerce.number<number>().int().min(1).max(10),
     galgameType: z
       .array(z.enum(KUN_GALGAME_RATING_GAME_TYPE_CONST))
-      .min(1, { message: '您至少选择一个 Galgame 类型' }),
+      .min(1, { message: '请至少选择一个' }),
     play_status: z.enum(KUN_GALGAME_RATING_PLAY_STATUS_CONST),
     short_summary: z.string(),
     spoiler_level: z.enum(KUN_GALGAME_RATING_SPOILER_CONST),
@@ -73,7 +73,7 @@ export const updateGalgameRatingSchema = z
       ) {
         ctx.addIssue({
           code: 'custom',
-          message: '当 overall 为 1 或 10 时, short_summary 需不少于 100 字',
+          message: '当总分为 1 或 10 分时需不少于 100 字',
           path: ['short_summary']
         })
       }

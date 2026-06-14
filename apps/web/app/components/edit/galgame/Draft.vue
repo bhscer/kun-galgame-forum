@@ -204,7 +204,7 @@ const handleSave = async () => {
   if (!parsed.success) {
     const message = JSON.parse(parsed.error.message)[0]
     useMessage(
-      `位置: ${message.path[0]} - 错误提示: ${message.message}`,
+      formatKunZodIssue(message),
       'warn'
     )
     return
