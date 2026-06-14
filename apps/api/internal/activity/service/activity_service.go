@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -23,20 +24,12 @@ import (
 const activityCacheTTL = 30 * time.Second
 
 const (
-	// activityShallowMax: pages whose page*limit ≤ this get the over-fetch+slice
-	// treatment that fills them to `limit` despite enrichment drops. Deeper pages
-	// fall back to the legacy offset fetch (cheap, sparse, but non-empty).
-	activityShallowMax = 100
-	// activityOverfetchFactor / Max: a shallow page fetches page*limit*factor raw
-	// rows (capped at Max) so the post-fetch enrichment drop (resource-less rows
-	// are already gone via SQL; this absorbs the deleted-from-wiki tail) still
-	// leaves ≥ limit survivors to slice. Capped to bound enrichment cost and the
-	// wiki-batch fan-out.
-	activityOverfetchFactor = 2
-	activityOverfetchMax    = 200
+	// activityMaxRounds bounds serveKeyset's fetch-until-`limit`-survivors loop
+	// so a pathological run of enrichment drops (NSFW-in-SFW, deleted-from-wiki)
+	// can't fan out unboundedly. Each round is one keyset slice of `limit` rows.
+	activityMaxRounds = 12
 	// wikiBatchChunk caps ids per GetBatchPublic call — it sends every id in one
-	// query param (no chunking), and over-fetch can surface more distinct
-	// galgames than a single batch should carry. Matches the ≤100 batch convention.
+	// query param (no chunking). Matches the ≤100 batch convention.
 	wikiBatchChunk = 100
 )
 
@@ -56,61 +49,26 @@ func NewActivityService(
 	return &ActivityService{repo: repo, wikiGC: gc, userClient: userClient, rdb: rdb}
 }
 
-// Result holds a paginated activity list.
+// Result is one page of activity plus the opaque keyset cursor for the next
+// page ("" when there are no more rows behind it).
 type Result struct {
-	Items []dto.ActivityItem
-	Total int64
+	Items      []dto.ActivityItem `json:"items"`
+	NextCursor string             `json:"nextCursor"`
 }
 
-// GetActivity returns a filtered activity feed. If the type is "all",
-// it falls back to GetTimeline. isSFW is forwarded to wiki so NSFW
-// galgame names never enter the public activity stream
-// (docs/galgame_wiki/00-handbook §16).
-func (s *ActivityService) GetActivity(ctx context.Context, typeStr string, page, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
-	// Cache-aside on the fully-enriched result. Keyed by isSFW (changes which
-	// galgame names the wiki returns — NSFW filter) and showNoResource (changes
-	// whether resource-less galgames' GALGAME_CREATION rows are dropped), so
-	// viewers with different filters must not share an entry.
-	cacheKey := fmt.Sprintf("activity:v1:%s:%d:%d:%t:%t", typeStr, page, limit, isSFW, showNoResource)
-	if cached, ok := s.getCachedResult(ctx, cacheKey); ok {
-		return cached, nil
-	}
-
-	result, appErr := s.computeActivity(ctx, typeStr, page, limit, isSFW, showNoResource)
-	if appErr != nil {
-		return nil, appErr
-	}
-	s.cacheResult(ctx, cacheKey, result)
-	return result, nil
-}
-
-// computeActivity is GetActivity without the cache layer.
-func (s *ActivityService) computeActivity(ctx context.Context, typeStr string, page, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
+// GetActivity returns a filtered activity feed. type "all" → the mixed
+// timeline. isSFW is forwarded to wiki so NSFW galgame names never enter the
+// public activity stream (docs/galgame_wiki/00-handbook §16).
+func (s *ActivityService) GetActivity(ctx context.Context, typeStr, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
 	if typeStr == "all" {
-		return s.GetTimeline(ctx, page, limit, isSFW, showNoResource)
+		return s.GetTimeline(ctx, cursor, limit, isSFW, showNoResource)
 	}
-
 	src, ok := s.repo.GetSource(typeStr)
 	if !ok {
-		return &Result{Items: []dto.ActivityItem{}, Total: 0}, nil
+		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
 	}
-
-	total, err := s.repo.CountSingleSource(src, isSFW, showNoResource)
-	if err != nil {
-		return nil, errors.ErrInternal("查询活动数据失败")
-	}
-	items, appErr := s.servePage(ctx, page, limit, isSFW,
-		func(n int) ([]repository.ActivityRow, error) {
-			return s.repo.FetchSingleSourceRows(src, n, isSFW, showNoResource)
-		},
-		func(p, l int) ([]repository.ActivityRow, error) {
-			return s.repo.FetchSingleSourcePage(src, p, l, isSFW, showNoResource)
-		},
-	)
-	if appErr != nil {
-		return nil, appErr
-	}
-	return &Result{Items: items, Total: total}, nil
+	cacheKey := fmt.Sprintf("activity:v2:%s:%s:%d:%t:%t", typeStr, cursor, limit, isSFW, showNoResource)
+	return s.cachedKeyset(ctx, cacheKey, []repository.ActivitySource{src}, cursor, limit, isSFW, showNoResource)
 }
 
 // getCachedResult returns a cached activity Result, and true on a hit.
@@ -144,51 +102,120 @@ func (s *ActivityService) cacheResult(ctx context.Context, key string, result *R
 	_ = s.rdb.Set(ctx, key, raw, activityCacheTTL).Err()
 }
 
-// GetTimeline returns a mixed activity timeline across all sources.
-func (s *ActivityService) GetTimeline(ctx context.Context, page, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
-	total, err := s.repo.CountTimeline(isSFW, showNoResource)
-	if err != nil {
-		return nil, errors.ErrInternal("查询活动列表失败")
+// GetTimeline returns the mixed activity timeline across all sources.
+func (s *ActivityService) GetTimeline(ctx context.Context, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
+	cacheKey := fmt.Sprintf("activity:v2:all:%s:%d:%t:%t", cursor, limit, isSFW, showNoResource)
+	return s.cachedKeyset(ctx, cacheKey, s.repo.AllSources(), cursor, limit, isSFW, showNoResource)
+}
+
+// cachedKeyset wraps serveKeyset with the activityCacheTTL cache-aside. Keyed by
+// cursor (the page), isSFW (which galgame names the wiki returns) and
+// showNoResource (whether resource-less GALGAME_CREATION rows are dropped) so
+// viewers with different filters never share an entry.
+func (s *ActivityService) cachedKeyset(ctx context.Context, cacheKey string, sources []repository.ActivitySource, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
+	if cached, ok := s.getCachedResult(ctx, cacheKey); ok {
+		return cached, nil
 	}
-	items, appErr := s.servePage(ctx, page, limit, isSFW,
-		func(n int) ([]repository.ActivityRow, error) {
-			return s.repo.FetchTimelineRows(n, isSFW, showNoResource)
-		},
-		func(p, l int) ([]repository.ActivityRow, error) {
-			return s.repo.FetchTimelinePage(p, l, isSFW, showNoResource)
-		},
-	)
+	result, appErr := s.serveKeyset(ctx, sources, cursor, limit, isSFW, showNoResource)
 	if appErr != nil {
 		return nil, appErr
 	}
-	return &Result{Items: items, Total: total}, nil
+	s.cacheResult(ctx, cacheKey, result)
+	return result, nil
 }
 
-// servePage fills a page to `limit` items despite enrichment drops. Shallow
-// pages over-fetch a top-of-feed window and slice the requested page in
-// *filtered* space (after enrichment), so a page no longer under-fills when
-// galgame rows get dropped. Deep pages fall back to the legacy offset fetch
-// (cheap, sparse, unchanged) — filtered-space slicing from the top would mean
-// re-enriching everything before them.
-func (s *ActivityService) servePage(
-	ctx context.Context, page, limit int, isSFW bool,
-	fetchNewest func(n int) ([]repository.ActivityRow, error),
-	fetchPage func(p, l int) ([]repository.ActivityRow, error),
-) ([]dto.ActivityItem, *errors.AppError) {
-	if page*limit <= activityShallowMax {
-		window := min(page*limit*activityOverfetchFactor, activityOverfetchMax)
-		rows, err := fetchNewest(window)
+// serveKeyset fills one page to `limit` survivors despite enrichment drops. It
+// seeks the deterministic keyset (created, type_str, id) from `cursor`; because
+// enrichment can drop rows (NSFW-in-SFW, deleted-from-wiki), it keeps fetching
+// the next slice — advancing the cursor past each fully-consumed batch — until
+// it has `limit` survivors or the feed is exhausted. nextCursor is the LAST
+// survivor's keyset, so the next page resumes exactly where this one stopped:
+// no offset drift, and the total-order tiebreaker means no dup/skip across pages.
+func (s *ActivityService) serveKeyset(ctx context.Context, sources []repository.ActivitySource, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
+	cur := decodeCursor(cursor)
+	collected := make([]dto.ActivityItem, 0, limit)
+	exhausted := false
+
+	for round := 0; len(collected) < limit && round < activityMaxRounds; round++ {
+		rows, err := s.repo.FetchKeyset(sources, limit, cur, isSFW, showNoResource)
 		if err != nil {
 			return nil, errors.ErrInternal("查询活动数据失败")
 		}
-		return pageSlice(s.enrichAndHydrate(ctx, rows, isSFW), page, limit), nil
+		if len(rows) == 0 {
+			exhausted = true
+			break
+		}
+		for _, it := range s.enrichAndHydrate(ctx, rows, isSFW) {
+			collected = append(collected, it)
+			if len(collected) == limit {
+				break
+			}
+		}
+		if len(collected) >= limit {
+			break // page full — nextCursor is the last collected survivor
+		}
+		// Whole batch consumed without filling the page; advance past its last
+		// RAW row (some were dropped by enrichment) and fetch the next slice.
+		last := rows[len(rows)-1]
+		cur = &repository.Cursor{Created: last.Created, TypeStr: last.TypeStr, ID: last.ID}
+		if len(rows) < limit {
+			exhausted = true
+			break // short batch → nothing behind it
+		}
 	}
 
-	rows, err := fetchPage(page, limit)
-	if err != nil {
-		return nil, errors.ErrInternal("查询活动数据失败")
+	next := ""
+	switch {
+	case len(collected) == limit:
+		// Full page — resume after the last survivor (one extra empty fetch if
+		// this happened to be the very tail; harmless).
+		last := collected[len(collected)-1]
+		next = encodeCursor(last.Timestamp, last.Type, last.ID)
+	case !exhausted && cur != nil:
+		// Hit activityMaxRounds before filling the page (heavy enrichment drops):
+		// resume from where we stopped rather than signalling a false end-of-feed.
+		next = encodeCursor(cur.Created, cur.TypeStr, cur.ID)
 	}
-	return s.enrichAndHydrate(ctx, rows, isSFW), nil
+	return &Result{Items: collected, NextCursor: next}, nil
+}
+
+// ──────────────────────────────────────────
+// Keyset cursor codec
+// ──────────────────────────────────────────
+
+// cursorPayload is the JSON behind the opaque base64 cursor: the last row's
+// (created, type_str, id). type_str is required because `id` is unique only
+// within a source — the feed UNIONs many tables.
+type cursorPayload struct {
+	C time.Time `json:"c"`
+	T string    `json:"t"`
+	I int       `json:"i"`
+}
+
+func encodeCursor(created time.Time, typeStr string, id int) string {
+	b, err := json.Marshal(cursorPayload{C: created, T: typeStr, I: id})
+	if err != nil {
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// decodeCursor parses an opaque cursor into a repository.Cursor. Empty → nil
+// (first page). A malformed cursor also → nil: a stale/garbage token just
+// restarts from the newest rather than erroring the whole feed.
+func decodeCursor(cursor string) *repository.Cursor {
+	if cursor == "" {
+		return nil
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil {
+		return nil
+	}
+	var p cursorPayload
+	if err := json.Unmarshal(raw, &p); err != nil || p.T == "" || p.I <= 0 {
+		return nil
+	}
+	return &repository.Cursor{Created: p.C, TypeStr: p.T, ID: p.I}
 }
 
 // enrichAndHydrate runs the full row → item pipeline: galgame name/brief
@@ -200,17 +227,6 @@ func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repositor
 	return items
 }
 
-// pageSlice returns the [(page-1)*limit, page*limit) slice of the enriched
-// (filtered) items, clamped to the available length.
-func pageSlice(items []dto.ActivityItem, page, limit int) []dto.ActivityItem {
-	start := (page - 1) * limit
-	if start >= len(items) {
-		return []dto.ActivityItem{}
-	}
-	end := min(start+limit, len(items))
-	return items[start:end]
-}
-
 // rowsToItems converts DB rows into response items (no enrichment yet).
 // Identity is left blank — hydrated by hydrateActors after enrichGalgameItems
 // has had a chance to inject GALGAME_CREATION actor IDs from the wiki brief.
@@ -218,6 +234,7 @@ func rowsToItems(rows []repository.ActivityRow) []dto.ActivityItem {
 	items := make([]dto.ActivityItem, len(rows))
 	for i, r := range rows {
 		items[i] = dto.ActivityItem{
+			ID:        r.ID,
 			UniqueID:  fmt.Sprintf("%s-%d", r.TypeStr, r.ID),
 			Type:      r.TypeStr,
 			Content:   r.Content,

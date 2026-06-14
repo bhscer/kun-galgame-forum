@@ -25,11 +25,11 @@ func (h *ActivityHandler) GetActivity(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	res, appErr := h.activityService.GetActivity(c.Context(), req.Type, req.Page, req.Limit, utils.IsSFW(c), req.ShowNoResource)
+	res, appErr := h.activityService.GetActivity(c.Context(), req.Type, req.Cursor, req.Limit, utils.IsSFW(c), req.ShowNoResource)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return response.Paginated(c, res.Items, res.Total)
+	return response.OK(c, res)
 }
 
 // GetTimeline returns mixed activity timeline.
@@ -40,9 +40,9 @@ func (h *ActivityHandler) GetTimeline(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
-	res, appErr := h.activityService.GetTimeline(c.Context(), req.Page, req.Limit, utils.IsSFW(c), req.ShowNoResource)
+	res, appErr := h.activityService.GetTimeline(c.Context(), req.Cursor, req.Limit, utils.IsSFW(c), req.ShowNoResource)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return response.Paginated(c, res.Items, res.Total)
+	return response.OK(c, res)
 }

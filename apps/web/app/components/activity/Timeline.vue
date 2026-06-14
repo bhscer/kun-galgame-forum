@@ -1,47 +1,96 @@
 <script setup lang="ts">
+import { useIntersectionObserver } from '@vueuse/core'
 import { KUN_ACTIVITY_TYPE_TYPE } from '~/constants/activity'
 
-const pageData = reactive({
-  page: 1,
-  limit: 50
-})
-
-// Global "显示没有下载资源的 Galgame" preference (cookie-persisted, SSR-safe).
-// Off (default) drops resource-less galgames' creation rows; computed query
-// keeps page reactive AND re-fetches when the toggle changes.
+// Keyset (cursor) pagination + infinite scroll. The old numbered pages re-ran
+// `ORDER BY created` (no tiebreaker) per page, so rows sharing a timestamp
+// reordered between pages → duplicated / skipped entries. The API now returns a
+// deterministic page plus an opaque `nextCursor`; we accumulate and seek.
 const settings = usePersistSettingsStore()
+
+const items = ref<ActivityItem[]>([])
+const cursor = ref('')
+const hasMore = ref(true)
+const isLoadingMore = ref(false)
+
+// First page renders on the server (SEO + no load spinner). The computed query
+// re-fetches when the showNoResource toggle flips; the watch below re-seeds the
+// accumulator from whatever first page is current.
 const { data, status } = await useKunFetch<{
   items: ActivityItem[]
-  total: number
+  nextCursor: string
 }>('/activity/timeline', {
   method: 'GET',
   query: computed(() => ({
-    ...pageData,
+    limit: 50,
     showNoResource: settings.showKUNGalgameNoResource
   }))
 })
+
+watch(
+  data,
+  (page) => {
+    if (!page) return
+    items.value = page.items
+    cursor.value = page.nextCursor
+    hasMore.value = !!page.nextCursor
+  },
+  { immediate: true }
+)
+
+const loadMore = async () => {
+  if (isLoadingMore.value || !hasMore.value || !cursor.value) return
+  isLoadingMore.value = true
+  const next = await kunFetch<{ items: ActivityItem[]; nextCursor: string }>(
+    '/activity/timeline',
+    {
+      method: 'GET',
+      query: {
+        limit: 50,
+        cursor: cursor.value,
+        showNoResource: settings.showKUNGalgameNoResource
+      }
+    }
+  )
+  isLoadingMore.value = false
+  if (!next) return
+  items.value.push(...next.items)
+  cursor.value = next.nextCursor
+  hasMore.value = !!next.nextCursor
+}
+
+// Auto-load when the sentinel near the page bottom scrolls into view. SSR-safe
+// (VueUse no-ops on the server); the "加载更多" button is the manual fallback.
+const sentinel = ref<HTMLElement | null>(null)
+useIntersectionObserver(
+  sentinel,
+  ([entry]) => {
+    if (entry?.isIntersecting) loadMore()
+  },
+  { rootMargin: '400px' }
+)
 </script>
 
 <template>
-  <KunCard
-    :is-transparent="false"
-    v-if="data"
-    content-class="space-y-3"
-    :is-hoverable="false"
-  >
+  <KunCard :is-transparent="false" content-class="space-y-3" :is-hoverable="false">
     <KunHeader
       name="动态时间线"
       description="动态时间线, 展示全站 话题, 回复, Galgame 与社区的最新 Galgame 资源, Galgame 动态, Galgame 讨论, Galgame 评论等"
     />
 
-    <div class="relative space-y-6">
+    <KunNull
+      v-if="status !== 'pending' && !items.length"
+      description="暂无动态"
+    />
+
+    <div v-else class="relative space-y-6">
       <div
         class="from-primary to-secondary absolute top-6 bottom-0 left-4 w-0.5 bg-gradient-to-b opacity-20"
       />
 
       <div
-        v-for="(activity, index) in data.items"
-        :key="index"
+        v-for="activity in items"
+        :key="activity.uniqueId"
         class="flex items-center gap-3"
       >
         <KunAvatar v-if="activity.actor" :user="activity.actor" />
@@ -71,10 +120,17 @@ const { data, status } = await useKunFetch<{
       </div>
     </div>
 
-    <KunPagination
-      v-model:current-page="pageData.page"
-      :total-page="Math.ceil(data.total / pageData.limit)"
-      :is-loading="status === 'pending'"
-    />
+    <!-- Infinite-scroll sentinel + manual fallback / end state -->
+    <div v-if="items.length" ref="sentinel" class="flex justify-center pt-1">
+      <KunButton
+        v-if="hasMore"
+        variant="light"
+        :loading="isLoadingMore"
+        @click="loadMore"
+      >
+        加载更多
+      </KunButton>
+      <span v-else class="text-default-400 text-sm">没有更多动态了</span>
+    </div>
   </KunCard>
 </template>

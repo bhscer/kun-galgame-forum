@@ -7,9 +7,12 @@ import "time"
 // ──────────────────────────────────────────
 
 type ActivityRequest struct {
-	Page  int    `query:"page" validate:"min=1"`
-	Limit int    `query:"limit" validate:"min=1,max=50"`
-	Type  string `query:"type" validate:"required"`
+	// Cursor is the opaque keyset position from the previous page's nextCursor;
+	// empty = first page. Replaces the old `page` — offset paging duplicated /
+	// skipped rows across pages (see repository.FetchKeyset).
+	Cursor string `query:"cursor"`
+	Limit  int    `query:"limit" validate:"min=1,max=50"`
+	Type   string `query:"type" validate:"required"`
 	// ShowNoResource mirrors the user's 显示设置 → 显示没有下载资源的 Galgame
 	// preference. Default false (omitted) hides resource-less galgames, so their
 	// GALGAME_CREATION activity is dropped from the feed too.
@@ -17,9 +20,9 @@ type ActivityRequest struct {
 }
 
 type TimelineRequest struct {
-	Page           int  `query:"page" validate:"min=1"`
-	Limit          int  `query:"limit" validate:"min=1,max=50"`
-	ShowNoResource bool `query:"showNoResource"`
+	Cursor         string `query:"cursor"`
+	Limit          int    `query:"limit" validate:"min=1,max=50"`
+	ShowNoResource bool   `query:"showNoResource"`
 }
 
 // ──────────────────────────────────────────
@@ -33,6 +36,10 @@ type Actor struct {
 }
 
 type ActivityItem struct {
+	// ID is the source row's id (galgame id for galgame-scoped rows). Kept
+	// internal (json:"-") — the service uses (Timestamp, Type, ID) to build the
+	// keyset nextCursor; clients consume nextCursor, never this.
+	ID        int       `json:"-"`
 	UniqueID  string    `json:"uniqueId"`
 	Type      string    `json:"type"`
 	Timestamp time.Time `json:"timestamp"`

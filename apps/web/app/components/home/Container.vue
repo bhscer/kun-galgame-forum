@@ -9,10 +9,9 @@ const [{ data }, { data: activityData }] = await Promise.all([
   }>('/home'),
   useKunFetch<{
     items: ActivityItem[]
-    total: number
+    nextCursor: string
   }>('/activity', {
     query: {
-      page: 1,
       limit: 30,
       type: 'all',
       showNoResource: settings.showKUNGalgameNoResource

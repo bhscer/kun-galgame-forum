@@ -32,11 +32,14 @@ type ActivitySource struct {
 	TypeStr string
 	Query   string
 	// SFWWhere, when non-empty, is a predicate on the source's base table `t`
-	// appended as a fresh WHERE for SFW viewers only — hides r18 entities (e.g.
-	// r18 galgame websites) from the default feed, mirroring the list endpoints'
-	// sfwScope. Only set it on sources whose Query has NO base WHERE (it is
-	// appended as `WHERE`, not `AND`).
+	// for SFW viewers only — hides r18 entities (e.g. r18 galgame websites) from
+	// the default feed, mirroring the list endpoints' sfwScope.
 	SFWWhere string
+	// HasBaseWhere must be true when Query already ends in a top-level WHERE
+	// (e.g. `… FROM message t WHERE t.type = 'upvoted'`). sourceQuery then
+	// AND-combines the resource / SFW / keyset predicates onto it instead of
+	// emitting a second WHERE; forgetting it yields `WHERE … WHERE …` at runtime.
+	HasBaseWhere bool
 }
 
 // Sources is the map of activity type → SQL source.
@@ -47,6 +50,7 @@ var Sources = map[string]ActivitySource{
 			t.title AS content,
 			'/topic/' || t.id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM topic t WHERE t.status != 1`,
+		HasBaseWhere: true,
 	},
 	"TOPIC_REPLY_CREATION": {
 		TypeStr: "TOPIC_REPLY_CREATION",
@@ -109,6 +113,7 @@ var Sources = map[string]ActivitySource{
 			'' AS content,
 			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
 			FROM galgame_activity t WHERE t.type = 'GALGAME_EDIT'`,
+		HasBaseWhere: true,
 	},
 	// GALGAME_PR_CREATION: a user submitted an update request (PR). The galgame_pr
 	// table lives in the wiki and can't be queried locally, so SubmitPR mirrors
@@ -121,6 +126,7 @@ var Sources = map[string]ActivitySource{
 			'' AS content,
 			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
 			FROM galgame_activity t WHERE t.type = 'GALGAME_PR_CREATION'`,
+		HasBaseWhere: true,
 	},
 	"GALGAME_RATING_CREATION": {
 		TypeStr: "GALGAME_RATING_CREATION",
@@ -175,6 +181,7 @@ var Sources = map[string]ActivitySource{
 			t.name AS content,
 			'/toolset/' || t.id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM galgame_toolset t WHERE t.status != 1`,
+		HasBaseWhere: true,
 	},
 	"TOOLSET_RESOURCE_CREATION": {
 		TypeStr: "TOOLSET_RESOURCE_CREATION",
@@ -209,12 +216,14 @@ var Sources = map[string]ActivitySource{
 		Query: `SELECT 'MESSAGE_UPVOTE' AS type_str, t.id, t.content,
 			t.link, t.created, t.sender_id AS user_id, 0 AS galgame_id
 			FROM message t WHERE t.type = 'upvoted'`,
+		HasBaseWhere: true,
 	},
 	"MESSAGE_SOLUTION": {
 		TypeStr: "MESSAGE_SOLUTION",
 		Query: `SELECT 'MESSAGE_SOLUTION' AS type_str, t.id, t.content,
 			t.link, t.created, t.sender_id AS user_id, 0 AS galgame_id
 			FROM message t WHERE t.type = 'solution'`,
+		HasBaseWhere: true,
 	},
 }
 
@@ -245,136 +254,112 @@ func (r *ActivityRepository) GetSource(typeStr string) (ActivitySource, bool) {
 	return s, ok
 }
 
-// FetchTimelineRows returns the newest `n` activity rows across ALL sources
-// (offset 0), resource-filtered per showNoResource. It returns no total: the
-// service over-fetches a window with this and slices the requested page in
-// *filtered* space (after enrichment drops brief-missing rows). That's the fix
-// for the under-filled feed — the old fixed `LIMIT n` followed by a post-fetch
-// drop left every page short, because a dropped galgame row had already spent a
-// LIMIT slot.
-func (r *ActivityRepository) FetchTimelineRows(n int, isSFW, showNoResource bool) ([]ActivityRow, error) {
-	dataSQL := fmt.Sprintf(
-		`SELECT u.* FROM (%s) AS u ORDER BY u.created DESC LIMIT %d`,
-		buildLimitedUnionAll(n, isSFW, showNoResource), n,
-	)
+// Cursor is the keyset position for the activity feed: the (created, type_str,
+// id) of the last row already returned. The feed is a UNION across many source
+// tables, so `id` is unique only WITHIN a source — the deterministic total order
+// (and thus the cursor) must include type_str. A nil Cursor means "from the
+// newest" (first page).
+type Cursor struct {
+	Created time.Time
+	TypeStr string
+	ID      int
+}
+
+// AllSources returns every registered source (the mixed-timeline fetch). Order
+// is irrelevant — FetchKeyset re-sorts the merged result deterministically.
+func (r *ActivityRepository) AllSources() []ActivitySource {
+	all := make([]ActivitySource, 0, len(Sources))
+	for _, src := range Sources {
+		all = append(all, src)
+	}
+	return all
+}
+
+// FetchKeyset returns up to `limit` rows from the given sources, strictly older
+// than `cur` (or the newest when cur is nil), in the deterministic total order
+// `created DESC, type_str DESC, id DESC`. This is the seek-method (keyset)
+// pagination that replaces OFFSET: stable across inserts, O(1) regardless of
+// depth, and — crucially — with a total-order tiebreaker so rows sharing a
+// `created` timestamp can no longer reorder between pages (the old
+// `ORDER BY created DESC` had no tiebreaker, so paging duplicated/skipped rows).
+//
+// Each source branch seeks its own idx_<table>_created via a coarse
+// `t.created <= cur.Created` pre-filter plus a per-branch ORDER BY/LIMIT; the
+// outer query then applies the EXACT row-value cut `(created,type_str,id) < cur`
+// and merges the branches. One source = a type-filtered feed; all sources = the
+// mixed timeline. Cursor values are bound as parameters (never interpolated).
+func (r *ActivityRepository) FetchKeyset(sources []ActivitySource, limit int, cur *Cursor, isSFW, showNoResource bool) ([]ActivityRow, error) {
+	sql, args := buildKeysetSQL(sources, limit, cur, isSFW, showNoResource)
 	var rows []ActivityRow
-	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
+	if err := r.db.Raw(sql, args...).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil
 }
 
-// FetchTimelinePage is the legacy offset-paged fetch, kept for DEEP pages
-// (beyond the service's over-fetch window) where filtered-space slicing from the
-// top would be too expensive. Those pages keep the old "sparse but non-empty"
-// behavior. Pushes `ORDER BY created DESC LIMIT (offset+limit)` into each source
-// so every branch is an index-backed top-N, not a full scan.
-func (r *ActivityRepository) FetchTimelinePage(page, limit int, isSFW, showNoResource bool) ([]ActivityRow, error) {
-	offset := (page - 1) * limit
-	perSource := offset + limit
-	dataSQL := fmt.Sprintf(
-		`SELECT u.* FROM (%s) AS u ORDER BY u.created DESC LIMIT %d OFFSET %d`,
-		buildLimitedUnionAll(perSource, isSFW, showNoResource), limit, offset,
-	)
-	var rows []ActivityRow
-	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
-		return nil, err
+// buildKeysetSQL assembles the keyset query + its bound args (split out from
+// FetchKeyset so it can be unit-tested without a DB). The per-branch
+// `t.created <= ?` placeholders bind in branch order; the outer row-value
+// comparison's three placeholders bind last — matching their left-to-right
+// position in the final SQL.
+func buildKeysetSQL(sources []ActivitySource, limit int, cur *Cursor, isSFW, showNoResource bool) (string, []any) {
+	parts := make([]string, 0, len(sources))
+	args := make([]any, 0, len(sources)+3)
+	for _, src := range sources {
+		q := sourceQuery(src, isSFW, showNoResource, cur != nil)
+		if cur != nil {
+			args = append(args, cur.Created)
+		}
+		parts = append(parts, fmt.Sprintf("(%s ORDER BY t.created DESC LIMIT %d)", q, limit))
 	}
-	return rows, nil
+	union := strings.Join(parts, " UNION ALL ")
+
+	sql := fmt.Sprintf("SELECT u.* FROM (%s) AS u", union)
+	if cur != nil {
+		// Row-value comparison = the exact, deterministic keyset cut. The
+		// per-branch `<= cur.Created` above is only a coarse, index-usable
+		// pre-filter; this makes the boundary precise across every source.
+		sql += " WHERE (u.created, u.type_str, u.id) < (?, ?, ?)"
+		args = append(args, cur.Created, cur.TypeStr, cur.ID)
+	}
+	sql += fmt.Sprintf(" ORDER BY u.created DESC, u.type_str DESC, u.id DESC LIMIT %d", limit)
+	return sql, args
 }
 
-// CountTimeline is the exact total over the (resource-filtered) union, used for
-// the /activity page bar (ceil(total/limit) pages). COUNT(*) lets Postgres prune
-// each branch's target list to a bare row count, so it stays cheap even spanning
-// every source.
-func (r *ActivityRepository) CountTimeline(isSFW, showNoResource bool) (int64, error) {
-	var total int64
-	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS u`, buildUnionAll(isSFW, showNoResource))
-	if err := r.db.Raw(countSQL).Scan(&total).Error; err != nil {
-		return 0, err
-	}
-	return total, nil
-}
-
-// FetchSingleSourceRows / FetchSingleSourcePage / CountSingleSource mirror the
-// timeline trio for a single type-filtered source.
-func (r *ActivityRepository) FetchSingleSourceRows(src ActivitySource, n int, isSFW, showNoResource bool) ([]ActivityRow, error) {
-	dataSQL := fmt.Sprintf(
-		`SELECT sub.* FROM (%s) AS sub ORDER BY sub.created DESC LIMIT %d`,
-		sourceQuery(src, isSFW, showNoResource), n,
-	)
-	var rows []ActivityRow
-	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	return rows, nil
-}
-
-func (r *ActivityRepository) FetchSingleSourcePage(src ActivitySource, page, limit int, isSFW, showNoResource bool) ([]ActivityRow, error) {
-	dataSQL := fmt.Sprintf(
-		`SELECT sub.* FROM (%s) AS sub ORDER BY sub.created DESC LIMIT %d OFFSET %d`,
-		sourceQuery(src, isSFW, showNoResource), limit, (page-1)*limit,
-	)
-	var rows []ActivityRow
-	if err := r.db.Raw(dataSQL).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	return rows, nil
-}
-
-func (r *ActivityRepository) CountSingleSource(src ActivitySource, isSFW, showNoResource bool) (int64, error) {
-	var total int64
-	countSQL := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) AS sub`, sourceQuery(src, isSFW, showNoResource))
-	if err := r.db.Raw(countSQL).Scan(&total).Error; err != nil {
-		return 0, err
-	}
-	return total, nil
-}
-
-// sourceQuery returns src.Query with the dynamic predicates appended:
+// sourceQuery returns src.Query with the dynamic predicates AND-combined onto a
+// single WHERE:
 //
 //   - Resource-less filter: for GALGAME_CREATION when the viewer hides
 //     resource-less galgames (showNoResource=false, the default 显示设置), drop
 //     creations of galgames with no download resource. Pushed into SQL so these
-//     rows never occupy a LIMIT slot and then get dropped during enrichment —
-//     that post-LIMIT drop was the root cause of the under-filled feed. Mirrors
-//     the galgame list's default filter.
-//   - SFW predicate: the source's SFWWhere (as a fresh WHERE) for SFW viewers.
+//     rows never occupy a LIMIT slot and then get dropped during enrichment.
+//     Mirrors the galgame list's default filter.
+//   - SFW predicate: the source's SFWWhere for SFW viewers.
+//   - Keyset pre-filter: `t.created <= ?` (coarse, index-usable) when paginating
+//     from a cursor; the exact cut is the outer row-value comparison in
+//     FetchKeyset. The caller binds the parameter.
 //
-// GALGAME_CREATION's base Query has no WHERE and no SFWWhere, so appending a
-// single fresh WHERE for the resource filter is unambiguous.
-func sourceQuery(src ActivitySource, isSFW, showNoResource bool) string {
+// The hasWhere tracker AND-combines predicates so a second/third one never emits
+// a malformed `WHERE … WHERE …` (the old version assumed at most one applied).
+func sourceQuery(src ActivitySource, isSFW, showNoResource, withCursor bool) string {
 	q := src.Query
+	hasWhere := src.HasBaseWhere
+	add := func(pred string) {
+		if hasWhere {
+			q += " AND (" + pred + ")"
+		} else {
+			q += " WHERE " + pred
+			hasWhere = true
+		}
+	}
 	if !showNoResource && src.TypeStr == "GALGAME_CREATION" {
-		q += " WHERE EXISTS (SELECT 1 FROM galgame_resource r WHERE r.galgame_id = t.id)"
+		add("EXISTS (SELECT 1 FROM galgame_resource r WHERE r.galgame_id = t.id)")
 	}
 	if isSFW && src.SFWWhere != "" {
-		q += " WHERE " + src.SFWWhere
+		add(src.SFWWhere)
+	}
+	if withCursor {
+		add("t.created <= ?")
 	}
 	return q
-}
-
-// buildUnionAll joins all source queries with UNION ALL (no per-source limit).
-// Used only for the exact COUNT(*) over the full activity set.
-func buildUnionAll(isSFW, showNoResource bool) string {
-	parts := make([]string, 0, len(Sources))
-	for _, src := range Sources {
-		parts = append(parts, "("+sourceQuery(src, isSFW, showNoResource)+")")
-	}
-	return strings.Join(parts, " UNION ALL ")
-}
-
-// buildLimitedUnionAll joins all sources with UNION ALL, but first caps each
-// source to its own `ORDER BY created DESC LIMIT perSource`. Every source SELECTs
-// `t.created` off its base table aliased `t`, so each per-branch ORDER BY/LIMIT
-// can use idx_<table>_created and read only the newest perSource rows. perSource
-// MUST be >= the page's offset+limit for the page to be exact. Parenthesising
-// each operand keeps the per-branch ORDER BY/LIMIT local to that SELECT (not
-// applied to the whole UNION).
-func buildLimitedUnionAll(perSource int, isSFW, showNoResource bool) string {
-	parts := make([]string, 0, len(Sources))
-	for _, src := range Sources {
-		parts = append(parts, fmt.Sprintf("(%s ORDER BY t.created DESC LIMIT %d)", sourceQuery(src, isSFW, showNoResource), perSource))
-	}
-	return strings.Join(parts, " UNION ALL ")
 }

@@ -1,47 +1,90 @@
 <script setup lang="ts">
+import { useIntersectionObserver } from '@vueuse/core'
 import {
   KUN_ACTIVITY_TYPE_TYPE,
   KUN_ACTIVITY_GROUPS,
   KUN_ACTIVITY_ICON_MAP
 } from '~/constants/activity'
 
-const pageData = reactive({
-  page: 1,
-  limit: 50,
-  type: 'TOPIC_CREATION'
-})
+// Keyset (cursor) pagination + infinite scroll — see activity/Timeline.vue for
+// why the old numbered pages duplicated / skipped rows.
+const selectedType = ref('TOPIC_CREATION')
 
-// Category picker is a grouped dropdown (18 flat tabs overflowed). Selecting a
-// category resets pagination and closes the popover.
-const categoryPopover = ref<{ close: () => void } | null>(null)
-const selectCategory = (type: string) => {
-  if (pageData.type !== type) {
-    pageData.type = type
-    pageData.page = 1
-  }
-  categoryPopover.value?.close()
-}
+const items = ref<ActivityItem[]>([])
+const cursor = ref('')
+const hasMore = ref(true)
+const isLoadingMore = ref(false)
 
-// Global "显示没有下载资源的 Galgame" preference (cookie-persisted, SSR-safe).
-// Off (default) drops resource-less galgames' creation rows; computed query
-// keeps page/type reactive AND re-fetches when the toggle changes.
 const settings = usePersistSettingsStore()
+
+// First page renders on the server. The computed query re-fetches whenever the
+// category or the showNoResource toggle changes; the watch re-seeds the feed.
 const { data, status } = await useKunFetch<{
   items: ActivityItem[]
-  total: number
+  nextCursor: string
 }>('/activity', {
   method: 'GET',
   query: computed(() => ({
-    ...pageData,
+    limit: 50,
+    type: selectedType.value,
     showNoResource: settings.showKUNGalgameNoResource
   }))
 })
+
+watch(
+  data,
+  (page) => {
+    if (!page) return
+    items.value = page.items
+    cursor.value = page.nextCursor
+    hasMore.value = !!page.nextCursor
+  },
+  { immediate: true }
+)
+
+// Category picker is a grouped dropdown (18 flat tabs overflowed). Selecting a
+// category swaps the feed (the computed query refetches) and closes the popover.
+const categoryPopover = ref<{ close: () => void } | null>(null)
+const selectCategory = (type: string) => {
+  selectedType.value = type
+  categoryPopover.value?.close()
+}
+
+const loadMore = async () => {
+  if (isLoadingMore.value || !hasMore.value || !cursor.value) return
+  isLoadingMore.value = true
+  const next = await kunFetch<{ items: ActivityItem[]; nextCursor: string }>(
+    '/activity',
+    {
+      method: 'GET',
+      query: {
+        limit: 50,
+        type: selectedType.value,
+        cursor: cursor.value,
+        showNoResource: settings.showKUNGalgameNoResource
+      }
+    }
+  )
+  isLoadingMore.value = false
+  if (!next) return
+  items.value.push(...next.items)
+  cursor.value = next.nextCursor
+  hasMore.value = !!next.nextCursor
+}
+
+const sentinel = ref<HTMLElement | null>(null)
+useIntersectionObserver(
+  sentinel,
+  ([entry]) => {
+    if (entry?.isIntersecting) loadMore()
+  },
+  { rootMargin: '400px' }
+)
 </script>
 
 <template>
   <KunCard
     :is-transparent="false"
-    v-if="data"
     content-class="space-y-3"
     :is-hoverable="false"
   >
@@ -60,11 +103,11 @@ const { data, status } = await useKunFetch<{
           class="border-default-200 hover:border-primary flex w-fit cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
         >
           <KunIcon
-            :name="KUN_ACTIVITY_ICON_MAP[pageData.type]"
+            :name="KUN_ACTIVITY_ICON_MAP[selectedType]"
             class="text-primary"
           />
           <span class="font-medium">
-            {{ KUN_ACTIVITY_TYPE_TYPE[pageData.type] }}
+            {{ KUN_ACTIVITY_TYPE_TYPE[selectedType] }}
           </span>
           <KunIcon name="lucide:chevron-down" class="text-default-400 ml-1" />
         </div>
@@ -86,7 +129,7 @@ const { data, status } = await useKunFetch<{
           :class="
             cn(
               'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors',
-              type === pageData.type
+              type === selectedType
                 ? 'bg-primary/10 text-primary'
                 : 'text-foreground hover:bg-default-100'
             )
@@ -97,7 +140,7 @@ const { data, status } = await useKunFetch<{
             {{ KUN_ACTIVITY_TYPE_TYPE[type] }}
           </span>
           <KunIcon
-            v-if="type === pageData.type"
+            v-if="type === selectedType"
             name="lucide:check"
             class="text-primary shrink-0"
           />
@@ -105,9 +148,14 @@ const { data, status } = await useKunFetch<{
       </div>
     </KunPopover>
 
+    <KunNull
+      v-if="status !== 'pending' && !items.length"
+      description="暂无动态"
+    />
+
     <div
-      v-for="(activity, index) in data.items"
-      :key="index"
+      v-for="activity in items"
+      :key="activity.uniqueId"
       class="flex flex-col space-y-2"
     >
       <KunLink
@@ -130,10 +178,16 @@ const { data, status } = await useKunFetch<{
       </div>
     </div>
 
-    <KunPagination
-      v-model:current-page="pageData.page"
-      :total-page="Math.ceil(data.total / pageData.limit)"
-      :is-loading="status === 'pending'"
-    />
+    <div v-if="items.length" ref="sentinel" class="flex justify-center pt-1">
+      <KunButton
+        v-if="hasMore"
+        variant="light"
+        :loading="isLoadingMore"
+        @click="loadMore"
+      >
+        加载更多
+      </KunButton>
+      <span v-else class="text-default-400 text-sm">没有更多动态了</span>
+    </div>
   </KunCard>
 </template>
