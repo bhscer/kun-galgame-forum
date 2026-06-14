@@ -65,7 +65,11 @@ const statusClasses = computed(() => {
 
     <KunPopover ref="userMenu" position="bottom-end" inner-class="p-2 min-w-60">
       <template v-if="id" #trigger>
-        <div>
+        <!-- relative inline-flex pins the status dot to the avatar's own box.
+             Without it the dot anchored to KunPopover's trigger wrapper, which
+             since kun-ui 1.x is an inline-block — its baseline descender gap
+             pushed the dot a few px below the avatar's corner. -->
+        <div class="relative inline-flex">
           <KunAvatar
             size="lg"
             :is-navigation="false"

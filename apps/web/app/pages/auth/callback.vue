@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import Cookies from 'js-cookie'
 
-definePageMeta({ layout: 'blank' })
+// No layout: a transient redirect page wants a clean full-screen loader, not
+// the blank layout's top-bar + content column (whose width-less, h-full column
+// collapsed this page's `size-full` into a cramped, off-looking box).
+definePageMeta({ layout: false })
 
 const route = useRoute()
 const error = ref('')
@@ -91,10 +94,25 @@ const redirectToLogin = () => {
 </script>
 
 <template>
-  <div class="flex size-full items-center justify-center">
-    <div class="text-center">
-      <p v-if="!error" class="text-lg">正在登录...</p>
-      <p v-else class="text-danger">{{ error }}</p>
-    </div>
+  <div
+    class="bg-background flex min-h-dvh w-full flex-col items-center justify-center gap-5 px-6 text-center"
+  >
+    <template v-if="!error">
+      <KunIcon
+        class="text-primary size-10 animate-spin"
+        name="lucide:loader-circle"
+      />
+      <div class="space-y-1">
+        <p class="text-foreground text-lg font-medium">正在登录...</p>
+        <p class="text-default-500 text-sm">正在验证您的身份，请稍候</p>
+      </div>
+    </template>
+    <template v-else>
+      <KunIcon class="text-danger size-10" name="lucide:circle-alert" />
+      <div class="space-y-1">
+        <p class="text-danger text-lg font-medium">{{ error }}</p>
+        <p class="text-default-500 text-sm">即将返回首页…</p>
+      </div>
+    </template>
   </div>
 </template>
