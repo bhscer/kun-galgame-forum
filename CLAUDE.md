@@ -20,3 +20,4 @@
 
 - 鉴权在 `internal/middleware/auth.go`：是 **BFF 不透明会话**（`kungal_session` cookie + Redis 存 OAuth token），不是纯 JWT 验签。会话 **90 天滑动续期**（活跃用户不再每周掉线）——模型与 2026-06 修复见 `docs/proj/session-lifetime.md`。
 - 修改 `docs/{oauth,image_service,galgame_wiki}/` 下任何文件都是**错的**——那是 infra 的镜像；要改去 infra 改、再 `docs:sync`。
+- **改了数据库 schema 必须提醒迁移**：本仓 schema 走 `apps/api/migrations/NNN_*.up.sql`（幂等，`IF NOT EXISTS`）+ 自带 migrate runner，**启动时不跑 AutoMigrate**。只要加了迁移文件 / 改了表结构，**任务结束时必须明确告诉用户：是否需要在生产跑迁移、跑哪个命令**。漏跑 → 线上代码读到不存在的列 → 静默故障（参考 2026-06 infra 萌萌点发放故障：缺一列导致全站 ~29h 拿不到萌萌点）。
