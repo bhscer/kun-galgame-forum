@@ -134,7 +134,7 @@ const activeBucket = computed(() =>
               Galgame萌新入门(待补充)
             </KunLink>
             - by
-            <KunUser
+            <KunUserChip
               size="sm"
               :user="{
                 id: 19994,
@@ -149,7 +149,7 @@ const activeBucket = computed(() =>
               如何安装镜像文件(教程)
             </KunLink>
             - by
-            <KunUser
+            <KunUserChip
               size="sm"
               :user="{
                 id: 19994,

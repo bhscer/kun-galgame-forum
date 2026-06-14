@@ -99,10 +99,11 @@ const statusClasses = computed(() => {
       </KunButton>
     </template>
 
-    <!-- 萌萌点明细 modal — mounted here (not inside the avatar popover, which
-         v-if-unmounts its content on click-away). Self-binds to the temp
-         store flag set by the menu in UserInfo.vue. -->
+    <!-- 萌萌点明细 + 退出登录 modals — mounted here (not inside the avatar
+         popover, which v-if-unmounts its content on click-away). Both self-bind
+         to a temp-store flag set by the menu in UserInfo.vue. -->
     <LazyKunTopBarMoemoepointLog v-if="id" />
+    <LazyKunTopBarLogout v-if="id" />
   </div>
 </template>
 
