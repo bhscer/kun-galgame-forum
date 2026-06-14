@@ -79,6 +79,16 @@ x-kungal-api-env: &kungal-api-env
   # than a separate Dokploy var.
   KUN_IMAGE_CLIENT_ID: 4ed9bc99ec0a789a4796b83e22bd84c5
   KUN_IMAGE_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:?set OAUTH_CLIENT_SECRET in Dokploy}
+  # kungal-link-live-checker — the "report resource expired" gate (dead→失效 /
+  # alive→驳回误报 / unknown→旧流程). Set all 4 in Dokploy to enable it; the
+  # checker is behind Cloudflare Access so the CF service-token headers are
+  # required alongside the Bearer key. Any unset → gate OFF (legacy flow). These
+  # MUST be wired here — a Dokploy panel var only reaches the container when the
+  # compose env references it, which is exactly why the gate stayed off before.
+  LINK_CHECKER_BASE_URL: ${LINK_CHECKER_BASE_URL:-}
+  LINK_CHECKER_API_KEY: ${LINK_CHECKER_API_KEY:-}
+  CF_ACCESS_CLIENT_ID: ${CF_ACCESS_CLIENT_ID:-}
+  CF_ACCESS_CLIENT_SECRET: ${CF_ACCESS_CLIENT_SECRET:-}
 
 services:
   # ───────────────────────────── Go API (distroless) ─────────────────────────
