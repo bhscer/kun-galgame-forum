@@ -12,14 +12,29 @@ export const markdownToText = (
 ) => {
   if (!markdown) return ''
   const stripped = markdown
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    // Fenced code blocks: drop the ``` fence lines (incl the language label).
+    .replace(/^[ \t]*```+.*$/gm, '')
+    // HTML the editor / paste can leave: <br> → line break, then drop any tag
+    // (notes like `1. <br />` otherwise showed a literal "<br />" in the card).
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    // Image BEFORE link (an image is a link with a leading `!`) → alt text;
+    // doing links first left a stray "!" on every image.
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    // Inline emphasis → inner text: bold, strikethrough, ||spoiler||, italic.
     .replace(/(\*\*|__)(.*?)\1/g, '$2')
+    .replace(/~~(.*?)~~/g, '$1')
+    .replace(/\|\|(.*?)\|\|/g, '$1')
     .replace(/(\*|_)(.*?)\1/g, '$2')
-    .replace(/^\s*(#{1,6})\s+(.*)/gm, '$2')
+    // Headings, inline code, horizontal rules.
+    .replace(/^\s*#{1,6}\s+(.*)/gm, '$1')
     .replace(/`/g, '')
-    .replace(/^(-{3,}|\*{3,})$/gm, '')
+    .replace(/^\s*(-{3,}|\*{3,}|_{3,})\s*$/gm, '')
+    // List markers, GFM task-list checkboxes, blockquote markers.
     .replace(/^\s*([-*+]|\d+\.)\s+/gm, '')
+    .replace(/^\s*\[[ xX]\]\s+/gm, '')
+    .replace(/^\s*>+\s?/gm, '')
   return (
     opts?.preserveNewlines
       ? stripped.replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n')
