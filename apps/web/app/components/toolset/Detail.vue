@@ -258,6 +258,7 @@ const handleResourceUpdated = (res: ToolsetResource) => {
     <KunModal
       :model-value="showResourceModal"
       @update:model-value="(v) => (showResourceModal = v)"
+      inner-class-name="max-w-2xl"
       :is-dismissable="false"
     >
       <ToolsetResourceContainer
