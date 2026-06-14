@@ -14,7 +14,7 @@ const isShowMessageDot = computed(() => messageStatus.value === 'new')
 // hides the entry from regular users, matching moyu's isModerator check).
 const isAdmin = computed(() => role.value > 1)
 
-// Opens the 萌萌点明细 modal, which is mounted at the stable Avatar.vue level
+// Opens the 萌萌点明细 modal, which is mounted at the stable app.vue root
 // (this menu lives inside a popover that unmounts on click-away).
 const openMoemoepointLog = () => {
   emit('close')
@@ -47,7 +47,7 @@ const handleCheckIn = async () => {
   }
 }
 
-// Opens the logout scope chooser, mounted at the stable Avatar.vue level. This
+// Opens the logout scope chooser, mounted at the stable app.vue root. This
 // menu lives inside a popover that v-if-unmounts on click-away, so a modal
 // rendered HERE would die before showing — the cause of "点退出登录没有反应".
 // The actual modal + handlers live in top-bar/Logout.vue, self-bound to the

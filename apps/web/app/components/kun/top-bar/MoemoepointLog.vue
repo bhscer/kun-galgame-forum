@@ -1,9 +1,11 @@
 <script setup lang="ts">
 // 萌萌点明细 modal. Opened from the avatar menu (UserInfo.vue) via the
-// temp-store flag `showKUNGalgameMoemoepointLog`, and rendered at the stable
-// Avatar.vue level — NOT inside the avatar popover, whose content is v-if'd
-// and unmounts the instant the user clicks into the modal (which would tear
-// the modal down with it).
+// temp-store flag `showKUNGalgameMoemoepointLog`, and rendered at the app.vue
+// root (a stable, NON-scoped node) — NOT inside the avatar popover, whose
+// content is v-if'd and unmounts the instant the user clicks into the modal
+// (which would tear the modal down with it). app.vue (vs the <style scoped>
+// avatar bar) also keeps Vue from warning about the scope id it can't stamp
+// onto this component's <KunModal> teleport root.
 //
 // The ledger is the UNIFIED moemoepoint history from OAuth: every earn / spend
 // across all sites (鲲 Galgame / 补丁 / TouchGal / 贴纸 …) shows up here, since

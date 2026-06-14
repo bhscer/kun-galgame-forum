@@ -146,6 +146,13 @@ onMounted(() => {
 
     <KunCapture />
 
+    <!-- 萌萌点明细 + 退出登录 modals. Opened from the avatar menu via temp-store
+         flags; mounted here at the non-scoped app.vue root (not the <style
+         scoped> avatar bar) so Vue doesn't warn about stamping a scope id onto
+         their <KunModal> teleport root. Closed by default; harmless logged-out. -->
+    <LazyKunTopBarMoemoepointLog />
+    <LazyKunTopBarLogout />
+
     <KunFloatingBar />
 
     <LazyTopicReplyPanel />

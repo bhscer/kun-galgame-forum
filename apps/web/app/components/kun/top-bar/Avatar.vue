@@ -99,11 +99,11 @@ const statusClasses = computed(() => {
       </KunButton>
     </template>
 
-    <!-- 萌萌点明细 + 退出登录 modals — mounted here (not inside the avatar
-         popover, which v-if-unmounts its content on click-away). Both self-bind
-         to a temp-store flag set by the menu in UserInfo.vue. -->
-    <LazyKunTopBarMoemoepointLog v-if="id" />
-    <LazyKunTopBarLogout v-if="id" />
+    <!-- 萌萌点明细 + 退出登录 modals are NOT mounted here. They self-bind to a
+         temp-store flag set by the menu in UserInfo.vue, but their root is a
+         teleporting <KunModal>; a <style scoped> parent (this file) can't stamp
+         its scope id onto a teleport root → "Extraneous non-props attributes"
+         warning. So they live at the non-scoped app.vue root instead. -->
   </div>
 </template>
 

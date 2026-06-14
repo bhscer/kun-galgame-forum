@@ -1,10 +1,15 @@
 <script setup lang="ts">
-// Logout scope chooser, mounted at the TOP-BAR level — NOT inside the avatar
-// popover, which v-if-unmounts its content on click-away (same reason the
-// 萌萌点明细 modal lives in Avatar.vue). UserInfo's 退出登录 sets the temp-store
-// flag; this self-binds to it, so the modal survives the popover closing.
-// Before this it lived inside UserInfo → opening it emitted close → the popover
-// unmounted UserInfo → the modal died before showing ("点退出登录没有反应").
+// Logout scope chooser. Mounted at the app.vue root (a stable, NON-scoped
+// node) — NOT inside the avatar popover, whose content is v-if'd and unmounts
+// the instant the user clicks into the modal (which would tear the modal down
+// with it — the cause of "点退出登录没有反应"). UserInfo's 退出登录 sets the
+// temp-store flag; this self-binds to it, so the modal survives the popover.
+//
+// It lives at app.vue and not the avatar bar specifically because this
+// component's root IS <KunModal> (a <Teleport> root). A <style scoped> parent
+// would try to stamp its scope id onto our teleport root for deep styling and
+// Vue would warn ("Extraneous non-props attributes … at <KunModal>"); app.vue's
+// style is global, so — like KunAuthModal / KunCapture there — no warning.
 const { showKUNGalgameLogout: isOpen } = storeToRefs(useTempSettingStore())
 
 const logoutPending = ref<'local' | 'everywhere' | null>(null)
