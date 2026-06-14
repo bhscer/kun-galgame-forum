@@ -53,8 +53,12 @@ const logOut = async () => {
   const res = await useComponentMessageStore().alert('您确定退出登录吗？')
   if (res) {
     useMessage(10110, 'success')
-    await navigateTo('/')
     usePersistUserStore().resetUser()
+    // RP-initiated logout: clearing the forum's own state isn't enough — also
+    // clear the central OP session, else the next login silently re-consents
+    // into the same account. Top-level redirect to the OP logout entrypoint,
+    // which returns to '/'. See docs/oauth/07-logout.md.
+    startOAuthLogout()
   }
 }
 </script>
