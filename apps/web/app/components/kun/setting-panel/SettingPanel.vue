@@ -38,18 +38,29 @@ const activeTab = ref('appearance')
         </KunTooltip>
       </div>
 
-      <!-- Mobile: category tabs on top. Wrapped in a plain div for the
-           responsive show/hide — KunTab sets its own display, which would
-           otherwise win over a `hidden`/`sm:hidden` utility put directly on it. -->
-      <div class="sm:hidden">
-        <KunTab
-          v-model="activeTab"
-          :items="settingTabs"
-          variant="underlined"
-          color="primary"
-          size="sm"
-          scrollable
-        />
+      <!-- Mobile: category picker as a WRAPPING button grid (not a scrollable
+           tab bar). The old scrollable KunTab pushed the last tabs (内容 / 通用,
+           where 显示琥珀 lives) off-screen, and a horizontal scroll on a tab bar
+           is undiscoverable — users couldn't find them. A grid shows every
+           category at once. Desktop keeps the vertical KunTab rail below. -->
+      <div class="grid grid-cols-3 gap-2 sm:hidden">
+        <button
+          v-for="tab in settingTabs"
+          :key="tab.value"
+          type="button"
+          @click="activeTab = tab.value"
+          :class="
+            cn(
+              'flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-xs transition-colors',
+              activeTab === tab.value
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-default-200 text-default-600 hover:bg-default-100'
+            )
+          "
+        >
+          <KunIcon :name="tab.icon" class="text-base" />
+          <span>{{ tab.textValue }}</span>
+        </button>
       </div>
 
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start">

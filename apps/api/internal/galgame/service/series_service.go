@@ -61,8 +61,19 @@ func (s *SeriesService) GetList(
 	req *dto.SeriesListRequest,
 	isSFW bool,
 ) (*dto.SeriesListPage, *errors.AppError) {
+	// NSFW gating MUST be reflected as content_limit to the wiki (single source
+	// of truth; §16) — it defaults to sfw when omitted. On the LIST this makes
+	// galgame_count reflect the right rating: without it an all-NSFW series
+	// reports count 0 in NSFW mode, so the count-gated backfill below never runs
+	// and the series shows empty / looks SFW. SFW → sfw; NSFW → all. The
+	// per-series backfill + GetDetail carry the SAME content_limit.
+	contentLimit := "all"
+	if isSFW {
+		contentLimit = "sfw"
+	}
 	query := url.Values{
 		"page": {"1"}, "limit": {"500"}, "include": {"galgame"},
+		"content_limit": {contentLimit},
 	}
 	data, appErr := s.wikiClient.Get(ctx, "/series", query)
 	if appErr != nil {
@@ -74,8 +85,10 @@ func (s *SeriesService) GetList(
 		return nil, errors.ErrInternal("解析 Wiki 响应失败")
 	}
 
-	// Backfill galgame arrays where the list endpoint omitted them.
-	s.backfillGalgames(ctx, parsed.Items)
+	// Backfill galgame arrays where the list endpoint omitted them — with the
+	// SAME content_limit, or the per-series /series/:id fetch defaults to sfw and
+	// an all-NSFW series backfills to ZERO games (the NSFW-mode bug).
+	s.backfillGalgames(ctx, parsed.Items, contentLimit)
 
 	items := make([]dto.SeriesListItem, 0, len(parsed.Items))
 	for _, item := range parsed.Items {
@@ -113,12 +126,13 @@ func (s *SeriesService) GetList(
 // series stuck at their handful of games, so the card's 5-cover montage showed
 // far fewer covers than the series has. Backfilling whenever len < count fixes
 // both the empty and the partial case.
-func (s *SeriesService) backfillGalgames(ctx context.Context, items []wikiSeriesListItem) {
+func (s *SeriesService) backfillGalgames(ctx context.Context, items []wikiSeriesListItem, contentLimit string) {
+	q := url.Values{"content_limit": {contentLimit}}
 	for i := range items {
 		if items[i].GalgameCount == 0 || len(items[i].Galgame) >= items[i].GalgameCount {
 			continue
 		}
-		data, err := s.wikiClient.Get(ctx, fmt.Sprintf("/series/%d", items[i].ID), nil)
+		data, err := s.wikiClient.Get(ctx, fmt.Sprintf("/series/%d", items[i].ID), q)
 		if err != nil {
 			continue
 		}
@@ -140,7 +154,13 @@ func (s *SeriesService) GetDetail(
 	seriesID string,
 	isSFW bool,
 ) (*dto.SeriesDetail, *errors.AppError) {
-	data, appErr := s.wikiClient.Get(ctx, "/series/"+seriesID, nil)
+	// Same content_limit gating — without it /series/:id defaults to sfw, so the
+	// detail page of an NSFW series shows no games even in NSFW mode.
+	contentLimit := "all"
+	if isSFW {
+		contentLimit = "sfw"
+	}
+	data, appErr := s.wikiClient.Get(ctx, "/series/"+seriesID, url.Values{"content_limit": {contentLimit}})
 	if appErr != nil {
 		return nil, appErr
 	}

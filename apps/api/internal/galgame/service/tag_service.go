@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"maps"
 	"net/url"
 
 	"kun-galgame-api/internal/galgame/client"
@@ -133,24 +132,20 @@ func (s *TagService) GetByMultiTag(
 
 // GetList — GET /galgame-tag
 //
-// In SFW mode we drop tags whose category is "sexual". Because the wiki
-// service paginates before we can filter, we over-fetch the full tag set
-// (typically a few thousand rows) and paginate on the API side so the
-// frontend sees an accurate total.
+// The wiki gates NSFW + paginates server-side: GET /tag accepts content_limit
+// (sfw hides the sexual/NSFW tag category, all returns everything; safe default
+// sfw — docs 04-taxonomy). We forward page + limit + content_limit and proxy
+// the wiki's total for a true server-side paged list.
+//
+// (Was: limit=5000 fetch-all + client-side sexual filter — silently truncated
+// by the wiki's 100/page cap, so most tags were unlisted and the pager never
+// showed; client-side gating is also forbidden by handbook §16.)
 func (s *TagService) GetList(
 	ctx context.Context,
 	rawQuery url.Values,
 	isSFW bool,
 ) (*dto.TagListPage, *errors.AppError) {
-	page := atoiOr(rawQuery.Get("page"), 1)
-	limit := atoiOr(rawQuery.Get("limit"), 100)
-
-	q := url.Values{}
-	maps.Copy(q, rawQuery)
-	q.Set("page", "1")
-	q.Set("limit", "5000")
-
-	data, appErr := s.wikiClient.Get(ctx, "/tag", q)
+	data, appErr := s.wikiClient.Get(ctx, "/tag", withSFWFilter(rawQuery, isSFW))
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -159,20 +154,14 @@ func (s *TagService) GetList(
 		return nil, errors.ErrInternal("解析 Wiki 响应失败")
 	}
 
-	filtered := make([]dto.TagListItem, 0, len(parsed.Items))
+	tags := make([]dto.TagListItem, 0, len(parsed.Items))
 	for _, t := range parsed.Items {
-		if isSFW && t.Category == "sexual" {
-			continue
-		}
-		filtered = append(filtered, dto.TagListItem{
+		tags = append(tags, dto.TagListItem{
 			ID: t.ID, Name: t.Name, Category: t.Category,
 			GalgameCount: t.GalgameCount,
 		})
 	}
-
-	total := int64(len(filtered))
-	tags := paginate(filtered, page, limit)
-	return &dto.TagListPage{Tags: tags, Total: total}, nil
+	return &dto.TagListPage{Tags: tags, Total: parsed.Total}, nil
 }
 
 // GetDetail — GET /galgame-tag/:name
