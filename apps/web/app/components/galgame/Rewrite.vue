@@ -48,6 +48,15 @@ const handleRewriteGalgame = async (galgame: GalgameDetail) => {
     officials: [...galgame.official],
     engines: [...galgame.engine],
     links: (linkRes ?? []).map((l) => ({ name: l.name, link: l.link })),
+    // Baseline in the SAME wire shape Footer compares (trimmed, blank-filtered),
+    // so an untouched links section round-trips as "unchanged" → omitted →
+    // preserved. A FAILED link fetch leaves both empty → unchanged → preserved
+    // (not an empty replace-all that wipes every existing link on merge).
+    linksBaseline: JSON.stringify(
+      (linkRes ?? [])
+        .map((l) => ({ name: l.name.trim(), link: l.link.trim() }))
+        .filter((l) => l.name.length > 0 && l.link.length > 0)
+    ),
     note: '',
     // U1: hydrate from detail; nil → empty (treated as "unknown" by the
     // schema's `"" | YYYY-MM-DD` refinement). The wire ships ISO

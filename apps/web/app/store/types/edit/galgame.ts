@@ -67,6 +67,12 @@ export interface GalgameEditStoreTemp {
   // rewrite/PR flow sets them (Draft's PATCH never touches images).
   coversBaseline?: string
   screenshotsBaseline?: string
+  // Same presence-replace guard for the (replace-all) links: Footer omits
+  // `links` from the payload when it equals this baseline, so the wiki keeps
+  // the current set. Critically, if the `/link/all` hydration FAILED, both
+  // `links` and this baseline are empty → "unchanged" → omitted → existing
+  // links are preserved instead of being wiped to nothing on merge.
+  linksBaseline?: string
   // True when the current user is the galgame's creator or an
   // admin/moderator (role>=2): wiki lets them edit directly via
   // PUT /galgame/:gid (instant, new revision) instead of opening a PR.

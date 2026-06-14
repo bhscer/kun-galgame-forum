@@ -35,6 +35,14 @@ const handlePublishGalgamePR = async () => {
     .map((l) => ({ name: l.name.trim(), link: l.link.trim() }))
     .filter((l) => l.name.length > 0 && l.link.length > 0)
 
+  // Presence-replace for links (same as covers/screenshots): only send/sync
+  // links when the user actually changed them vs the hydrated baseline.
+  // Untouched → omit → wiki keeps the current set. The crucial case: if the
+  // `/link/all` hydration failed, `links` and the baseline are BOTH empty →
+  // unchanged → omitted → existing links are preserved, instead of an empty
+  // replace-all silently wiping every link of the galgame on merge.
+  const linksChanged = JSON.stringify(links) !== (galgame.linksBaseline ?? '[]')
+
   // U2 (K-PR3b): covers/screenshots are presence-replace; strip the
   // server-injected `cdn_url` preview field — wiki doesn't accept it on
   // write (silent-ignored at best, schema-noisy at worst).
@@ -95,12 +103,14 @@ const handlePublishGalgamePR = async () => {
     tag_ids: galgame.tags.map((t) => t.id),
     official_ids: galgame.officials.map((o) => o.id),
     engine_ids: galgame.engines.map((e) => e.id),
-    links,
     note: galgame.note
   }
 
-  // Only when the user actually touched the image set (see above) — otherwise
-  // the key is absent and wiki keeps the live covers/screenshots.
+  // Only when the user actually touched it (see above) — otherwise the key is
+  // absent and the wiki keeps the live links / covers / screenshots.
+  if (linksChanged) {
+    data.links = links
+  }
   if (coversChanged) {
     data.covers = coversWire
   }
@@ -158,7 +168,12 @@ const handlePublishGalgamePR = async () => {
     // take them (replace-all), so only the direct path needs to
     // reconcile aliases/links itself against the current set.
     if (direct) {
-      await reconcileAliasesLinks(galgame.id, galgame.alias, galgame.links)
+      await reconcileAliasesLinks(
+        galgame.id,
+        galgame.alias,
+        galgame.links,
+        linksChanged
+      )
     }
     useKunLoliInfo(direct ? '已保存, 修改已生效' : '创建更新请求成功', 5)
     await navigateTo(`/galgame/${galgame.id}`, {
@@ -174,7 +189,11 @@ const handlePublishGalgamePR = async () => {
 const reconcileAliasesLinks = async (
   gid: number,
   desiredAliasRaw: string[],
-  desiredLinksRaw: { name: string; link: string }[]
+  desiredLinksRaw: { name: string; link: string }[],
+  // Skip the link diff when the user didn't change links (esp. when hydration
+  // failed → desiredLinksRaw is empty). Without this gate the diff would DELETE
+  // every current link, the direct-edit twin of the PR empty-replace wipe.
+  syncLinks: boolean
 ) => {
   let failed = false
 
@@ -206,34 +225,37 @@ const reconcileAliasesLinks = async (
     }
   }
 
-  // links — identity is the (name, link) pair
-  const curLinks =
-    (await kunFetch<{ id: number; name: string; link: string }[]>(
-      `/galgame/${gid}/links`,
-      { method: 'GET' }
-    )) ?? []
-  const key = (n: string, l: string) => JSON.stringify([n, l])
-  const desiredLinks = desiredLinksRaw
-    .map((l) => ({ name: l.name.trim(), link: l.link.trim() }))
-    .filter((l) => l.name && l.link)
-  const desiredSet = new Set(desiredLinks.map((l) => key(l.name, l.link)))
-  const curSet = new Set(curLinks.map((l) => key(l.name, l.link)))
-  for (const l of desiredLinks) {
-    if (!curSet.has(key(l.name, l.link))) {
-      const r = await kunFetch(`/galgame/${gid}/links`, {
-        method: 'POST',
-        body: { name: l.name, link: l.link }
-      })
-      if (r === null) failed = true
+  // links — identity is the (name, link) pair. Gated: an untouched / failed-to-
+  // hydrate set must NOT reconcile (it would delete every current link).
+  if (syncLinks) {
+    const curLinks =
+      (await kunFetch<{ id: number; name: string; link: string }[]>(
+        `/galgame/${gid}/links`,
+        { method: 'GET' }
+      )) ?? []
+    const key = (n: string, l: string) => JSON.stringify([n, l])
+    const desiredLinks = desiredLinksRaw
+      .map((l) => ({ name: l.name.trim(), link: l.link.trim() }))
+      .filter((l) => l.name && l.link)
+    const desiredSet = new Set(desiredLinks.map((l) => key(l.name, l.link)))
+    const curSet = new Set(curLinks.map((l) => key(l.name, l.link)))
+    for (const l of desiredLinks) {
+      if (!curSet.has(key(l.name, l.link))) {
+        const r = await kunFetch(`/galgame/${gid}/links`, {
+          method: 'POST',
+          body: { name: l.name, link: l.link }
+        })
+        if (r === null) failed = true
+      }
     }
-  }
-  for (const l of curLinks) {
-    if (!desiredSet.has(key(l.name, l.link))) {
-      const r = await kunFetch(`/galgame/${gid}/links`, {
-        method: 'DELETE',
-        body: { id: l.id }
-      })
-      if (r === null) failed = true
+    for (const l of curLinks) {
+      if (!desiredSet.has(key(l.name, l.link))) {
+        const r = await kunFetch(`/galgame/${gid}/links`, {
+          method: 'DELETE',
+          body: { id: l.id }
+        })
+        if (r === null) failed = true
+      }
     }
   }
 
