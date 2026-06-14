@@ -73,30 +73,19 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!-- Always the compact vertical stack (the former mobile layout). The desktop
+       variant was a WIDE horizontal pill (100px progress bar + percent +
+       button) that extended left from the corner and overlapped page buttons on
+       large touch screens (iPad). The progress % now lives on the round button. -->
   <div
     v-if="isVisible"
     :class="
       cn(
-        'bg-background fixed right-3 bottom-3 z-100 flex items-center gap-2 rounded-full px-2 py-2 backdrop-blur-sm transition-opacity duration-300 sm:px-4',
+        'bg-background fixed right-3 bottom-3 z-100 rounded-full px-2 py-2 backdrop-blur-sm transition-opacity duration-300',
         !autoHideStatus && 'hidden'
       )
     "
   >
-    <div
-      class="bg-default-200 relative hidden h-2 w-[100px] overflow-hidden rounded-full sm:block"
-    >
-      <span
-        class="bg-primary absolute top-0 left-0 h-full rounded-full"
-        :style="{
-          width: `${progress}%`
-        }"
-      />
-    </div>
-
-    <span class="text-primary hidden text-sm font-medium sm:block">
-      {{ Math.round(progress) }}%
-    </span>
-
     <div class="flex flex-col gap-2">
       <KunTooltip :text="buttonText">
         <KunButton
@@ -112,7 +101,7 @@ onUnmounted(() => {
 
       <KunButton
         :is-icon-only="true"
-        class-name="text-xs flex sm:hidden"
+        class-name="text-xs"
         rounded="full"
         size="lg"
         variant="flat"
@@ -122,7 +111,6 @@ onUnmounted(() => {
 
       <KunButton
         :is-icon-only="true"
-        class-name="flex sm:hidden"
         rounded="full"
         size="lg"
         variant="flat"
