@@ -7,10 +7,10 @@
 //
 // The endpoint expects multipart/form-data:
 //   - file:   the image binary
-//   - preset: "galgame_banner" (the only registered galgame preset
-//             on the wiki side — screenshots reuse it since
-//             image_service's main pipeline produces a usable webp
-//             for both. kungal handler enforces the allowlist.)
+//   - preset: "galgame_banner" (cover) or "galgame_screenshot" (gallery
+//             screenshots, added 2026-06-15 — main image only, no unused
+//             variants). The kungal handler enforces this allowlist
+//             (internal/image/handler/image_handler.go).
 //
 // The success payload mirrors image_service's /image/upload response,
 // adapted to camelCase by kungal (see UploadGalgameResult in
@@ -23,7 +23,7 @@
 // it returns null. Callers should treat null as "show wiki message,
 // don't proceed" and not retry blindly.
 
-export type GalgameImageUploadPreset = 'galgame_banner'
+export type GalgameImageUploadPreset = 'galgame_banner' | 'galgame_screenshot'
 
 export interface UploadGalgameImageResult {
   hash: string
