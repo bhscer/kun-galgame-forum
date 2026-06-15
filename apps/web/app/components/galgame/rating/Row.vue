@@ -14,7 +14,8 @@
 import {
   KUN_GALGAME_RATING_RECOMMEND_MAP,
   KUN_GALGAME_RATING_RECOMMEND_COLOR_MAP,
-  KUN_GALGAME_RATING_PLAY_STATUS_MAP
+  KUN_GALGAME_RATING_PLAY_STATUS_MAP,
+  KUN_GALGAME_RATING_SPOILER_WARNING
 } from '~/constants/galgame-rating'
 
 const props = defineProps<{
@@ -87,8 +88,17 @@ const overall = computed(() => props.rating.overall.toFixed(1))
       </span>
     </div>
 
+    <!-- Spoiler-flagged ratings hide their summary here; the row links to the
+         detail page where it can be read in full. -->
     <p
-      v-if="truncatedSummary"
+      v-if="rating.short_summary && rating.spoiler_level !== 'none'"
+      class="text-default-500 mt-1 ml-8 flex items-center gap-1 text-sm"
+    >
+      <KunIcon name="lucide:triangle-alert" class="text-warning shrink-0" />
+      {{ KUN_GALGAME_RATING_SPOILER_WARNING }}
+    </p>
+    <p
+      v-else-if="truncatedSummary"
       class="text-default-500 mt-1 ml-8 text-sm"
     >
       {{ truncatedSummary }}

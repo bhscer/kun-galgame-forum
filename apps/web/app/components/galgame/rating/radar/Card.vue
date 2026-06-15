@@ -4,6 +4,7 @@ import {
   KUN_GALGAME_RATING_RECOMMEND_COLOR_MAP,
   KUN_GALGAME_RATING_SPOILER_MAP,
   KUN_GALGAME_RATING_SPOILER_COLOR_MAP,
+  KUN_GALGAME_RATING_SPOILER_WARNING,
   KUN_GALGAME_RATING_PLAY_STATUS_MAP
 } from '~/constants/galgame-rating'
 
@@ -50,8 +51,17 @@ defineProps<{
             :readonly="true"
             label-class="text-[10px]"
           />
+          <!-- Spoiler-flagged ratings (portion/serious) hide their summary in
+               list contexts; "阅读详情 >" below opens the full review. -->
+          <div
+            v-if="rating.short_summary && rating.spoiler_level !== 'none'"
+            class="text-default-500 flex max-h-[110px] items-center gap-1.5 text-sm"
+          >
+            <KunIcon name="lucide:triangle-alert" class="text-warning shrink-0" />
+            {{ KUN_GALGAME_RATING_SPOILER_WARNING }}
+          </div>
           <KunScrollShadow
-            v-if="rating.short_summary"
+            v-else-if="rating.short_summary"
             axis="vertical"
             shadow-size="3rem"
             class-name="max-h-[110px]"

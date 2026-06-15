@@ -134,8 +134,13 @@ var Sources = map[string]ActivitySource{
 		// galgame-rating/[id].vue, keyed by the rating id t.id), NOT the parent
 		// galgame page — a "X 评分了 Y" activity should open that review.
 		// galgame_id is still selected for actor/content enrichment.
+		// Spoiler-flagged ratings (spoiler_level <> 'none') don't leak their
+		// summary into the public feed — the reader opens the detail page to
+		// see it. Wording mirrors KUN_GALGAME_RATING_SPOILER_WARNING on the FE.
 		Query: `SELECT 'GALGAME_RATING_CREATION' AS type_str, t.id,
-			SUBSTRING(COALESCE(t.short_summary,''), 1, 100) AS content,
+			CASE WHEN t.spoiler_level <> 'none'
+			     THEN '⚠️ 该评分可能含有剧透内容，点进查看'
+			     ELSE SUBSTRING(COALESCE(t.short_summary,''), 1, 100) END AS content,
 			'/galgame-rating/' || t.id AS link, t.created, t.user_id, t.galgame_id
 			FROM galgame_rating t`,
 	},

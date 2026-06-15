@@ -19,6 +19,13 @@ const props = defineProps<{
 
 const { id: userId, role } = usePersistUserStore()
 
+// Even on the detail page (which the reader opened deliberately), a 严重剧透
+// review stays behind a one-click frosted overlay; 部分剧透 / 无剧透 show直接.
+const spoilerRevealed = ref(false)
+const isSummaryMasked = computed(
+  () => props.data.spoiler_level === 'serious' && !spoilerRevealed.value
+)
+
 const canEdit = computed(() => props.data.user.id === userId)
 const canDelete = computed(() => props.data.user.id === userId || role >= 2)
 const rating = computed(() =>
@@ -143,10 +150,25 @@ const handleDeleteRating = async () => {
             </KunChip>
           </div>
 
-          <KunText
-            :content="data.short_summary"
-            class-name="leading-7"
-          />
+          <div class="relative">
+            <KunText
+              :content="data.short_summary"
+              :class-name="
+                cn('leading-7', isSummaryMasked && 'blur-sm select-none')
+              "
+            />
+            <button
+              v-if="isSummaryMasked"
+              type="button"
+              class="bg-background/40 hover:bg-background/20 absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-md backdrop-blur-[2px] transition-colors"
+              @click="spoilerRevealed = true"
+            >
+              <KunIcon name="lucide:eye" class="text-danger size-6" />
+              <span class="text-default-700 text-sm font-medium">
+                该评分含严重剧透，点击查看
+              </span>
+            </button>
+          </div>
         </div>
 
         <GalgameRatingRadar
