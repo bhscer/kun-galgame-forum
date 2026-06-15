@@ -12,23 +12,26 @@
 //   topic.content · topic_reply.content · chat_message.content · galgame_comment.content
 // galgame cover/screenshot already moved to image_service (image_hash); doc
 // banners are repo static assets; website icons are external favicons — none here.
+// Stickers (sticker.kungal.com) are a separate service and intentionally NOT touched.
 //
 // Per distinct old URL: HTTP-fetch the original from `-base` (default the public
-// legacy host) → upload to image_service under the `topic` preset → cache the
-// new URL → string-replace every occurrence in each row's content. The same
-// image referenced by many rows is uploaded once (cross-table cache). A URL that
-// 404s / fails to fetch is logged and SKIPPED (its rows keep the old URL — safe,
-// and a re-run retries). Content is the ONLY column written (we deliberately do
-// NOT touch `updated`, so topics aren't bounced to the top of "recently updated").
+// legacy host, confirmed reachable via Cloudflare) → upload to image_service under
+// the `topic` preset → cache the new URL → string-replace every occurrence in each
+// row's content. The same image referenced by many rows is uploaded once
+// (cross-table cache). A URL that 404s / fails is logged and SKIPPED (its rows keep
+// the old URL — safe, and a re-run retries). Content is the ONLY column written —
+// we deliberately do NOT touch `updated`, so topics aren't bounced to "recently updated".
 //
-// SAFE BY DEFAULT: -dry-run defaults to TRUE (reports distinct URLs + per-table
-// counts, no network writes, no DB writes). Pass -dry-run=false to actually run.
-// Idempotent: once rewritten, content no longer matches `%image.kungal.com%`.
+// SAFE BY DEFAULT: -dry-run defaults to TRUE — it scans + reports the distinct-file
+// workload per table, with NO network and NO DB writes. Pass -dry-run=false to run.
+// Idempotent: once rewritten, content no longer matches `%image.kungal.com%`, so a
+// re-run skips it (and re-tries only the previously-dead URLs). The job logs are the
+// audit trail: every old→new mapping, every dead URL, and every rewritten row.
 //
 //	docker compose -f docker-compose.prod.yml --profile jobs run --rm tools \
-//	  backfill-content-images                       # dry-run: report only
-//	  backfill-content-images -dry-run=false        # actually rehost + rewrite
-//	  backfill-content-images -dry-run=false -limit=20   # smoke-test 20 rows/table
+//	  backfill-content-images                       # dry-run: report distinct-file workload
+//	  backfill-content-images -dry-run=false        # actually rehost + rewrite (~5.4k files, sequential)
+//	  backfill-content-images -dry-run=false -limit=20   # smoke-test 20 rows/table first
 //	  backfill-content-images -base=http://legacy-image:80   # fetch originals elsewhere
 package main
 
@@ -59,6 +62,10 @@ import (
 // Filenames may contain non-ASCII (e.g. 茅羽耶-...webp), which these bytes allow.
 var legacyImageRe = regexp.MustCompile(`https://image\.kungal\.com/[^\s)"'>\]\\]+`)
 
+// Trailing prose punctuation that can cling to a bare URL ("…见 x.webp。"). Stripped
+// so the captured URL is exactly the file (a ".webp" tail is never affected).
+const trailingPunct = `.,;!?，。、）】>`
+
 // table + its content column to scan/rewrite.
 type target struct {
 	table string
@@ -75,7 +82,7 @@ var targets = []target{
 func main() {
 	_ = godotenv.Load()
 
-	dryRun := flag.Bool("dry-run", true, "TRUE (default): report only, no fetch/upload/DB writes. Pass -dry-run=false to apply.")
+	dryRun := flag.Bool("dry-run", true, "TRUE (default): scan + report workload only, no network, no DB writes. Pass -dry-run=false to apply.")
 	base := flag.String("base", "https://image.kungal.com", "Base to HTTP-fetch legacy originals from (override if the old host isn't reachable from here)")
 	limit := flag.Int("limit", 0, "Max rows per table (0 = all); for smoke-testing -dry-run=false on a small batch")
 	preset := flag.String("preset", "topic", "image_service preset to rehost under")
@@ -103,11 +110,13 @@ func main() {
 	httpClient := &http.Client{Timeout: 60 * time.Second}
 	ctx := context.Background()
 
-	migrated := map[string]string{} // oldURL -> new image_service URL (uploaded)
+	migrated := map[string]string{} // oldURL -> new image_service URL (uploaded this run)
 	dead := map[string]bool{}       // oldURL that failed to fetch/upload (skipped)
-	seen := map[string]bool{}       // distinct oldURL seen (dry-run accounting)
+	seen := map[string]bool{}       // distinct oldURL seen across all tables
+	deadList := []string{}          // ordered dead URLs, for the end-of-run report
+	perTableRows := map[string]int{}
 
-	var rowsUpdated, rowsSkipped int
+	var rowsUpdated, rowsSkipped, replacements, uploads int
 
 	slog.Info("开始迁移 content 老图", "dry_run", *dryRun, "base", *base, "preset", *preset, "limit", *limit)
 
@@ -128,17 +137,21 @@ func main() {
 			slog.Error("扫描失败", "table", t.table, "error", err)
 			os.Exit(1)
 		}
+		perTableRows[t.table] = len(rows)
 		slog.Info("扫描完成", "table", t.table, "含老图行数", len(rows))
 
 		for _, r := range rows {
-			urls := dedupe(legacyImageRe.FindAllString(r.Content, -1))
+			urls := extractLegacyURLs(r.Content)
 			newContent := r.Content
-			changed := false
+			rowReplaced := 0
 
 			for _, old := range urls {
 				seen[old] = true
 				if dead[old] {
 					continue
+				}
+				if *dryRun {
+					continue // dry-run = pure accounting; no fetch/upload/rewrite
 				}
 				newURL, done := migrated[old]
 				if !done {
@@ -146,33 +159,35 @@ func main() {
 					if ferr != nil {
 						slog.Warn("抓取原图失败, 跳过(保留旧 URL)", "url", old, "error", ferr)
 						dead[old] = true
-						continue
-					}
-					if *dryRun {
-						// reachable; in dry-run we don't upload or rewrite.
+						deadList = append(deadList, old)
 						continue
 					}
 					res, uerr := imgCli.Upload(ctx, bytes.NewReader(body), path.Base(old), *preset)
 					if uerr != nil {
 						slog.Error("上传 image_service 失败, 跳过", "url", old, "error", uerr)
 						dead[old] = true
+						deadList = append(deadList, old)
 						continue
 					}
 					newURL = res.URL
 					migrated[old] = newURL
+					uploads++
 					slog.Info("已重托管", "old", old, "new", newURL)
+					if uploads%50 == 0 {
+						slog.Info("进度", "已重托管去重老图", uploads, "失败/404", len(dead))
+					}
 				}
-				if !*dryRun && newURL != "" && newURL != old {
+				if newURL != "" && newURL != old {
+					n := strings.Count(newContent, old)
 					newContent = strings.ReplaceAll(newContent, old, newURL)
-					changed = true
+					rowReplaced += n
 				}
 			}
 
-			if *dryRun {
-				continue
-			}
-			if !changed {
-				rowsSkipped++
+			if *dryRun || rowReplaced == 0 {
+				if !*dryRun {
+					rowsSkipped++ // had only dead URLs → nothing rewritten this pass
+				}
 				continue
 			}
 			if err := db.Exec(
@@ -184,17 +199,40 @@ func main() {
 				continue
 			}
 			rowsUpdated++
+			replacements += rowReplaced
+			slog.Info("已改写", "table", t.table, "id", r.ID, "替换处数", rowReplaced)
 		}
 	}
 
 	if *dryRun {
-		reachable := len(seen) - len(dead)
-		fmt.Printf("dry-run 完成: 发现去重老图 %d 张 (可抓取 %d, 抓取失败/404 %d)。重跑加 -dry-run=false 执行。\n",
-			len(seen), reachable, len(dead))
-	} else {
-		fmt.Printf("迁移完成: 重托管 %d 张老图, 改写 %d 行, 跳过 %d 行, 失败/404 老图 %d 张(保留旧 URL)。\n",
-			len(migrated), rowsUpdated, rowsSkipped, len(dead))
+		fmt.Printf("dry-run 完成。去重老图文件 %d 张待迁移。各表含老图行数: ", len(seen))
+		for _, t := range targets {
+			fmt.Printf("%s=%d ", t.table, perTableRows[t.table])
+		}
+		fmt.Printf("\n加 -dry-run=false 执行(顺序跑, ~5.4k 张约 1 小时)。\n")
+		return
 	}
+
+	slog.Info("迁移完成",
+		"重托管去重老图", len(migrated), "改写行数", rowsUpdated, "替换处数", replacements,
+		"跳过行数", rowsSkipped, "失败/404老图", len(dead))
+	if len(deadList) > 0 {
+		sort.Strings(deadList)
+		slog.Warn("以下老图取不到(404/失败), 已保留旧 URL, 需人工跟进或忽略", "count", len(deadList), "urls", deadList)
+	}
+	fmt.Printf("迁移完成: 重托管 %d 张, 改写 %d 行(%d 处), 跳过 %d 行, 失败/404 %d 张。\n",
+		len(migrated), rowsUpdated, replacements, rowsSkipped, len(dead))
+}
+
+// extractLegacyURLs pulls every legacy image URL out of one content string,
+// strips clinging prose punctuation, and de-dups (a row may repeat the same image).
+func extractLegacyURLs(content string) []string {
+	raw := legacyImageRe.FindAllString(content, -1)
+	out := make([]string, 0, len(raw))
+	for _, u := range raw {
+		out = append(out, strings.TrimRight(u, trailingPunct))
+	}
+	return dedupe(out)
 }
 
 // rewriteHost swaps the legacy host for -base so originals can be fetched from
