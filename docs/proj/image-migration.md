@@ -89,3 +89,17 @@ docker compose -f docker-compose.prod.yml --profile jobs run --rm tools \
 5. 跑完核对：死图列表人工跟进；`SELECT count(*) … LIKE '%image.kungal.com%'` 应只剩死图行。
 
 **注意**：① 老图床可达性 infra 已实测 OK（Cloudflare，非集群入口，无 hairpin）；若环境变化抓不到，用 `-base` 指内网镜像。② **趁早**——已有 404，老图床在退场。③ 表情贴 `sticker.kungal.com` **不在范围**（独立服务，是否纳入另议）。
+
+## 5. 执行记录（2026-06-15 完成）
+
+按上面分级流程在 prod 跑完（`docker compose --profile jobs run --rm tools backfill-content-images`）：
+
+- **dry-run**：去重老图 5,440 张，与 infra live prod 实测一致。
+- **`-limit=20` 试水**：重托管 96 张 / 改写 61 行 / 0 失败；抽查新 URL 200、剩余数恰好减 20。
+- **全量**（13:18→15:18 UTC，约 2 小时，顺序）：**重托管 5,342 张、改写 1,747 行（5,370 处）、0 报错**。
+- **死图 3 张**（404，已保留旧 URL，本就已坏，非回归）：
+  - `image.kungal.com/kun`（残缺 URL，非真实图）
+  - `image.kungal.com/topic/user_10050/Clobber1238-1722604366830.webp`（老图床上已删）
+  - `image.kungal.com/topic/user_2/鲲-1780457802051.webp1`（文件名带错字 `1`）
+- **收尾核对**：剩余含 `image.kungal.com` 的行 = topic 1 / reply 1 / chat 6 = **8 行**，与「跳过 8 行」吻合，且全部只引用上述 3 张死图（`NOT /kun AND NOT Clobber1238` 过滤后为 0）。新图 200 可访问。
+- 表情贴 `sticker.kungal.com` 未动（按约定）。审计全量日志见 prod `/tmp/bcimg-full.log`。
