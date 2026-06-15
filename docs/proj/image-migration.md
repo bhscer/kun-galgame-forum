@@ -103,3 +103,4 @@ docker compose -f docker-compose.prod.yml --profile jobs run --rm tools \
   - `image.kungal.com/topic/user_2/鲲-1780457802051.webp1`（文件名带错字 `1`）
 - **收尾核对**：剩余含 `image.kungal.com` 的行 = topic 1 / reply 1 / chat 6 = **8 行**，与「跳过 8 行」吻合，且全部只引用上述 3 张死图（`NOT /kun AND NOT Clobber1238` 过滤后为 0）。新图 200 可访问。
 - 表情贴 `sticker.kungal.com` 未动（按约定）。审计全量日志见 prod `/tmp/bcimg-full.log`。
+- **死图清理（2026-06-15）**：3 张死图中,reply 3354 的 markdown 图 + 6 条 chat 的裸 URL 已删除（共 7 行,只删图不删消息/行）；topic 1701 的 `image.kungal.com` 是帖子里的**配置示例文本**（`IMAGE_BED_ENDPOINT = "…"`），非图片,**保留**。至此 content 内已无任何坏图引用。表情贴 `sticker.kungal.com` 仍在用,不动。
