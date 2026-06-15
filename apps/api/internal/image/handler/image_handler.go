@@ -22,22 +22,20 @@ func NewImageHandler(imageService *service.ImageService) *ImageHandler {
 // image-service tunnel; presets here MUST also be in this site's
 // image_allowed_presets on the image_service side.
 //
-// AUDIT FIX: wiki's image_presets.yaml only registers `galgame_banner`
-// (no `galgame_screenshot` preset). Both cover and screenshot uploads
-// flow through the same preset — image_service's main pipeline (fit
-// 1920x1080 webp@77) is suitable for both. The mini variant (460x259)
-// generated alongside is unused on screenshots; wasteful but not
-// broken. If wiki later registers a dedicated screenshot preset, add
-// it here and route Screenshots.vue to it; until then a single preset
-// keeps the contract honest.
+// Cover uploads use `galgame_banner` (pinned sort_order=0; generates the
+// 460x259 `mini` variant). Screenshot uploads use the dedicated
+// `galgame_screenshot` preset (main image only, no unused variants) — added
+// to wiki's image_presets.yaml 2026-06; Screenshots.vue now routes to it.
+// Both ride the same global pipeline (fit 1920x1080 webp@77).
 var allowedGalgamePresets = map[string]struct{}{
-	"galgame_banner": {}, // cover (sort_order=0 pinned) + screenshot rows
+	"galgame_banner":     {}, // cover (sort_order=0 pinned)
+	"galgame_screenshot": {}, // gallery screenshots
 }
 
 // UploadGalgameImage handles cover/screenshot upload (U2). Multipart form:
 //   - file:   image binary (required)
-//   - preset: "galgame_banner" (required; only registered galgame
-//             preset on wiki — see allowedGalgamePresets above)
+//   - preset: "galgame_banner" (cover) or "galgame_screenshot"
+//             (screenshot) — see allowedGalgamePresets above
 //
 // Returns the image_service {hash, url, ...} payload so the FE can
 // immediately add a new cover/screenshot row referencing the hash and
@@ -54,7 +52,7 @@ func (h *ImageHandler) UploadGalgameImage(c *fiber.Ctx) error {
 	preset := c.FormValue("preset")
 	if _, ok := allowedGalgamePresets[preset]; !ok {
 		return response.Error(c, errors.ErrBadRequest(
-			"preset 必须为 galgame_banner"))
+			"preset 必须为 galgame_banner 或 galgame_screenshot"))
 	}
 
 	file, err := c.FormFile("file")
