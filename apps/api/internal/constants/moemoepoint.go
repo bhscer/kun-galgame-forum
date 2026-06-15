@@ -12,7 +12,7 @@ const (
 
 	CostConsumeSection = 10
 	CostChangeUsername = 17
-	CostUpvoteSender   = 7
+	CostUpvoteSender   = 20
 	RewardUpvoteOwner  = 3
 
 	// Rating reward tiers based on short_summary length

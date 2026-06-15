@@ -400,7 +400,7 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int) *er
 		return errors.ErrBadRequest("您已经推过该话题了")
 	}
 	if err == gorm.ErrCheckConstraintViolated {
-		return errors.ErrBadRequest("萌萌点不足, 推话题需要 7 萌萌点")
+		return errors.ErrBadRequest("萌萌点不足, 推话题需要 20 萌萌点")
 	}
 	if err != nil {
 		return errors.ErrInternal("操作失败")

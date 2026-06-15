@@ -13,7 +13,7 @@ const upvoteCount = ref(props.upvoteCount)
 const upvoteTopic = async () => {
   const res = await useComponentMessageStore().alert(
     '您确定推这个话题吗?',
-    '推话题将会消耗您 7 萌萌点, 并给被推者增加 3 萌萌点。'
+    '推话题将会消耗您 20 萌萌点, 并给被推者增加 3 萌萌点。'
   )
   if (!res) {
     return
@@ -42,7 +42,7 @@ const handleClickUpvote = async () => {
     return
   }
 
-  if (moemoepoint < 50) {
+  if (moemoepoint < 20) {
     useMessage(10242, 'warn')
     return
   }
