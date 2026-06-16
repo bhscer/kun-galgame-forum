@@ -1,6 +1,6 @@
 {
   "name": "kun-galgame-forum",
-  "version": "6.0.12",
+  "version": "6.0.13",
   "private": true,
   "packageManager": "pnpm@10.12.1",
   "workspaces": [
@@ -24,7 +24,6 @@
     "migrate:down": "pnpm -F @apps/api run migrate:down",
     "prepare": "husky",
     "precommit": "node .husky/scripts/bumpAppVersion.js && git add package.json",
-    "sitemap": "esno apps/web/scripts/generateSitemap.ts",
     "prod:deploy": "./scripts/deploy.sh",
     "prod:start": "./scripts/start.sh",
     "prod:stop": "./scripts/stop.sh",

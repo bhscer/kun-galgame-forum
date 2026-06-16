@@ -45,7 +45,7 @@ pnpm dev
 | `pnpm prisma:studio` | 打开 Prisma Studio |
 | `pnpm start` | PM2 启动生产服务 |
 | `pnpm stop` | PM2 停止生产服务 |
-| `pnpm build:sitemap` | 生成站点地图 |
+| ~~`pnpm build:sitemap`~~ | 已移除：sitemap 由 `@nuxtjs/sitemap` 在运行时动态生成（`/sitemap.xml`，SFW 源端点 `server/api/__sitemap__/urls.ts`） |
 | `pnpm build:friend` | 生成友链截图 |
 
 ## 新增 API 端点

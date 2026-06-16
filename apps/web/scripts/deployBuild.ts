@@ -27,7 +27,7 @@ try {
     // `pnpm prisma:push` removed — DB schema is owned by the Go API now
     // (apps/api/migrations). Run `pnpm migrate` from the repo root only
     // when the schema actually changes; most deploys don't touch it.
-    'git pull && pnpm build:limit && pnpm stop && pnpm start && pnpm build:sitemap',
+    'git pull && pnpm build:limit && pnpm stop && pnpm start',
     {
       stdio: 'inherit'
     }

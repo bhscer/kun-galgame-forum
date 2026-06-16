@@ -55,6 +55,7 @@ export default defineNuxtConfig({
     '@dxup/nuxt',
     'pinia-plugin-persistedstate/nuxt',
     'nuxt-schema-org',
+    '@nuxtjs/sitemap',
     'nuxt-umami'
   ],
 
@@ -108,7 +109,48 @@ export default defineNuxtConfig({
   },
 
   site: {
-    url: process.env.KUN_GALGAME_URL
+    // Drives both nuxt-schema-org and @nuxtjs/sitemap (shared nuxt-site-config).
+    // Literal fallback for the same reason as `umami.id` below: kungal-web is built
+    // GENERIC (CI passes no build-args), so process.env.KUN_GALGAME_URL is undefined
+    // at build → an empty site.url would make sitemap <loc>s non-absolute. Prod runs
+    // on this canonical host; dev sets KUN_GALGAME_URL in .env.
+    url: process.env.KUN_GALGAME_URL || 'https://www.kungal.com'
+  },
+
+  sitemap: {
+    // Keep private / auth-gated / editor / non-content static routes OUT of the
+    // auto-discovered pages. Routes with params (/topic/[id], /user/[id]/…) are
+    // never auto-included, so only the param-free pages below need excluding.
+    exclude: [
+      '/admin',
+      '/admin/**',
+      '/auth/**',
+      '/edit/**',
+      '/message',
+      '/message/**',
+      '/report',
+      '/user',
+      '/rss'
+    ],
+    // ~16k URLs → emit a /sitemap_index.xml of ≤1000-URL chunks (Google caps a
+    // single file at 50k/50MB; smaller chunks cache + debug better and give us
+    // headroom as content grows). In 7.x, `chunks` is only honoured inside the
+    // multi-sitemap `sitemaps` map — not on the default single sitemap.
+    defaultSitemapsChunkSize: 1000,
+    sitemaps: {
+      kungal: {
+        // Static, param-free pages auto-discovered from the route table.
+        includeAppSources: true,
+        // Dynamic content URLs (topics/galgames/…) from this runtime endpoint,
+        // which enumerates the Go API with the SFW filter forced on. Runs at
+        // request time (cached) — never at build, which has no Go-API access.
+        sources: ['/api/__sitemap__/urls'],
+        chunks: true
+      }
+    },
+    // Cache the rendered sitemap; the source endpoint is cached independently too.
+    cacheMaxAgeSeconds: 60 * 60 * 6,
+    defaults: { changefreq: 'daily', priority: 0.7 }
   },
 
   umami: {

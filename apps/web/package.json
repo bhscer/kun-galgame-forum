@@ -21,7 +21,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "up": "pnpm update --latest",
-    "build:sitemap": "esno scripts/generateKunSitemap.ts",
     "build:friend": "esno scripts/generateFriendSiteCapture.ts",
     "deploy:install": "esno scripts/deployInstall.ts",
     "deploy:build": "esno scripts/deployBuild.ts"
@@ -32,6 +31,7 @@
     "@nuxt/image": "^2.0.0",
     "@nuxt/test-utils": "^4.0.3",
     "@nuxtjs/color-mode": "^4.0.0",
+    "@nuxtjs/sitemap": "7.6.0",
     "@pinia/nuxt": "^0.11.3",
     "@types/bcrypt": "^6.0.0",
     "@types/js-cookie": "^3.0.6",
