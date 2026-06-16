@@ -148,4 +148,10 @@ docker compose -f docker-compose.prod.yml --profile jobs run --rm tools \
 （较上轮 +398,且 topic 3618 那 3 张软删图已被 infra 复活 → 0 NotFound）。
 
 **端态:** 4 个补迁列里**真实可加载的 `image.kungal.com` 图 = 0**;残留全是死图 / 截断残缺 URL（本就坏）+ topic 1701 配置文本。
-全库再无任何**可加载**的旧图床图片。截断残缺 URL（message 约 386 条）是 233 时代的历史产物、已不可恢复,留作低优先级清理（纯通知预览,无功能影响）。
+全库再无任何**可加载**的旧图床图片。
+
+**migration 027 入库（2026-06-16）:** CI 构建 migrate 镜像后 `--profile jobs run --rm migrate` 跑通——027 对已是 text 的列为 no-op、记录入 `_migrations`,prod schema 与迁移表一致。
+
+**残留清理（2026-06-16）:** `message.content` 里 387 条坏图引用（1 张死图 Clobber 全 markdown + 386 条 233 截断的残缺 URL）用 `regexp_replace` 删除
+（删图不删消息正文,dry-run 实测删后该列 image.kungal.com 归零、正文完好）→ `UPDATE 387`。**全库最终 string 扫描:`image.kungal.com` 仅剩 2 处 —
+topic 1701 与 doc_article 28,均为讲 `IMAGE_BED_ENDPOINT` 配置的示例文本（非图）,保留。** 旧图床自此无任何可加载图片被引用,可安全下线。
