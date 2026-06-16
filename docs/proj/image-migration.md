@@ -129,3 +129,23 @@ docker compose -f docker-compose.prod.yml --profile jobs run --rm tools \
 
 至此内容里**不含任何硬编码图床域名**。换 CDN/域名 = 改三处配置（Go `KUN_IMAGE_PUBLIC_BASE_URL` + web `NUXT_IMAGE_CDN_BASE` + chat 白名单 `KUNGAL_MESSAGE_IMAGE_HOSTS`),
 **零内容重写**。旧图床 `image.kungal.com` 可由 infra 安排下线。moyu（patch 仓）是否同样写了绝对 URL 需 patch 侧自查,不在本仓范围。
+
+## 7. 补全:第一次漏扫的 4 个含旧图列（2026-06-16）
+
+§5 的迁移只覆盖 topic/reply/chat/comment 四个 content 列。**全库 string 列扫描**（115 列 / 38 表,
+`information_schema` + `LIKE '%image.kungal.com%'`）发现 `image.kungal.com` 真实旧图还残留在 **4 个被漏的列**:
+`message.content`（通知/系统广播快照,2189 真图）、`topic_reply_target.content`（引用回复快照,268）、
+`galgame_toolset.description`（13）、`doc_article.content_markdown`(8)。
+
+**改动:**
+- `backfill-content-images` targets 加这 4 列;`cron.RunReferencePing` 扫描同步加（→ 共 8 列,否则只在这些列出现的图仍会被 GC）。
+- **migration 027**:`message.content` `varchar(233)` → `text`。旧路径式 URL 短（~58 字符），token `/image/<64hex>` 71 字符,
+  在接近 233 上限的通知上改写会溢出（SQLSTATE 22001,约一半 message 行失败）。`text` 与其余 content 列对齐;新通知仍由 notifier 的 233 截断约束。
+  （prod 已先手动 `ALTER`,027 入库后 migrate 为幂等 no-op + 记录。）
+
+**执行（prod）:** 重跑 backfill → **重托管 884 张、改写 2099 行、跳过 245、失败/404 80**。失败/跳过基本都是 **被 233 截断的残缺 URL**
+（如 `…鲲-1707721662801.we`，本就加载不了）+ 3 张已知死图。`image-refping` 复跑 = **distinct 5917 / updated 5917、0 NotFound**
+（较上轮 +398,且 topic 3618 那 3 张软删图已被 infra 复活 → 0 NotFound）。
+
+**端态:** 4 个补迁列里**真实可加载的 `image.kungal.com` 图 = 0**;残留全是死图 / 截断残缺 URL（本就坏）+ topic 1701 配置文本。
+全库再无任何**可加载**的旧图床图片。截断残缺 URL（message 约 386 条）是 233 时代的历史产物、已不可恢复,留作低优先级清理（纯通知预览,无功能影响）。
