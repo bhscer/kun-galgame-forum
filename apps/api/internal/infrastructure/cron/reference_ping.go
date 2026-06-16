@@ -39,15 +39,22 @@ func RunReferencePing(
 		return 0, 0, nil
 	}
 
-	// Pull every content row carrying a token across the four tables, then
-	// extract + dedupe the hashes in memory (≈5.7k distinct — trivially small).
+	// Pull every content row carrying a token across all token-bearing columns,
+	// then extract + dedupe the hashes in memory (≈5.7k distinct — trivially
+	// small). MUST cover the same columns as backfill-content-images' targets, so
+	// every column we tokenize also gets kept alive (the snapshot columns —
+	// message / topic_reply_target — and the doc/toolset bodies were added 2026-06-16).
 	type contentRow struct{ Content string }
 	var rows []contentRow
 	if e := db.WithContext(ctx).Raw(`
-		SELECT content FROM topic            WHERE content LIKE '%/image/%'
-		UNION ALL SELECT content FROM topic_reply     WHERE content LIKE '%/image/%'
-		UNION ALL SELECT content FROM chat_message    WHERE content LIKE '%/image/%'
-		UNION ALL SELECT content FROM galgame_comment WHERE content LIKE '%/image/%'
+		SELECT content          FROM topic              WHERE content          LIKE '%/image/%'
+		UNION ALL SELECT content          FROM topic_reply        WHERE content          LIKE '%/image/%'
+		UNION ALL SELECT content          FROM chat_message       WHERE content          LIKE '%/image/%'
+		UNION ALL SELECT content          FROM galgame_comment    WHERE content          LIKE '%/image/%'
+		UNION ALL SELECT content_markdown FROM doc_article        WHERE content_markdown LIKE '%/image/%'
+		UNION ALL SELECT description      FROM galgame_toolset    WHERE description      LIKE '%/image/%'
+		UNION ALL SELECT content          FROM message            WHERE content          LIKE '%/image/%'
+		UNION ALL SELECT content          FROM topic_reply_target WHERE content          LIKE '%/image/%'
 	`).Scan(&rows).Error; e != nil {
 		return 0, 0, e
 	}

@@ -73,11 +73,21 @@ type target struct {
 	col   string
 }
 
+// Every string column that can embed a legacy image.kungal.com image. The first
+// run covered the four primary content columns; the rest were found by a full
+// information_schema sweep (2026-06-16) — doc bodies, toolset descriptions, and
+// two snapshot columns (notifications + quoted-reply targets) that copy content
+// containing images. MUST stay in sync with cron.RunReferencePing's scan so every
+// tokenized column also gets kept alive.
 var targets = []target{
 	{"topic", "content"},
 	{"topic_reply", "content"},
 	{"chat_message", "content"},
 	{"galgame_comment", "content"},
+	{"doc_article", "content_markdown"},
+	{"galgame_toolset", "description"},
+	{"message", "content"},
+	{"topic_reply_target", "content"},
 }
 
 func main() {
