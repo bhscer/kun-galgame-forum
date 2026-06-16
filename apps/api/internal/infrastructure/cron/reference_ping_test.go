@@ -49,3 +49,17 @@ func TestExtractContentImageHashes_Empty(t *testing.T) {
 		t.Errorf("no-token input → %v, want empty", got)
 	}
 }
+
+func TestQuoteIdent(t *testing.T) {
+	cases := map[string]string{
+		"content":              `"content"`,
+		"last_message_content": `"last_message_content"`,
+		"order":                `"order"`,                  // reserved word
+		`we"ird`:               `"we""ird"`,                // embedded quote is doubled
+	}
+	for in, want := range cases {
+		if got := quoteIdent(in); got != want {
+			t.Errorf("quoteIdent(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

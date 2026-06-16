@@ -77,8 +77,9 @@ type target struct {
 // run covered the four primary content columns; the rest were found by a full
 // information_schema sweep (2026-06-16) — doc bodies, toolset descriptions, and
 // two snapshot columns (notifications + quoted-reply targets) that copy content
-// containing images. MUST stay in sync with cron.RunReferencePing's scan so every
-// tokenized column also gets kept alive.
+// containing images. This is a one-off migration tool, run with -dry-run first so
+// the column set is eyeballed each time. (cron.RunReferencePing no longer needs to
+// mirror this list — it is schema-derived, scanning every text column for tokens.)
 var targets = []target{
 	{"topic", "content"},
 	{"topic_reply", "content"},
