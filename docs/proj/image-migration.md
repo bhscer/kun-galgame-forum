@@ -104,3 +104,28 @@ docker compose -f docker-compose.prod.yml --profile jobs run --rm tools \
 - **收尾核对**：剩余含 `image.kungal.com` 的行 = topic 1 / reply 1 / chat 6 = **8 行**，与「跳过 8 行」吻合，且全部只引用上述 3 张死图（`NOT /kun AND NOT Clobber1238` 过滤后为 0）。新图 200 可访问。
 - 表情贴 `sticker.kungal.com` 未动（按约定）。审计全量日志见 prod `/tmp/bcimg-full.log`。
 - **死图清理（2026-06-15）**：3 张死图中,reply 3354 的 markdown 图 + 6 条 chat 的裸 URL 已删除（共 7 行,只删图不删消息/行）；topic 1701 的 `image.kungal.com` 是帖子里的**配置示例文本**（`IMAGE_BED_ENDPOINT = "…"`），非图片,**保留**。至此 content 内已无任何坏图引用。表情贴 `sticker.kungal.com` 仍在用,不动。
+
+## 6. 收敛为域名无关引用 `/image/<hash>`（2026-06-16 完成）
+
+§5 的 backfill 把图迁进了 image_service,但正文写的是**绝对 URL**（`https://image.kungal.iloveren.link/<aa>/<bb>/<hash>.webp`）——
+等于把图床域名重新焊进了每条内容,**没解决"换域名"**。infra 在 `99ed2215` 同步的 image_service 契约要求内容存**域名无关 token `/image/<hash>`**,
+渲染期解析、后端 302 兜底。本节记录把 forum 对齐到该契约的闭环。
+
+**改动（commit `60c87b71`,forum 侧闭环）：**
+- `markdown.renderImage`：`/image/<hash>` → `imageclient.MainURL(cdnBase,…)`,在 sanitize **之前**解析（覆盖 topic/reply/chat/comment 全部服务端渲染；
+  chat 走 inline sanitizer 的 host 白名单,解析后落在 `image.kungal.iloveren.link` 上才过得了）。启动注入 `cfg.GalgameWiki.ImageCDNBase`。
+- 上传 `UploadTopicImage` / `UploadMessageImage` 返回 `/image/<hash>`,**新内容**天生域名无关（编辑器原样插入,前端零改动）。
+- web 全局 middleware `GET /image/<hash>` → 302 CDN,兜底编辑器预览 / RSS / 原文消费方。**用 middleware 而非 server route**:
+  `public/image/`（kohaku.webp）目录冲突会让 Nitro 静默跳过同名 route。
+- `cmd/rewrite-content-image-refs`（新,幂等,只动 content）：把已写入的绝对 URL 收敛为 token。`backfill-content-images` 也改为直接写 token。
+
+**执行（prod,2026-06-16,顺序铁律 = 先部署 resolver+302,再改写）：**
+- **部署确认**：web 302 实测 `/image/<hash>`→302→CDN ✓；kungal-api 镜像构建于 08:44 UTC（commit 08:38 UTC 之后,CI 同源）✓；
+  topic 20 单行先改 token,API 实测 `contentMarkdown`=token、`contentHtml`=解析后的绝对 URL（block 路径端到端验证）✓。
+- **改写**：`rewrite-content-image-refs -dry-run=false` → **改写 1884 行（5608 处）、0 报错**（topic 1321 / reply 519 / chat 35 / comment 9；topic 20 已先行,合计 1885）。
+- **端态核对**：4 表残留绝对 `image.kungal.iloveren.link` = **0**；token 行 = topic 1322 / reply 519 / chat 35 / comment 9 = **1885**。
+  block（topic 20）+ inline（topic 97 的 reply,= chat 同 `RenderInline` 路径）均实测渲染为 CDN URL、无 token 泄漏、图未被 sanitizer 剥。
+- **老图床确认**：4 表里真实 `image.kungal.com` 图片 = **0**（`![](…)`/`<img>` 语法包裹的为 0 行）；仅剩 topic 1701 的配置示例文本,保留。
+
+至此内容里**不含任何硬编码图床域名**。换 CDN/域名 = 改三处配置（Go `KUN_IMAGE_PUBLIC_BASE_URL` + web `NUXT_IMAGE_CDN_BASE` + chat 白名单 `KUNGAL_MESSAGE_IMAGE_HOSTS`),
+**零内容重写**。旧图床 `image.kungal.com` 可由 infra 安排下线。moyu（patch 仓）是否同样写了绝对 URL 需 patch 侧自查,不在本仓范围。
