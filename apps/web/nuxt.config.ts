@@ -63,6 +63,13 @@ export default defineNuxtConfig({
     // Server-only: used by useFetch during SSR to directly reach Go API
     apiBaseUrl: process.env.API_BASE_URL || 'http://127.0.0.1:2334',
 
+    // Server-only: CDN base for resolving the /image/<hash> content token in the
+    // server/routes/image/[hash].ts 302 fallback. Literal default (generic build
+    // has no build-arg); override at runtime with NUXT_IMAGE_CDN_BASE. MUST match
+    // the Go API's KUN_IMAGE_PUBLIC_BASE_URL so both resolvers agree.
+    imageCdnBase:
+      process.env.IMAGE_CDN_BASE || 'https://image.kungal.iloveren.link',
+
     public: {
       KUN_GALGAME_URL: process.env.KUN_GALGAME_URL,
       KUN_VISUAL_NOVEL_FORUM_YANDEX_VERIFICATION:

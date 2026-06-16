@@ -1,6 +1,7 @@
 // Backfill legacy content images: rehost every `https://image.kungal.com/...`
 // image embedded in user content onto image_service, then rewrite the stored
-// content to the new content-addressed CDN URL.
+// content to the domain-independent `/image/<hash>` token (resolved to the CDN
+// URL at render time — never a hardcoded domain in content).
 //
 // Background: before image_service, kungal's image uploader put files at the
 // PATH-based legacy host `image.kungal.com/topic/user_<id>/<name>-<ts>.webp`.
@@ -169,7 +170,11 @@ func main() {
 						deadList = append(deadList, old)
 						continue
 					}
-					newURL = res.URL
+					// Store the domain-independent token, NOT res.URL (absolute).
+					// A hardcoded CDN domain in content is the exact failure mode
+					// this migration exists to kill — resolved at render time +
+					// /image/:hash 302 (image_service contract).
+					newURL = "/image/" + res.Hash
 					migrated[old] = newURL
 					uploads++
 					slog.Info("已重托管", "old", old, "new", newURL)

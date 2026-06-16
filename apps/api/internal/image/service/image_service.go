@@ -38,8 +38,11 @@ func NewImageService(
 
 // UploadTopicImage routes a user's inline post image through image_service
 // under the `topic` preset (WebP q77, ≤1920×1080, EXIF stripped — see infra
-// configs/image_presets.yaml) and returns the full webp CDN URL, which the
-// editor inserts directly as the image src.
+// configs/image_presets.yaml) and returns the domain-independent token
+// `/image/<hash>`, which the editor inserts as the image src. The token is
+// resolved to the real CDN URL at render time (markdown.resolveContentImageRef)
+// and by the /image/:hash 302 fallback — so a future CDN/domain change is one
+// config flip, never a rewrite of stored content (image_service contract).
 //
 // The kungal-local per-USER daily quota is kept on purpose: image_service's
 // quota is per-SITE, so this still gives per-user fair-use limiting + a
@@ -70,16 +73,17 @@ func (s *ImageService) UploadTopicImage(ctx context.Context, userID int, r io.Re
 	}
 
 	s.repo.IncrementDailyCount(userID)
-	return res.URL, nil
+	return "/image/" + res.Hash, nil
 }
 
 // UploadMessageImage routes a chat/private-message inline image through
 // image_service under the `message` preset (same global pipeline as topic:
 // WebP q77, ≤1920×1080, EXIF stripped — see infra configs/image_presets.yaml)
-// and returns the full image.kungal.com CDN URL. That host is exactly what the
-// message markdown renderer's img-src allow-list accepts (see
-// internal/infrastructure/markdown RenderInline), so chat uploads always
-// survive sanitization while arbitrary external URLs do not.
+// and returns the domain-independent token `/image/<hash>`. At render time the
+// message markdown renderer resolves it to the CDN URL BEFORE sanitization, so
+// it lands on an allow-listed host (see internal/infrastructure/markdown
+// RenderInline + resolveContentImageRef) and survives, while arbitrary external
+// URLs do not.
 //
 // Shares the per-USER daily image quota with topic uploads on purpose — it's a
 // generic abuse cap, not per-feature accounting; image_service still applies
@@ -108,5 +112,5 @@ func (s *ImageService) UploadMessageImage(ctx context.Context, userID int, r io.
 	}
 
 	s.repo.IncrementDailyCount(userID)
-	return res.URL, nil
+	return "/image/" + res.Hash, nil
 }

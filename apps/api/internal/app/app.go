@@ -28,6 +28,7 @@ import (
 	cronPkg "kun-galgame-api/internal/infrastructure/cron"
 	"kun-galgame-api/internal/infrastructure/database"
 	"kun-galgame-api/internal/infrastructure/mail"
+	"kun-galgame-api/internal/infrastructure/markdown"
 	"kun-galgame-api/internal/infrastructure/storage"
 	msgHandler "kun-galgame-api/internal/message/handler"
 	msgRepo "kun-galgame-api/internal/message/repository"
@@ -151,6 +152,10 @@ func New(cfg *config.Config) *App {
 		slog.Warn("FILE_STORAGE_* 未配置, 工具集上传将不可用")
 	}
 	mailer := mail.NewMailer(cfg.Mail)
+
+	// Resolve /image/<hash> content refs to absolute CDN URLs at render time.
+	// Same CDN base the image client / galgame banner walker use.
+	markdown.SetContentImageCDNBase(cfg.GalgameWiki.ImageCDNBase)
 
 	// Repositories
 	userStateRepo := repository.NewStateRepository(db)

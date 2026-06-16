@@ -7,6 +7,8 @@ import (
 	"strings"
 	"unicode"
 
+	"kun-galgame-api/pkg/imageclient"
+
 	mathjax "github.com/litao91/goldmark-mathjax"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/yuin/goldmark"
@@ -28,6 +30,55 @@ var (
 	mdHardWrap goldmark.Markdown
 	sanitizer  *bluemonday.Policy
 )
+
+// ──────────────────────────────────────────
+// Domain-independent content image references (/image/<hash>)
+// ──────────────────────────────────────────
+//
+// Content (topic / reply / chat / comment markdown) stores image refs as the
+// domain-independent token `/image/<hash>` instead of an absolute CDN URL, so a
+// CDN/domain change is one config flip — not a rewrite of every historical row
+// (image_service contract, docs/image_service/06-integration-guide.md). We
+// resolve the token to the real CDN URL HERE, at the image-render step (i.e.
+// BEFORE sanitization), so the sanitizer sees a normal https URL on an allowed
+// host — relative URLs would otherwise be stripped (inline.go allow-list). The
+// /image/:hash 302 route on the web origin is the fallback for anything not
+// server-rendered (editor preview, RSS, raw API consumers).
+
+// contentImageRefRe matches a /image/<hash> token: a 64-hex content hash with an
+// optional _<variant> suffix. No extension — the resolver always emits .webp via
+// imageclient (V1 outputs are always webp).
+var contentImageRefRe = regexp.MustCompile(`^/image/([0-9a-f]{64})(?:_([a-z0-9]+))?$`)
+
+// contentImageCDNBase is the image_service public CDN prefix used to resolve
+// /image/<hash> tokens. Set once at startup via SetContentImageCDNBase; empty =
+// no resolution (tokens render verbatim, which the /image/:hash 302 then covers).
+var contentImageCDNBase string
+
+// SetContentImageCDNBase configures the CDN base for resolving /image/<hash>
+// content refs. Call once at startup with cfg.GalgameWiki.ImageCDNBase.
+func SetContentImageCDNBase(base string) {
+	contentImageCDNBase = strings.TrimRight(base, "/")
+}
+
+// resolveContentImageRef turns a /image/<hash>[_variant] token into the absolute
+// CDN URL via imageclient.MainURL/VariantURL (the contract path layout —
+// {base}/<aa>/<bb>/<hash>.webp). Returns "" for anything that isn't a token
+// (absolute/external/legacy URLs render unchanged).
+func resolveContentImageRef(dest string) string {
+	if contentImageCDNBase == "" {
+		return ""
+	}
+	m := contentImageRefRe.FindStringSubmatch(dest)
+	if m == nil {
+		return ""
+	}
+	hash, variant := m[1], m[2]
+	if variant != "" {
+		return imageclient.VariantURL(contentImageCDNBase, hash, variant, "webp")
+	}
+	return imageclient.MainURL(contentImageCDNBase, hash, "webp")
+}
 
 // TocLink is one entry in a table of contents tree. The JSON shape matches
 // DocTocLink on the frontend.
@@ -459,8 +510,15 @@ func (r *lazyImageRenderer) renderImage(
 		}
 	}
 
+	// Resolve a domain-independent /image/<hash> token to the absolute CDN URL
+	// before writing (and before sanitization). Non-tokens pass through as-is.
+	dest := n.Destination
+	if resolved := resolveContentImageRef(string(dest)); resolved != "" {
+		dest = []byte(resolved)
+	}
+
 	w.WriteString(`<img src="`)
-	w.Write(util.EscapeHTML(n.Destination))
+	w.Write(util.EscapeHTML(dest))
 	w.WriteString(`" alt="`)
 	w.Write(util.EscapeHTML(altBuf.Bytes()))
 	if n.Title != nil {
