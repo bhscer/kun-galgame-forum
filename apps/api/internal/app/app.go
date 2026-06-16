@@ -384,7 +384,7 @@ func New(cfg *config.Config) *App {
 		ToolsetCommentHandler:      toolsetHandler.NewCommentHandler(toolsetCommentSvc),
 		ToolsetResourceHandler:     toolsetHandler.NewResourceHandler(toolsetResourceSvc),
 		ToolsetUploadHandler:       toolsetHandler.NewUploadHandler(toolsetUploadSvc),
-		CronStop:                   cronPkg.Start(db, rdb, galgameMessageSync.Run, galgameRevisionSync.Run),
+		CronStop:                   cronPkg.Start(db, rdb, imgCli, galgameMessageSync.Run, galgameRevisionSync.Run),
 	}
 
 	// Fiber

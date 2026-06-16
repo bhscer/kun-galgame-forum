@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"time"
 
+	"kun-galgame-api/pkg/imageclient"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
@@ -24,7 +26,7 @@ const scheduleTZ = "Asia/Shanghai"
 // status (the cron pace was bumped from daily so users see their +3
 // moemoepoint within a normal page-refresh window after admin approves
 // their submission).
-func Start(db *gorm.DB, rdb *redis.Client, wikiMessageSync func(), wikiRevisionSync func()) func() {
+func Start(db *gorm.DB, rdb *redis.Client, imgCli *imageclient.Client, wikiMessageSync func(), wikiRevisionSync func()) func() {
 	loc, err := time.LoadLocation(scheduleTZ)
 	if err != nil {
 		slog.Warn("加载定时任务时区失败, 回退到进程本地时区", "tz", scheduleTZ, "error", err)
@@ -41,6 +43,23 @@ func Start(db *gorm.DB, rdb *redis.Client, wikiMessageSync func(), wikiRevisionS
 	c.AddFunc("0 * * * *", func() {
 		cleanupUploadCache(rdb)
 	})
+
+	// Daily 04:00: reference-ping every content image hash so image-gc never
+	// reclaims a live content image (forum owns these — see RunReferencePing).
+	// Loud skip (not silent) when the image client isn't configured, so a missed
+	// env doesn't quietly leave content images on the GC clock.
+	if imgCli != nil {
+		c.AddFunc("0 4 * * *", func() {
+			distinct, updated, err := RunReferencePing(context.Background(), db, imgCli)
+			if err != nil {
+				slog.Error("内容图 reference-ping 失败", "distinct", distinct, "updated", updated, "error", err)
+				return
+			}
+			slog.Info("内容图 reference-ping 完成", "distinct_hashes", distinct, "updated", updated)
+		})
+	} else {
+		slog.Warn("image client 未配置, 跳过内容图 reference-ping —— 内容图存在被 image-gc 回收的风险")
+	}
 
 	// Every 10 min: pull wiki submission-stream events and apply local
 	// side effects (+3 moemoepoint on approve, drop stub on ban). Skipped
