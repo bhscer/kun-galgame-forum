@@ -1,14 +1,13 @@
 <script setup lang="ts">
-// Screenshot gallery editor (U2 K-PR3b). Each row references an image
-// in image_service by hash; rows ordered by sort_order. Distinct from
-// covers — no pinned/banner concept, just an ordered gallery with
-// optional captions.
+// Screenshot gallery editor (U2 K-PR3b) — image-first grid.
 //
-// Upload preset is galgame_screenshot (image_service may apply a
-// different size budget than the banner preset). Footer strips
-// `cdn_url` from the wire payload (read-only preview field).
-import type { KunSelectOption } from '@kungal/ui-vue'
-
+// Each row references an image_service hash; rows are ordered by sort_order.
+// Distinct from covers — no pinned/banner concept, just an ordered gallery
+// with optional captions. Upload uses the galgame_screenshot preset (main
+// image only — no unused variants), multi-file/drag via useGalgameImageUpload.
+// Reorder swaps sort_order with a neighbour (no drag-and-drop in v1). Caption +
+// ratings live in each tile's ⚙ popover so the grid stays image-first instead
+// of a wall of always-open forms. Footer.vue strips `cdn_url` (preview field).
 const { galgamePR } = storeToRefs(useTempGalgamePRStore())
 
 const screenshots = computed<GalgameScreenshot[]>({
@@ -25,67 +24,30 @@ const sorted = computed(() =>
   })
 )
 
-const ratingOptions: KunSelectOption[] = [
-  { value: 0, label: '未评定' },
-  { value: 1, label: '轻' },
-  { value: 2, label: '中' },
-  { value: 3, label: '高' }
-]
-
-const isUploading = ref(false)
-const fileInput = ref<HTMLInputElement | null>(null)
-
-const handlePickFile = () => {
-  fileInput.value?.click()
-}
-
-const handleFile = async (e: Event) => {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file) return
-
-  isUploading.value = true
-  // Screenshots use the dedicated `galgame_screenshot` preset (main image
-  // only — no unused variants). Covers use `galgame_banner`.
-  const res = await uploadGalgameImage(file, 'galgame_screenshot', file.name)
-  isUploading.value = false
-  if (!res) return
-
-  if (screenshots.value.some((s) => s.image_hash === res.hash)) {
-    useMessage('该截图已在列表中', 'warn')
-    return
-  }
-
-  const maxOrder = screenshots.value.reduce(
-    (m, s) => (s.sort_order > m ? s.sort_order : m),
-    -1
-  )
-  screenshots.value = [
-    ...screenshots.value,
-    {
-      image_hash: res.hash,
-      sort_order: maxOrder + 1,
-      caption: '',
-      sexual: 0,
-      violence: 0,
-      source: '',
-      source_key: '',
-      cdn_url: res.url
-    }
-  ]
-}
+const { isUploading, progressText, uploadFiles } = useGalgameImageUpload({
+  preset: 'galgame_screenshot',
+  rows: screenshots,
+  dedupeLabel: '截图',
+  makeRow: (res, sortOrder) => ({
+    image_hash: res.hash,
+    sort_order: sortOrder,
+    caption: '',
+    sexual: 0,
+    violence: 0,
+    source: '',
+    source_key: '',
+    cdn_url: res.url
+  })
+})
 
 const handleRemove = (hash: string) => {
   screenshots.value = screenshots.value.filter((s) => s.image_hash !== hash)
 }
 
-// Shift up / down by swapping sort_order with the neighbour. v1
-// keeps reorder simple (no drag-and-drop per §10 #3).
+// Move earlier (-1) / later (+1) by swapping sort_order with the neighbour in
+// display order. Grid reads left→right, top→bottom, so chevron-left = 前移.
 const handleShift = (target: GalgameScreenshot, dir: -1 | 1) => {
-  const idx = sorted.value.findIndex(
-    (s) => s.image_hash === target.image_hash
-  )
+  const idx = sorted.value.findIndex((s) => s.image_hash === target.image_hash)
   const neighbour = sorted.value[idx + dir]
   if (!neighbour) return
   const a = target.sort_order
@@ -102,80 +64,123 @@ const handleShift = (target: GalgameScreenshot, dir: -1 | 1) => {
   <div class="space-y-3">
     <h2 class="text-xl">画廊 / 截图</h2>
     <p class="text-default-500 text-sm">
-      游戏截图 / CG / 立绘等。按 sort_order 排序。提交后将整组替换。
+      游戏截图 / CG / 立绘等。用箭头调整顺序,⚙ 可填写说明与分级。提交后整组替换。
     </p>
 
-    <div v-if="sorted.length" class="space-y-2">
-      <div
-        v-for="(shot, idx) in sorted"
-        :key="shot.image_hash"
-        class="border-default-200 flex flex-col gap-3 rounded-lg border p-3 sm:flex-row"
-      >
-        <KunImage
-          v-if="shot.cdn_url"
-          :src="shot.cdn_url"
-          loading="lazy"
-          class-name="h-24 w-40 shrink-0 rounded object-cover"
-        />
-        <div class="flex-1 space-y-2">
-          <div class="flex flex-wrap items-center gap-2">
-            <KunButton
-              size="sm"
-              variant="flat"
-              :is-icon-only="true"
-              :disabled="idx === 0"
-              @click="handleShift(shot, -1)"
-            >
-              <KunIcon name="lucide:chevron-up" />
-            </KunButton>
-            <KunButton
-              size="sm"
-              variant="flat"
-              :is-icon-only="true"
-              :disabled="idx === sorted.length - 1"
-              @click="handleShift(shot, 1)"
-            >
-              <KunIcon name="lucide:chevron-down" />
-            </KunButton>
-            <span class="text-default-400 text-xs">
-              sort_order = {{ shot.sort_order }}
-            </span>
+    <KunLightboxGallery>
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        <div
+          v-for="(shot, idx) in sorted"
+          :key="shot.image_hash"
+          class="group border-default-200 relative overflow-hidden rounded-lg border"
+        >
+          <KunLightboxGalleryItem
+            :src="galgameImageSrc(shot)"
+            :alt="shot.caption || ''"
+            :wrap="false"
+            v-slot="{ open }"
+          >
+            <KunImage
+              :src="galgameImageSrc(shot)"
+              :alt="shot.caption || ''"
+              loading="lazy"
+              class-name="aspect-video w-full cursor-zoom-in object-cover"
+              @click="open"
+            />
+          </KunLightboxGalleryItem>
+
+          <!-- per-tile toolbar: visible on touch, hover-revealed on desktop -->
+          <div
+            class="absolute top-1.5 right-1.5 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+          >
+            <KunTooltip text="前移">
+              <KunButton
+                :is-icon-only="true"
+                size="sm"
+                variant="solid"
+                color="default"
+                :disabled="idx === 0"
+                @click="handleShift(shot, -1)"
+              >
+                <KunIcon name="lucide:chevron-left" />
+              </KunButton>
+            </KunTooltip>
+            <KunTooltip text="后移">
+              <KunButton
+                :is-icon-only="true"
+                size="sm"
+                variant="solid"
+                color="default"
+                :disabled="idx === sorted.length - 1"
+                @click="handleShift(shot, 1)"
+              >
+                <KunIcon name="lucide:chevron-right" />
+              </KunButton>
+            </KunTooltip>
+
+            <KunPopover position="bottom-end" inner-class="p-3 w-64">
+              <template #trigger>
+                <KunButton
+                  :is-icon-only="true"
+                  size="sm"
+                  variant="solid"
+                  color="default"
+                  aria-label="说明与分级"
+                >
+                  <KunIcon name="lucide:settings-2" />
+                </KunButton>
+              </template>
+              <div class="space-y-2">
+                <KunInput v-model="shot.caption" placeholder="说明文字 (可选)" />
+                <EditGalgamePrImageRatingFields
+                  v-model:sexual="shot.sexual"
+                  v-model:violence="shot.violence"
+                />
+              </div>
+            </KunPopover>
+
+            <KunTooltip text="移除">
+              <KunButton
+                :is-icon-only="true"
+                size="sm"
+                variant="solid"
+                color="danger"
+                @click="handleRemove(shot.image_hash)"
+              >
+                <KunIcon name="lucide:trash-2" />
+              </KunButton>
+            </KunTooltip>
           </div>
-          <KunInput v-model="shot.caption" placeholder="说明文字 (可选)" />
-          <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-            <KunSelect
-              v-model="shot.sexual"
-              label="性内容评级"
-              :options="ratingOptions"
-            />
-            <KunSelect
-              v-model="shot.violence"
-              label="暴力评级"
-              :options="ratingOptions"
-            />
+
+          <!-- rating badges (only when rated) -->
+          <div
+            v-if="shot.sexual || shot.violence"
+            class="pointer-events-none absolute top-1.5 left-1.5 flex gap-1"
+          >
+            <KunChip v-if="shot.sexual" size="sm" color="warning" variant="solid">
+              性 {{ shot.sexual }}
+            </KunChip>
+            <KunChip v-if="shot.violence" size="sm" color="danger" variant="solid">
+              暴 {{ shot.violence }}
+            </KunChip>
+          </div>
+
+          <!-- caption preview strip -->
+          <div
+            v-if="shot.caption"
+            class="pointer-events-none absolute right-0 bottom-0 left-0 truncate bg-black/55 px-2 py-1 text-xs text-white"
+          >
+            {{ shot.caption }}
           </div>
         </div>
-        <KunButton
-          :is-icon-only="true"
-          variant="flat"
-          color="danger"
-          @click="handleRemove(shot.image_hash)"
-        >
-          <KunIcon name="lucide:trash-2" />
-        </KunButton>
-      </div>
-    </div>
 
-    <input
-      ref="fileInput"
-      type="file"
-      accept="image/jpeg,image/png,image/webp"
-      class="hidden"
-      @change="handleFile"
-    />
-    <KunButton variant="flat" :loading="isUploading" @click="handlePickFile">
-      <KunIcon name="lucide:plus" />
-      添加截图
-    </KunButton>
+        <EditGalgamePrImageDropzone
+          label="添加截图"
+          :is-uploading="isUploading"
+          :progress-text="progressText"
+          @files="uploadFiles"
+        />
+      </div>
+    </KunLightboxGallery>
   </div>
 </template>

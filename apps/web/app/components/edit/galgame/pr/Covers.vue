@@ -1,19 +1,13 @@
 <script setup lang="ts">
-// Cover candidate-set editor (U2 K-PR3b). Replaces the old single-banner
-// upload — covers[sort_order=0] is the "pinned banner" (= effective
-// banner head image); other rows are alternate candidates. Reorder by
-// changing sort_order; pin = make sort_order=0 (the wiki has a partial
-// unique index so two rows with sort_order=0 will be rejected, hence
-// the explicit "钉为封面" action atomically demotes the old pinned).
+// Cover candidate-set editor (U2 K-PR3b) — image-first grid.
 //
-// Upload uses K-PR3a's /image/galgame proxy → returns hash + URL; we
-// push a new row with sort_order set to (max+1) and unrated sexual/
-// violence (admin or future per-image gate may rate later).
-//
-// Footer.vue strips `cdn_url` (server-injected preview) from the wire
-// payload — wiki doesn't accept it on write.
-import type { KunSelectOption } from '@kungal/ui-vue'
-
+// covers[sort_order=0] is the pinned banner (= effective banner head image);
+// other rows are alternate candidates. Pin = make sort_order=0; pinCoverAtomic
+// atomically demotes the old pinned row so the wiki's partial unique index is
+// never violated on submit. Upload (galgame_banner preset, multi-file/drag via
+// useGalgameImageUpload) appends rows; the whole set replaces the galgame's
+// covers on submit. Footer.vue strips `cdn_url` (a render-only preview field)
+// from the wire payload — the wiki doesn't accept it on write.
 const { galgamePR } = storeToRefs(useTempGalgamePRStore())
 
 const covers = computed<GalgameCover[]>({
@@ -30,63 +24,22 @@ const sorted = computed(() =>
   })
 )
 
-const ratingOptions: KunSelectOption[] = [
-  { value: 0, label: '未评定' },
-  { value: 1, label: '轻' },
-  { value: 2, label: '中' },
-  { value: 3, label: '高' }
-]
+const { isUploading, progressText, uploadFiles } = useGalgameImageUpload({
+  preset: 'galgame_banner',
+  rows: covers,
+  dedupeLabel: '封面',
+  makeRow: (res, sortOrder) => ({
+    image_hash: res.hash,
+    sort_order: sortOrder,
+    sexual: 0,
+    violence: 0,
+    source: '',
+    source_key: '',
+    cdn_url: res.url
+  })
+})
 
-const isUploading = ref(false)
-const fileInput = ref<HTMLInputElement | null>(null)
-
-const handlePickFile = () => {
-  fileInput.value?.click()
-}
-
-const handleFile = async (e: Event) => {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  // Reset so the same file can be picked twice if a transient error
-  // occurred (browser otherwise dedupes by identity and the event
-  // doesn't refire).
-  input.value = ''
-  if (!file) return
-
-  isUploading.value = true
-  const res = await uploadGalgameImage(file, 'galgame_banner', file.name)
-  isUploading.value = false
-  if (!res) return // kunFetch already toasted the wiki error message
-
-  // De-dupe: same hash on the same galgame is meaningless; image_service
-  // deduplicates by content so re-uploading the same file returns the
-  // same hash. Surface a friendly note instead of pushing a phantom row.
-  if (covers.value.some((c) => c.image_hash === res.hash)) {
-    useMessage('该封面已在列表中', 'warn')
-    return
-  }
-
-  const maxOrder = covers.value.reduce(
-    (m, c) => (c.sort_order > m ? c.sort_order : m),
-    -1
-  )
-  covers.value = [
-    ...covers.value,
-    {
-      image_hash: res.hash,
-      sort_order: maxOrder + 1,
-      sexual: 0,
-      violence: 0,
-      source: '',
-      source_key: '',
-      cdn_url: res.url
-    }
-  ]
-}
-
-// Atomic pin: set picked → 0, demote old 0-row to (max+1). Mirrors the
-// wiki's "Pin new banner" transaction so the partial unique index is
-// never violated on submit. Logic + edge cases extracted to
+// Atomic pin: picked → 0, old 0-row → (max+1). Logic + edge cases in
 // shared/utils/pinCoverAtomic.ts (covered by pinCoverAtomic.spec.ts).
 const handlePin = (target: GalgameCover) => {
   covers.value = pinCoverAtomic(covers.value, target.image_hash)
@@ -101,78 +54,117 @@ const handleRemove = (hash: string) => {
   <div class="space-y-3">
     <h2 class="text-xl">封面</h2>
     <p class="text-default-500 text-sm">
-      添加候选封面图;其中 <span class="text-primary">已钉为封面</span>
-      的一张作为详情页头图(`effective_banner`),其余为备选。
-      提交后将整组替换该 Galgame 的封面集。
+      添加候选封面图;其中 <span class="text-primary">钉为封面</span>
+      的一张作为详情页头图,其余为备选。提交后整组替换该 Galgame 的封面集。
     </p>
 
-    <div v-if="sorted.length" class="space-y-2">
-      <div
-        v-for="cover in sorted"
-        :key="cover.image_hash"
-        class="border-default-200 flex flex-col gap-3 rounded-lg border p-3 sm:flex-row"
-      >
-        <KunImage
-          v-if="cover.cdn_url"
-          :src="cover.cdn_url"
-          loading="lazy"
-          class-name="h-24 w-40 shrink-0 rounded object-cover"
-        />
-        <div class="flex-1 space-y-2">
-          <div class="flex flex-wrap items-center gap-2">
-            <KunChip
-              v-if="cover.sort_order === 0"
-              color="primary"
-              variant="flat"
-            >
-              已钉为封面
-            </KunChip>
-            <KunButton
-              v-else
-              size="sm"
-              variant="flat"
-              @click="handlePin(cover)"
-            >
-              钉为封面
-            </KunButton>
-            <span class="text-default-400 text-xs">
-              sort_order = {{ cover.sort_order }}
-            </span>
+    <KunLightboxGallery>
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        <div
+          v-for="cover in sorted"
+          :key="cover.image_hash"
+          class="group border-default-200 relative overflow-hidden rounded-lg border"
+          :class="{
+            'ring-primary border-primary ring-2': cover.sort_order === 0
+          }"
+        >
+          <KunLightboxGalleryItem
+            :src="galgameImageSrc(cover)"
+            :wrap="false"
+            v-slot="{ open }"
+          >
+            <KunImage
+              :src="galgameImageSrc(cover)"
+              loading="lazy"
+              class-name="aspect-video w-full cursor-zoom-in object-cover"
+              @click="open"
+            />
+          </KunLightboxGalleryItem>
+
+          <!-- pinned banner badge (top-left) -->
+          <KunChip
+            v-if="cover.sort_order === 0"
+            color="primary"
+            variant="solid"
+            size="sm"
+            class="pointer-events-none absolute top-1.5 left-1.5"
+          >
+            <KunIcon name="lucide:pin" class="mr-1" />封面
+          </KunChip>
+
+          <!-- per-tile toolbar: visible on touch, hover-revealed on desktop -->
+          <div
+            class="absolute top-1.5 right-1.5 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+          >
+            <KunTooltip v-if="cover.sort_order !== 0" text="钉为封面">
+              <KunButton
+                :is-icon-only="true"
+                size="sm"
+                variant="solid"
+                color="default"
+                @click="handlePin(cover)"
+              >
+                <KunIcon name="lucide:pin" />
+              </KunButton>
+            </KunTooltip>
+
+            <KunPopover position="bottom-end" inner-class="p-3 w-56">
+              <template #trigger>
+                <KunButton
+                  :is-icon-only="true"
+                  size="sm"
+                  variant="solid"
+                  color="default"
+                  aria-label="评级"
+                >
+                  <KunIcon name="lucide:settings-2" />
+                </KunButton>
+              </template>
+              <EditGalgamePrImageRatingFields
+                v-model:sexual="cover.sexual"
+                v-model:violence="cover.violence"
+              />
+            </KunPopover>
+
+            <KunTooltip text="移除">
+              <KunButton
+                :is-icon-only="true"
+                size="sm"
+                variant="solid"
+                color="danger"
+                @click="handleRemove(cover.image_hash)"
+              >
+                <KunIcon name="lucide:trash-2" />
+              </KunButton>
+            </KunTooltip>
           </div>
-          <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-            <KunSelect
-              v-model="cover.sexual"
-              label="性内容评级"
-              :options="ratingOptions"
-            />
-            <KunSelect
-              v-model="cover.violence"
-              label="暴力评级"
-              :options="ratingOptions"
-            />
+
+          <!-- rating badges (only when rated) -->
+          <div
+            v-if="cover.sexual || cover.violence"
+            class="pointer-events-none absolute bottom-1.5 left-1.5 flex gap-1"
+          >
+            <KunChip v-if="cover.sexual" size="sm" color="warning" variant="solid">
+              性 {{ cover.sexual }}
+            </KunChip>
+            <KunChip
+              v-if="cover.violence"
+              size="sm"
+              color="danger"
+              variant="solid"
+            >
+              暴 {{ cover.violence }}
+            </KunChip>
           </div>
         </div>
-        <KunButton
-          :is-icon-only="true"
-          variant="flat"
-          color="danger"
-          @click="handleRemove(cover.image_hash)"
-        >
-          <KunIcon name="lucide:trash-2" />
-        </KunButton>
-      </div>
-    </div>
 
-    <input
-      ref="fileInput"
-      type="file"
-      accept="image/jpeg,image/png,image/webp"
-      class="hidden"
-      @change="handleFile"
-    />
-    <KunButton variant="flat" :loading="isUploading" @click="handlePickFile">
-      <KunIcon name="lucide:plus" />
-      添加封面
-    </KunButton>
+        <EditGalgamePrImageDropzone
+          label="添加封面"
+          :is-uploading="isUploading"
+          :progress-text="progressText"
+          @files="uploadFiles"
+        />
+      </div>
+    </KunLightboxGallery>
   </div>
 </template>
