@@ -75,6 +75,37 @@ const countLevels = (axis: 'sexual' | 'violence'): Record<number, number> => {
 }
 const sexualCounts = computed(() => countLevels('sexual'))
 const violenceCounts = computed(() => countLevels('violence'))
+
+// Grid thumbnails load the `mini` variant (every screenshot has one in
+// image_service — verified) instead of the full 1920×1080 image; the lightbox
+// still opens the full-resolution src. withImageVariant only rewrites real
+// image_service .webp URLs, so the /image/<hash> fallback (a row without
+// cdn_url) returns the full image unchanged — acceptable.
+const thumbSrc = (s: GalgameScreenshot) =>
+  s.cdn_url ? withImageVariant(s.cdn_url, 'mini') : galgameImageSrc(s)
+
+// Per-tile rating rings: outer band = 色情 (warning), inner band = 暴力
+// (danger) — same colour mapping as the editor's rating badges; colour depth =
+// level (轻/中/高). Rendered as nested INSET box-shadows on a pointer-events-none
+// overlay above the image, so they can't be clipped or block clicks. An axis
+// with no rating draws nothing; a single rated axis draws one edge ring (its
+// colour says which).
+const RING_W = 2.5 // px per band
+const RING_DEPTH: Record<number, number> = { 1: 60, 2: 80, 3: 100 }
+const ringColor = (token: 'warning' | 'danger', level: number) =>
+  `color-mix(in oklab, var(--color-${token}) ${RING_DEPTH[level] ?? 100}%, transparent)`
+
+const ratingRing = (s: GalgameScreenshot) => {
+  const shadows: string[] = []
+  if (s.sexual >= 1) {
+    shadows.push(`inset 0 0 0 ${RING_W}px ${ringColor('warning', s.sexual)}`)
+  }
+  if (s.violence >= 1) {
+    const inset = s.sexual >= 1 ? RING_W * 2 : RING_W
+    shadows.push(`inset 0 0 0 ${inset}px ${ringColor('danger', s.violence)}`)
+  }
+  return { boxShadow: shadows.join(', ') }
+}
 </script>
 
 <template>
@@ -91,8 +122,11 @@ const violenceCounts = computed(() => countLevels('violence'))
     </div>
 
     <KunLightboxGallery v-if="sorted.length">
+      <!-- auto-fill min-width grid: tiles never shrink below ~180px (a fixed
+           5-col grid made them tiny in a narrow content column). 2 cols on
+           phones, then as many ≥180px columns as fit. -->
       <div
-        class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+        class="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]"
       >
         <KunLightboxGalleryItem
           v-for="s in sorted"
@@ -109,7 +143,7 @@ const violenceCounts = computed(() => countLevels('violence'))
             @click="open"
           >
             <KunImage
-              :src="galgameImageSrc(s)"
+              :src="thumbSrc(s)"
               :alt="s.caption || ''"
               loading="lazy"
               object-fit="cover"
@@ -122,6 +156,12 @@ const violenceCounts = computed(() => countLevels('violence'))
             >
               {{ s.caption }}
             </div>
+            <!-- rating rings: outer=色情 inner=暴力, depth=level -->
+            <div
+              v-if="s.sexual >= 1 || s.violence >= 1"
+              class="pointer-events-none absolute inset-0 rounded-lg"
+              :style="ratingRing(s)"
+            />
           </button>
         </KunLightboxGalleryItem>
       </div>

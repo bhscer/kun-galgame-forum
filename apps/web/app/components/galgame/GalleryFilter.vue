@@ -134,6 +134,12 @@ const confirmViolence = () => {
           </div>
         </template>
       </div>
+
+      <KunDivider />
+      <p class="text-default-400 text-xs leading-relaxed">
+        缩略图描边:<span class="text-warning-500">外圈 = 色情</span> ·
+        <span class="text-danger-500">内圈 = 暴力</span>,颜色越深级别越高。
+      </p>
     </div>
   </KunPopover>
 
