@@ -62,6 +62,19 @@ const hiddenCount = computed(() => allShots.value.length - sorted.value.length)
 const hasRated = computed(() =>
   allShots.value.some((s) => s.sexual >= 1 || s.violence >= 1)
 )
+
+// Per-level image counts (level 1/2/3 → n), so the filter can show how many
+// images each toggle reveals/hides.
+const countLevels = (axis: 'sexual' | 'violence'): Record<number, number> => {
+  const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0 }
+  for (const s of allShots.value) {
+    const level = s[axis]
+    if (level >= 1 && level <= 3) counts[level] = (counts[level] ?? 0) + 1
+  }
+  return counts
+}
+const sexualCounts = computed(() => countLevels('sexual'))
+const violenceCounts = computed(() => countLevels('violence'))
 </script>
 
 <template>
@@ -72,6 +85,8 @@ const hasRated = computed(() =>
         v-if="hasRated"
         :show-nsfw="showNsfw"
         :hidden-count="hiddenCount"
+        :sexual-counts="sexualCounts"
+        :violence-counts="violenceCounts"
       />
     </div>
 
@@ -97,7 +112,9 @@ const hasRated = computed(() =>
               :src="galgameImageSrc(s)"
               :alt="s.caption || ''"
               loading="lazy"
-              class-name="aspect-video w-full cursor-zoom-in object-cover transition-transform duration-200 group-hover:scale-105"
+              object-fit="cover"
+              class="h-full w-full cursor-zoom-in object-cover transition-transform duration-200 group-hover:scale-105"
+              :style="{ aspectRatio: '16/9' }"
             />
             <div
               v-if="s.caption"

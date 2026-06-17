@@ -5,12 +5,19 @@
 //   暴力 (violence) — ALWAYS an explicit per-level opt-in (default off), shown
 //                     behind a prominent confirm. The NSFW mode does NOT unlock
 //                     it (sex and gore are separate sensitivities).
-// An image needs BOTH its sexual and violence levels permitted to show — the
-// actual hide/show runs in Gallery.vue; this component only edits the persisted
-// level sets (remembered across pages/sessions via the settings store).
+// Each level shows HOW MANY images carry it, so the viewer knows what a toggle
+// reveals/hides. An image needs BOTH its sexual and violence levels permitted
+// to show — the actual hide/show runs in Gallery.vue; this only edits the
+// persisted level sets (remembered across pages/sessions via the settings store).
 import type { Ref } from 'vue'
 
-defineProps<{ showNsfw: boolean; hiddenCount: number }>()
+const props = defineProps<{
+  showNsfw: boolean
+  hiddenCount: number
+  // level (1/2/3) → number of screenshots carrying that rating
+  sexualCounts: Record<number, number>
+  violenceCounts: Record<number, number>
+}>()
 
 const {
   showKUNGalgameGallerySexualLevels: sexualLevels,
@@ -23,14 +30,22 @@ const LEVELS = [
   { value: 3, label: '高' }
 ]
 
+// Only offer levels that actually have images.
+const sexualShown = computed(() =>
+  LEVELS.filter((lv) => (props.sexualCounts[lv.value] ?? 0) > 0)
+)
+const violenceShown = computed(() =>
+  LEVELS.filter((lv) => (props.violenceCounts[lv.value] ?? 0) > 0)
+)
+
 const toggle = (arr: Ref<number[]>, level: number) => {
   arr.value = arr.value.includes(level)
     ? arr.value.filter((l) => l !== level)
     : [...arr.value, level]
 }
 
-// Dedicated handlers so the template never has to pass a ref (templates
-// auto-unwrap refs, which would hand `toggle` a plain array).
+// Dedicated handler so the template never passes a ref (templates auto-unwrap
+// refs, which would hand `toggle` a plain array).
 const toggleSexual = (level: number) => toggle(sexualLevels, level)
 
 // Violence: turning it ON from the all-off state pops a confirm first; once any
@@ -72,17 +87,20 @@ const confirmViolence = () => {
       <!-- 色情 -->
       <div class="space-y-2">
         <p class="text-default-700 text-sm font-medium">色情评级</p>
-        <p v-if="showNsfw" class="text-default-500 text-xs">
+        <p v-if="!sexualShown.length" class="text-default-400 text-xs">
+          无色情评级图片
+        </p>
+        <p v-else-if="showNsfw" class="text-default-500 text-xs">
           NSFW 模式已显示全部色情内容。
         </p>
-        <div v-else class="flex flex-wrap gap-3">
+        <div v-else class="flex flex-col gap-2">
           <KunCheckBox
-            v-for="lv in LEVELS"
+            v-for="lv in sexualShown"
             :id="`gal-sexual-${lv.value}`"
             :key="lv.value"
             type="single"
             :model-value="sexualLevels.includes(lv.value)"
-            :label="lv.label"
+            :label="`${lv.label} · ${sexualCounts[lv.value]} 张`"
             @update:model-value="() => toggleSexual(lv.value)"
           />
         </div>
@@ -96,20 +114,25 @@ const confirmViolence = () => {
           <KunIcon name="lucide:triangle-alert" class="text-danger-500" />
           <p class="text-default-700 text-sm font-medium">暴力评级</p>
         </div>
-        <p class="text-danger-600 text-xs">
-          暴力 / 血腥内容可能引起不适,默认隐藏,确认后才显示。
+        <p v-if="!violenceShown.length" class="text-default-400 text-xs">
+          无暴力评级图片
         </p>
-        <div class="flex flex-wrap gap-3">
-          <KunCheckBox
-            v-for="lv in LEVELS"
-            :id="`gal-violence-${lv.value}`"
-            :key="lv.value"
-            type="single"
-            :model-value="violenceLevels.includes(lv.value)"
-            :label="lv.label"
-            @update:model-value="() => onViolence(lv.value)"
-          />
-        </div>
+        <template v-else>
+          <p class="text-danger-600 text-xs">
+            暴力 / 血腥内容可能引起不适,默认隐藏,确认后才显示。
+          </p>
+          <div class="flex flex-col gap-2">
+            <KunCheckBox
+              v-for="lv in violenceShown"
+              :id="`gal-violence-${lv.value}`"
+              :key="lv.value"
+              type="single"
+              :model-value="violenceLevels.includes(lv.value)"
+              :label="`${lv.label} · ${violenceCounts[lv.value]} 张`"
+              @update:model-value="() => onViolence(lv.value)"
+            />
+          </div>
+        </template>
       </div>
     </div>
   </KunPopover>
