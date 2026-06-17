@@ -40,6 +40,13 @@ type WikiGalgameItem struct {
 
 // U2 cover/screenshot row shapes (snake_case, matches wiki wire). Both
 // share the scalar fields; screenshot additionally has Caption.
+//
+// CDNURL: like EffectiveBannerURL above, client.rewriteBanners injects a
+// per-row `cdn_url` (image_hash → CDN URL) into the wiki bytes BEFORE we
+// unmarshal — this field MUST be declared or Go's unmarshal silently drops
+// the walker's work and the gallery renders no images. (This was the bug:
+// the field was missing here, so screenshots/covers reached the FE without a
+// cdn_url and the gallery fell back to a /image/<hash> redirect per image.)
 type WikiGalgameCover struct {
 	ImageHash string `json:"image_hash"`
 	SortOrder int    `json:"sort_order"`
@@ -47,6 +54,7 @@ type WikiGalgameCover struct {
 	Violence  int    `json:"violence"`
 	Source    string `json:"source"`
 	SourceKey string `json:"source_key"`
+	CDNURL    string `json:"cdn_url"`
 }
 
 type WikiGalgameScreenshot struct {
@@ -57,6 +65,7 @@ type WikiGalgameScreenshot struct {
 	Violence  int    `json:"violence"`
 	Source    string `json:"source"`
 	SourceKey string `json:"source_key"`
+	CDNURL    string `json:"cdn_url"`
 }
 
 // WikiOfficial is a company/publisher/developer entity from the wiki.

@@ -109,6 +109,7 @@ func coversFromWiki(rows []dto.WikiGalgameCover) []dto.GalgameCover {
 			ImageHash: r.ImageHash, SortOrder: r.SortOrder,
 			Sexual: r.Sexual, Violence: r.Violence,
 			Source: r.Source, SourceKey: r.SourceKey,
+			CDNURL: r.CDNURL,
 		}
 	}
 	return out
@@ -121,6 +122,7 @@ func screenshotsFromWiki(rows []dto.WikiGalgameScreenshot) []dto.GalgameScreensh
 			ImageHash: r.ImageHash, SortOrder: r.SortOrder, Caption: r.Caption,
 			Sexual: r.Sexual, Violence: r.Violence,
 			Source: r.Source, SourceKey: r.SourceKey,
+			CDNURL: r.CDNURL,
 		}
 	}
 	return out
