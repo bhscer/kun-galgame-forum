@@ -40,6 +40,14 @@ export const usePersistSettingsStore = defineStore(
     // 'md' = stock look.
     const showKUNGalgameRounded =
       ref<KUNGalgameSettingsStore['showKUNGalgameRounded']>('md')
+    // Per-rating galgame gallery filters — the rating levels (1/2/3) the viewer
+    // opted to reveal. Default [] = only unrated shows. 色情 is additionally
+    // gated by the global NSFW mode; 暴力 is an independent warned opt-in. See
+    // KUNGalgameSettingsStore + components/galgame/GalleryFilter.vue.
+    const showKUNGalgameGallerySexualLevels =
+      ref<KUNGalgameSettingsStore['showKUNGalgameGallerySexualLevels']>([])
+    const showKUNGalgameGalleryViolenceLevels =
+      ref<KUNGalgameSettingsStore['showKUNGalgameGalleryViolenceLevels']>([])
 
     const toggleKUNGalgameSidebarCollapsed = () => {
       showKUNGalgameSidebarCollapsed.value =
@@ -138,6 +146,8 @@ export const usePersistSettingsStore = defineStore(
       showKUNGalgameSidebarCollapsed,
       showKUNGalgameNoResource,
       showKUNGalgameRounded,
+      showKUNGalgameGallerySexualLevels,
+      showKUNGalgameGalleryViolenceLevels,
       toggleKUNGalgameSidebarCollapsed,
       setKUNGalgameFontStyle,
       setKUNGalgameTransparency,
