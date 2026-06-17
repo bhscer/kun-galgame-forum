@@ -1,11 +1,13 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
+	"mime/multipart"
 
 	"kun-galgame-api/pkg/errors"
-	"kun-galgame-api/pkg/imageclient"
 )
 
 // galgame_upload.go — U2 cover/screenshot upload path.
@@ -36,41 +38,75 @@ type UploadGalgameResult struct {
 	Deduplicated bool              `json:"deduplicated"`
 }
 
-// UploadGalgameImage proxies a single file to image_service under the
-// caller-chosen preset and adapts the response to UploadGalgameResult.
-// userID is taken from the kungal session (caller passes it for logging
-// + future per-user quota mirroring).
+// UploadGalgameImage proxies a galgame cover/screenshot to the WIKI's canonical
+// upload endpoint (POST /galgame/image), forwarding the user's Bearer token.
+// The wiki uploads under its own image client (site=galgame_wiki) and returns
+// the hash, so every galgame image is OWNED by the wiki — forum no longer
+// uploads galgame images under its own site=kungal (which the site-scoped
+// galgame reference-ping can't keep alive). Topic/message inline images still
+// go through forum's local image_service client (those are forum's own content).
+//
+// userID is kept for logging / future per-user accounting; the file is
+// re-encoded as multipart {file, preset} and forwarded byte-for-byte.
 func (s *ImageService) UploadGalgameImage(
 	ctx context.Context,
 	userID int,
+	token string,
 	r io.Reader,
 	filename, preset string,
 ) (*UploadGalgameResult, *errors.AppError) {
-	if s.imgCli == nil {
-		// image_service credentials not configured. Surface a clear
-		// error instead of crashing — matches the wiki side's behaviour
-		// (see kun-galgame-infra's mapWriteBodyError fallback).
-		return nil, errors.ErrBadRequest(
-			"图片上传服务未配置 (KUN_IMAGE_CLIENT_ID / KUN_IMAGE_CLIENT_SECRET)",
-		)
+	if s.wikiClient == nil {
+		return nil, errors.ErrInternal("Wiki 客户端未配置")
 	}
 
-	res, err := s.imgCli.Upload(ctx, r, filename, preset)
+	// Re-encode the upload as multipart {file, preset}.
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	if err := mw.WriteField("preset", preset); err != nil {
+		return nil, errors.ErrInternal("构建上传请求失败")
+	}
+	fw, err := mw.CreateFormFile("file", filename)
 	if err != nil {
-		// Forward image_service's own status + code if it returned a
-		// structured Error; otherwise wrap as generic.
-		if ie, ok := err.(*imageclient.Error); ok {
-			return nil, errors.New(ie.Code, ie.Message, ie.StatusCode)
-		}
-		return nil, errors.ErrInternal("图片上传失败")
+		return nil, errors.ErrInternal("构建上传请求失败")
+	}
+	if _, err := io.Copy(fw, r); err != nil {
+		return nil, errors.ErrInternal("读取上传文件失败")
+	}
+	if err := mw.Close(); err != nil {
+		return nil, errors.ErrInternal("构建上传请求失败")
+	}
+
+	// PostWithToken forwards the multipart body verbatim (boundary preserved)
+	// + the user's Bearer, and returns the wiki's `data` (or its error
+	// code/status, surfaced to the caller unchanged).
+	data, appErr := s.wikiClient.PostWithToken(
+		ctx, "/galgame/image", token, buf.Bytes(), mw.FormDataContentType(),
+	)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	// Wiki returns image_service's UploadResult (snake_case wire tags); adapt
+	// it to the FE-facing UploadGalgameResult.
+	var wiki struct {
+		Hash         string            `json:"hash"`
+		URL          string            `json:"url"`
+		VariantURLs  map[string]string `json:"variant_urls"`
+		Width        int               `json:"width"`
+		Height       int               `json:"height"`
+		SizeBytes    int64             `json:"size_bytes"`
+		Deduplicated bool              `json:"deduplicated"`
+	}
+	if err := json.Unmarshal(data, &wiki); err != nil {
+		return nil, errors.ErrInternal("解析 Wiki 上传响应失败")
 	}
 	return &UploadGalgameResult{
-		Hash:         res.Hash,
-		URL:          res.URL,
-		Width:        res.Width,
-		Height:       res.Height,
-		SizeBytes:    res.SizeBytes,
-		VariantURLs:  res.VariantURLs,
-		Deduplicated: res.Deduplicated,
+		Hash:         wiki.Hash,
+		URL:          wiki.URL,
+		Width:        wiki.Width,
+		Height:       wiki.Height,
+		SizeBytes:    wiki.SizeBytes,
+		VariantURLs:  wiki.VariantURLs,
+		Deduplicated: wiki.Deduplicated,
 	}, nil
 }

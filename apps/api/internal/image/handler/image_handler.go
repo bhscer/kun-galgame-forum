@@ -35,7 +35,7 @@ var allowedGalgamePresets = map[string]struct{}{
 // UploadGalgameImage handles cover/screenshot upload (U2). Multipart form:
 //   - file:   image binary (required)
 //   - preset: "galgame_banner" (cover) or "galgame_screenshot"
-//             (screenshot) — see allowedGalgamePresets above
+//     (screenshot) — see allowedGalgamePresets above
 //
 // Returns the image_service {hash, url, ...} payload so the FE can
 // immediately add a new cover/screenshot row referencing the hash and
@@ -70,7 +70,7 @@ func (h *ImageHandler) UploadGalgameImage(c *fiber.Ctx) error {
 	defer f.Close()
 
 	res, sErr := h.imageService.UploadGalgameImage(
-		c.Context(), user.ID, f, file.Filename, preset,
+		c.Context(), user.ID, middleware.GetAccessToken(c), f, file.Filename, preset,
 	)
 	if sErr != nil {
 		return response.Error(c, sErr)

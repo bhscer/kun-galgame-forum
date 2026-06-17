@@ -27,10 +27,11 @@ import (
 )
 
 // newTestApp wires a Fiber app with the upload handler + a session stub
-// so MustGetUser succeeds for UID=1. ImageService is constructed without
-// an image_service client (imgCli=nil) — the handler boundary checks
-// (preset / file / size) run before the service hits the client, so the
-// missing client only matters once those pass.
+// so MustGetUser succeeds for UID=1. ImageService is constructed without a
+// wiki client (wikiClient=nil) — galgame uploads now proxy to the wiki's
+// /galgame/image — the handler boundary checks (preset / file / size) run
+// before the service touches the client, so the missing client only matters
+// once those pass.
 func newTestApp(t *testing.T) *fiber.App {
 	t.Helper()
 	// BodyLimit 20 MiB so the oversized test can reach our handler's
@@ -45,7 +46,7 @@ func newTestApp(t *testing.T) *fiber.App {
 		c.Locals(string(middleware.UserInfoKey), &middleware.UserInfo{ID: 1})
 		return c.Next()
 	})
-	svc := service.NewImageService(&repository.ImageRepository{}, nil, nil)
+	svc := service.NewImageService(&repository.ImageRepository{}, nil, nil, nil)
 	h := NewImageHandler(svc)
 	app.Post("/image/galgame", h.UploadGalgameImage)
 	return app
@@ -105,15 +106,11 @@ func TestUploadGalgameImage_RejectsMissingFile(t *testing.T) {
 }
 
 func TestUploadGalgameImage_AcceptsAllowedPresets(t *testing.T) {
-	// The single gated preset must pass the boundary and reach the
-	// service. With imgCli=nil the service returns "未配置" — that's
-	// how we confirm the boundary checks all passed (preset OK, file
-	// OK, size OK) without needing a real image_service.
-	//
-	// AUDIT: wiki's image_presets.yaml only registers `galgame_banner`,
-	// so screenshots reuse it. If wiki adds `galgame_screenshot`
-	// later, expand this slice and the allowlist in the handler.
-	for _, preset := range []string{"galgame_banner"} {
+	// Both gated presets must pass the boundary and reach the service. With
+	// wikiClient=nil the service returns "未配置" — that's how we confirm the
+	// boundary checks all passed (preset OK, file OK, size OK) without a real
+	// wiki round-trip.
+	for _, preset := range []string{"galgame_banner", "galgame_screenshot"} {
 		t.Run(preset, func(t *testing.T) {
 			app := newTestApp(t)
 			body, ct := makeMultipart(t, map[string]string{"preset": preset}, "x.png", []byte("xxxxx"))

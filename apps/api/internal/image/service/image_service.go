@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	galgameclient "kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/image/repository"
 	"kun-galgame-api/internal/infrastructure/storage"
 	"kun-galgame-api/pkg/errors"
@@ -21,19 +22,25 @@ type ImageService struct {
 	// image_service (imgCli) now. Kept only so the constructor wiring is
 	// unchanged; safe to drop with its app.go wiring in a later cleanup.
 	s3 *storage.S3Client
-	// imgCli is the image_service client. ALL user image uploads — topic inline
-	// images AND galgame covers/screenshots — go through it. Nil-able: when the
-	// credentials (KUN_IMAGE_CLIENT_ID / KUN_IMAGE_CLIENT_SECRET) are unset, both
-	// upload paths return a clear "未配置" error instead of falling back to S3.
+	// imgCli is the image_service client for forum's OWN content images —
+	// topic + message inline images (site=kungal). Galgame covers/screenshots
+	// no longer go through it: they proxy to the wiki (see wikiClient) so the
+	// wiki owns all galgame image bytes. Nil-able: when the credentials are
+	// unset, topic/message uploads return a clear "未配置" error.
 	imgCli *imageclient.Client
+	// wikiClient proxies galgame cover/screenshot uploads to the wiki's
+	// canonical POST /galgame/image (uploaded under site=galgame_wiki), so
+	// every galgame image is owned by the wiki — not forum's site=kungal.
+	wikiClient *galgameclient.GalgameClient
 }
 
 func NewImageService(
 	repo *repository.ImageRepository,
 	s3 *storage.S3Client,
 	imgCli *imageclient.Client,
+	wikiClient *galgameclient.GalgameClient,
 ) *ImageService {
-	return &ImageService{repo: repo, s3: s3, imgCli: imgCli}
+	return &ImageService{repo: repo, s3: s3, imgCli: imgCli, wikiClient: wikiClient}
 }
 
 // UploadTopicImage routes a user's inline post image through image_service
