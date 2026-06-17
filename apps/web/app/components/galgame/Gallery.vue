@@ -7,16 +7,17 @@
 // no carousel. Empty list → render nothing (the section disappears so
 // older galgames with no screenshots don't get an empty placeholder).
 //
-// Image source: each row's `cdn_url` (kungal injects it via
-// rewriteBanners). If a row somehow lacks `cdn_url` we skip it rather
-// than show a broken image.
+// Image source: galgameImageSrc resolves each row's cdn_url (kungal injects
+// it via rewriteBanners) and falls back to the /image/<hash> token (web 302
+// middleware) when a row arrives without cdn_url — so a screenshot still
+// shows from image_hash alone instead of being silently dropped.
 const props = defineProps<{
   screenshots: GalgameScreenshot[]
 }>()
 
 const sorted = computed(() =>
   [...(props.screenshots ?? [])]
-    .filter((s) => !!s.cdn_url)
+    .filter((s) => !!s.image_hash)
     .sort((a, b) => {
       if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
       return a.image_hash.localeCompare(b.image_hash)
@@ -55,7 +56,7 @@ const open = (hash: string) => {
         @click="open(s.image_hash)"
       >
         <KunImage
-          :src="s.cdn_url!"
+          :src="galgameImageSrc(s)"
           :alt="s.caption || ''"
           loading="lazy"
           class-name="aspect-video w-full object-cover transition-transform duration-200 group-hover:scale-105"
@@ -72,7 +73,7 @@ const open = (hash: string) => {
     <KunModal v-model="isOpen" inner-class-name="max-w-4xl">
       <div v-if="active" class="space-y-2">
         <KunImage
-          :src="active.cdn_url!"
+          :src="galgameImageSrc(active)"
           :alt="active.caption || ''"
           class-name="max-h-[80vh] w-full object-contain"
         />
