@@ -37,6 +37,7 @@ type UserProfileDetail struct {
 	Name        string    `json:"name"`
 	Avatar      string    `json:"avatar"`
 	Role        int       `json:"role"`
+	IsCreator   bool      `json:"is_creator"`
 	Status      int       `json:"status"`
 	Moemoepoint int       `json:"moemoepoint"`
 	Bio         string    `json:"bio"`

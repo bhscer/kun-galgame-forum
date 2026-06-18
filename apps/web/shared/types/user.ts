@@ -5,6 +5,7 @@ export interface UserInfo {
   name: string
   avatar: string
   role: number
+  is_creator?: boolean
   status: number
   moemoepoint: number
   bio: string

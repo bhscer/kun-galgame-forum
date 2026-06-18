@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"math/rand/v2"
+	"slices"
 	"strconv"
 	"time"
 
@@ -79,6 +80,7 @@ func (s *UserService) GetUserProfile(ctx context.Context, userID int) (*dto.User
 		Name:        u.Name,
 		Avatar:      u.Avatar,
 		Role:        middleware.RoleFromOAuthRoles(u.Roles),
+		IsCreator:   slices.Contains(u.Roles, "creator"),
 		Status:      u.Status,
 		Moemoepoint: moe,
 		Bio:         u.Bio,

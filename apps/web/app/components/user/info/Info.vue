@@ -76,6 +76,9 @@ const infoList = [
           <KunChip size="md" color="primary">
             {{ KUN_USER_ROLE_MAP[user.role] }}
           </KunChip>
+          <KunChip v-if="user.is_creator" size="md" color="warning">
+            创作者
+          </KunChip>
           <KunChip size="md" color="success">
             {{ KUN_USER_STATUS_MAP[user.status] }}
           </KunChip>
