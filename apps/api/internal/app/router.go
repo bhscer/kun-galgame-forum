@@ -56,7 +56,7 @@ func (a *App) setupRoutes() {
 
 	// Creator-role application: forum checks its eligibility (wiki PR/galgame
 	// stats + own 简评), then files on the central OAuth queue. Role grant +
-	// admin review live in OAuth. See docs/auth/01-creator-role-design.md.
+	// admin review live in OAuth (contract owned there, not yet mirrored here).
 	api.Get("/user/creator/status", userAuth, a.CreatorHandler.Status)
 	api.Post("/user/creator/apply", userAuth, a.CreatorHandler.Apply)
 

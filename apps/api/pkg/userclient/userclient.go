@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -293,47 +294,34 @@ func (c *Client) fetchBatch(ctx context.Context, ids []int) (batchData, error) {
 	return bd, nil
 }
 
-// do runs an HTTP request, decodes the envelope, and unmarshal data into v.
-// v should be a pointer.
-func (c *Client) do(ctx context.Context, method, endpoint string, v any) error {
-	req, err := http.NewRequestWithContext(ctx, method, endpoint, nil)
+// sendEnvelope is the single request path behind do/doJSON/doJSONWithToken:
+// build the request, run it, decode the {code,message,data} envelope, and
+// unmarshal data into v. `auth` is the full Authorization header value (Basic
+// client creds or a user Bearer). A nil body sends no request body (GET).
+//
+// A non-zero envelope code returns *OAuthError so callers can branch on
+// business codes (e.g. 16004 idempotency conflict). A nil/absent data field
+// (OAuth omits `data` for "nothing to return", e.g. a never-applied creator on
+// GET /creator/applications/me) is a no-op — leaving v untouched instead of
+// failing unmarshal with "unexpected end of JSON input".
+func (c *Client) sendEnvelope(ctx context.Context, method, endpoint, auth string, body, v any) error {
+	var reader io.Reader
+	if body != nil {
+		buf, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		reader = bytes.NewReader(buf)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", c.authHd)
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("userclient: %w", err)
+	req.Header.Set("Authorization", auth)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
 	}
-	defer resp.Body.Close()
 
-	var env envelope
-	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
-		return fmt.Errorf("userclient: decode envelope: %w", err)
-	}
-	if env.Code != 0 {
-		return fmt.Errorf("userclient: oauth code=%d msg=%q", env.Code, env.Message)
-	}
-	if v == nil {
-		return nil
-	}
-	return json.Unmarshal(env.Data, v)
-}
-
-// doJSON is do() with a JSON request body (POST/PUT). It surfaces the OAuth
-// envelope code in the returned *OAuthError so callers can branch on business
-// codes (e.g. 16004 idempotency conflict).
-func (c *Client) doJSON(ctx context.Context, method, endpoint string, body, v any) error {
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(buf))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", c.authHd)
-	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return fmt.Errorf("userclient: %w", err)
@@ -347,10 +335,21 @@ func (c *Client) doJSON(ctx context.Context, method, endpoint string, body, v an
 	if env.Code != 0 {
 		return &OAuthError{Code: env.Code, Message: env.Message}
 	}
-	if v == nil {
+	if v == nil || len(env.Data) == 0 {
 		return nil
 	}
 	return json.Unmarshal(env.Data, v)
+}
+
+// do is a bodiless GET/DELETE authenticated with the client-credentials Basic
+// header. v should be a pointer.
+func (c *Client) do(ctx context.Context, method, endpoint string, v any) error {
+	return c.sendEnvelope(ctx, method, endpoint, c.authHd, nil, v)
+}
+
+// doJSON is do() with a JSON request body (POST/PUT), same Basic auth.
+func (c *Client) doJSON(ctx context.Context, method, endpoint string, body, v any) error {
+	return c.sendEnvelope(ctx, method, endpoint, c.authHd, body, v)
 }
 
 // OAuthError carries the OAuth business code from a non-zero envelope.
@@ -501,7 +500,7 @@ func joinIntsForKey(xs []int) string {
 
 // CreatorApplication mirrors OAuth's creator_applications row (the fields the
 // forum/moyu surface to the user). Acted on behalf of the END USER, not via
-// client credentials. See docs/auth/01-creator-role-design.md.
+// client credentials. Contract owned by OAuth (not yet mirrored under docs/).
 type CreatorApplication struct {
 	ID            int             `json:"id"`
 	UserID        int             `json:"user_id"`
@@ -514,51 +513,11 @@ type CreatorApplication struct {
 	CreatedAt     string          `json:"created_at"`
 }
 
-// doJSONWithToken is doJSON but authenticates as the END USER (Bearer) rather
-// than the client-credentials Basic header — for acting-on-behalf-of-user
-// calls. A nil body sends no request body (GET).
+// doJSONWithToken is do/doJSON but authenticates as the END USER (Bearer)
+// rather than the client-credentials Basic header — for acting-on-behalf-of-
+// user calls. A nil body sends no request body (GET).
 func (c *Client) doJSONWithToken(ctx context.Context, method, endpoint, token string, body, v any) error {
-	var req *http.Request
-	var err error
-	if body != nil {
-		buf, mErr := json.Marshal(body)
-		if mErr != nil {
-			return mErr
-		}
-		req, err = http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(buf))
-		if err != nil {
-			return err
-		}
-		req.Header.Set("Content-Type", "application/json")
-	} else {
-		req, err = http.NewRequestWithContext(ctx, method, endpoint, nil)
-		if err != nil {
-			return err
-		}
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("userclient: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var env envelope
-	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
-		return fmt.Errorf("userclient: decode envelope: %w", err)
-	}
-	if env.Code != 0 {
-		return &OAuthError{Code: env.Code, Message: env.Message}
-	}
-	// A nil/absent `data` (e.g. GET /creator/applications/me when the user has
-	// never applied — OAuth omits the data key) leaves env.Data empty; unmarshal
-	// would then fail with "unexpected end of JSON input". Treat as no-op so the
-	// caller gets a nil result, not a spurious error.
-	if v == nil || len(env.Data) == 0 {
-		return nil
-	}
-	return json.Unmarshal(env.Data, v)
+	return c.sendEnvelope(ctx, method, endpoint, "Bearer "+token, body, v)
 }
 
 // CreateCreatorApplication files a creator-role application as the user (Bearer

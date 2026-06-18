@@ -13,7 +13,7 @@ import (
 // Forum creator-eligibility thresholds. This is the forum's OWN policy — change
 // freely here; OAuth and the wiki are untouched (the role + queue live in
 // OAuth, the contribution data in the wiki). A user may apply if ANY criterion
-// is met. See docs/auth/01-creator-role-design.md.
+// is met. Cross-service contract owned by OAuth (not yet mirrored under docs/).
 const (
 	creatorMinMergedPRs = 5   // 合并的 PR 数（数据源:wiki /user/:id/stats）
 	creatorMinGalgames  = 10  // 已发布 galgame 数（数据源:wiki）

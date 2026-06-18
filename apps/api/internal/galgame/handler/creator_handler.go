@@ -14,7 +14,7 @@ import (
 // CreatorHandler exposes the forum-side creator-role application endpoints:
 // eligibility/status (read) and apply (which checks the forum's eligibility
 // gate, then files the application on the central OAuth queue). Role grant +
-// admin review live in OAuth. See docs/auth/01-creator-role-design.md.
+// admin review live in OAuth (contract owned there, not yet mirrored here).
 type CreatorHandler struct {
 	svc *service.CreatorService
 }
@@ -53,8 +53,12 @@ func (h *CreatorHandler) Apply(c *fiber.Ctx) error {
 	var body struct {
 		Message string `json:"message"`
 	}
+	// message is optional, but a malformed body should be a 400, not silently
+	// dropped — the FE always sends {message}, so empty body = no message.
 	if len(c.Body()) > 0 {
-		_ = json.Unmarshal(c.Body(), &body)
+		if err := json.Unmarshal(c.Body(), &body); err != nil {
+			return response.Error(c, errors.ErrBadRequest("请求体格式错误"))
+		}
 	}
 	app, appErr := h.svc.Apply(c.Context(), user.ID, token, body.Message)
 	if appErr != nil {
