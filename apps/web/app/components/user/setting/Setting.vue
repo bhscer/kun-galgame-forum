@@ -16,5 +16,6 @@ defineProps<{
     <UserSettingUsername />
     <UserSettingEmail />
     <UserSettingPassword />
+    <UserSettingCreator />
   </div>
 </template>
