@@ -201,6 +201,7 @@ type WikiUserStats struct {
 	GalgameCreated      int64 `json:"galgame_created"`
 	GalgameCreatedToday int64 `json:"galgame_created_today"`
 	GalgameContributed  int64 `json:"galgame_contributed"`
+	PRMerged            int64 `json:"pr_merged"`
 }
 
 // GetUserStats fetches galgame-related stats for a user from wiki.

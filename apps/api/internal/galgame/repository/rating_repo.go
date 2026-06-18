@@ -19,6 +19,17 @@ func NewRatingRepository(db *gorm.DB) *RatingRepository {
 // DB exposes the connection for service-owned transactions.
 func (r *RatingRepository) DB() *gorm.DB { return r.db }
 
+// CountReviewsWithMinLength counts a user's galgame ratings whose 简评
+// (short_summary) is at least minLen characters — the forum-side creator
+// eligibility signal. char_length counts characters (CJK-safe), not bytes.
+func (r *RatingRepository) CountReviewsWithMinLength(userID, minLen int) (int64, error) {
+	var n int64
+	err := r.db.Table("galgame_rating").
+		Where("user_id = ? AND char_length(short_summary) >= ?", userID, minLen).
+		Count(&n).Error
+	return n, err
+}
+
 // ──────────────────────────────────────────
 // Reads — single rating
 // ──────────────────────────────────────────

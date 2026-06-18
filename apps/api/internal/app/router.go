@@ -54,6 +54,12 @@ func (a *App) setupRoutes() {
 	// Unified moemoepoint ledger (own only) — fixed path, before /user/:id.
 	api.Get("/user/moemoepoint/log", userAuth, a.UserHandler.GetMoemoepointLog)
 
+	// Creator-role application: forum checks its eligibility (wiki PR/galgame
+	// stats + own 简评), then files on the central OAuth queue. Role grant +
+	// admin review live in OAuth. See docs/auth/01-creator-role-design.md.
+	api.Get("/user/creator/status", userAuth, a.CreatorHandler.Status)
+	api.Post("/user/creator/apply", userAuth, a.CreatorHandler.Apply)
+
 	// Self-edit endpoints — proxy to OAuth /auth/me family, the session-
 	// stored bearer is attached inside each handler. See
 	// docs/oauth/02-user-profile.md.

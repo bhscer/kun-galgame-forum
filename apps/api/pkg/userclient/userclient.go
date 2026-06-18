@@ -498,3 +498,84 @@ func joinIntsForKey(xs []int) string {
 	// two concurrent callers happen to pass the same shard.
 	return joinInts(xs, ",")
 }
+
+// CreatorApplication mirrors OAuth's creator_applications row (the fields the
+// forum/moyu surface to the user). Acted on behalf of the END USER, not via
+// client credentials. See docs/auth/01-creator-role-design.md.
+type CreatorApplication struct {
+	ID            int             `json:"id"`
+	UserID        int             `json:"user_id"`
+	Source        string          `json:"source"`
+	Status        string          `json:"status"`
+	Evidence      json.RawMessage `json:"evidence,omitempty"`
+	Message       string          `json:"message"`
+	DeclineReason string          `json:"decline_reason"`
+	ReviewedAt    *string         `json:"reviewed_at,omitempty"`
+	CreatedAt     string          `json:"created_at"`
+}
+
+// doJSONWithToken is doJSON but authenticates as the END USER (Bearer) rather
+// than the client-credentials Basic header — for acting-on-behalf-of-user
+// calls. A nil body sends no request body (GET).
+func (c *Client) doJSONWithToken(ctx context.Context, method, endpoint, token string, body, v any) error {
+	var req *http.Request
+	var err error
+	if body != nil {
+		buf, mErr := json.Marshal(body)
+		if mErr != nil {
+			return mErr
+		}
+		req, err = http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(buf))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		req, err = http.NewRequestWithContext(ctx, method, endpoint, nil)
+		if err != nil {
+			return err
+		}
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("userclient: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var env envelope
+	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
+		return fmt.Errorf("userclient: decode envelope: %w", err)
+	}
+	if env.Code != 0 {
+		return &OAuthError{Code: env.Code, Message: env.Message}
+	}
+	if v == nil {
+		return nil
+	}
+	return json.Unmarshal(env.Data, v)
+}
+
+// CreateCreatorApplication files a creator-role application as the user (Bearer
+// token). `evidence` is the downstream-computed proof of which criterion was met.
+func (c *Client) CreateCreatorApplication(ctx context.Context, token, source string, evidence json.RawMessage, message string) (*CreatorApplication, error) {
+	var out CreatorApplication
+	endpoint := c.cfg.BaseURL + "/creator/applications"
+	body := map[string]any{"source": source, "evidence": evidence, "message": message}
+	if err := c.doJSONWithToken(ctx, "POST", endpoint, token, body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetMyCreatorApplication returns the user's latest creator application, or nil
+// if they've never applied.
+func (c *Client) GetMyCreatorApplication(ctx context.Context, token string) (*CreatorApplication, error) {
+	var out *CreatorApplication
+	endpoint := c.cfg.BaseURL + "/creator/applications/me"
+	if err := c.doJSONWithToken(ctx, "GET", endpoint, token, nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}

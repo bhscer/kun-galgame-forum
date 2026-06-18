@@ -119,6 +119,7 @@ type App struct {
 	GalgameCommentHandler      *galgameHandler.CommentHandler
 	GalgameResourceHandler     *galgameHandler.ResourceHandler
 	GalgameRatingHandler       *galgameHandler.RatingHandler
+	CreatorHandler             *galgameHandler.CreatorHandler
 	GalgameEntityHandler       *galgameHandler.EntityHandler
 	GalgameWikiHandler         *galgameHandler.WikiHandler
 	GalgameSubmissionHandler   *galgameHandler.SubmissionHandler
@@ -264,6 +265,7 @@ func New(cfg *config.Config) *App {
 	galgameResourceSvc := galgameService.NewResourceService(galgameResourceRepo, gc, uc, linkChecker)
 	galgameRatingRepo := galgameRepo.NewRatingRepository(db)
 	galgameRatingSvc := galgameService.NewRatingService(galgameRatingRepo, gc, uc)
+	creatorSvc := galgameService.NewCreatorService(galgameRatingRepo, gc, uc)
 	galgameLocalRepo := galgameRepo.NewGalgameRepository(db)
 	galgameInteractionRepo := galgameRepo.NewGalgameInteractionRepository(db)
 	galgameListRepo := galgameRepo.NewGalgameListRepository(db)
@@ -370,6 +372,7 @@ func New(cfg *config.Config) *App {
 		GalgameCommentHandler:  galgameHandler.NewCommentHandler(galgameCommentSvc),
 		GalgameResourceHandler: galgameHandler.NewResourceHandler(galgameResourceSvc),
 		GalgameRatingHandler:   galgameHandler.NewRatingHandler(galgameRatingSvc),
+		CreatorHandler:         galgameHandler.NewCreatorHandler(creatorSvc),
 		GalgameEntityHandler: galgameHandler.NewEntityHandler(
 			galgameSeriesSvc, galgameOfficialSvc, galgameEngineSvc, galgameTagSvc,
 		),
