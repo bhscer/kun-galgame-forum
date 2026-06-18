@@ -551,7 +551,11 @@ func (c *Client) doJSONWithToken(ctx context.Context, method, endpoint, token st
 	if env.Code != 0 {
 		return &OAuthError{Code: env.Code, Message: env.Message}
 	}
-	if v == nil {
+	// A nil/absent `data` (e.g. GET /creator/applications/me when the user has
+	// never applied — OAuth omits the data key) leaves env.Data empty; unmarshal
+	// would then fail with "unexpected end of JSON input". Treat as no-op so the
+	// caller gets a nil result, not a spurious error.
+	if v == nil || len(env.Data) == 0 {
 		return nil
 	}
 	return json.Unmarshal(env.Data, v)
