@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"slices"
 
 	"kun-galgame-api/internal/galgame/client"
 	"kun-galgame-api/internal/galgame/repository"
@@ -20,6 +21,9 @@ const (
 	creatorMinReviews   = 5   // 简评(≥100 字)数（数据源:本论坛 galgame_rating）
 	creatorReviewMinLen = 100 // 简评字数门槛
 	creatorSource       = "forum"
+	// creatorRoleName is OAuth's granted-on-approval role string (matches infra
+	// CreatorRoleName); the profile badge keys off the same value.
+	creatorRoleName = "creator"
 )
 
 // CreatorEligibility is the forum-side eligibility snapshot (current counts vs
@@ -70,18 +74,27 @@ func (s *CreatorService) eligibility(ctx context.Context, userID int) (*CreatorE
 	return e, nil
 }
 
-// Status returns the user's eligibility snapshot + current OAuth application
-// (nil if never applied).
-func (s *CreatorService) Status(ctx context.Context, userID int, token string) (*CreatorEligibility, *userclient.CreatorApplication, *errors.AppError) {
+// Status returns the user's eligibility snapshot, current OAuth application
+// (nil if never applied), and whether they ALREADY hold the creator role.
+//
+// isCreator is the source of truth (the role), separate from the application:
+// it covers an admin granting the role directly (no approved application) and
+// the window after approval before the role cache refreshes. A user-lookup miss
+// degrades to false — the apply flow still works (OAuth's 17001 guards a dup).
+func (s *CreatorService) Status(ctx context.Context, userID int, token string) (*CreatorEligibility, *userclient.CreatorApplication, bool, *errors.AppError) {
 	e, appErr := s.eligibility(ctx, userID)
 	if appErr != nil {
-		return nil, nil, appErr
+		return nil, nil, false, appErr
 	}
 	app, err := s.userClient.GetMyCreatorApplication(ctx, token)
 	if err != nil {
-		return nil, nil, errors.ErrInternal("获取申请状态失败")
+		return nil, nil, false, errors.ErrInternal("获取申请状态失败")
 	}
-	return e, app, nil
+	isCreator := false
+	if u, ok, uErr := s.userClient.User(ctx, userID); ok && uErr == nil {
+		isCreator = slices.Contains(u.Roles, creatorRoleName)
+	}
+	return e, app, isCreator, nil
 }
 
 // Apply enforces the forum eligibility gate, then files the application on the

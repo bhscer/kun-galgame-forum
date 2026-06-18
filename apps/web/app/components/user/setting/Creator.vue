@@ -18,6 +18,10 @@ interface CreatorApplicationInfo {
 interface CreatorStatus {
   eligibility: CreatorEligibility
   application: CreatorApplicationInfo | null
+  // Whether the user already holds the creator role (source of truth — covers
+  // an admin-granted role with no approved application, and the post-approval
+  // window before the role cache refreshes).
+  is_creator: boolean
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -52,8 +56,12 @@ const load = async () => {
 }
 
 // Already a creator — terminal success state; no progress/apply UI to show.
+// Prefer the actual role (is_creator); fall back to an approved application for
+// the brief window where the role grant hasn't propagated to the role cache.
 const isCreator = computed(
-  () => status.value?.application?.status === 'approved'
+  () =>
+    !!status.value?.is_creator ||
+    status.value?.application?.status === 'approved'
 )
 
 // A pending application blocks re-application; declined/none allows (re)apply.

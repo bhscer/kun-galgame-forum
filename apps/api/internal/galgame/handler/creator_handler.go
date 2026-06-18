@@ -33,11 +33,15 @@ func (h *CreatorHandler) Status(c *fiber.Ctx) error {
 	if token == "" {
 		return response.Error(c, errors.ErrAuthExpired())
 	}
-	elig, app, appErr := h.svc.Status(c.Context(), user.ID, token)
+	elig, app, isCreator, appErr := h.svc.Status(c.Context(), user.ID, token)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
-	return response.OK(c, fiber.Map{"eligibility": elig, "application": app})
+	return response.OK(c, fiber.Map{
+		"eligibility": elig,
+		"application": app,
+		"is_creator":  isCreator,
+	})
 }
 
 // Apply — POST /api/user/creator/apply {message?}.
