@@ -182,11 +182,19 @@ func (s *UserService) GetUserStatus(ctx context.Context, userID int) (*dto.UserS
 	unreadSystem, _ := s.userStatsRepo.CountUnreadSystemMessages(userID)
 	unreadChat, _ := s.userStatsRepo.CountUnreadChatMessages(userID)
 
+	// Live creator-role check (cached ~10min) so the avatar menu can hide the
+	// "创作者申请" entry once the role is held. A lookup miss degrades to false.
+	isCreator := false
+	if u, ok, uErr := s.userClient.User(ctx, userID); ok && uErr == nil {
+		isCreator = slices.Contains(u.Roles, "creator")
+	}
+
 	return &dto.UserStatusResponse{
 		Moemoepoints:            moe,
 		IsCheckIn:               isCheckIn,
 		HasNewMessage:           (unreadMessage + unreadSystem + unreadChat) > 0,
 		DailyToolsetUploadBytes: uploadBytes,
+		IsCreator:               isCreator,
 	}, nil
 }
 

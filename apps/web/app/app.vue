@@ -152,6 +152,7 @@ onMounted(() => {
          their <KunModal> teleport root. Closed by default; harmless logged-out. -->
     <LazyKunTopBarMoemoepointLog />
     <LazyKunTopBarLogout />
+    <LazyKunTopBarCreatorApply />
 
     <KunFloatingBar />
 

@@ -73,6 +73,8 @@ onMounted(async () => {
       avatarMin: result.avatar ? withImageVariant(result.avatar, '100') : '',
       moemoepoint: result.moemoepoint,
       role: result.role,
+      // Corrected on the next page by Nav.vue's /user/status fetch.
+      isCreator: false,
       isCheckIn: false,
       dailyToolsetUploadBytes: 0
     })

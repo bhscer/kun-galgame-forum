@@ -12,6 +12,7 @@ export const usePersistUserStore = defineStore(
     const avatarMin = ref<UserStore['avatarMin']>('')
     const moemoepoint = ref<UserStore['moemoepoint']>(0)
     const role = ref<UserStore['role']>(0)
+    const isCreator = ref<UserStore['isCreator']>(false)
     const isCheckIn = ref<UserStore['isCheckIn']>(false)
     const dailyToolsetUploadBytes = ref<UserStore['dailyToolsetUploadBytes']>(0)
 
@@ -25,6 +26,7 @@ export const usePersistUserStore = defineStore(
       avatarMin.value = withImageVariant(user.avatar, '100')
       moemoepoint.value = user.moemoepoint
       role.value = user.role
+      isCreator.value = user.isCreator
       isCheckIn.value = user.isCheckIn
       dailyToolsetUploadBytes.value = user.dailyToolsetUploadBytes
     }
@@ -36,6 +38,7 @@ export const usePersistUserStore = defineStore(
       avatarMin.value = ''
       moemoepoint.value = 0
       role.value = 0
+      isCreator.value = false
       isCheckIn.value = false
       dailyToolsetUploadBytes.value = 0
     }
@@ -47,6 +50,7 @@ export const usePersistUserStore = defineStore(
       avatarMin,
       moemoepoint,
       role,
+      isCreator,
       isCheckIn,
       dailyToolsetUploadBytes,
       setUserInfo,

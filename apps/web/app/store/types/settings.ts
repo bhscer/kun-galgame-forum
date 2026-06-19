@@ -34,5 +34,8 @@ export interface TempSettingStore {
   showKUNGalgameMessageBox: boolean
   showKUNGalgameMoemoepointLog: boolean
   showKUNGalgameLogout: boolean
+  // Opens the creator-application modal (mounted at app.vue root); set from the
+  // avatar menu, which lives in a popover that unmounts on click-away.
+  showKUNGalgameCreatorApply: boolean
   messageStatus: MessageStatus
 }

@@ -87,6 +87,10 @@ type UserStatusResponse struct {
 	IsCheckIn               bool  `json:"isCheckIn"`
 	HasNewMessage           bool  `json:"hasNewMessage"`
 	DailyToolsetUploadBytes int64 `json:"dailyToolsetUploadBytes"`
+	// IsCreator drives the avatar-menu "创作者申请" entry (hidden once held).
+	// Derived from the live OAuth role (cached ~10min), same source as the
+	// profile badge.
+	IsCreator bool `json:"isCreator"`
 }
 
 type UserGalgamesRequest struct {
@@ -128,15 +132,15 @@ type UserRatingsRequest struct {
 }
 
 type GalgameCard struct {
-	ID               int       `json:"id"`
-	VndbID           string    `json:"vndb_id"`
-	NameEnUS         string    `json:"name_en_us"`
-	NameJaJP         string    `json:"name_ja_jp"`
-	NameZhCN         string    `json:"name_zh_cn"`
-	NameZhTW         string    `json:"name_zh_tw"`
-	Banner           string    `json:"banner"`
-	ContentLimit     string    `json:"content_limit"`
-	CreatedAt        time.Time `json:"created"`
+	ID           int       `json:"id"`
+	VndbID       string    `json:"vndb_id"`
+	NameEnUS     string    `json:"name_en_us"`
+	NameJaJP     string    `json:"name_ja_jp"`
+	NameZhCN     string    `json:"name_zh_cn"`
+	NameZhTW     string    `json:"name_zh_tw"`
+	Banner       string    `json:"banner"`
+	ContentLimit string    `json:"content_limit"`
+	CreatedAt    time.Time `json:"created"`
 }
 
 type UserTopic struct {

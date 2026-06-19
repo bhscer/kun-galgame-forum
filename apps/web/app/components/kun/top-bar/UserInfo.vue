@@ -3,16 +3,32 @@
 // can dismiss itself — KunPopover stays open on inside-clicks by design.
 const emit = defineEmits<{ close: [] }>()
 
-const { id, name, moemoepoint, role, isCheckIn } = storeToRefs(
+const { id, name, moemoepoint, role, isCreator, isCheckIn } = storeToRefs(
   usePersistUserStore()
 )
-const { messageStatus, showKUNGalgameMoemoepointLog, showKUNGalgameLogout } =
-  storeToRefs(useTempSettingStore())
+const {
+  messageStatus,
+  showKUNGalgameMoemoepointLog,
+  showKUNGalgameLogout,
+  showKUNGalgameCreatorApply
+} = storeToRefs(useTempSettingStore())
 
 const isShowMessageDot = computed(() => messageStatus.value === 'new')
 // role > 1 = 管理员 / 版主 (the /admin route is server-gated too; this just
 // hides the entry from regular users, matching moyu's isModerator check).
 const isAdmin = computed(() => role.value > 1)
+
+// "创作者申请" entry — only for regular users without the role. Moderators /
+// admins (role > 1) already publish galgames directly, and existing creators
+// don't need to apply, so both are excluded.
+const showCreatorApply = computed(() => role.value <= 1 && !isCreator.value)
+
+// The modal is mounted at the app.vue root (same as 萌萌点明细 / 退出登录) so it
+// survives this popover unmounting on click-away.
+const openCreatorApply = () => {
+  emit('close')
+  showKUNGalgameCreatorApply.value = true
+}
 
 // Opens the 萌萌点明细 modal, which is mounted at the stable app.vue root
 // (this menu lives inside a popover that unmounts on click-away).
@@ -79,7 +95,10 @@ const openLogout = () => {
         <span class="text-secondary font-bold tabular-nums">
           {{ moemoepoint }}
         </span>
-        <KunIcon class="text-foreground/40 size-4" name="lucide:chevron-right" />
+        <KunIcon
+          class="text-foreground/40 size-4"
+          name="lucide:chevron-right"
+        />
       </span>
     </button>
 
@@ -114,6 +133,21 @@ const openLogout = () => {
       <KunIcon class="size-4" name="lucide:shield-check" />
       管理系统
     </NuxtLink>
+
+    <!-- 创作者申请 — accent-styled so it stands out as an aspirational action. -->
+    <button
+      v-if="showCreatorApply"
+      type="button"
+      class="text-primary hover:bg-primary-50 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium transition-colors"
+      @click="openCreatorApply"
+    >
+      <KunIcon class="size-4" name="lucide:sparkles" />
+      创作者申请
+      <KunIcon
+        class="text-primary/50 ml-auto size-4"
+        name="lucide:chevron-right"
+      />
+    </button>
 
     <KunButton
       v-if="!isCheckIn"
