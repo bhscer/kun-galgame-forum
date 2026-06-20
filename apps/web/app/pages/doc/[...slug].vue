@@ -31,7 +31,7 @@ if (data.value) {
     <div class="flex">
       <DocDetailCategoryTree />
 
-      <article class="flex-1 space-y-6 pl-0 lg:pr-67 xl:pl-67">
+      <article class="min-w-0 flex-1 space-y-6 pl-0 lg:pr-67 xl:pl-67">
         <DocDetailHeader :metadata="data" />
         <KunContent :content="renderKatex(data.contentHtml)" />
         <DocDetailFooter />

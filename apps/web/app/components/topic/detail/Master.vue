@@ -18,7 +18,7 @@ defineProps<{
     <KunCard
       :is-transparent="false"
       :is-hoverable="false"
-      class-name="lg:w-[calc(100%-220px)] w-full"
+      class-name="lg:w-[calc(100%-220px)] w-full min-w-0"
       content-class="gap-3 justify-start"
     >
       <h1
@@ -48,7 +48,8 @@ defineProps<{
           发布于 - <KunTime :time="topic.created" type="datetime" show-year />
         </span>
         <p class="text-default-500" v-if="topic.edited">
-          重新编辑于 - <KunTime :time="topic.edited" type="datetime" show-year />
+          重新编辑于 -
+          <KunTime :time="topic.edited" type="datetime" show-year />
         </p>
       </div>
 
@@ -67,7 +68,10 @@ defineProps<{
         :show-addition="false"
       />
 
-      <KunContent class="kun-master" :content="renderKatex(topic.contentHtml)" />
+      <KunContent
+        class="kun-master"
+        :content="renderKatex(topic.contentHtml)"
+      />
 
       <p class="text-default-500 ml-auto text-sm">
         本文版权遵循

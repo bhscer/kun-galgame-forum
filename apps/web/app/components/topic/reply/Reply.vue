@@ -61,7 +61,7 @@ const handleNewComment = (comment: TopicComment) => {
     <KunCard
       :is-transparent="false"
       :is-hoverable="false"
-      :class-name="cn('w-full relative overflow-visible', cardClasses)"
+      :class-name="cn('w-full min-w-0 relative overflow-visible', cardClasses)"
       content-class="gap-3"
     >
       <div
