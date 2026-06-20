@@ -233,6 +233,21 @@ func applyTransforms(result string) string {
 			`</div>` +
 			`<pre><code class="language-` + lang[1] + `"`
 	})
+	// No-language fenced / indented blocks render as a bare `<pre><code>` (no
+	// language class), which the wrapper above skips — but the unconditional
+	// `</code></pre></div>` close below STILL fires, leaving a stray `</div>`.
+	// The browser then uses it to close an ancestor early, so the parsed SSR DOM
+	// diverges from the raw HTML the client renders → cascading hydration
+	// mismatches through the rest of the post. Wrap these too, so every close
+	// has a matching open. (Language blocks are now `<pre><code class="…"` and
+	// no longer match the bare `<pre><code>` literal.)
+	result = strings.ReplaceAll(result, "<pre><code>",
+		`<div class="kun-code-container">`+
+			`<div class="kun-code-header">`+
+			`<span class="lang"></span>`+
+			`<button class="copy" title="Copy code"></button>`+
+			`</div>`+
+			`<pre><code>`)
 	result = strings.ReplaceAll(result, "</code></pre>", "</code></pre></div>")
 
 	// Table wrapper
