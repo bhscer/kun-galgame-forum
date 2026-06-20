@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"kun-galgame-api/internal/constants"
@@ -171,19 +172,19 @@ func (s *RatingService) GetRatingDetail(
 	}
 
 	detail := &dto.RatingDetail{
-		ID:           row.ID,
-		User:         userBriefToDTO(userMap[row.UserID]),
-		Recommend:    row.Recommend,
-		Overall:      row.Overall,
-		View:         row.View,
-		GalgameType:  rawJSON(row.GalgameType),
-		PlayStatus:   row.PlayStatus,
-		ShortSummary: row.ShortSummary,
-		SpoilerLevel: row.SpoilerLevel,
-		RatingScores: rowToScores(row),
-		LikeCount:    len(likerIDs),
-		IsLiked:      isLiked,
-		LikedUsers:   authorBriefs,
+		ID:            row.ID,
+		User:          userBriefToDTO(userMap[row.UserID]),
+		Recommend:     row.Recommend,
+		Overall:       row.Overall,
+		View:          row.View,
+		GalgameType:   rawJSON(row.GalgameType),
+		PlayStatus:    row.PlayStatus,
+		ShortSummary:  row.ShortSummary,
+		SpoilerLevel:  row.SpoilerLevel,
+		RatingScores:  rowToScores(row),
+		LikeCount:     len(likerIDs),
+		IsLiked:       isLiked,
+		LikedUsers:    authorBriefs,
 		Comments:      comments,
 		Created:       row.Created,
 		Updated:       row.Updated,
@@ -611,12 +612,17 @@ func (s *RatingService) buildRatingGalgame(
 // series no longer exists; the rating page is fine without the
 // "所属系列" panel and the JSON-LD isPartOf clause is conditional.
 //
-// Note: isSFW is intentionally false here — the rating detail page
-// itself doesn't gate NSFW (mirrors galgame/topic detail policy; FE
-// shows a confirm card based on cookie+login state), so the series
-// brief should reflect the truth and not over-filter.
+// Note: the rating detail page itself doesn't gate NSFW (mirrors
+// galgame/topic detail policy; FE shows a confirm card based on
+// cookie+login state), so the series brief should reflect the truth and
+// not over-filter. That requires content_limit=all: /series/:id defaults
+// to sfw when omitted, which would drop NSFW members (an all-NSFW series
+// would report 0 / look SFW) — the opposite of the intent.
 func (s *RatingService) fetchSeriesBrief(ctx context.Context, seriesID int) *dto.SeriesListItem {
-	data, err := s.wikiClient.Get(ctx, fmt.Sprintf("/series/%d", seriesID), nil)
+	data, err := s.wikiClient.Get(
+		ctx, fmt.Sprintf("/series/%d", seriesID),
+		url.Values{"content_limit": {"all"}},
+	)
 	if err != nil {
 		return nil
 	}

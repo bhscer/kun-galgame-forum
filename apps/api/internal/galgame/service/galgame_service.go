@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -409,6 +410,7 @@ func (s *GalgameService) GetDetail(
 	ctx context.Context,
 	galgameID, currentUserID int,
 	token string,
+	isSFW bool,
 ) (*dto.GalgameDetail, *errors.AppError) {
 	wikiData, appErr := s.wikiClient.GetWithToken(
 		ctx, fmt.Sprintf("/galgame/%d", galgameID), token, nil,
@@ -436,7 +438,7 @@ func (s *GalgameService) GetDetail(
 
 	var series *dto.GalgameDetailSeries
 	if g.SeriesID != nil {
-		series = s.fetchSeriesBrief(ctx, *g.SeriesID)
+		series = s.fetchSeriesBrief(ctx, *g.SeriesID, isSFW)
 	}
 
 	ratings := s.buildDetailRatings(ctx, galgameID, currentUserID, g)
@@ -456,8 +458,20 @@ func (s *GalgameService) GetDetail(
 }
 
 // fetchSeriesBrief loads a minimal series summary (used on galgame detail page).
-func (s *GalgameService) fetchSeriesBrief(ctx context.Context, seriesID int) *dto.GalgameDetailSeries {
-	data, err := s.wikiClient.Get(ctx, fmt.Sprintf("/series/%d", seriesID), nil)
+//
+// content_limit MUST be sent: /series/:id defaults to sfw when omitted, so an
+// all-NSFW series reports 0 members + isNSFW=false on the detail page (the
+// series block looks empty / mislabeled SFW even while viewing an NSFW title).
+// Mirror series_service: SFW → sfw; NSFW → all.
+func (s *GalgameService) fetchSeriesBrief(ctx context.Context, seriesID int, isSFW bool) *dto.GalgameDetailSeries {
+	contentLimit := "all"
+	if isSFW {
+		contentLimit = "sfw"
+	}
+	data, err := s.wikiClient.Get(
+		ctx, fmt.Sprintf("/series/%d", seriesID),
+		url.Values{"content_limit": {contentLimit}},
+	)
 	if err != nil {
 		return nil
 	}
