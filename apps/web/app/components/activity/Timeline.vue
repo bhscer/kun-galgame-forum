@@ -72,7 +72,11 @@ useIntersectionObserver(
 </script>
 
 <template>
-  <KunCard :is-transparent="false" content-class="space-y-3" :is-hoverable="false">
+  <KunCard
+    :is-transparent="false"
+    content-class="space-y-3"
+    :is-hoverable="false"
+  >
     <KunHeader
       name="动态时间线"
       description="动态时间线, 展示全站 话题, 回复, Galgame 与社区的最新 Galgame 资源, Galgame 动态, Galgame 讨论, Galgame 评论等"
@@ -84,9 +88,7 @@ useIntersectionObserver(
     />
 
     <div v-else class="relative space-y-6">
-      <div
-        class="from-primary to-secondary absolute top-6 bottom-0 left-4 w-0.5 bg-gradient-to-b opacity-20"
-      />
+      <div class="bg-primary/20 absolute top-6 bottom-0 left-4 w-0.5" />
 
       <div
         v-for="activity in items"
@@ -113,7 +115,9 @@ useIntersectionObserver(
 
           <div class="flex items-center space-x-2">
             <span class="text-default-500 text-sm">
-              <template v-if="activity.actor">{{ activity.actor.name }} 发布于 </template><KunTime :time="activity.timestamp" />
+              <template v-if="activity.actor"
+                >{{ activity.actor.name }} 发布于 </template
+              ><KunTime :time="activity.timestamp" />
             </span>
           </div>
         </div>

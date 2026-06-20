@@ -54,7 +54,7 @@ const infoList = [
   <div v-if="user" class="w-full space-y-6">
     <KunCard
       :is-hoverable="false"
-      class-name="bg-gradient-to-br from-primary/5 via-secondary/5 to-success/5"
+      class-name="bg-primary/5"
       content-class="flex-row items-center"
     >
       <div class="flex-1">
@@ -132,9 +132,7 @@ const infoList = [
         <span>{{ item.label }}</span>
         <span class="font-medium">{{ item.value(user) }}</span>
       </div>
-      <div
-        class="text-default-700 flex items-center justify-between text-sm"
-      >
+      <div class="text-default-700 flex items-center justify-between text-sm">
         <span>注册时间</span>
         <span class="font-medium">
           <KunTime :time="user.created" type="datetime" show-year />

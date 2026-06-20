@@ -92,7 +92,7 @@ const {
 
         <div
           v-if="showViewLike || showLanguage"
-          class="absolute right-0 bottom-0 left-0 flex items-center gap-2 bg-gradient-to-t from-black/60 to-transparent p-2 text-xs transition-opacity duration-300 sm:text-sm"
+          class="absolute right-0 bottom-0 left-0 flex items-center gap-2 bg-black/50 p-2 text-xs transition-opacity duration-300 sm:text-sm"
         >
           <div v-if="showViewLike" class="flex gap-3">
             <span class="flex items-center gap-1">
@@ -140,8 +140,14 @@ const {
           v-if="showPublisher"
           class="text-default-600 mt-auto flex items-center gap-1 pt-3 text-sm"
         >
-          <KunAvatar :disable-floating="true" :user="galgame.user" size="xs" :is-navigation="false" />
-          {{ galgame.user.name }} · <KunTime :time="galgame.resourceUpdateTime" />
+          <KunAvatar
+            :disable-floating="true"
+            :user="galgame.user"
+            size="xs"
+            :is-navigation="false"
+          />
+          {{ galgame.user.name }} ·
+          <KunTime :time="galgame.resourceUpdateTime" />
         </div>
       </div>
     </KunCard>

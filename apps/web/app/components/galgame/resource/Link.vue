@@ -31,7 +31,9 @@ const isOwner = computed(() => id === props.resource.user.id)
 // raw domain when the resource pre-dates the backfill or matches no rule.
 const providerName = computed(() => {
   const names = props.resource.providerNames
-  return names && names.length > 0 ? names.join(' / ') : props.resource.linkDomain
+  return names && names.length > 0
+    ? names.join(' / ')
+    : props.resource.linkDomain
 })
 
 // Long notes collapse behind a "展开全部" toggle: anything taller than this
@@ -53,15 +55,13 @@ const measureNoteOverflow = () => {
   isNoteOverflowing.value = el.scrollHeight > NOTE_COLLAPSED_MAX_HEIGHT
 }
 
-// Clamp + fade the bottom edge only while collapsed. The mask fades the
-// element's own pixels, so it needs no background-colour matching.
+// Hard-clamp the bottom edge only while collapsed (no fade mask — house rule
+// forbids gradients). The "展开全部" toggle is the affordance that more exists.
 const noteStyle = computed(() => {
   if (!isNoteOverflowing.value || isNoteExpanded.value) return undefined
-  const fade = 'linear-gradient(to bottom, #000 70%, transparent)'
   return {
     maxHeight: `${NOTE_COLLAPSED_MAX_HEIGHT}px`,
-    maskImage: fade,
-    WebkitMaskImage: fade
+    overflow: 'hidden'
   }
 })
 
@@ -134,10 +134,7 @@ const handleMarkValid = async () => {
 </script>
 
 <template>
-  <KunCard
-    :color="isExpired ? 'warning' : 'success'"
-    content-class="space-y-3"
-  >
+  <KunCard :color="isExpired ? 'warning' : 'success'" content-class="space-y-3">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <KunAvatar :user="resource.user" size="md" />
@@ -176,7 +173,9 @@ const handleMarkValid = async () => {
         {{ resource.size }}
       </KunChip>
       <KunChip color="success" variant="flat">
-        <KunIcon :name="GALGAME_RESOURCE_PLATFORM_ICON_MAP[resource.platform]" />
+        <KunIcon
+          :name="GALGAME_RESOURCE_PLATFORM_ICON_MAP[resource.platform]"
+        />
         {{ KUN_GALGAME_RESOURCE_PLATFORM_MAP[resource.platform] }}
       </KunChip>
       <KunChip color="secondary" variant="flat">

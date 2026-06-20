@@ -40,11 +40,11 @@ const measureNoteOverflow = () => {
 
 const noteStyle = computed(() => {
   if (!isNoteOverflowing.value || isNoteExpanded.value) return undefined
-  const fade = 'linear-gradient(to bottom, #000 70%, transparent)'
+  // Hard-clamp while collapsed (no fade mask — house rule forbids gradients);
+  // the "展开全部" toggle signals there's more.
   return {
     maxHeight: `${NOTE_COLLAPSED_MAX_HEIGHT}px`,
-    maskImage: fade,
-    WebkitMaskImage: fade
+    overflow: 'hidden'
   }
 })
 
@@ -137,9 +137,12 @@ defineExpose({ prefetch: fetchDetail })
 // confirm + the gated check→mark flow (and the runWithContext dance across the
 // alert await) and exposes a status for the inline checklist below the button.
 // We keep the modal OPEN on success so the user actually sees the result.
-const { status: reportStatus, report: reportExpire } = useReportResourceExpired()
+const { status: reportStatus, report: reportExpire } =
+  useReportResourceExpired()
 const handleReportExpire = () =>
-  reportExpire(props.resource.galgameId, props.resource.id, () => props.refresh())
+  reportExpire(props.resource.galgameId, props.resource.id, () =>
+    props.refresh()
+  )
 
 const handleDelete = async () => {
   const res = await useComponentMessageStore().alert(

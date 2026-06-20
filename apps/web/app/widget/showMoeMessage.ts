@@ -24,10 +24,7 @@ export const showMoeMessage = () => {
       font-family: monospace;
       font-weight: bold;
       font-size: 12px;
-      color: transparent;
-      background: linear-gradient(45deg, #66AAF9 0%, #FF95E1 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
+      color: #66AAF9;
       text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
     `,
 
