@@ -10,29 +10,18 @@ import { getLoli } from './getLoli'
 // up-left with negative offsets so a slice peeked into the panel, which is why
 // it never "fit".
 //
-// Instead: a fixed STAGE sized to the SCALED bounding box, overflow-hidden, with
-// an inner CANVAS that scales the whole group and translates the bbox's
-// top-left to the stage origin. The internal part alignment is untouched (one
-// uniform transform), and the stage has a real height so the panel contains it.
-const ORIGIN_X = 137
-const ORIGIN_Y = 323
+// Fixed stage window (canvas units) = the union extent, scaled to a panel-
+// friendly height (~421px). Each character is CENTERED in this window on its
+// OWN bbox (getLoli computes it), so narrower skirts no longer sit shoved to
+// one side. CANVAS spans the parts' full coordinate space so the absolutely-
+// positioned imgs get a real containing block (not crushed by a global max-width).
 const FRAME_W = 367
 const FRAME_H = 602
-// The canvas box must span the parts' coordinate space (so absolutely-positioned
-// imgs get a real containing block and aren't crushed by a global max-width).
-const CANVAS_W = ORIGIN_X + FRAME_W // 504
-const CANVAS_H = ORIGIN_Y + FRAME_H // 925
-// Scale the ~602px portrait down to a panel-friendly height (~421px).
+const CANVAS_W = 504
+const CANVAS_H = 925
 const SCALE = 0.7
 const stageW = Math.round(FRAME_W * SCALE)
 const stageH = Math.round(FRAME_H * SCALE)
-
-const canvasStyle = {
-  width: `${CANVAS_W}px`,
-  height: `${CANVAS_H}px`,
-  transform: `scale(${SCALE}) translate(-${ORIGIN_X}px, -${ORIGIN_Y}px)`,
-  transformOrigin: 'top left'
-}
 
 const loliData = ref({
   loliBodyLeft: '',
@@ -49,7 +38,21 @@ const loliData = ref({
   eye: '',
   brow: '',
   mouth: '',
-  face: ''
+  face: '',
+  bbox: { left: 137, top: 323, width: 367, height: 602 }
+})
+
+// Center the assembled character's bbox in the fixed FRAME window.
+const canvasStyle = computed(() => {
+  const b = loliData.value.bbox
+  const x0 = b.left + b.width / 2 - FRAME_W / 2
+  const y0 = b.top + b.height / 2 - FRAME_H / 2
+  return {
+    width: `${CANVAS_W}px`,
+    height: `${CANVAS_H}px`,
+    transform: `scale(${SCALE}) translate(${-x0}px, ${-y0}px)`,
+    transformOrigin: 'top left'
+  }
 })
 
 // The 5 webp layers are fetched + blob-encoded on demand; the FIRST load is slow
@@ -108,7 +111,10 @@ onMounted(reroll)
             class="absolute max-w-none"
             :src="loliData.mouth"
             alt="ren"
-            :style="{ left: loliData.loliMouthLeft, top: loliData.loliMouthTop }"
+            :style="{
+              left: loliData.loliMouthLeft,
+              top: loliData.loliMouthTop
+            }"
           />
           <img
             class="absolute max-w-none"
