@@ -46,12 +46,15 @@ AST 渲染期把 token 转成**消毒可存活**的 HTML(在 sanitize 之前):
 - `kungal-reply:<id>` → `<span class="kun-quote" data-reply-id="<id>" data-floor="<floor>">#<floor></span>`
   - **无 href**,避免 URL 问题;由**前端 hydrate** 成卡片(懒加载预览 + 跳转,仿 lazy-image 的 data-attr + 前端激活)。
 
-**名字解析(改名自动反映)**:渲染输出 `data-uid` + 写入时快照名。实测发现"服务端
-mapper 解析"要穿过**每一个**渲染点(topic/reply/galgame-comment/user-content/chat),
-太散。改用 **客户端解析(Discord 式,定为 Phase 3)**:`KunContent` 挂载后一次性收集
-`.kun-mention[data-uid]`、批量取当前名、替换文本——**一处覆盖所有内容类型**。快照名作
-SSR / 无 JS 兜底(始终是个有效名,链接永远正确)。若将来确需 SSR 即时刷新,再按需给
-个别 mapper 加服务端解析。
+**名字解析(改名自动反映)= 服务端**:渲染输出带 `data-uid` + 写入时快照名;然后在
+话题/回复 mapper 把 mention id **并进已有的** `userClient.Hydrate` 批次、渲染后用
+`ResolveMentionNames(html, id→当前名)` 套一层替换链接文本。主路径(话题正文 + 回复 +
+最佳答案)就 **~2 个文件**——mapper 本来就批量拉作者,mention 用户搭便车、近零额外网络。
+选服务端而非客户端(Slack/Discord 式)的理由:① 和 kungal「渲染全在服务端」的架构一致
+(它专门去掉了每次 SSR 跑的客户端 DOMPurify,图片 token 也是服务端解析);② SSR 正确
+(SEO / 无 JS / 不闪旧名 / 不多发请求)。Slack/Discord 客户端解析靠本地已缓存全量用户,
+SSR 网页论坛没这个前提。快照名作「用户已注销」兜底;`data-uid` 同时给将来客户端解析留口子
+(galgame 评论 / 私信等次要内容按需补)。
 
 **消毒**:`newSanitizePolicy` 需补 `AllowAttrs("data-uid").OnElements("a")` +
 `AllowAttrs("data-reply-id","data-floor").OnElements("span")`。
@@ -106,11 +109,10 @@ SSR / 无 JS 兜底(始终是个有效名,链接永远正确)。若将来确需 
 
 ## 9. 分期实施
 
-1. **后端基础**:✅ 1a token 渲染 + 消毒放行;✅ 1b `NotifyMentioned` 接线(topic/reply
-   create+update)。名字解析改到 Phase 3 客户端(见 §4)。
+1. **后端基础(全部完成)**:✅ 1a token 渲染 + 消毒放行;✅ 1b `NotifyMentioned` 接线
+   (topic/reply create+update)+ **服务端名字解析**(话题正文 / 回复 / 最佳答案,见 §4)。
 2. **编辑器**:mention 插件 + 下拉 + quote 节点 + remark 往返。
-3. **前端**:`.kun-mention`/`.kun-quote` 样式 + mention 名字客户端解析 + `.kun-quote`
-   hydrate;compose 退役多目标。
+3. **前端**:`.kun-mention`/`.kun-quote` 样式 + `.kun-quote` hydrate;compose 退役多目标。
 4. **迁移**:脚本 + 备份 + dry-run + 跑(给命令)。
 
 ## 10. 暂不做(后续单独排期)

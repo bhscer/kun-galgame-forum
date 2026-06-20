@@ -205,11 +205,21 @@ func (s *TopicService) GetDetail(
 		sections = []string{}
 	}
 
+	// Resolve @mention display names in the topic body to the authors' CURRENT
+	// names (one batch), so a renamed user shows their new name; unresolved ids
+	// keep the write-time snapshot.
+	topicMentionNames := map[int]string{}
+	if ids := markdown.ExtractMentionIDs(topic.Content); len(ids) > 0 {
+		for id, u := range s.userClient.Hydrate(ctx, ids) {
+			topicMentionNames[id] = u.Name
+		}
+	}
+
 	detail := &dto.TopicDetail{
 		ID:          topic.ID,
 		Title:       topic.Title,
 		Content:     topic.Content,
-		ContentHtml: markdown.Render(topic.Content),
+		ContentHtml: markdown.ResolveMentionNames(markdown.Render(topic.Content), topicMentionNames),
 		View:        topic.View,
 		Status:      topic.Status,
 		IsNSFW:      topic.IsNSFW,
@@ -246,12 +256,18 @@ func (s *TopicService) GetDetail(
 		reply, replyErr := s.topicRepo.FindReplyByID(*topic.BestAnswerID)
 		if replyErr == nil && reply != nil {
 			ru, _, _ := s.userClient.User(ctx, reply.UserID)
+			baMentionNames := map[int]string{}
+			if ids := markdown.ExtractMentionIDs(reply.Content); len(ids) > 0 {
+				for id, u := range s.userClient.Hydrate(ctx, ids) {
+					baMentionNames[id] = u.Name
+				}
+			}
 			detail.BestAnswer = &dto.TopicBestAnswer{
 				ID:              reply.ID,
 				Floor:           reply.Floor,
 				User:            dto.KunUser{ID: ru.ID, Name: ru.Name, Avatar: ru.Avatar},
 				ContentMarkdown: reply.Content,
-				ContentHtml:     markdown.Render(reply.Content),
+				ContentHtml:     markdown.ResolveMentionNames(markdown.Render(reply.Content), baMentionNames),
 				Created:         reply.CreatedAt,
 			}
 		}

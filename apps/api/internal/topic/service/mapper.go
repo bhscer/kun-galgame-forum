@@ -86,8 +86,8 @@ func (s *PollService) buildPollResponse(ctx context.Context, poll *topicModel.To
 		ResultVisibility: poll.ResultVisibility,
 		IsAnonymous:      poll.IsAnonymous, CanChangeVote: poll.CanChangeVote,
 		TopicID: poll.TopicID, Created: poll.CreatedAt, Updated: poll.UpdatedAt,
-		User:    dto.KunUser{ID: creatorU.ID, Name: creatorU.Name, Avatar: creatorU.Avatar},
-		Options: optionResponses,
+		User:     dto.KunUser{ID: creatorU.ID, Name: creatorU.Name, Avatar: creatorU.Avatar},
+		Options:  optionResponses,
 		HasVoted: hasVoted, Voters: voters,
 		VotersCount: votersCount, VoteCount: totalVoteCount,
 	}
@@ -160,10 +160,16 @@ func (s *ReplyService) buildReplyResponses(
 	uidSet := make(map[int]struct{})
 	for _, r := range rows {
 		uidSet[r.UserID] = struct{}{}
+		for _, id := range markdown.ExtractMentionIDs(r.Content) {
+			uidSet[id] = struct{}{}
+		}
 	}
 	for _, ts := range targetMap {
 		for _, t := range ts {
 			uidSet[t.TargetUserID] = struct{}{}
+			for _, id := range markdown.ExtractMentionIDs(t.Content) {
+				uidSet[id] = struct{}{}
+			}
 		}
 	}
 	for _, cs := range commentMap {
@@ -198,6 +204,17 @@ func (s *ReplyService) buildReplyResponses(
 		return dto.KunUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
 	}
 
+	// Mention name resolution: render the body, then swap each @mention's text to
+	// the author's CURRENT name (mentioned ids were batched into userMap above),
+	// so a renamed user shows their new name without the stored post changing.
+	mentionNames := make(map[int]string, len(userMap))
+	for id, u := range userMap {
+		mentionNames[id] = u.Name
+	}
+	renderContent := func(c string) string {
+		return markdown.ResolveMentionNames(markdown.Render(c), mentionNames)
+	}
+
 	responses := make([]dto.TopicReplyResponse, 0, len(rows))
 	for _, r := range rows {
 		// Drop banned authors entirely.
@@ -214,7 +231,7 @@ func (s *ReplyService) buildReplyResponses(
 					User:                 kunUser(t.TargetUserID),
 					ContentPreview:       preview,
 					ReplyContentMarkdown: t.Content,
-					ReplyContentHtml:     markdown.Render(t.Content),
+					ReplyContentHtml:     renderContent(t.Content),
 				})
 			}
 		}
@@ -263,7 +280,7 @@ func (s *ReplyService) buildReplyResponses(
 			},
 			Edited:          r.Edited,
 			ContentMarkdown: r.Content,
-			ContentHtml:     markdown.Render(r.Content),
+			ContentHtml:     renderContent(r.Content),
 			LikeCount:       r.LikeCount,
 			IsLiked:         likeMap[r.ID],
 			DislikeCount:    r.DislikeCount,

@@ -144,3 +144,34 @@ func TestExtractMentionIDs(t *testing.T) {
 		t.Errorf("expected nil for no mentions, got %v", ids)
 	}
 }
+
+// Server-side name resolution: a renamed user's mention shows the current name,
+// an unresolved id keeps its snapshot, the id is preserved, and the name is
+// HTML-escaped. Runs against the real Render output (so it also asserts the
+// regex survives the sanitizer's attribute handling).
+func TestResolveMentionNames(t *testing.T) {
+	html := Render("[@旧名](kungal-user:5) and [@x](kungal-user:9)")
+
+	out := ResolveMentionNames(html, map[int]string{5: "新名"})
+	if !strings.Contains(out, "@新名") {
+		t.Errorf("expected resolved @新名\n got: %s", out)
+	}
+	if strings.Contains(out, "@旧名") {
+		t.Errorf("snapshot name should be replaced\n got: %s", out)
+	}
+	if !strings.Contains(out, "@x") {
+		t.Errorf("unresolved id 9 should keep its snapshot @x\n got: %s", out)
+	}
+	if !strings.Contains(out, `data-uid="5"`) || !strings.Contains(out, `data-uid="9"`) {
+		t.Errorf("data-uid (link target) must be preserved\n got: %s", out)
+	}
+
+	esc := ResolveMentionNames(Render("[@x](kungal-user:5)"), map[int]string{5: "<b>x"})
+	if strings.Contains(esc, "<b>x") || !strings.Contains(esc, "&lt;b&gt;x") {
+		t.Errorf("resolved name must be HTML-escaped\n got: %s", esc)
+	}
+
+	if ResolveMentionNames(html, nil) != html {
+		t.Errorf("nil names should be a no-op")
+	}
+}
