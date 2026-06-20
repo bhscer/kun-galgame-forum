@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { SlashProvider } from '@milkdown/kit/plugin/slash'
-import { useInstance } from '@milkdown/vue'
 import { usePluginViewContext } from '@prosemirror-adapter/vue'
 import { TextSelection } from '@milkdown/prose/state'
 import type { EditorView } from '@milkdown/prose/view'
@@ -20,7 +19,6 @@ interface MentionUser {
 const MENTION_RE = /(?:^|\s)@([^\s@]{0,30})$/
 
 const { view, prevState } = usePluginViewContext()
-const [loading] = useInstance()
 
 const divRef = ref<VNodeRef>()
 let provider: SlashProvider
@@ -215,12 +213,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    v-if="loading"
-    ref="divRef"
-    class="kun-mention-dropdown"
-    data-show="false"
-  >
+  <!-- Rendered unconditionally (no v-if): the SlashProvider appendChild's this
+       element out of Vue's Teleport, so a v-if that later flips would orphan it
+       in the DOM and freeze its content. Visibility is the data-show CSS. -->
+  <div ref="divRef" class="kun-mention-dropdown" data-show="false">
     <template v-if="results.length">
       <button
         v-for="(u, i) in results"
