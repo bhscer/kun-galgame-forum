@@ -4,6 +4,8 @@ const props = defineProps<{
   targetUserId: number
   upvoteCount: number
   isUpvoted: boolean
+  // Render as a left-justified labeled row for the ⋯ overflow menu.
+  menu?: boolean
 }>()
 
 const { id, moemoepoint } = usePersistUserStore()
@@ -52,7 +54,22 @@ const handleClickUpvote = async () => {
 </script>
 
 <template>
-  <KunTooltip text="推！">
+  <KunButton
+    v-if="menu"
+    :variant="isUpvoted ? 'flat' : 'light'"
+    :color="isUpvoted ? 'secondary' : 'default'"
+    size="sm"
+    class-name="w-full justify-start gap-2 whitespace-nowrap"
+    @click="handleClickUpvote"
+  >
+    <KunIcon class-name="text-lg" name="lucide:sparkles" />
+    推话题
+    <span v-if="upvoteCount" class="text-default-500 ml-auto">
+      {{ upvoteCount }}
+    </span>
+  </KunButton>
+
+  <KunTooltip v-else text="推！">
     <KunButton
       :variant="isUpvoted ? 'flat' : 'light'"
       :color="isUpvoted ? 'secondary' : 'default'"

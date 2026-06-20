@@ -6,9 +6,8 @@ const props = defineProps<{
 const { id } = usePersistUserStore()
 const { isEdit } = storeToRefs(useTempReplyStore())
 
-// Both the mobile pill "input" and the desktop 回复 button open the reply
-// editor. On mobile that editor renders as a bottom KunDrawer, on desktop as
-// the fixed panel (see TopicReplyPanel). Floor 0 = replying to the OP.
+// The pill "input" opens the reply editor, which renders as a bottom KunDrawer
+// on mobile (see TopicReplyPanel). Floor 0 = replying to the OP.
 const handleOpenReply = () => {
   if (!id) {
     useAuthModal().open()
@@ -31,32 +30,20 @@ const handleShare = () => {
 </script>
 
 <template>
-  <!-- Sticky bottom action bar (app-style). One flex row, responsive: mobile
-       leads with a pill input (→ reply drawer); desktop drops the input and
-       adds a labeled 回复 button on the right. Visible: 推 / 点赞 / 收藏 / 评论;
-       ⋯ holds 点踩 / 分享 / 重新编辑 / 隐藏. -->
+  <!-- Mobile-only floating action pill (desktop keeps the original in-card
+       TopicFooter). A frosted, fully-rounded bar that floats a gap above the
+       bottom. Visible: input · 收藏 · 评论 · ⋯; the ⋯ holds 推 / 点赞 / 点踩 /
+       分享 / 重新编辑 / 隐藏. -->
   <div
-    class="border-default/20 bg-background/90 sticky bottom-0 z-30 flex items-center gap-1 rounded-t-2xl border-t px-3 py-2 shadow-[0_-1px_12px_rgba(0,0,0,0.05)] backdrop-blur-[var(--kun-background-blur)]"
+    class="border-default/20 bg-background/70 sticky bottom-4 z-30 mx-2 flex items-center gap-1 rounded-full border px-2 py-1.5 shadow-lg backdrop-blur-xl md:hidden"
   >
     <button
-      class="bg-default-100 text-default-500 hover:bg-default-200 min-w-0 flex-1 truncate rounded-full px-4 py-2 text-left text-sm transition-colors md:hidden"
+      class="bg-default-100 text-default-500 hover:bg-default-200 min-w-0 flex-1 truncate rounded-full px-4 py-2 text-left text-sm transition-colors"
       @click="handleOpenReply"
     >
       发布一条可爱的回复吧～
     </button>
 
-    <TopicFooterUpvote
-      :topic-id="topic.id"
-      :target-user-id="topic.user.id"
-      :upvote-count="topic.upvoteCount"
-      :is-upvoted="topic.isUpvoted"
-    />
-    <TopicFooterLike
-      :topic-id="topic.id"
-      :target-user-id="topic.user.id"
-      :like-count="topic.likeCount"
-      :is-liked="topic.isLiked"
-    />
     <TopicFooterFavorite
       :topic-id="topic.id"
       :favorite-count="topic.favoriteCount"
@@ -75,17 +62,6 @@ const handleShare = () => {
       </KunButton>
     </KunTooltip>
 
-    <!-- Desktop spacer pushes 回复 + ⋯ to the far right; collapses on mobile. -->
-    <div class="hidden md:block md:flex-1" />
-
-    <KunButton
-      class-name="hidden md:flex"
-      variant="flat"
-      @click="handleOpenReply"
-    >
-      回复
-    </KunButton>
-
     <KunPopover position="top-end" inner-class="p-2 w-56">
       <template #trigger>
         <KunButton
@@ -99,6 +75,20 @@ const handleShare = () => {
       </template>
 
       <div class="flex flex-col gap-1">
+        <TopicFooterUpvote
+          menu
+          :topic-id="topic.id"
+          :target-user-id="topic.user.id"
+          :upvote-count="topic.upvoteCount"
+          :is-upvoted="topic.isUpvoted"
+        />
+        <TopicFooterLike
+          menu
+          :topic-id="topic.id"
+          :target-user-id="topic.user.id"
+          :like-count="topic.likeCount"
+          :is-liked="topic.isLiked"
+        />
         <TopicFooterDislike
           menu
           :topic-id="topic.id"

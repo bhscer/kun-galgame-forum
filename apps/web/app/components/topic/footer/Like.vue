@@ -5,6 +5,8 @@ const props = defineProps<{
   targetUserId: number
   likeCount: number
   isLiked: boolean
+  // Render as a left-justified labeled row for the ⋯ overflow menu.
+  menu?: boolean
 }>()
 
 const { id } = usePersistUserStore()
@@ -54,7 +56,22 @@ const handleClickLike = () => {
 </script>
 
 <template>
-  <KunTooltip text="点赞">
+  <KunButton
+    v-if="menu"
+    :variant="isLiked ? 'flat' : 'light'"
+    :color="isLiked ? 'secondary' : 'default'"
+    size="sm"
+    class-name="w-full justify-start gap-2 whitespace-nowrap"
+    @click="handleClickLike"
+  >
+    <KunIcon class-name="text-lg" name="lucide:thumbs-up" />
+    点赞
+    <span v-if="likeCount" class="text-default-500 ml-auto">
+      {{ likeCount }}
+    </span>
+  </KunButton>
+
+  <KunTooltip v-else text="点赞">
     <KunButton
       :variant="isLiked ? 'flat' : 'light'"
       :color="isLiked ? 'secondary' : 'default'"

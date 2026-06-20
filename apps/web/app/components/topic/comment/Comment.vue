@@ -19,8 +19,13 @@ const editValue = ref('')
 const isSaving = ref(false)
 
 // Mobile shows the comment editor in a bottom KunDrawer (one shared instance
-// driven by activeCommentId); desktop keeps the inline per-comment panel.
-const isMobile = useMediaQuery('(max-width: 767px)')
+// driven by activeCommentId); desktop keeps the inline per-comment panel. Gate
+// behind mount so the first client render matches SSR (desktop) — useMediaQuery
+// resolves true synchronously on a mobile client and would otherwise mismatch.
+const isMobileQuery = useMediaQuery('(max-width: 767px)')
+const mounted = ref(false)
+onMounted(() => (mounted.value = true))
+const isMobile = computed(() => mounted.value && isMobileQuery.value)
 const isCommentPanelOpen = computed({
   get: () => activeCommentId.value !== null && !!targetUserForPanel.value,
   set: (open) => {
