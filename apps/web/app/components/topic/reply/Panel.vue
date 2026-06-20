@@ -1,107 +1,50 @@
 <script setup lang="ts">
-const { isReplyRewriting, replyRewrite } = storeToRefs(useTempReplyStore())
-const { isEdit } = storeToRefs(useTempReplyStore())
-const replyStore = usePersistKUNGalgameReplyStore()
-const { replyDraft } = storeToRefs(replyStore)
+import { useMediaQuery } from '@vueuse/core'
 
-const activeTab = ref<number | 'main'>('main')
+const tempReplyStore = useTempReplyStore()
+const { isEdit, isReplyRewriting } = storeToRefs(tempReplyStore)
 
-const currentData = computed(() =>
-  isReplyRewriting.value ? replyRewrite.value : replyDraft.value
-)
+// Mobile gets a bottom KunDrawer; desktop keeps the original fixed panel.
+// `isEdit` drives both (PanelBtn flips it false on publish / rewrite / cancel),
+// and a KunDrawer dismiss also flips it via v-model. SSR renders the desktop
+// branch (isMobile defaults false) but nothing is visible until isEdit, so the
+// post-hydration flip to the drawer is invisible — no mismatch.
+const isMobile = useMediaQuery('(max-width: 767px)')
 
-watch(
-  () => [isEdit.value, currentData.value?.targets],
-  ([editing, targets]) => {
-    if (editing && Array.isArray(targets)) {
-      if (targets.length > 0) {
-        const lastTarget = targets[targets.length - 1]
-        if (
-          lastTarget &&
-          !targets.some((t) => t.targetReplyId === activeTab.value)
-        ) {
-          activeTab.value = lastTarget.targetReplyId
-        }
-      } else {
-        activeTab.value = 'main'
-      }
-    }
-  },
-  { deep: true, immediate: true }
-)
-
-const handleRemoveTarget = (id: number) => {
-  replyStore.removeTarget(id)
+// Backdrop-dismissing the drawer mid-rewrite must drop the rewrite buffer,
+// otherwise the next fresh reply would reopen pre-filled with the old content.
+const handleDrawerClose = () => {
+  if (isReplyRewriting.value) {
+    tempReplyStore.resetRewriteReplyData()
+  }
 }
 </script>
 
 <template>
-  <Teleport to="body" :disabled="!isEdit">
+  <KunDrawer
+    v-if="isMobile"
+    v-model="isEdit"
+    placement="bottom"
+    size="lg"
+    title="发表回复"
+    @close="handleDrawerClose"
+  >
+    <TopicReplyPanelBody />
+  </KunDrawer>
+
+  <Teleport v-else to="body" :disabled="!isEdit">
     <Transition
       enter-active-class="animate-fadeInUp"
       leave-active-class="animate-fadeOutDown"
     >
       <div
         class="fixed bottom-0 z-100 flex max-h-[80%] w-full flex-col items-center"
-        v-if="isEdit && currentData"
+        v-if="isEdit"
       >
         <div
           class="bg-content1/85 border-default/20 scrollbar-hide w-full max-w-4xl space-y-2 overflow-scroll rounded-t-lg border p-3"
         >
-          <div class="scrollbar-hide flex items-center gap-1 overflow-x-auto">
-            <KunButton
-              size="xs"
-              rounded="full"
-              v-for="target in currentData.targets"
-              :key="target.targetReplyId"
-              :variant="activeTab === target.targetReplyId ? 'solid' : 'flat'"
-              @click="activeTab = target.targetReplyId"
-            >
-              {{ `@${target.targetUserName} #${target.targetFloor}` }}
-              <KunButton
-                :is-icon-only="true"
-                size="xs"
-                rounded="full"
-                v-if="!isReplyRewriting"
-                @click.stop="handleRemoveTarget(target.targetReplyId)"
-                color="primary"
-                :variant="
-                  activeTab === target.targetReplyId ? 'solid' : 'light'
-                "
-              >
-                <KunIcon name="lucide:x" size="12" />
-              </KunButton>
-            </KunButton>
-
-            <KunButton
-              size="xs"
-              rounded="full"
-              :variant="activeTab === 'main' ? 'solid' : 'flat'"
-              @click="activeTab = 'main'"
-            >
-              回复内容
-              <span
-                v-if="activeTab === 'main'"
-                class="bg-primary absolute bottom-0 left-0 h-0.5 w-full"
-              />
-            </KunButton>
-          </div>
-
-          <div :key="activeTab">
-            <template
-              v-for="target in currentData.targets"
-              :key="target.targetReplyId"
-            >
-              <div v-show="activeTab === target.targetReplyId">
-                <TopicReplyTargetEditor v-model="target.content" />
-              </div>
-            </template>
-            <div v-show="activeTab === 'main'">
-              <TopicReplyTargetEditor v-model="currentData.mainContent" />
-            </div>
-          </div>
-
-          <TopicReplyPanelBtn class="mt-3" />
+          <TopicReplyPanelBody />
         </div>
       </div>
     </Transition>

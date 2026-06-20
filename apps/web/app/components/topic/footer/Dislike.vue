@@ -5,6 +5,9 @@ const props = defineProps<{
   targetUserId: number
   dislikeCount: number
   isDisliked: boolean
+  // Render as a left-justified labeled row for the ⋯ overflow menu instead of
+  // the compact tooltip icon button used inline.
+  menu?: boolean
 }>()
 
 const { id } = usePersistUserStore()
@@ -48,7 +51,22 @@ const handleClickDislike = () => {
 </script>
 
 <template>
-  <KunTooltip text="点踩">
+  <KunButton
+    v-if="menu"
+    :variant="isDisliked ? 'flat' : 'light'"
+    :color="isDisliked ? 'secondary' : 'default'"
+    size="sm"
+    class-name="w-full justify-start gap-2 whitespace-nowrap"
+    @click="handleClickDislike"
+  >
+    <KunIcon class-name="text-lg" name="lucide:thumbs-down" />
+    点踩
+    <span v-if="dislikeCount" class="text-default-500 ml-auto">
+      {{ dislikeCount }}
+    </span>
+  </KunButton>
+
+  <KunTooltip v-else text="点踩">
     <KunButton
       :variant="isDisliked ? 'flat' : 'light'"
       :color="isDisliked ? 'secondary' : 'default'"

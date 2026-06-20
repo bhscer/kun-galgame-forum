@@ -72,12 +72,16 @@ watch(
 
     <TopicPollContainer :topic-id="topic.id" :is-topic-admin="isTopicAdmin" />
 
-    <TopicDetailTool
-      :reply-count="topic.replyCount"
-      :status="status"
-      :sort-order="sortOrder"
-      @set-sort-order="setSort"
-    />
+    <!-- scroll-mt offsets the fixed top bar so the 评论 jump button (bottom bar)
+         lands the reply-count header at the top, not under the topbar. -->
+    <div id="comments-anchor" class="scroll-mt-20">
+      <TopicDetailTool
+        :reply-count="topic.replyCount"
+        :status="status"
+        :sort-order="sortOrder"
+        @set-sort-order="setSort"
+      />
+    </div>
 
     <section id="reply-section" class="space-y-4">
       <div
@@ -109,5 +113,7 @@ watch(
         </p>
       </div>
     </section>
+
+    <TopicDetailActionBar :topic="topic" />
   </div>
 </template>

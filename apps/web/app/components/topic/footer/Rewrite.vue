@@ -3,6 +3,8 @@ import { KunTooltip } from '#components'
 
 const props = defineProps<{
   topic: TopicDetail
+  // Render as a left-justified labeled row for the ⋯ overflow menu.
+  menu?: boolean
 }>()
 
 const {
@@ -33,16 +35,29 @@ const rewriteTopic = async () => {
 </script>
 
 <template>
-  <KunTooltip text="重新编辑">
+  <template v-if="isShowRewrite">
     <KunButton
-      :is-icon-only="true"
+      v-if="menu"
       variant="light"
       color="default"
-      size="lg"
-      v-if="isShowRewrite"
+      size="sm"
+      class-name="w-full justify-start gap-2 whitespace-nowrap"
       @click="rewriteTopic"
     >
-      <KunIcon name="lucide:pencil" />
+      <KunIcon class-name="text-lg" name="lucide:pencil" />
+      重新编辑
     </KunButton>
-  </KunTooltip>
+
+    <KunTooltip v-else text="重新编辑">
+      <KunButton
+        :is-icon-only="true"
+        variant="light"
+        color="default"
+        size="lg"
+        @click="rewriteTopic"
+      >
+        <KunIcon name="lucide:pencil" />
+      </KunButton>
+    </KunTooltip>
+  </template>
 </template>

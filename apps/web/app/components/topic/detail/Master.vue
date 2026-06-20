@@ -104,8 +104,6 @@ defineProps<{
           本站版权政策
         </KunLink>
       </p>
-
-      <TopicFooter :topic="topic" />
     </KunCard>
   </div>
 </template>

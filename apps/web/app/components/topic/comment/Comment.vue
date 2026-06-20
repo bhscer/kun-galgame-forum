@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
+
 const props = defineProps<{
   replyId: number
   commentsData: TopicComment[]
@@ -15,6 +17,19 @@ const targetUserForPanel = ref<KunUser | null>(null)
 const editingId = ref<number | null>(null)
 const editValue = ref('')
 const isSaving = ref(false)
+
+// Mobile shows the comment editor in a bottom KunDrawer (one shared instance
+// driven by activeCommentId); desktop keeps the inline per-comment panel.
+const isMobile = useMediaQuery('(max-width: 767px)')
+const isCommentPanelOpen = computed({
+  get: () => activeCommentId.value !== null && !!targetUserForPanel.value,
+  set: (open) => {
+    if (!open) {
+      activeCommentId.value = null
+      targetUserForPanel.value = null
+    }
+  }
+})
 
 const handleClickComment = (comment: TopicComment) => {
   if (!currentUserId) {
@@ -189,7 +204,7 @@ const handleSaveEdit = async (comment: TopicComment) => {
           </div>
         </div>
 
-        <KunFadeCard>
+        <KunFadeCard v-if="!isMobile">
           <LazyTopicCommentPanel
             v-if="activeCommentId === comment.id && targetUserForPanel"
             :reply-id="replyId"
@@ -200,5 +215,21 @@ const handleSaveEdit = async (comment: TopicComment) => {
         </KunFadeCard>
       </div>
     </div>
+
+    <KunDrawer
+      v-if="isMobile"
+      v-model="isCommentPanelOpen"
+      placement="bottom"
+      size="md"
+      title="发表评论"
+    >
+      <LazyTopicCommentPanel
+        v-if="targetUserForPanel"
+        :reply-id="replyId"
+        :target-user="targetUserForPanel"
+        @get-comment="handleNewComment"
+        @close-panel="activeCommentId = null"
+      />
+    </KunDrawer>
   </div>
 </template>
