@@ -86,16 +86,20 @@ const currentStep = computed(() => {
 })
 
 const BENEFITS = [
-  { icon: 'lucide:zap', text: '直接发布 Galgame 词条，无需排队等待审核' },
-  { icon: 'lucide:sparkles', text: '收录 VNDB 未登录的原创 / 同人 / 独立作品' },
-  { icon: 'lucide:pencil-line', text: '提交即时生效，编辑已发布条目更自由' }
+  '直接发布 Galgame 词条，无需排队等待审核',
+  '收录 VNDB 未登录的原创 / 同人 / 独立作品',
+  '提交即时生效，编辑已发布条目更自由'
 ]
 
 const conditions = computed(() => {
   const e = eligibility.value
   if (!e) return []
   return [
-    { label: '合并的 PR', cur: e.merged_prs, need: e.need_merged_prs },
+    {
+      label: '已经被合并的 Galgame 信息更新请求',
+      cur: e.merged_prs,
+      need: e.need_merged_prs
+    },
     {
       label: '已发布 Galgame',
       cur: e.galgames_published,
@@ -130,11 +134,10 @@ const handleApply = async () => {
     <div class="space-y-5 p-1">
       <!-- header -->
       <div class="flex items-start gap-3">
-        <div
-          class="bg-primary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-xl"
-        >
-          <KunIcon class="size-6" name="lucide:badge-check" />
-        </div>
+        <KunIcon
+          class="text-primary mt-0.5 size-8 shrink-0"
+          name="lucide:badge-check"
+        />
         <div class="space-y-0.5">
           <h2 class="text-foreground text-lg font-semibold">成为创作者</h2>
           <p class="text-default-500 text-sm">
@@ -176,19 +179,8 @@ const handleApply = async () => {
           <!-- benefits -->
           <section class="space-y-2">
             <h3 class="text-default-700 text-sm font-medium">创作者特权</h3>
-            <ul class="space-y-2">
-              <li
-                v-for="b in BENEFITS"
-                :key="b.text"
-                class="flex items-center gap-2.5 text-sm"
-              >
-                <span
-                  class="bg-primary-50 text-primary flex size-7 shrink-0 items-center justify-center rounded-lg"
-                >
-                  <KunIcon class="size-4" :name="b.icon" />
-                </span>
-                <span class="text-default-700">{{ b.text }}</span>
-              </li>
+            <ul class="text-default-700 list-disc space-y-1.5 pl-5 text-sm">
+              <li v-for="b in BENEFITS" :key="b">{{ b }}</li>
             </ul>
           </section>
 
@@ -207,17 +199,10 @@ const handleApply = async () => {
               </KunChip>
             </div>
             <div v-for="c in conditions" :key="c.label" class="space-y-1">
-              <div class="flex items-center justify-between text-sm">
-                <span class="flex items-center gap-1.5">
-                  <KunIcon
-                    :class="
-                      c.met ? 'text-success size-4' : 'text-default-300 size-4'
-                    "
-                    :name="c.met ? 'lucide:circle-check' : 'lucide:circle'"
-                  />
-                  {{ c.label }}
-                </span>
+              <div class="flex items-center justify-between gap-2 text-sm">
+                <span>{{ c.label }}</span>
                 <span
+                  class="shrink-0"
                   :class="
                     c.met ? 'text-success font-medium' : 'text-default-500'
                   "
@@ -275,13 +260,8 @@ const handleApply = async () => {
               :loading="submitting"
               @click="handleApply"
             >
-              <KunIcon v-if="canApply" class="size-4" name="lucide:send" />
               {{
-                canApply
-                  ? isDeclined
-                    ? '重新申请'
-                    : '立即申请'
-                  : '继续努力 💪'
+                canApply ? (isDeclined ? '重新申请' : '立即申请') : '继续努力'
               }}
             </KunButton>
           </div>
