@@ -24,6 +24,8 @@ export interface GalgameCover {
   violence: number
   source: string
   source_key: string
+  // VNDB cover type (main/pkgfront/dig/pkgback/…); '' for user uploads.
+  kind?: string
   cdn_url?: string
 }
 

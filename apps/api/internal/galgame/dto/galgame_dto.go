@@ -52,7 +52,10 @@ type GalgameCover struct {
 	Violence  int    `json:"violence"`
 	Source    string `json:"source"`
 	SourceKey string `json:"source_key"`
-	CDNURL    string `json:"cdn_url,omitempty"`
+	// Kind is the VNDB cover type (main/pkgfront/dig/pkgback/…); empty for user
+	// uploads. Sync-managed; the wiki restores it on edit, so echoing it is optional.
+	Kind   string `json:"kind,omitempty"`
+	CDNURL string `json:"cdn_url,omitempty"`
 }
 
 type GalgameScreenshot struct {
