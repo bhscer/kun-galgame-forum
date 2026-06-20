@@ -162,3 +162,12 @@
 .kun-mention-dropdown[data-show='true'] {
   @apply flex;
 }
+
+/* SlashProvider appends the dropdown INSIDE .milkdown, so the prose `.milkdown
+ * img` rule (display:block + my-8 margins + rounded-2xl) bleeds onto the avatar
+ * and balloons each row to ~100px. Re-scope the avatar img back to a 24px
+ * circle. Same specificity as `.milkdown img` but later in source order, and
+ * both are unlayered, so this wins. */
+.kun-mention-dropdown img {
+  @apply m-0 size-6 rounded-full object-cover;
+}
