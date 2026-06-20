@@ -36,7 +36,13 @@ let range: { from: number; to: number } | null = null
 // Guards a stale async response from overwriting a newer query's results.
 let searchSeq = 0
 
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
 const reset = () => {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+    searchTimer = null
+  }
   query.value = ''
   results.value = []
   activeIndex.value = 0
@@ -44,39 +50,61 @@ const reset = () => {
   range = null
 }
 
-const search = async (q: string) => {
-  const seq = ++searchSeq
+// Debounce the NETWORK call only (not the dropdown), so the @query + UI stay
+// responsive per keystroke while OAuth /users/search is hit at most ~5x/sec.
+const search = (q: string) => {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+    searchTimer = null
+  }
   if (!q) {
     results.value = []
     searching.value = false
     return
   }
   searching.value = true
-  const data = await kunFetch<MentionUser[]>('/user/search', {
-    query: { q, limit: 8 }
-  })
-  // A newer keystroke already fired — drop this response.
-  if (seq !== searchSeq) {
-    return
-  }
-  results.value = data ?? []
-  activeIndex.value = 0
-  searching.value = false
+  searchTimer = setTimeout(async () => {
+    const seq = ++searchSeq
+    const data = await kunFetch<MentionUser[]>('/user/search', {
+      query: { q, limit: 8 }
+    })
+    // A newer keystroke already fired — drop this response.
+    if (seq !== searchSeq) {
+      return
+    }
+    results.value = data ?? []
+    activeIndex.value = 0
+    searching.value = false
+  }, 180)
 }
 
-// SlashProvider calls this (debounced) on every editor update. It must stay
-// cheap + synchronous: detect the @query, capture its range, kick the search
-// off only when the query text actually changed, and return whether to show.
+// The text of the current textblock from its start up to the cursor — computed
+// straight from the doc rather than via SlashProvider.getContent (whose default
+// only matches `paragraph` blocks and layers on focus checks we don't need).
+const queryBeforeCursor = (v: EditorView): string | null => {
+  const { selection } = v.state
+  if (!selection.empty) {
+    return null
+  }
+  const { $from } = selection
+  const before = $from.parent.textBetween(
+    Math.max(0, $from.parentOffset - 100),
+    $from.parentOffset,
+    undefined,
+    '￼'
+  )
+  const match = before.match(MENTION_RE)
+  return match ? (match[1] ?? '') : null
+}
+
+// SlashProvider calls this on every editor update. It must stay cheap +
+// synchronous: detect the @query, capture its range, kick the search off only
+// when the query text actually changed, and return whether to show.
 const shouldShow = (v: EditorView): boolean => {
-  const content = provider.getContent(v)
-  if (!content) {
+  const q = queryBeforeCursor(v)
+  if (q === null) {
     return false
   }
-  const match = content.match(MENTION_RE)
-  if (!match) {
-    return false
-  }
-  const q = match[1] ?? ''
   const cursor = v.state.selection.$from.pos
   // `@` + query length — the leading space (if any) is matched but NOT replaced.
   range = { from: cursor - (q.length + 1), to: cursor }
@@ -155,9 +183,11 @@ onMounted(() => {
     content: divRef.value as unknown as HTMLElement,
     trigger: '@',
     shouldShow,
-    // Snappy show/hide; the search itself is naturally rate-limited by the
-    // query-changed guard in shouldShow.
-    debounce: 50
+    // Run shouldShow on every update (no provider debounce) so the @query and
+    // the panel state track each keystroke; the network call is debounced in
+    // search() instead. A provider debounce would freeze the panel on a stale
+    // query while typing fast.
+    debounce: 0
   })
   provider.onShow = () => {
     visible.value = true
@@ -176,6 +206,9 @@ watch([view, prevState], () => {
 })
 
 onBeforeUnmount(() => {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
   window.removeEventListener('keydown', onKeydown, true)
   provider?.destroy()
 })
