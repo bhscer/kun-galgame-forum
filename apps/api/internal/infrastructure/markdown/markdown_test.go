@@ -126,3 +126,21 @@ func TestRenderMentionAbsoluteHref(t *testing.T) {
 		t.Errorf("mention should have an absolute href\n got: %s", out)
 	}
 }
+
+func TestExtractMentionIDs(t *testing.T) {
+	got := ExtractMentionIDs(
+		"hi [@a](kungal-user:5) and [@b](kungal-user:12), and [@a again](kungal-user:5)",
+	)
+	want := []int{5, 12} // unique, first-seen order; the dup 5 is dropped
+	if len(got) != len(want) {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("at %d: want %d, got %d (%v)", i, want[i], got[i], got)
+		}
+	}
+	if ids := ExtractMentionIDs("no mentions here"); ids != nil {
+		t.Errorf("expected nil for no mentions, got %v", ids)
+	}
+}

@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 
+	"kun-galgame-api/internal/infrastructure/markdown"
 	msgModel "kun-galgame-api/internal/message/model"
 	"kun-galgame-api/internal/moemoepoint"
 
@@ -77,6 +78,18 @@ func (InteractionHelpers) CreateReplyMessage(
 		Link:       link,
 		Status:     "unread",
 	})
+}
+
+// NotifyMentions emits a deduped "mentioned" notification to every user
+// @mentioned in `content` (a topic / reply / comment body). Because the dedup key
+// is (sender, receiver, "mentioned", /topic/<id>), each mentioned user is
+// notified once per topic per sender — so re-editing the post, or @ing the same
+// person twice, won't spam; a self-mention is skipped. Call inside the write tx.
+// Dormant until content actually carries kungal-user tokens (editor / migration).
+func (h InteractionHelpers) NotifyMentions(tx *gorm.DB, senderID, topicID int, content string) {
+	for _, uid := range markdown.ExtractMentionIDs(content) {
+		h.CreateTopicMessageWithContent(tx, senderID, uid, "mentioned", "", topicID)
+	}
 }
 
 // createDedupMessage creates a Message only if no row already exists with the

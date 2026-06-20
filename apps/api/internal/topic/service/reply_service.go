@@ -217,6 +217,10 @@ func (s *ReplyService) CreateReply(
 			s.helpers.CreateReplyMessage(tx, userID, topic.UserID, "replied", preview, req.TopicID)
 		}
 
+		// @mentions in the reply body → "mentioned" notifications (deduped, self
+		// skipped). Independent of the reply-to / owner path above.
+		s.helpers.NotifyMentions(tx, userID, req.TopicID, req.Content)
+
 		return nil
 	})
 
@@ -288,6 +292,11 @@ func (s *ReplyService) UpdateReply(
 				}
 			}
 		}
+
+		// @mentions in the edited reply → notify newly mentioned users (deduped,
+		// so anyone already mentioned in this topic isn't re-notified on edit).
+		s.helpers.NotifyMentions(tx, userID, reply.TopicID, req.Content)
+
 		return nil
 	})
 

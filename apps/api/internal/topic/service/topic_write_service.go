@@ -142,6 +142,8 @@ func (s *TopicWriteService) Create(
 			mpReason = moemoepoint.ReasonContentRemoved
 		}
 		s.helpers.AdjustMoemoepoint(tx, userID, pointsDelta, mpReason, moemoepoint.Ref("topic", topic.ID))
+		// @mentions in the topic body → "mentioned" notifications (deduped, self skip).
+		s.helpers.NotifyMentions(tx, userID, topic.ID, req.Content)
 		return nil
 	})
 
@@ -239,6 +241,11 @@ func (s *TopicWriteService) Update(
 			}
 			s.helpers.AdjustMoemoepoint(tx, topic.UserID, delta, mpReason, moemoepoint.Ref("topic", topicID))
 		}
+
+		// @mentions in the edited topic body → notify newly mentioned users
+		// (deduped, so existing mentions aren't re-notified on edit).
+		s.helpers.NotifyMentions(tx, userID, topicID, req.Content)
+
 		return nil
 	})
 
@@ -442,7 +449,7 @@ func (s *TopicWriteService) ToggleFavorite(ctx context.Context, userID, topicID 
 			}
 			if userID != topic.UserID {
 				s.helpers.AdjustMoemoepoint(tx, topic.UserID, -1,
-				moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
+					moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
 			}
 		} else {
 			return findErr
