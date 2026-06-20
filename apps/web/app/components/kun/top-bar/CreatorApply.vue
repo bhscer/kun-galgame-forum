@@ -128,7 +128,7 @@ const handleApply = async () => {
       <!-- header -->
       <div class="flex items-start gap-3">
         <div
-          class="from-primary to-secondary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br"
+          class="bg-primary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-xl"
         >
           <KunIcon class="size-6" name="lucide:badge-check" />
         </div>
