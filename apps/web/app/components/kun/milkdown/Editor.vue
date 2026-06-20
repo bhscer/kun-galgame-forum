@@ -22,6 +22,8 @@ import { activeTab } from './atom'
 import { kunUploader, kunUploadWidgetFactory } from './plugins/upload/uploader'
 import { tooltipFactory } from '@milkdown/kit/plugin/tooltip'
 import Tooltip from './plugins/tooltip/Tooltip.vue'
+import { slashFactory } from '@milkdown/kit/plugin/slash'
+import MentionDropdown from './plugins/mention/MentionDropdown.vue'
 import { replaceAll } from '@milkdown/kit/utils'
 import {
   stopLinkCommand,
@@ -79,6 +81,8 @@ const emits = defineEmits<{
 const valueMarkdown = computed(() => props.valueMarkdown)
 
 const tooltip = tooltipFactory('Text')
+// @mention autocomplete: @ trigger → debounced /user/search → insert mention node.
+const mentionSlash = slashFactory('kunMention')
 const pluginViewFactory = usePluginViewFactory()
 const container = ref<HTMLElement | null>(null)
 const toolbar = ref<HTMLElement | null>(null)
@@ -125,6 +129,12 @@ const editorInfo = useEditor((root) => {
       ctx.set(tooltip.key, {
         view: pluginViewFactory({
           component: Tooltip
+        })
+      })
+
+      ctx.set(mentionSlash.key, {
+        view: pluginViewFactory({
+          component: MentionDropdown
         })
       })
 
@@ -184,6 +194,7 @@ const editorInfo = useEditor((root) => {
     .use(indent)
     .use(trailing)
     .use(tooltip)
+    .use(mentionSlash)
     .use(codeBlockComponent)
     .use([kunSpoilerPlugin, stopLinkCommand, linkCustomKeymap].flat())
     .use(kunMentionPlugin)

@@ -111,7 +111,12 @@ SSR 网页论坛没这个前提。快照名作「用户已注销」兜底;`data-
 
 1. **后端基础(全部完成)**:✅ 1a token 渲染 + 消毒放行;✅ 1b `NotifyMentioned` 接线
    (topic/reply create+update)+ **服务端名字解析**(话题正文 / 回复 / 最佳答案,见 §4)。
-2. **编辑器**:mention 插件 + 下拉 + quote 节点 + remark 往返。
+2. **编辑器**(进行中):✅ 2.0 milkdown 7.17.3 → **7.21.2 真升级**(前一次只改了
+   `apps/web/package.json`,被 root `pnpm.overrides` 钉死在 7.17.3;改 overrides 后整树
+   统一 7.21.2,typecheck + build 双绿)。✅ 2.1 mention 行内 atom 节点 + remark 往返
+   (`[@name](kungal-user:id)` ↔ 芯片)。✅ 2.2 **@ 下拉**:后端 `GET /api/user/search`
+   (代理 OAuth `/users/search`,userAuth,不缓存)+ `MentionDropdown.vue`(`slashFactory`
+   + `SlashProvider`,`@` 触发、查询、上下键/Tab/Enter/点击选、插入节点)。⏭ 2.3 quote 节点。
 3. **前端**:`.kun-mention`/`.kun-quote` 样式 + `.kun-quote` hydrate;compose 退役多目标。
 4. **迁移**:脚本 + 备份 + dry-run + 跑(给命令)。
 

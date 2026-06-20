@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	galgameClient "kun-galgame-api/internal/galgame/client"
@@ -229,4 +230,35 @@ func (s *UserService) GetFloatingCard(ctx context.Context, userID int) (*dto.Flo
 		TopicCommentCount:    stats.TopicCommentCount,
 		GalgameResourceCount: stats.ResourceCount,
 	}, nil
+}
+
+// ──────────────────────────────────────────
+// Mention autocomplete
+// ──────────────────────────────────────────
+
+// SearchMentionUsers backs the editor's @mention dropdown — a thin BFF proxy to
+// OAuth /users/search, the C6-sanctioned autocomplete source (never cached). An
+// empty query short-circuits to no results so a bare "@" doesn't hit OAuth, and
+// limit is clamped to a small autocomplete window. Banned/deleted users (Status
+// != 0) are dropped: you can't @mention someone who can't be notified or linked.
+func (s *UserService) SearchMentionUsers(ctx context.Context, q string, limit int) ([]dto.MentionUser, *errors.AppError) {
+	q = strings.TrimSpace(q)
+	if q == "" {
+		return []dto.MentionUser{}, nil
+	}
+	if limit <= 0 || limit > 20 {
+		limit = 8
+	}
+	users, err := s.userClient.SearchUsers(ctx, q, limit)
+	if err != nil {
+		return nil, errors.ErrInternal("搜索用户失败")
+	}
+	out := make([]dto.MentionUser, 0, len(users))
+	for _, u := range users {
+		if u.Status != 0 {
+			continue
+		}
+		out = append(out, dto.MentionUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar})
+	}
+	return out, nil
 }

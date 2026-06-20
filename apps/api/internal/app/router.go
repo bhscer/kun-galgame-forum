@@ -53,6 +53,9 @@ func (a *App) setupRoutes() {
 	api.Get("/user/status", userAuth, a.UserHandler.GetStatus)
 	// Unified moemoepoint ledger (own only) — fixed path, before /user/:id.
 	api.Get("/user/moemoepoint/log", userAuth, a.UserHandler.GetMoemoepointLog)
+	// @mention autocomplete — fixed path, MUST stay before /user/:id (else
+	// "search" is captured as :id). Proxies OAuth /users/search (not cached).
+	api.Get("/user/search", userAuth, a.UserHandler.SearchMention)
 
 	// Creator-role application: forum checks its eligibility (wiki PR/galgame
 	// stats + own 简评), then files on the central OAuth queue. Role grant +

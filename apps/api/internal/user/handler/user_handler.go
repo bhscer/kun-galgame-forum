@@ -99,6 +99,19 @@ func (h *UserHandler) GetMoemoepointLog(c *fiber.Ctx) error {
 	return response.OK(c, page)
 }
 
+// SearchMention returns up to a handful of users matching `q`, for the editor's
+// @mention autocomplete dropdown. Behind userAuth (only logged-in users
+// compose), so no user lookup is needed here — just proxy the query.
+// GET /api/user/search?q=&limit=
+func (h *UserHandler) SearchMention(c *fiber.Ctx) error {
+	users, appErr := h.userService.SearchMentionUsers(
+		c.Context(), c.Query("q"), c.QueryInt("limit", 8))
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, users)
+}
+
 // GetFloatingCard returns lightweight user info for hover card.
 // GET /api/user/:userID/floating — target user is read from ?userId=N (legacy).
 func (h *UserHandler) GetFloatingCard(c *fiber.Ctx) error {
