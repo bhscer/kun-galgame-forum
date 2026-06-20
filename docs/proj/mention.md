@@ -46,9 +46,12 @@ AST 渲染期把 token 转成**消毒可存活**的 HTML(在 sanitize 之前):
 - `kungal-reply:<id>` → `<span class="kun-quote" data-reply-id="<id>" data-floor="<floor>">#<floor></span>`
   - **无 href**,避免 URL 问题;由**前端 hydrate** 成卡片(懒加载预览 + 跳转,仿 lazy-image 的 data-attr + 前端激活)。
 
-**名字解析(改名自动反映)**:topic/reply mapper 本就批量拉作者(`/users/batch`,~10min
-缓存)。把正文里的 mention id 一并塞进该 batch,渲染后用 id→当前名 map 替换链接文本;
-token 快照名为"用户已注销"兜底。SSR 正确,近零额外成本。
+**名字解析(改名自动反映)**:渲染输出 `data-uid` + 写入时快照名。实测发现"服务端
+mapper 解析"要穿过**每一个**渲染点(topic/reply/galgame-comment/user-content/chat),
+太散。改用 **客户端解析(Discord 式,定为 Phase 3)**:`KunContent` 挂载后一次性收集
+`.kun-mention[data-uid]`、批量取当前名、替换文本——**一处覆盖所有内容类型**。快照名作
+SSR / 无 JS 兜底(始终是个有效名,链接永远正确)。若将来确需 SSR 即时刷新,再按需给
+个别 mapper 加服务端解析。
 
 **消毒**:`newSanitizePolicy` 需补 `AllowAttrs("data-uid").OnElements("a")` +
 `AllowAttrs("data-reply-id","data-floor").OnElements("span")`。
@@ -103,9 +106,11 @@ token 快照名为"用户已注销"兜底。SSR 正确,近零额外成本。
 
 ## 9. 分期实施
 
-1. **后端基础**:token 渲染扩展 + 消毒放行 + mapper 名字解析 + `NotifyMentioned` 接线。
+1. **后端基础**:✅ 1a token 渲染 + 消毒放行;✅ 1b `NotifyMentioned` 接线(topic/reply
+   create+update)。名字解析改到 Phase 3 客户端(见 §4)。
 2. **编辑器**:mention 插件 + 下拉 + quote 节点 + remark 往返。
-3. **前端**:`.kun-mention`/`.kun-quote` 样式 + `.kun-quote` hydrate;compose 退役多目标。
+3. **前端**:`.kun-mention`/`.kun-quote` 样式 + mention 名字客户端解析 + `.kun-quote`
+   hydrate;compose 退役多目标。
 4. **迁移**:脚本 + 备份 + dry-run + 跑(给命令)。
 
 ## 10. 暂不做(后续单独排期)
