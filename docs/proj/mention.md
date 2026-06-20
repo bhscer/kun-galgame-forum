@@ -1,0 +1,116 @@
+# Mention + Quote 设计文档
+
+> 用现代 **@mention**(通知 + 跳转到用户)和 **quote 引用**(跳转到楼层)取代畸形的
+> 多目标回复(`TopicReplyTarget` 的 per-target content)。退役旧模型,让回复正文
+> (`TopicReply.Content`)成为唯一真相。
+
+## 1. 背景与病根
+
+一条回复的文字现在**散落**在 `TopicReply.Content` + N 个 `TopicReplyTarget.Content`
+里——"这条回复说了什么"不是读一个字段能回答的,逼着列表 / 搜索 / 通知 / SEO 摘要
+全去 JOIN 拼装,嵌套与代码都被这个准嵌套模型拖累。这是半年实践确认的反模式。
+
+正解是把两个被揉在一起的概念拆开:
+
+- **@mention** = 提到某个**用户**(通知 + 链到其主页)。
+- **quote** = 引用某个**楼层/回复**(跳转 + 卡片预览)。
+
+二者**正交**,都只产生 markdown,落到 `Content` 这一个字段。
+
+## 2. 现有脚手架(半数已就绪)
+
+| 部分 | 状态 |
+|---|---|
+| 通知类型 `mentioned` | ✅ `NotifyMentioned` 常量 + `message.type` 枚举 + 前端 i18n「提到了您！」——**从未触发** |
+| 用户搜索 `/users/search` | ✅ 已实现(代理 OAuth);C6 契约原文即「用于 @ 补全,不缓存」 |
+| 编辑器插件机制 | ✅ milkdown v7 + `tooltipFactory` + `pluginViewFactory`(现有 `Tooltip.vue` 即模板) |
+| markdown 渲染先例 | ✅ `/image/<hash>` token 由 goldmark 扩展**在消毒前**解析成绝对 URL(因 UGCPolicy 剥相对 URL);`class` 已全局放行 |
+| 通知发射钩子 | ✅ `notifier.Emit(tx, Spec{Kind, ...})` |
+
+## 3. Token 格式(存储,markdown)
+
+- **Mention**:`@[名字](kungal-user:<userID>)`
+  - 存 **user.id**(C1 三库共享主键)。`名字` 仅为写入时快照 + 兜底;**渲染解析当前名**(Slack/Discord/GitHub 共识:改名只能靠存 id 解决)。
+- **Quote**:`[#<floor>](kungal-reply:<replyID>)`
+  - 存被引用回复的 **id** + **楼层**。渲染成带样式的引用卡片 + 跳转(决策 B)。
+
+两者都是"自定义 scheme 的 markdown 链接",经 goldmark 扩展识别。
+
+## 4. 渲染(`markdown.go`)
+
+**沿用 `/image/<hash>` 的先例**:加一个 goldmark 扩展(类似 `lazyImageExtension`),在
+AST 渲染期把 token 转成**消毒可存活**的 HTML(在 sanitize 之前):
+
+- `kungal-user:<id>` → `<a class="kun-mention" data-uid="<id>" href="<siteBase>/user/<id>">@名字</a>`
+  - 用**绝对 URL**(配置 site base,仿 `SetContentImageCDNBase`)绕过 UGCPolicy 剥相对 URL;`class`/`data-*` 由 `AllowAttrs("class").Globally()` + 需补 `data-uid` 放行。
+- `kungal-reply:<id>` → `<span class="kun-quote" data-reply-id="<id>" data-floor="<floor>">#<floor></span>`
+  - **无 href**,避免 URL 问题;由**前端 hydrate** 成卡片(懒加载预览 + 跳转,仿 lazy-image 的 data-attr + 前端激活)。
+
+**名字解析(改名自动反映)**:topic/reply mapper 本就批量拉作者(`/users/batch`,~10min
+缓存)。把正文里的 mention id 一并塞进该 batch,渲染后用 id→当前名 map 替换链接文本;
+token 快照名为"用户已注销"兜底。SSR 正确,近零额外成本。
+
+**消毒**:`newSanitizePolicy` 需补 `AllowAttrs("data-uid").OnElements("a")` +
+`AllowAttrs("data-reply-id","data-floor").OnElements("span")`。
+
+## 5. 通知(接通 `NotifyMentioned`)
+
+- 话题 / 回复 / 评论 **create + update** 后,正则扫 `Content` 的 `kungal-user:(\d+)`:
+  - 去重 → 排除自己 → (更新时)排除上一版已含的 id(只通知新增的)。
+  - 每个 `notifier.Emit(tx, Spec{Kind: NotifyMentioned, RecipientID: id, Link: <帖子链接>, ...})`。
+- 限流:每帖 mention 上限(沿用 targets 的 10);i18n 已就绪。
+
+## 6. 编辑器(milkdown)
+
+- **Mention 插件**:仿 `Tooltip.vue`(`tooltipFactory` + `pluginViewFactory` + Vue 下拉)。
+  `@` 触发 → debounce 查 `/users/search?keyword=`(**不缓存**)→ 上下键/点击选 → 插入
+  mention 行内 **atom 节点**(携带 `{userId, name}`,仿 inline-katex / sticker 节点)。
+- **Quote**:点某楼"引用"→ 插入 quote 节点(`{replyId, floor}`)→ 渲染成卡片。
+- **remark 序列化/解析**:节点 ↔ `@[name](kungal-user:id)` / `[#floor](kungal-reply:id)`,
+  **往返**(编辑旧帖时还原成芯片/卡片)。
+
+## 7. 迁移(Path B —— 退役 `TopicReplyTarget`)
+
+数据齐全:`TopicReplyTarget = {Content(笔记), ReplyID, TargetReplyID}`,目标楼层/用户
+经 `TargetReplyID → TopicReply.Floor/UserID` 一次 JOIN 即得。
+
+对每条有 target 的 `TopicReply`:
+
+1. 读其 targets(笔记 + TargetReplyID),JOIN 取目标 `floor` / `userID`。
+2. 每个 target 折成一段(并入 `Content`,上/下/顺序随意):
+   ```
+   > 回复 @[](kungal-user:<targetUserID>) [#<floor>](kungal-reply:<targetReplyID>)
+
+   <该 target 的 Content 笔记>
+   ```
+   名字留空 → 渲染解析当前名(迁移脚本不必碰 OAuth)。
+3. `UPDATE topic_reply.content`;迁完 `DROP TABLE topic_reply_target`(或先留一版回滚)。
+4. **不发通知**(数据搬运,不能把半年旧 @ 重新轰一遍)。
+5. 悬空目标(被 purge 置 NULL 的 `target_reply_id`)→ 只保留笔记,不写 quote 链接。
+
+**警示(改用户内容,不可逆)**:迁移前**备份** `topic_reply.content` + 整张
+`topic_reply_target`;脚本**幂等**(只处理仍有 target 的回复);先在**库副本 dry-run**
+肉眼核对几条;按铁律出 `migrations/NNN_*.up.sql` 或 Go 一次性 job,并在最后明确告知
+**在哪个库、用什么命令跑**。
+
+## 8. 前端
+
+- `prose.css` 加 `.kun-mention`(链接芯片)/ `.kun-quote`(引用卡片)样式。
+- `KunContent` 挂载后 hydrate `.kun-quote`(懒加载预览 + 跳转,仿 lazy-image)。
+- 通知展示已就绪(i18n)。
+- **退役多目标 compose**:`reply/Panel` + `PanelBody` 改成**单编辑器 + @ + quote**,
+  删掉 per-target tab、`replyDraft.targets`、`TopicReplyTarget` 相关读写。
+
+## 9. 分期实施
+
+1. **后端基础**:token 渲染扩展 + 消毒放行 + mapper 名字解析 + `NotifyMentioned` 接线。
+2. **编辑器**:mention 插件 + 下拉 + quote 节点 + remark 往返。
+3. **前端**:`.kun-mention`/`.kun-quote` 样式 + `.kun-quote` hydrate;compose 退役多目标。
+4. **迁移**:脚本 + 备份 + dry-run + 跑(给命令)。
+
+## 10. 暂不做(后续单独排期)
+
+- **跨页跳到具体楼层**:因回复懒加载分页,跳 `/topic/:id#k<floor>` 时该楼可能未加载。
+  需 BE「定位楼层」端点(`GET /topic/:id/reply/:floor/context` 或 by-id 定位页码)+
+  前端落地页按锚点滚动。`Target.vue` 的 `loadDetail` 兜底已暗示此缺口。quote 卡片先做
+  **页内**跳转,跨页等此端点。
