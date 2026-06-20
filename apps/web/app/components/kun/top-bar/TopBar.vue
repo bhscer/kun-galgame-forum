@@ -9,10 +9,23 @@ withDefaults(
 const isVisible = ref(true)
 let lastScrollY = 0
 
+// Hysteresis: only flip visibility on a DELIBERATE scroll (> threshold). Without
+// it, a 1px momentum / trackpad micro-reversal flipped isVisible every throttle
+// tick, restarting the 300ms transition — the bar (and the area it covers) read
+// as a few-px jitter near the top. The layout itself never moves (content keeps
+// a constant 76px offset); this is purely the bar stuttering in/out.
+const SCROLL_THRESHOLD = 8
 const handleScroll = throttle(() => {
-  const currentScrollY = window.scrollY
-  isVisible.value = currentScrollY < lastScrollY || currentScrollY < 50
-  lastScrollY = currentScrollY
+  const y = window.scrollY
+  if (y < 50) {
+    isVisible.value = true
+    lastScrollY = y
+    return
+  }
+  const delta = y - lastScrollY
+  if (Math.abs(delta) < SCROLL_THRESHOLD) return
+  isVisible.value = delta < 0
+  lastScrollY = y
 }, 100)
 
 onMounted(() => {
@@ -38,7 +51,7 @@ const offsetClass = computed(() =>
   <div
     :class="
       cn(
-        'fixed top-0 z-30 mb-3 ml-0 shrink-0 px-1 transition-all duration-300',
+        'fixed top-0 z-30 mb-3 ml-0 shrink-0 px-1 transition-all duration-300 will-change-transform',
         'left-0 w-full',
         offsetClass,
         isVisible ? 'translate-y-0' : '-translate-y-full',
