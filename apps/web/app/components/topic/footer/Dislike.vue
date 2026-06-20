@@ -50,7 +50,6 @@ const handleClickDislike = () => {
 <template>
   <KunTooltip text="点踩">
     <KunButton
-      :is-icon-only="true"
       :variant="isDisliked ? 'flat' : 'light'"
       :color="isDisliked ? 'secondary' : 'default'"
       :size="dislikeCount ? 'md' : 'lg'"

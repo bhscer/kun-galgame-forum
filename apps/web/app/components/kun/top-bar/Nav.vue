@@ -120,7 +120,6 @@ onMounted(async () => {
       v-if="!id"
     >
       <KunButton
-        :is-icon-only="true"
         variant="light"
         color="default"
         size="xl"

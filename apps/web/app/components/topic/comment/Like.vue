@@ -45,7 +45,6 @@ const handleClickLike = async () => {
 
 <template>
   <KunButton
-    :is-icon-only="true"
     :variant="isLiked ? 'flat' : 'light'"
     :color="isLiked ? 'secondary' : 'default'"
     :size="likeCount ? 'sm' : 'md'"

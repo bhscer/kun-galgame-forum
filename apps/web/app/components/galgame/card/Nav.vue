@@ -321,9 +321,9 @@ const resetFilters = () => {
       </button>
     </KunScrollShadow>
 
-    <div class="flex items-center gap-1.5">
+    <div class="flex flex-wrap items-center gap-1.5">
       <button
-        class="cursor-pointer rounded-md p-1 transition-colors"
+        class="shrink-0 cursor-pointer rounded-md p-1 transition-colors"
         :class="
           sortOrder === 'desc'
             ? 'bg-primary/15 text-primary'
@@ -334,7 +334,7 @@ const resetFilters = () => {
         <KunIcon name="lucide:arrow-down" />
       </button>
       <button
-        class="cursor-pointer rounded-md p-1 transition-colors"
+        class="shrink-0 cursor-pointer rounded-md p-1 transition-colors"
         :class="
           sortOrder === 'asc'
             ? 'bg-primary/15 text-primary'

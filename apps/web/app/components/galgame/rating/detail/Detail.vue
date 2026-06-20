@@ -223,7 +223,6 @@ const handleDeleteRating = async () => {
         <div class="space-x-1">
           <KunButton
             size="lg"
-            :is-icon-only="true"
             color="default"
             variant="light"
           >

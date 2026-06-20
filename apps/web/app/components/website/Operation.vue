@@ -134,7 +134,6 @@ const handleAction = async (
   <div class="flex flex-wrap gap-3">
     <KunTooltip text="点赞">
       <KunButton
-        :is-icon-only="true"
         :color="isLiked ? 'secondary' : 'default'"
         :size="likeCount ? 'md' : 'lg'"
         :variant="isLiked ? 'flat' : 'light'"
@@ -148,7 +147,6 @@ const handleAction = async (
 
     <KunTooltip text="收藏">
       <KunButton
-        :is-icon-only="true"
         :color="isFavorited ? 'secondary' : 'default'"
         :size="favoriteCount ? 'md' : 'lg'"
         :variant="isFavorited ? 'flat' : 'light'"

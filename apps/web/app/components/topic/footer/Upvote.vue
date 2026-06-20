@@ -54,7 +54,6 @@ const handleClickUpvote = async () => {
 <template>
   <KunTooltip text="推！">
     <KunButton
-      :is-icon-only="true"
       :variant="isUpvoted ? 'flat' : 'light'"
       :color="isUpvoted ? 'secondary' : 'default'"
       :size="upvoteCount ? 'md' : 'lg'"

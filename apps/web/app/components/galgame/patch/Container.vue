@@ -84,7 +84,6 @@ onMounted(async () => {
         <div class="ml-auto flex items-center gap-1">
           <KunTooltip text="下载数">
             <KunButton
-              :is-icon-only="true"
               variant="light"
               color="default"
               size="sm"

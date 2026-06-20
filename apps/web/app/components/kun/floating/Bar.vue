@@ -91,7 +91,7 @@ onUnmounted(() => {
         <KunButton
           :is-icon-only="true"
           rounded="full"
-          size="lg"
+          size="md"
           variant="flat"
           @click="handleScroll"
         >
@@ -103,7 +103,7 @@ onUnmounted(() => {
         :is-icon-only="true"
         class-name="text-xs"
         rounded="full"
-        size="lg"
+        size="md"
         variant="flat"
       >
         {{ Math.round(progress) }}
@@ -112,7 +112,7 @@ onUnmounted(() => {
       <KunButton
         :is-icon-only="true"
         rounded="full"
-        size="lg"
+        size="md"
         variant="flat"
         @click="router.back()"
       >

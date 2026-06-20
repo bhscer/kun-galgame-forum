@@ -218,7 +218,6 @@ const handleEditDone = () => {
 
     <div class="mt-auto flex flex-wrap items-center justify-end gap-1">
       <KunButton
-        :is-icon-only="true"
         variant="flat"
         @click="handleRewriteResource"
         :loading="isFetching"
@@ -228,7 +227,6 @@ const handleEditDone = () => {
         <KunIcon name="lucide:pencil" />
       </KunButton>
       <KunButton
-        :is-icon-only="true"
         color="danger"
         variant="flat"
         @click="handleDeleteResource"

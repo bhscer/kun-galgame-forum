@@ -47,7 +47,6 @@ const handleClickLike = async () => {
 <template>
   <KunTooltip text="点赞">
     <KunButton
-      :is-icon-only="true"
       :variant="isLiked ? 'flat' : 'light'"
       :color="isLiked ? 'secondary' : 'default'"
       :size="likeCount ? 'sm' : 'md'"

@@ -40,7 +40,7 @@ const statusClasses = computed(() => {
 </script>
 
 <template>
-  <div class="flex items-center space-x-1">
+  <div class="flex items-center space-x-1 leading-none">
     <KunTooltip text="Ctrl + K 以快速搜索" position="bottom">
       <KunButton
         :is-icon-only="true"

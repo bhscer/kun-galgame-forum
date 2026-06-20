@@ -44,7 +44,6 @@ const handleClickFavorite = () => {
 <template>
   <KunTooltip text="收藏">
     <KunButton
-      :is-icon-only="true"
       :variant="isFavorite ? 'flat' : 'light'"
       :color="isFavorite ? 'secondary' : 'default'"
       :size="favoriteCount ? 'md' : 'lg'"
