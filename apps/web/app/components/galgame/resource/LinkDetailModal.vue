@@ -266,7 +266,7 @@ const handleEditDone = () => {
         >
           <div class="space-y-1.5">
             <div ref="noteRef" :style="noteStyle" class="overflow-hidden">
-              <KunContent :content="renderKatex(resource.noteHtml)" />
+              <KunContent compact :content="renderKatex(resource.noteHtml)" />
             </div>
 
             <button

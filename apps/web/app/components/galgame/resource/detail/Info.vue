@@ -58,9 +58,12 @@ const handleDeleteResource = async () => {
 
 // "报告失效" — delegated to useReportResourceExpired (auth + confirm + the
 // gated check→mark flow); reportStatus drives the inline checklist below.
-const { status: reportStatus, report: reportExpire } = useReportResourceExpired()
+const { status: reportStatus, report: reportExpire } =
+  useReportResourceExpired()
 const handleReportExpire = () =>
-  reportExpire(props.resource.galgameId, props.resource.id, () => props.refresh())
+  reportExpire(props.resource.galgameId, props.resource.id, () =>
+    props.refresh()
+  )
 
 const handleGetResourceLink = async () => {
   if (detail.value) return
@@ -116,7 +119,7 @@ const handleEditDone = () => {
       color="info"
       title="下载备注信息"
     >
-      <KunContent :content="renderKatex(resource.noteHtml)" />
+      <KunContent compact :content="renderKatex(resource.noteHtml)" />
     </KunInfo>
 
     <KunAdAIFYBanner class-name="block lg:hidden" />

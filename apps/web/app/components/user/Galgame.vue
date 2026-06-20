@@ -132,8 +132,10 @@ const { data: commentData, status: commentStatus } = await useKunFetch<{
           :href="`/galgame/${c.galgameId}`"
           content-class="space-y-2"
         >
-          <KunContent :content="renderKatex(c.contentHtml)" />
-          <div class="text-default-500 flex items-center justify-between text-sm">
+          <KunContent compact :content="renderKatex(c.contentHtml)" />
+          <div
+            class="text-default-500 flex items-center justify-between text-sm"
+          >
             <span>评论于 Galgame #{{ c.galgameId }}</span>
             <KunTime :time="c.created" type="date" show-year />
           </div>

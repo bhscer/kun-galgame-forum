@@ -1,4 +1,8 @@
 @import './tailwindcss.css';
+/* Base editorial typography (.kun-prose article + .kun-prose-compact comment).
+   Imported BEFORE ./prose.css so the forum layer below overrides it where
+   needed (code blocks, full-width). */
+@import '@kungal/ui-vue/prose.css';
 @import './prose.css';
 @import './editor.css';
 @import './code-theme.css';

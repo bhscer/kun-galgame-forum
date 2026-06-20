@@ -51,7 +51,7 @@ const isEdited = computed(() => props.comment.edited != null)
 
 // Only the root has visible children; replies render leaf-only.
 const visibleReplies = computed(() =>
-  props.depth === 0 ? props.comment.replies ?? [] : []
+  props.depth === 0 ? (props.comment.replies ?? []) : []
 )
 
 // "查看更多 N 条回复" — only ever appears under a root that has
@@ -135,10 +135,7 @@ const handleDelete = async () => {
           {{ comment.user.name }}
         </span>
         <template v-if="comment.targetUser">
-          <KunIcon
-            name="lucide:arrow-right"
-            class="text-default-400 text-xs"
-          />
+          <KunIcon name="lucide:arrow-right" class="text-default-400 text-xs" />
           <KunLink
             underline="hover"
             size="sm"
@@ -159,8 +156,8 @@ const handleDelete = async () => {
            via DOMPurify and applies project-wide kun-prose styling). -->
       <KunContent
         v-if="!isEditing"
+        compact
         :content="renderKatex(comment.contentHtml)"
-        class-name="text-default-700 text-sm break-words"
       />
 
       <!-- Edit mode: same Milkdown editor as the new-comment Panel,
@@ -179,7 +176,11 @@ const handleDelete = async () => {
           >
             取消
           </KunButton>
-          <KunButton size="sm" :loading="isSavingEdit" @click="handleSubmitEdit">
+          <KunButton
+            size="sm"
+            :loading="isSavingEdit"
+            @click="handleSubmitEdit"
+          >
             保存
           </KunButton>
         </div>
@@ -244,7 +245,9 @@ const handleDelete = async () => {
           :depth="1"
           @reply-added="(r) => emit('replyAdded', r)"
           @reply-edited="(u) => emit('replyEdited', u)"
-          @reply-removed="(id, size, rootId) => emit('replyRemoved', id, size, rootId)"
+          @reply-removed="
+            (id, size, rootId) => emit('replyRemoved', id, size, rootId)
+          "
         />
       </div>
 
@@ -263,4 +266,3 @@ const handleDelete = async () => {
     </div>
   </div>
 </template>
-

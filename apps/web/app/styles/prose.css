@@ -1,63 +1,33 @@
+/*
+ * Forum prose LAYER — sits on top of @kungal/ui-vue/prose.css (imported first
+ * in index.css), which now owns the base editorial typography: `.kun-prose`
+ * (article) + `.kun-prose-compact` (comment / reply density, via KunContent's
+ * `compact` prop). This file keeps ONLY what kun-ui's prose can't know about:
+ *
+ *   - server-rendered code blocks (`.kun-code-container` + copy button +
+ *     line/diff highlighting). Token colours live in code-theme.css, math in
+ *     editor/katex.css — kun-ui ships neither.
+ *   - the wide-table scroll wrapper, heading anchors, stickers, figure / dl /
+ *     strikethrough — kun-ui styles none of these.
+ *   - reconciliation: neutralize kun-ui's bare `pre` styling inside our
+ *     `.kun-code-container` so its border / radius / bg / margin don't double
+ *     up with the container's.
+ *   - full-width override: kun-ui centres `.kun-prose` on a 40rem measure; the
+ *     forum's content cards want the full width.
+ */
+
 .kun-prose {
-  @apply text-default-800 leading-7 text-inherit;
+  /* kun-ui centres the article column at 40rem; forum content fills its card. */
+  max-width: none;
+  margin-inline: 0;
 
-  /* Paragraphs */
-  & p {
-    @apply py-1;
-    overflow-wrap: break-word;
-  }
-
-  /* Links */
-  & a {
-    @apply text-primary-500 decoration-primary-200 hover:text-primary-600 hover:decoration-primary-400 font-medium break-all underline underline-offset-2 transition-colors duration-200;
-  }
-
+  /* Heading anchor links stay text-coloured (not link-blue/underlined). */
   & .anchor {
     @apply text-default-800 hover:text-primary-500 no-underline;
   }
 
-  /* Headings */
-  & h1 {
-    @apply text-default-900 border-default-200 mt-8 mb-4 scroll-m-20 pt-4 text-2xl leading-tight font-bold tracking-tight;
-  }
-  & h2 {
-    @apply text-default-900 border-default-200 mt-8 mb-4 scroll-m-20 pt-4 text-xl leading-tight font-bold tracking-tight;
-  }
-  & h3 {
-    @apply text-default-900 mt-6 mb-3 scroll-m-20 pt-3 text-lg leading-snug font-semibold tracking-tight;
-  }
-  & h4 {
-    @apply text-default-900 my-3 scroll-m-20 text-base leading-snug font-semibold tracking-tight;
-  }
-  & h5 {
-    @apply text-default-800 my-3 text-sm leading-snug font-medium tracking-tight;
-  }
-  & h6 {
-    @apply text-default-800 my-3 text-xs leading-snug font-medium tracking-tight;
-  }
-
-  /* Lists */
-  & ul {
-    @apply marker:text-default-400 my-6 list-outside list-disc space-y-3 pl-8 text-inherit;
-  }
-  & ol {
-    @apply marker:text-default-400 my-6 list-outside list-decimal space-y-3 pl-8 text-inherit;
-  }
-  & li {
-    @apply mt-2 leading-relaxed text-inherit;
-
-    > ul,
-    > ol {
-      @apply my-2 space-y-2;
-    }
-  }
-
-  /* Blockquote */
-  & blockquote {
-    @apply border-primary-200 bg-primary-50/50 text-default-800 my-8 rounded-r-lg border-l-4 py-1 pr-4 pl-6 font-medium;
-  }
-
-  /* Tables */
+  /* Wide tables scroll inside a wrapper — kun-ui styles a bare <table> only,
+     with no overflow handling, so a >600px table would break the layout. */
   & .kun-table-container {
     @apply w-full overflow-x-auto;
 
@@ -86,19 +56,7 @@
     }
   }
 
-  /* Others */
-  & hr {
-    @apply border-default-200 my-12;
-  }
-
-  & img {
-    @apply border-default-200 my-8 cursor-pointer rounded-lg border;
-
-    &[alt='Sticker'] {
-      @apply m-2 inline w-32;
-    }
-  }
-
+  /* Figures + definition lists + strikethrough + stickers — kun-ui has none. */
   & figure {
     @apply my-8;
 
@@ -107,7 +65,6 @@
     }
   }
 
-  /* Definition lists */
   & dt {
     @apply text-default-900 mt-4 font-semibold;
   }
@@ -115,38 +72,28 @@
     @apply border-default-200 mt-2 border-l-2 pl-4;
   }
 
-  /* Keyboard shortcuts */
-  & kbd {
-    @apply bg-default-100 border-default-300 text-default-700 rounded-sm border px-2 py-1 font-mono text-sm;
-  }
-
-  /* Mark text */
-  & mark {
-    @apply bg-warning-100 text-warning-800 rounded-sm px-1;
-  }
-
-  /* Strikethrough — mirror of editor.css `.milkdown del` so the rendered
-     article matches the editor preview (muted default-500, not body color).
-     Covers both <del> and <s> since renderers differ on which `~~` emits. */
+  /* Mirror of editor.css `.milkdown del` (renderers differ on which `~~` emits). */
   & del,
   & s {
     @apply text-default-500 line-through;
   }
 
-  /* Inline code */
-  & code {
-    @apply bg-primary/15 rounded-lg px-2 py-0.5 font-mono text-sm;
+  & img[alt='Sticker'] {
+    @apply m-2 inline w-32;
   }
 
-  /* Code Blocks */
+  /* ── Code blocks ─────────────────────────────────────────────────────────
+     Server-rendered as `.kun-code-container > .kun-code-header + pre > code`.
+     The container owns the border / radius / overflow; the `pre` is stripped
+     of kun-ui's bare-`pre` chrome so they don't stack (double border / fill). */
   & .kun-code-container {
     @apply border-default-200 relative my-6 overflow-x-auto rounded-xl border;
 
     & pre {
-      @apply overflow-x-auto p-4;
+      @apply m-0 overflow-x-auto rounded-none border-0 bg-transparent p-4;
 
       & code {
-        @apply block w-fit rounded-none bg-transparent p-0;
+        @apply block w-fit rounded-none border-0 bg-transparent p-0;
       }
     }
   }
@@ -202,14 +149,5 @@
   & .line-number::before {
     content: attr(line);
     @apply mr-4 -ml-2 inline-block w-4 text-right text-gray-400;
-  }
-}
-
-/* prose-normal variant */
-.kun-prose-normal {
-  @apply leading-7 whitespace-normal;
-
-  & p {
-    @apply my-4;
   }
 }

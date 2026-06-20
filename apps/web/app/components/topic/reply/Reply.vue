@@ -121,6 +121,7 @@ const handleNewComment = (comment: TopicComment) => {
 
       <KunContent
         v-if="reply.contentMarkdown && reply.contentMarkdown.trim()"
+        compact
         :content="renderKatex(reply.contentHtml)"
       />
 
