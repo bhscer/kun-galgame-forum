@@ -11,9 +11,11 @@ interface CreatorEligibility {
   merged_prs: number
   galgames_published: number
   reviews_100: number
+  moemoepoint: number
   need_merged_prs: number
   need_galgames: number
   need_reviews: number
+  need_moemoepoint: number
 }
 interface CreatorApplicationInfo {
   id: number
@@ -99,7 +101,8 @@ const conditions = computed(() => {
       cur: e.galgames_published,
       need: e.need_galgames
     },
-    { label: '百字以上简评', cur: e.reviews_100, need: e.need_reviews }
+    { label: '百字以上简评', cur: e.reviews_100, need: e.need_reviews },
+    { label: '萌萌点', cur: e.moemoepoint, need: e.need_moemoepoint }
   ].map((c) => ({
     ...c,
     met: c.cur >= c.need,

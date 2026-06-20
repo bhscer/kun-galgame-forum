@@ -16,11 +16,12 @@ import (
 // OAuth, the contribution data in the wiki). A user may apply if ANY criterion
 // is met. Cross-service contract owned by OAuth (not yet mirrored under docs/).
 const (
-	creatorMinMergedPRs = 5   // 合并的 PR 数（数据源:wiki /user/:id/stats）
-	creatorMinGalgames  = 10  // 已发布 galgame 数（数据源:wiki）
-	creatorMinReviews   = 5   // 简评(≥100 字)数（数据源:本论坛 galgame_rating）
-	creatorReviewMinLen = 100 // 简评字数门槛
-	creatorSource       = "forum"
+	creatorMinMergedPRs   = 5    // 合并的 PR 数（数据源:wiki /user/:id/stats）
+	creatorMinGalgames    = 10   // 已发布 galgame 数（数据源:wiki）
+	creatorMinReviews     = 5    // 简评(≥100 字)数（数据源:本论坛 galgame_rating）
+	creatorReviewMinLen   = 100  // 简评字数门槛
+	creatorMinMoemoepoint = 2000 // 萌萌点（数据源:OAuth 权威余额，单一来源）
+	creatorSource         = "forum"
 	// creatorRoleName is OAuth's granted-on-approval role string (matches infra
 	// CreatorRoleName); the profile badge keys off the same value.
 	creatorRoleName = "creator"
@@ -33,9 +34,11 @@ type CreatorEligibility struct {
 	MergedPRs         int64 `json:"merged_prs"`
 	GalgamesPublished int64 `json:"galgames_published"`
 	Reviews100        int64 `json:"reviews_100"`
+	Moemoepoint       int64 `json:"moemoepoint"`
 	NeedMergedPRs     int   `json:"need_merged_prs"`
 	NeedGalgames      int   `json:"need_galgames"`
 	NeedReviews       int   `json:"need_reviews"`
+	NeedMoemoepoint   int   `json:"need_moemoepoint"`
 }
 
 // CreatorService computes forum-side creator eligibility and proxies the
@@ -60,17 +63,24 @@ func (s *CreatorService) eligibility(ctx context.Context, userID int) (*CreatorE
 	if rErr != nil {
 		return nil, errors.ErrInternal("统计简评失败")
 	}
+	// Authoritative OAuth balance (single-sourced, C3). A fetch miss degrades to
+	// 0 — this is one of several OR criteria, so it shouldn't fail the whole
+	// snapshot; the user can still qualify via PR / galgame / 简评.
+	moe, _ := s.userClient.GetMoemoepoint(ctx, userID)
 	e := &CreatorEligibility{
 		MergedPRs:         stats.PRMerged,
 		GalgamesPublished: stats.GalgameCreated,
 		Reviews100:        reviews,
+		Moemoepoint:       int64(moe),
 		NeedMergedPRs:     creatorMinMergedPRs,
 		NeedGalgames:      creatorMinGalgames,
 		NeedReviews:       creatorMinReviews,
+		NeedMoemoepoint:   creatorMinMoemoepoint,
 	}
 	e.Eligible = e.MergedPRs >= creatorMinMergedPRs ||
 		e.GalgamesPublished >= creatorMinGalgames ||
-		e.Reviews100 >= creatorMinReviews
+		e.Reviews100 >= creatorMinReviews ||
+		e.Moemoepoint >= creatorMinMoemoepoint
 	return e, nil
 }
 
@@ -112,6 +122,7 @@ func (s *CreatorService) Apply(ctx context.Context, userID int, token, message s
 		"merged_prs":         e.MergedPRs,
 		"galgames_published": e.GalgamesPublished,
 		"reviews_100":        e.Reviews100,
+		"moemoepoint":        e.Moemoepoint,
 	})
 	app, err := s.userClient.CreateCreatorApplication(ctx, token, creatorSource, evidence, message)
 	if err != nil {
