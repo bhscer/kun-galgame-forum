@@ -86,3 +86,43 @@ func TestRenderCodeBlocksDivBalanced(t *testing.T) {
 		})
 	}
 }
+
+// Mention: [@name](kungal-user:id) → a sanitizer-surviving link carrying the id
+// (data-uid). The raw custom-scheme token must NOT leak (it would be a broken,
+// scheme-stripped link otherwise).
+func TestRenderMention(t *testing.T) {
+	out := Render("hi [@白狐](kungal-user:123) there")
+	for _, w := range []string{`class="kun-mention"`, `data-uid="123"`, "@白狐"} {
+		if !strings.Contains(out, w) {
+			t.Errorf("mention must contain %q\n got: %s", w, out)
+		}
+	}
+	if strings.Contains(out, "kungal-user:") {
+		t.Errorf("raw mention token leaked the custom scheme: %s", out)
+	}
+}
+
+// Quote: [#floor](kungal-reply:id) → a quote span the frontend hydrates into a
+// card. Carries the target reply id + floor; raw token must not leak.
+func TestRenderQuote(t *testing.T) {
+	out := Render("see [#12](kungal-reply:456)")
+	for _, w := range []string{`class="kun-quote"`, `data-reply-id="456"`, `data-floor="12"`, "#12"} {
+		if !strings.Contains(out, w) {
+			t.Errorf("quote must contain %q\n got: %s", w, out)
+		}
+	}
+	if strings.Contains(out, "kungal-reply:") {
+		t.Errorf("raw quote token leaked the custom scheme: %s", out)
+	}
+}
+
+// With a site base set, the mention href is absolute (UGCPolicy strips relative
+// URLs, so a relative /user/N href would be dropped).
+func TestRenderMentionAbsoluteHref(t *testing.T) {
+	SetContentSiteBase("https://www.kungal.com")
+	defer SetContentSiteBase("")
+	out := Render("[@白狐](kungal-user:123)")
+	if !strings.Contains(out, `href="https://www.kungal.com/user/123"`) {
+		t.Errorf("mention should have an absolute href\n got: %s", out)
+	}
+}

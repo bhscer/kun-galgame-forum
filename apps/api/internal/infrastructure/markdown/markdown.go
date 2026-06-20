@@ -25,6 +25,15 @@ var (
 	spoilerRegex   = regexp.MustCompile(`\|\|(.*?)\|\|`)
 	videoLinkRegex = regexp.MustCompile(`kv:<a href="(https?://[^\s]+?\.(mp4))">[^<]+</a>`)
 	codeBlockRegex = regexp.MustCompile(`(?s)<pre><code class="language-(\w+)"`)
+	// Mention / quote tokens. The editor serializes a mention as the markdown
+	// link [@name](kungal-user:<id>) and a quote as [#<floor>](kungal-reply:<id>);
+	// goldmark renders both to a plain <a href="kungal-…:N">…</a> with the custom
+	// scheme intact, which the transforms below rewrite (BEFORE sanitize) into the
+	// safe mention link / quote span. Storing user.id (not the name) makes renames
+	// render correctly — the link text is a write-time snapshot the mapper
+	// re-resolves to the current display name.
+	mentionRegex = regexp.MustCompile(`<a href="kungal-user:(\d+)"[^>]*>(.*?)</a>`)
+	quoteRegex   = regexp.MustCompile(`<a href="kungal-reply:(\d+)"[^>]*>#?(\d+)</a>`)
 
 	md         goldmark.Markdown
 	mdHardWrap goldmark.Markdown
@@ -59,6 +68,19 @@ var contentImageCDNBase string
 // content refs. Call once at startup with cfg.GalgameWiki.ImageCDNBase.
 func SetContentImageCDNBase(base string) {
 	contentImageCDNBase = strings.TrimRight(base, "/")
+}
+
+// contentSiteBase is the absolute web origin (e.g. https://www.kungal.com) used
+// to render @mention links. UGCPolicy strips relative URLs, so the mention <a>
+// needs an absolute href; data-uid carries the id for SPA nav and name
+// re-resolution either way. Empty = relative href (stripped by the sanitizer,
+// but the chip + data-uid still survive, so the mention stays usable).
+var contentSiteBase string
+
+// SetContentSiteBase configures the origin for @mention link hrefs. Call once at
+// startup with the web origin.
+func SetContentSiteBase(base string) {
+	contentSiteBase = strings.TrimRight(base, "/")
 }
 
 // resolveContentImageRef turns a /image/<hash>[_variant] token into the absolute
@@ -161,6 +183,11 @@ func newSanitizePolicy() *bluemonday.Policy {
 	// GFM task-list checkboxes.
 	p.AllowElements("input")
 	p.AllowAttrs("type", "checked", "disabled").OnElements("input")
+	// Mention / quote tokens (post-render transforms): data-uid on the mention
+	// <a>, data-reply-id/data-floor on the quote <span>. (class is already global;
+	// <a>/<span> are UGCPolicy elements.)
+	p.AllowAttrs("data-uid").OnElements("a")
+	p.AllowAttrs("data-reply-id", "data-floor").OnElements("span")
 
 	return p
 }
@@ -261,6 +288,17 @@ func applyTransforms(result string) string {
 	// Video: kv:<a href="url.mp4">...</a> → <video>
 	result = videoLinkRegex.ReplaceAllString(result,
 		`<video controls loop playsinline width="100%" src="$1"></video>`)
+
+	// Mention: <a href="kungal-user:N">@name</a> → safe mention link. Absolute
+	// href (relative is stripped by the sanitizer); data-uid drives SPA nav and
+	// lets the mapper re-resolve the current display name from the id.
+	result = mentionRegex.ReplaceAllString(result,
+		`<a class="kun-mention" data-uid="$1" href="`+contentSiteBase+`/user/$1">$2</a>`)
+	// Quote: <a href="kungal-reply:N">#F</a> → a quote span the frontend hydrates
+	// into a card (lazy preview + jump). No href avoids the relative-URL strip;
+	// data-reply-id + data-floor carry the target.
+	result = quoteRegex.ReplaceAllString(result,
+		`<span class="kun-quote" data-reply-id="$1" data-floor="$2">#$2</span>`)
 
 	// Sanitize the full rendered HTML (incl. the transform-added wrappers and
 	// any raw user HTML that html.WithUnsafe let through). Done once here,
