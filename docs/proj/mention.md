@@ -29,7 +29,7 @@
 
 ## 3. Token 格式(存储,markdown)
 
-- **Mention**:`@[名字](kungal-user:<userID>)`
+- **Mention**:`[@名字](kungal-user:<userID>)`(`@` 在链接文本内,否则 goldmark 会把 `@` 留在 `<a>` 外)
   - 存 **user.id**(C1 三库共享主键)。`名字` 仅为写入时快照 + 兜底;**渲染解析当前名**(Slack/Discord/GitHub 共识:改名只能靠存 id 解决)。
 - **Quote**:`[#<floor>](kungal-reply:<replyID>)`
   - 存被引用回复的 **id** + **楼层**。渲染成带样式的引用卡片 + 跳转(决策 B)。
@@ -79,7 +79,7 @@ token 快照名为"用户已注销"兜底。SSR 正确,近零额外成本。
 1. 读其 targets(笔记 + TargetReplyID),JOIN 取目标 `floor` / `userID`。
 2. 每个 target 折成一段(并入 `Content`,上/下/顺序随意):
    ```
-   > 回复 @[](kungal-user:<targetUserID>) [#<floor>](kungal-reply:<targetReplyID>)
+   > 回复 [@](kungal-user:<targetUserID>) [#<floor>](kungal-reply:<targetReplyID>)
 
    <该 target 的 Content 笔记>
    ```
