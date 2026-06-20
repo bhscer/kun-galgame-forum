@@ -69,7 +69,7 @@ defineProps<{
       />
 
       <KunContent
-        class="kun-master"
+        class="kun-master pt-3"
         :content="renderKatex(topic.contentHtml)"
       />
 
