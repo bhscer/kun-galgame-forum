@@ -19,39 +19,44 @@ defineProps<{
       :is-transparent="false"
       :is-hoverable="false"
       class-name="lg:w-[calc(100%-220px)] w-full min-w-0"
-      content-class="gap-3 justify-start"
+      content-class="gap-4 justify-start"
     >
-      <h1
-        class="text-xl font-bold tracking-tight sm:text-2xl"
-        :style="{
-          overflowWrap: 'break-word'
-        }"
-      >
-        {{ topic.title }}
-      </h1>
+      <!-- Post header — the title leads the hierarchy (larger than any in-body
+           heading), with categorization chips and a compact icon byline below. -->
+      <header class="space-y-3">
+        <h1
+          class="text-3xl leading-tight font-bold tracking-tight break-words lg:text-4xl"
+        >
+          {{ topic.title }}
+        </h1>
 
-      <TopicTagGroup
-        :section="topic.section"
-        :tags="topic.tag"
-        :upvote-time="topic.upvoteTime"
-        :has-best-answer="false"
-        :is-poll-topic="topic.isPollTopic"
-        :is-n-s-f-w-topic="topic.isNSFW"
-        :is-nav-to-section="true"
-      />
+        <TopicTagGroup
+          :section="topic.section"
+          :tags="topic.tag"
+          :upvote-time="topic.upvoteTime"
+          :has-best-answer="false"
+          :is-poll-topic="topic.isPollTopic"
+          :is-n-s-f-w-topic="topic.isNSFW"
+          :is-nav-to-section="true"
+        />
 
-      <div
-        class="text-default-500 flex flex-wrap items-center gap-2 space-x-2 text-sm"
-      >
-        <span>{{ `浏览数 - ${topic.view}` }}</span>
-        <span>
-          发布于 - <KunTime :time="topic.created" type="datetime" show-year />
-        </span>
-        <p class="text-default-500" v-if="topic.edited">
-          重新编辑于 -
-          <KunTime :time="topic.edited" type="datetime" show-year />
-        </p>
-      </div>
+        <div
+          class="text-default-500 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
+        >
+          <span class="flex items-center gap-1.5">
+            <KunIcon name="lucide:eye" class="size-4" />
+            {{ topic.view }}
+          </span>
+          <span class="flex items-center gap-1.5">
+            <KunIcon name="lucide:clock" class="size-4" />
+            <KunTime :time="topic.created" type="datetime" show-year />
+          </span>
+          <span v-if="topic.edited" class="flex items-center gap-1.5">
+            <KunIcon name="lucide:pencil-line" class="size-4" />
+            编辑于 <KunTime :time="topic.edited" type="datetime" show-year />
+          </span>
+        </div>
+      </header>
 
       <TopicDetailBestAnswer
         v-if="topic.bestAnswer"
@@ -68,10 +73,14 @@ defineProps<{
         :show-addition="false"
       />
 
+      <KunDivider />
+
       <KunContent
-        class="kun-master pt-3"
+        class="kun-master"
         :content="renderKatex(topic.contentHtml)"
       />
+
+      <KunDivider />
 
       <p class="text-default-500 ml-auto text-sm">
         本文版权遵循
