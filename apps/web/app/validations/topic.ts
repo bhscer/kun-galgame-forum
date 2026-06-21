@@ -101,59 +101,25 @@ export const getReplyDetailSchema = z.object({
   replyId: z.coerce.number<number>().min(1).max(9999999)
 })
 
-// `targets` is always an array (zod default is []), so checking
-// `data.targets` truthy was always passing — empty replies slipped past
-// the FE check and only got caught by the service-layer guard. Compare
-// length AND require at least one non-blank target if no body content.
-const isReplyBodyNonEmpty = (data: {
-  content: string
-  targets: { content: string }[]
-}) => {
-  if (data.content?.trim()) return true
-  return data.targets.some((t) => t.content.trim() !== '')
-}
+// A reply is a single body now (multi-target tabs retired); @mention / #quote
+// references live inline in `content` as tokens.
+export const createReplySchema = z.object({
+  topicId: z.coerce.number<number>().min(1).max(9999999),
+  content: z
+    .string()
+    .trim()
+    .min(1, { message: '回复内容不能为空' })
+    .max(10007, { message: '单条回复的最大长度为 10007 个字符' })
+})
 
-export const createReplySchema = z
-  .object({
-    topicId: z.coerce.number<number>().min(1).max(9999999),
-    content: z
-      .string()
-      .max(10007, { message: '单条回复的最大长度为 10007 个字符' }),
-    targets: z
-      .array(
-        z.object({
-          targetReplyId: z.coerce.number<number>().min(1).max(9999999),
-          content: z
-            .string()
-            .max(10007, { message: '单条回复的最大长度为 10007 个字符' })
-        })
-      )
-      .max(10, { message: '最多只能同时回复 10 个目标' })
-  })
-  .refine(isReplyBodyNonEmpty, {
-    message: '至少需要提供回复内容或回复目标'
-  })
-
-export const updateReplySchema = z
-  .object({
-    replyId: z.coerce.number<number>().min(1).max(9999999),
-    content: z
-      .string()
-      .max(10007, { message: '单条回复的最大长度为 10007 个字符' }),
-    targets: z
-      .array(
-        z.object({
-          targetReplyId: z.coerce.number<number>().min(1).max(9999999),
-          content: z
-            .string()
-            .max(10007, { message: '单条回复的最大长度为 10007 个字符' })
-        })
-      )
-      .max(10, { message: '最多只能同时回复 10 个目标' })
-  })
-  .refine(isReplyBodyNonEmpty, {
-    message: '至少需要提供回复内容或回复目标'
-  })
+export const updateReplySchema = z.object({
+  replyId: z.coerce.number<number>().min(1).max(9999999),
+  content: z
+    .string()
+    .trim()
+    .min(1, { message: '回复内容不能为空' })
+    .max(10007, { message: '单条回复的最大长度为 10007 个字符' })
+})
 
 export const updateReplyPinSchema = z.object({
   topicId: z.coerce.number<number>().min(1).max(9999999),

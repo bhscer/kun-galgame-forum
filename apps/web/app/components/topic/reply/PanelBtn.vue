@@ -21,19 +21,12 @@ const handlePublish = async () => {
 
   const body = {
     topicId: topicId.value,
-    content: replyDraft.value.mainContent || '',
-    targets: replyDraft.value.targets.map((t) => ({
-      targetReplyId: t.targetReplyId,
-      content: t.content || ''
-    }))
+    content: replyDraft.value.mainContent || ''
   }
   const result = createReplySchema.safeParse(body)
   if (!result.success) {
     const message = JSON.parse(result.error.message)[0]
-    useMessage(
-      formatKunZodIssue(message),
-      'warn'
-    )
+    useMessage(formatKunZodIssue(message), 'warn')
     return
   }
 
@@ -44,13 +37,10 @@ const handlePublish = async () => {
 
   isPublishing.value = true
 
-  const reply = await kunFetch<TopicReply>(
-    `/topic/${topicId.value}/reply`,
-    {
-      method: 'POST',
-      body
-    }
-  )
+  const reply = await kunFetch<TopicReply>(`/topic/${topicId.value}/reply`, {
+    method: 'POST',
+    body
+  })
 
   if (reply) {
     isEdit.value = false
@@ -68,19 +58,12 @@ const handleRewrite = async () => {
 
   const body = {
     replyId: replyRewrite.value!.id,
-    content: replyRewrite.value!.mainContent || '',
-    targets: replyRewrite.value!.targets.map((t) => ({
-      targetReplyId: t.targetReplyId,
-      content: t.content || ''
-    }))
+    content: replyRewrite.value!.mainContent || ''
   }
   const result = updateReplySchema.safeParse(body)
   if (!result.success) {
     const message = JSON.parse(result.error.message)[0]
-    useMessage(
-      formatKunZodIssue(message),
-      'warn'
-    )
+    useMessage(formatKunZodIssue(message), 'warn')
     return
   }
   const res = await useComponentMessageStore().alert('确定提交编辑吗?')
@@ -90,13 +73,10 @@ const handleRewrite = async () => {
 
   isPublishing.value = true
 
-  const reply = await kunFetch<TopicReply>(
-    `/topic/${topicId.value}/reply`,
-    {
-      method: 'PUT',
-      body
-    }
-  )
+  const reply = await kunFetch<TopicReply>(`/topic/${topicId.value}/reply`, {
+    method: 'PUT',
+    body
+  })
 
   if (reply) {
     useMessage(10244, 'success')

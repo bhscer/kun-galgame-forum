@@ -1,95 +1,26 @@
 <script setup lang="ts">
-// The reply editor itself (target tabs + milkdown editors + submit row),
-// extracted so TopicReplyPanel can host it in a bottom KunDrawer on mobile and
-// in the fixed desktop panel — same logic, two shells.
+// The reply editor (single milkdown body + submit row), extracted so
+// TopicReplyPanel can host it in a bottom KunDrawer on mobile and in the fixed
+// desktop panel — same logic, two shells. Multi-target tabs were retired: a
+// reply is now one body with inline @mention / #quote tokens (the 「引用」
+// button appends those tokens to the draft).
 const { isReplyRewriting, replyRewrite } = storeToRefs(useTempReplyStore())
-const { isEdit } = storeToRefs(useTempReplyStore())
-const replyStore = usePersistKUNGalgameReplyStore()
-const { replyDraft } = storeToRefs(replyStore)
-
-const activeTab = ref<number | 'main'>('main')
+const { replyDraft } = storeToRefs(usePersistKUNGalgameReplyStore())
 
 const currentData = computed(() =>
   isReplyRewriting.value ? replyRewrite.value : replyDraft.value
 )
-
-watch(
-  () => [isEdit.value, currentData.value?.targets],
-  ([editing, targets]) => {
-    if (editing && Array.isArray(targets)) {
-      if (targets.length > 0) {
-        const lastTarget = targets[targets.length - 1]
-        if (
-          lastTarget &&
-          !targets.some((t) => t.targetReplyId === activeTab.value)
-        ) {
-          activeTab.value = lastTarget.targetReplyId
-        }
-      } else {
-        activeTab.value = 'main'
-      }
-    }
-  },
-  { deep: true, immediate: true }
-)
-
-const handleRemoveTarget = (id: number) => {
-  replyStore.removeTarget(id)
-}
 </script>
 
 <template>
   <div v-if="currentData" class="space-y-2">
-    <div class="scrollbar-hide flex items-center gap-1 overflow-x-auto">
-      <KunButton
-        size="xs"
-        rounded="full"
-        v-for="target in currentData.targets"
-        :key="target.targetReplyId"
-        :variant="activeTab === target.targetReplyId ? 'solid' : 'flat'"
-        @click="activeTab = target.targetReplyId"
-      >
-        {{ `@${target.targetUserName} #${target.targetFloor}` }}
-        <KunButton
-          :is-icon-only="true"
-          size="xs"
-          rounded="full"
-          v-if="!isReplyRewriting"
-          @click.stop="handleRemoveTarget(target.targetReplyId)"
-          color="primary"
-          :variant="activeTab === target.targetReplyId ? 'solid' : 'light'"
-        >
-          <KunIcon name="lucide:x" size="12" />
-        </KunButton>
-      </KunButton>
-
-      <KunButton
-        size="xs"
-        rounded="full"
-        :variant="activeTab === 'main' ? 'solid' : 'flat'"
-        @click="activeTab = 'main'"
-      >
-        回复内容
-        <span
-          v-if="activeTab === 'main'"
-          class="bg-primary absolute bottom-0 left-0 h-0.5 w-full"
-        />
-      </KunButton>
-    </div>
-
-    <div :key="activeTab">
-      <template
-        v-for="target in currentData.targets"
-        :key="target.targetReplyId"
-      >
-        <div v-show="activeTab === target.targetReplyId">
-          <TopicReplyTargetEditor v-model="target.content" />
-        </div>
-      </template>
-      <div v-show="activeTab === 'main'">
-        <TopicReplyTargetEditor v-model="currentData.mainContent" />
-      </div>
-    </div>
+    <!-- Remount on context switch (draft ↔ editing a specific reply) so the
+         editor loads the right body; in-context appends from 「引用」 re-sync
+         live via the editor's value watch. -->
+    <TopicReplyTargetEditor
+      :key="isReplyRewriting ? `edit-${replyRewrite?.id}` : 'draft'"
+      v-model="currentData.mainContent"
+    />
 
     <TopicReplyPanelBtn class="mt-3" />
   </div>

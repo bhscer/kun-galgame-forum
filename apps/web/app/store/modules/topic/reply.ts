@@ -7,54 +7,27 @@ export const usePersistKUNGalgameReplyStore = defineStore(
   () => {
     const mode = ref<ReplyStorePersist['mode']>('preview')
     const replyDraft = reactive<ReplyStorePersist['replyDraft']>({
-      targets: [],
       mainContent: ''
     })
 
-    const addTarget = (target: {
-      targetReplyId: number
-      targetFloor: number
-      targetUserName: string
-    }) => {
-      if (
-        replyDraft.targets.some((t) => t.targetReplyId === target.targetReplyId)
-      ) {
-        return
-      }
-      if (replyDraft.targets.length >= 10) {
-        useMessage('???????? 10 ???', 'warn')
-        return
-      }
-
-      replyDraft.targets.push({
-        ...target,
-        content: ''
-      })
-    }
-
-    const removeTarget = (targetReplyId: number) => {
-      replyDraft.targets = replyDraft.targets.filter(
-        (t) => t.targetReplyId !== targetReplyId
-      )
+    // Append a markdown snippet (the @mention + #quote tokens from a 「引用」
+    // click) to the draft body, separated by a space. The composer's editor
+    // re-syncs from the draft and renders the tokens as chips.
+    const appendReply = (markdown: string) => {
+      const body = replyDraft.mainContent
+      const sep = body && !body.endsWith(' ') ? ' ' : ''
+      replyDraft.mainContent = `${body}${sep}${markdown} `
     }
 
     const resetReplyDraft = () => {
-      replyDraft.targets = []
-      replyDraft.mainContent = ''
-    }
-
-    const resetReplyContent = () => {
-      replyDraft.targets.forEach((t) => (t.content = ''))
       replyDraft.mainContent = ''
     }
 
     return {
       mode,
       replyDraft,
-      addTarget,
-      removeTarget,
-      resetReplyDraft,
-      resetReplyContent
+      appendReply,
+      resetReplyDraft
     }
   },
   {

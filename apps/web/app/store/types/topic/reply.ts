@@ -1,19 +1,6 @@
-interface ReplyDraft {
-  targetUserId: number
-  targetUserName: string
-  targetFloor: number
-  content: string
-}
-
 export interface ReplyRewriteData {
   id: number
   mainContent: string
-  targets: {
-    targetReplyId: number
-    targetFloor: number
-    targetUserName: string
-    content: string
-  }[]
 }
 
 export interface SuccessfulReplyEvent {
@@ -30,17 +17,11 @@ export interface ReplyStoreTemp {
   lastSuccessfulReply: SuccessfulReplyEvent | null
 }
 
-export interface ReplyTargetDraft {
-  targetReplyId: number
-  targetFloor: number
-  targetUserName: string
-  content: string
-}
-
 export interface ReplyStorePersist {
   mode: 'preview' | 'source'
+  // A reply is now a single body (inline @mention / #quote tokens replaced the
+  // old per-target editors). mainContent is markdown.
   replyDraft: {
-    targets: ReplyTargetDraft[]
     mainContent: string
   }
 }

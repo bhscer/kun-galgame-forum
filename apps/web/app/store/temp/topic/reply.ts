@@ -19,13 +19,7 @@ export const useTempReplyStore = defineStore(
       isReplyRewriting.value = true
       replyRewrite.value = {
         id: reply.id,
-        mainContent: reply.contentMarkdown,
-        targets: reply.targets.map((t) => ({
-          targetReplyId: t.id,
-          targetFloor: t.floor,
-          targetUserName: t.user.name,
-          content: t.replyContentMarkdown
-        }))
+        mainContent: reply.contentMarkdown
       }
     }
 

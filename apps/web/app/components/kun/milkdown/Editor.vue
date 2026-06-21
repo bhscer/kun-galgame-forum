@@ -88,6 +88,11 @@ const pluginViewFactory = usePluginViewFactory()
 const container = ref<HTMLElement | null>(null)
 const toolbar = ref<HTMLElement | null>(null)
 const editorContent = ref('')
+// The markdown the editor last emitted; lets the valueMarkdown watch below
+// distinguish an EXTERNAL change to the model (the 「引用」 button appending a
+// token, switching to edit content) from the editor's own edits, so only the
+// former triggers a replaceAll (the latter would reset the cursor every keystroke).
+let lastEmitted = props.valueMarkdown
 
 const renderLatex = (content: string, options?: KatexOptions) => {
   const html = katex.renderToString(content, {
@@ -108,6 +113,10 @@ const editorInfo = useEditor((root) => {
       listener.markdownUpdated((ctx, markdown, prevMarkdown) => {
         if (markdown !== prevMarkdown) {
           editorContent.value = markdown
+          // Record what the editor produced so the valueMarkdown watch below can
+          // tell an external change (e.g. the 「引用」 button appending a token)
+          // from the editor's own edits and avoid a replaceAll feedback loop.
+          lastEmitted = markdown
           emits('saveMarkdown', markdown)
         }
       })
@@ -224,6 +233,21 @@ watch(
   () => [props.language],
   () => {
     editorInfo.get()?.action(replaceAll(valueMarkdown.value))
+  }
+)
+
+// Re-sync the doc when valueMarkdown changes from OUTSIDE the editor — e.g. the
+// 「引用」 button appends an @mention/#quote token to the draft. Guarded by
+// lastEmitted so the editor's own edits (which round-trip back through the model)
+// don't trigger a replaceAll and reset the cursor on every keystroke.
+watch(
+  () => props.valueMarkdown,
+  (val) => {
+    if (val === lastEmitted) {
+      return
+    }
+    lastEmitted = val
+    editorInfo.get()?.action(replaceAll(val))
   }
 )
 </script>
