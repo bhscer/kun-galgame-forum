@@ -133,14 +133,7 @@ func (s *ReplyService) CreateReply(
 		return nil, errors.ErrNotFound("未找到该话题")
 	}
 
-	validTargets := make([]dto.ReplyTarget, 0, len(req.Targets))
-	for _, t := range req.Targets {
-		if strings.TrimSpace(t.Content) != "" {
-			validTargets = append(validTargets, t)
-		}
-	}
-
-	if strings.TrimSpace(req.Content) == "" && len(validTargets) == 0 {
+	if strings.TrimSpace(req.Content) == "" {
 		return nil, errors.ErrBadRequest("回复内容不能为空")
 	}
 
@@ -162,16 +155,6 @@ func (s *ReplyService) CreateReply(
 			return err
 		}
 
-		for _, t := range validTargets {
-			if err := s.replyRepo.CreateReplyTarget(tx, &topicModel.TopicReplyTarget{
-				ReplyID:       newReply.ID,
-				TargetReplyID: t.TargetReplyID,
-				Content:       t.Content,
-			}); err != nil {
-				return err
-			}
-		}
-
 		if err := s.topicRepo.TouchStatusUpdateTime(tx, req.TopicID, time.Now()); err != nil {
 			return err
 		}
@@ -180,45 +163,19 @@ func (s *ReplyService) CreateReply(
 			return err
 		}
 
-		// Collect distinct target users (minus self)
-		targetUserSet := make(map[int]bool)
-		for _, t := range validTargets {
-			targetUserID, err := s.replyRepo.FindTargetReplyUserID(tx, t.TargetReplyID)
-			if err == nil && targetUserID != userID {
-				targetUserSet[targetUserID] = true
-			}
-		}
+		preview := truncate(strings.TrimSpace(req.Content), constants.TextPreviewLength)
 
-		// Include the targets' content, not just req.Content. A reply may only
-		// target other replies (empty main body + non-empty targets — the guard
-		// above accepts content OR targets), which otherwise yields an empty
-		// "replied" notification preview (the reported "blank notification").
-		var previewSrc strings.Builder
-		previewSrc.WriteString(req.Content)
-		for _, t := range validTargets {
-			if strings.TrimSpace(t.Content) != "" {
-				previewSrc.WriteString(" ")
-				previewSrc.WriteString(t.Content)
-			}
-		}
-		preview := truncate(strings.TrimSpace(previewSrc.String()), constants.TextPreviewLength)
-
-		for targetUserID := range targetUserSet {
-			s.helpers.AdjustMoemoepoint(tx, targetUserID, constants.RewardReply,
-				moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic", req.TopicID))
-			s.helpers.CreateReplyMessage(tx, userID, targetUserID, "replied", preview, req.TopicID)
-		}
-
-		// Reward topic owner (matches original: always creates an extra
-		// "replied" message even if owner is already a target recipient).
-		if strings.TrimSpace(req.Content) != "" && topic.UserID != userID {
+		// Notify the topic owner their topic got a reply (independent of mentions).
+		if topic.UserID != userID {
 			s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardReply,
 				moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic", req.TopicID))
 			s.helpers.CreateReplyMessage(tx, userID, topic.UserID, "replied", preview, req.TopicID)
 		}
 
 		// @mentions in the reply body → "mentioned" notifications (deduped, self
-		// skipped). Independent of the reply-to / owner path above.
+		// skipped). Replying-to-a-floor now flows through here: the 「引用」 button
+		// inserts an @mention of the quoted author, so they're notified as
+		// "mentioned" in place of the retired per-target "replied".
 		s.helpers.NotifyMentions(tx, userID, req.TopicID, req.Content)
 
 		return nil
@@ -253,16 +210,7 @@ func (s *ReplyService) UpdateReply(
 		return errors.ErrForbidden("您没有权限编辑此回复")
 	}
 
-	// Same guard as CreateReply — the DTO can't express "at least one of
-	// content / targets must be non-empty", so we enforce it here.
-	// Without this an empty PUT silently clears the reply body.
-	validTargets := 0
-	for _, t := range req.Targets {
-		if strings.TrimSpace(t.Content) != "" {
-			validTargets++
-		}
-	}
-	if strings.TrimSpace(req.Content) == "" && validTargets == 0 {
+	if strings.TrimSpace(req.Content) == "" {
 		return errors.ErrBadRequest("回复内容不能为空")
 	}
 
@@ -275,23 +223,9 @@ func (s *ReplyService) UpdateReply(
 			return err
 		}
 
-		if len(req.Targets) > 0 {
-			if err := s.replyRepo.DeleteReplyTargetsByReplyID(tx, req.ReplyID); err != nil {
-				return err
-			}
-			for _, t := range req.Targets {
-				if strings.TrimSpace(t.Content) == "" {
-					continue
-				}
-				if err := s.replyRepo.CreateReplyTarget(tx, &topicModel.TopicReplyTarget{
-					ReplyID:       req.ReplyID,
-					TargetReplyID: t.TargetReplyID,
-					Content:       t.Content,
-				}); err != nil {
-					return err
-				}
-			}
-		}
+		// Any legacy TopicReplyTarget rows on this reply are left untouched — the
+		// new single-body editor doesn't surface them, and Phase 4 migrates them
+		// into Content. Editing the body must not silently drop that context.
 
 		// @mentions in the edited reply → notify newly mentioned users (deduped,
 		// so anyone already mentioned in this topic isn't re-notified on edit).

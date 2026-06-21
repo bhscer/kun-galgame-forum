@@ -13,21 +13,19 @@ type ListRepliesRequest struct {
 	SortOrder string `query:"sortOrder" validate:"required,oneof=asc desc"`
 }
 
-type ReplyTarget struct {
-	TargetReplyID int    `json:"targetReplyId" validate:"required,min=1"`
-	Content       string `json:"content" validate:"max=10007"`
-}
+// Multi-target replies were retired in favour of inline @mention / quote tokens
+// in Content (a reply now carries one body). The read-side ReplyTargetResponse
+// below is KEPT so existing replies still render their targets until the
+// Phase 4 migration folds them into Content.
 
 type CreateReplyRequest struct {
-	TopicID int           `json:"topicId" validate:"required,min=1"`
-	Content string        `json:"content" validate:"max=10007"`
-	Targets []ReplyTarget `json:"targets" validate:"max=10"`
+	TopicID int    `json:"topicId" validate:"required,min=1"`
+	Content string `json:"content" validate:"required,max=10007"`
 }
 
 type UpdateReplyRequest struct {
-	ReplyID int           `json:"replyId" validate:"required,min=1"`
-	Content string        `json:"content" validate:"max=10007"`
-	Targets []ReplyTarget `json:"targets" validate:"max=10"`
+	ReplyID int    `json:"replyId" validate:"required,min=1"`
+	Content string `json:"content" validate:"required,max=10007"`
 }
 
 type ReplyInteractionRequest struct {
@@ -101,11 +99,11 @@ type UpdateCommentRequest struct {
 // ──────────────────────────────────────────
 
 type TopicCommentResponse struct {
-	ID         int       `json:"id"`
-	ReplyID    int       `json:"replyId"`
-	TopicID    int       `json:"topicId"`
-	User       KunUser   `json:"user"`
-	TargetUser KunUser   `json:"targetUser"`
+	ID         int        `json:"id"`
+	ReplyID    int        `json:"replyId"`
+	TopicID    int        `json:"topicId"`
+	User       KunUser    `json:"user"`
+	TargetUser KunUser    `json:"targetUser"`
 	Content    string     `json:"content"`
 	IsLiked    bool       `json:"isLiked"`
 	LikeCount  int        `json:"likeCount"`
