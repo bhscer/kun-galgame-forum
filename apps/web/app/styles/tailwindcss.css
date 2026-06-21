@@ -1,16 +1,19 @@
 @import 'tailwindcss';
 
 /*
- * KunUI design system, now sourced from the PUBLISHED packages instead of an
- * inlined copy:
- *   @kungal/ui-tokens     — semantic colors (50–950 + glass `--kun-global-opacity`
- *                           treatment), `.kun-dark-mode` variant, `radius-kun-*`,
- *                           `z-kun-*`, animation keyframes, font stack,
- *                           `.scrollbar-hide` / `.scrollbar-visible`, base layer.
+ * KunUI design system, sourced from the PUBLISHED @kungal/ui-* packages (1.9.1).
+ *   @kungal/ui-tokens     — semantic OKLCH colors (50–950) + the two glass knobs
+ *                           (`--kun-global-opacity` → page bg + default-100;
+ *                           `--kun-surface-opacity` → raised surfaces: cards /
+ *                           inputs / modals / dropdowns), `.kun-dark-mode` variant,
+ *                           `radius-kun-*`, `z-kun-*`, `shadow-kun-*` elevation,
+ *                           animation keyframes, font stack, base layer.
  *   @kungal/ui-vue/style  — components' scoped styles (modal/drawer/lightbox
  *                           transitions, spoiler blur, Loli mascot, toast list).
- * The palette + opacity are identical to what this file used to inline, so the
- * theme is unchanged — the app just no longer maintains its own token copy.
+ * 1.8 moved KunUI from a border-defined look to surface-elevation: a card is an
+ * opaque `content1` fill lifted by `shadow-kun-sm` (border now opt-in) over a
+ * soft-neutral page bg. The forum drives `--kun-surface-opacity` from the 透明度
+ * setting (settings.ts) so surfaces stay translucent over a background image.
  */
 @import '@kungal/ui-tokens';
 @import '@kungal/ui-vue/style.css';

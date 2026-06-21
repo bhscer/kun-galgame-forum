@@ -61,10 +61,14 @@ export const usePersistSettingsStore = defineStore(
 
     const setKUNGalgameTransparency = (trans: number) => {
       showKUNGalgamePageTransparency.value = trans
-      document.documentElement.style.setProperty(
-        '--kun-global-opacity',
-        `${trans / 100}`
-      )
+      const opacity = `${trans / 100}`
+      // Page background + default-100 glass.
+      document.documentElement.style.setProperty('--kun-global-opacity', opacity)
+      // Raised surfaces (cards / inputs / modals / dropdowns): KunUI 1.8 split
+      // these onto --kun-surface-opacity (default 1 = opaque). Drive it from the
+      // same slider so surfaces stay translucent over a background image. Blur is
+      // a separate opt-in knob (--kun-background-blur, default 0) — left untouched.
+      document.documentElement.style.setProperty('--kun-surface-opacity', opacity)
     }
 
     const setKUNGalgameBackgroundBlur = (blur: number) => {
