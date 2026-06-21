@@ -127,8 +127,10 @@ SSR 网页论坛没这个前提。快照名作「用户已注销」兜底;`data-
    Phase 4)。「引用」按钮改为往草稿追加 `@作者 #楼层` token(被引用者经 mention 通知);
    `Editor.vue` 加**受控外部同步 watch**(`lastEmitted` 守卫,外部改 → replaceAll,自身
    编辑不回灌 → 不重置光标),使「引用」能往已开编辑器实时插芯片。登录态实测:引用→实时
-   芯片、多引用累加、打字不丢光标、markdown 往返均通过。⏭ 3b `.kun-quote` hydrate 成卡片
-   (懒加载 `/topic/:tid/reply/detail` 预览 + 页内跳楼层)。
+   芯片、多引用累加、打字不丢光标、markdown 往返均通过。✅ 3b `.kun-quote` hydrate(`useQuoteContent`
+   委托监听 + `TopicQuotePreview` 卡片):点击 → 跳到该楼层(`[id^="<floor>."]` 锚点 +
+   高亮);悬停 → 懒加载 `/topic/:tid/reply/detail` 预览卡(作者 + 楼层 + 摘要,按 id 缓存)。
+   跨页跳转仍按 §10 延后(不在当前页 → 提示)。登录态注入实测:点击跳楼 + 悬停卡均通过。
    **触发架构(已定 A)**:`@`=用户;`#`=内容(话题/游戏,**未来阶段**,分类菜单);楼层引用
    走「引用」按钮。`kungal-<type>:<id>` token + node + `$remark` 模式可直接复用到
    `kungal-topic:`/`kungal-galgame:`,故 topic/galgame mention 是后续独立阶段,不阻塞当前。

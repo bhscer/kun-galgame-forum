@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { scrollPage } from '../_helper'
+import { useQuoteContent } from '~/composables/topic/useQuoteContent'
 
 const bannerBaseClasses =
   'flex items-center gap-2 px-4 py-2 mb-3 rounded-lg font-semibold text-sm'
@@ -16,6 +17,11 @@ const emit = defineEmits<{
 
 const { scrollToReplyId } = storeToRefs(useTempReplyStore())
 const comments = ref(props.reply.comment)
+
+// Hydrate inline #quote chips in this reply's body: click → jump to the floor,
+// hover → lazy preview card.
+const contentRef = ref<HTMLElement | null>(null)
+const { preview, keepPreview, hidePreview } = useQuoteContent(contentRef)
 
 const replyContent = computed(() => {
   const targetsContent = props.reply.targets.map((t) => t.replyContentMarkdown)
@@ -119,10 +125,18 @@ const handleNewComment = (comment: TopicComment) => {
         />
       </div>
 
-      <KunContent
-        v-if="reply.contentMarkdown && reply.contentMarkdown.trim()"
-        compact
-        :content="renderKatex(reply.contentHtml)"
+      <div ref="contentRef">
+        <KunContent
+          v-if="reply.contentMarkdown && reply.contentMarkdown.trim()"
+          compact
+          :content="renderKatex(reply.contentHtml)"
+        />
+      </div>
+
+      <TopicQuotePreview
+        :preview="preview"
+        @keep="keepPreview"
+        @leave="hidePreview"
       />
 
       <TopicReplyFooter
