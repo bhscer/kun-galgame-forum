@@ -109,7 +109,7 @@ type UserGalgameCommentRow struct {
 //
 //   - galgame_comment        — comments the user themself authored
 //   - galgame_comment_target — comments by OTHER users whose
-//                              target_user_id is this user
+//     target_user_id is this user
 //   - galgame_comment_like   — comments this user has liked
 //
 // The result is paginated by galgame_comment.created DESC so the
@@ -218,19 +218,11 @@ func (r *UserContentRepository) FindUserReplies(userID int, queryType string, pa
 	var results []UserReply
 	var total int64
 
-	// A reply can target multiple other replies; when it does, the user's
-	// text lives per-target in topic_reply_target.content and
-	// topic_reply.content itself is empty. Concatenate both so multi-target
-	// replies aren't shown blank (same pattern as the activity feed).
+	// A reply's text is in topic_reply.content (legacy multi-target rows were
+	// folded into it by the Phase-4 migration).
 	baseQuery := r.db.Table("topic_reply").
 		Select(`topic_reply.topic_id,
-			COALESCE(topic_reply.content, '') ||
-			COALESCE(
-				(SELECT STRING_AGG(trt.content, ' ' ORDER BY trt.id)
-				 FROM topic_reply_target trt
-				 WHERE trt.reply_id = topic_reply.id),
-				''
-			) AS content,
+			COALESCE(topic_reply.content, '') AS content,
 			topic_reply.created`)
 
 	switch queryType {

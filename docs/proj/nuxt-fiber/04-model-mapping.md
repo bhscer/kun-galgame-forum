@@ -79,7 +79,6 @@
 | `TopicReply` | topic_reply | 新增 3 个 *_count 列 |
 | `TopicReplyLike` | topic_reply_like | 无 |
 | `TopicReplyDislike` | topic_reply_dislike | 无 |
-| `TopicReplyTarget` | topic_reply_target | 无 |
 | `TopicComment` | topic_comment | 无 |
 | `TopicCommentLike` | topic_comment_like | 无 |
 | `TopicPoll` | topic_poll | 无 |

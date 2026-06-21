@@ -252,7 +252,6 @@ func main() {
 	orphan("topic_comment without reply", "SELECT COUNT(*) FROM topic_comment c WHERE NOT EXISTS (SELECT 1 FROM topic_reply r WHERE r.id=c.topic_reply_id)")
 	orphan("galgame_comment child without parent", "SELECT COUNT(*) FROM galgame_comment c WHERE c.parent_comment_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM galgame_comment p WHERE p.id=c.parent_comment_id)")
 	orphan("galgame_comment child without root", "SELECT COUNT(*) FROM galgame_comment c WHERE c.root_comment_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM galgame_comment p WHERE p.id=c.root_comment_id)")
-	orphan("topic_reply_target dangling", "SELECT COUNT(*) FROM topic_reply_target trt WHERE NOT EXISTS (SELECT 1 FROM topic_reply r WHERE r.id=trt.reply_id) OR NOT EXISTS (SELECT 1 FROM topic_reply r2 WHERE r2.id=trt.target_reply_id)")
 	orphan("chat_message in deleted room", "SELECT COUNT(*) FROM chat_message m WHERE NOT EXISTS (SELECT 1 FROM chat_room cr WHERE cr.id=m.chat_room_id)")
 	orphan("chat_room_participant in deleted room", "SELECT COUNT(*) FROM chat_room_participant p WHERE NOT EXISTS (SELECT 1 FROM chat_room cr WHERE cr.id=p.chat_room_id)")
 	if pass {

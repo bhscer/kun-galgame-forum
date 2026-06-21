@@ -151,30 +151,15 @@ func (r *SearchRepository) FindTopicIDsWithPoll(topicIDs []int) map[int]bool {
 // SearchReplies searches topic replies by content. Identity is hydrated by
 // the service layer via userclient.
 func (r *SearchRepository) SearchReplies(keywords []string, page, limit int) (rows []ReplyRow, total int64) {
-	// Multi-target replies keep their text in topic_reply_target.content
-	// (r.content is empty), so BOTH the snippet and the keyword match must
-	// consider target content — otherwise such replies are unsearchable and
-	// render blank. Mirrors the activity feed / user-reply list.
+	// A reply's text is in r.content (the legacy multi-target rows were folded
+	// into it by the Phase-4 migration), so snippet + keyword match use it.
 	query := r.db.Table("topic_reply r").
 		Select(`r.id, r.topic_id, t.title AS topic_title,
-			SUBSTRING(
-				COALESCE(r.content, '') ||
-				COALESCE(
-					(SELECT STRING_AGG(trt.content, ' ' ORDER BY trt.id)
-					 FROM topic_reply_target trt
-					 WHERE trt.reply_id = r.id),
-					''
-				), 1, 233
-			) AS content, r.floor,
+			SUBSTRING(COALESCE(r.content, ''), 1, 233) AS content, r.floor,
 			r.user_id, r.created`).
 		Joins("LEFT JOIN topic t ON t.id = r.topic_id")
 	for _, kw := range keywords {
-		like := "%" + kw + "%"
-		query = query.Where(
-			`r.content ILIKE ? OR EXISTS (
-				SELECT 1 FROM topic_reply_target trt
-				WHERE trt.reply_id = r.id AND trt.content ILIKE ?
-			)`, like, like)
+		query = query.Where("r.content ILIKE ?", "%"+kw+"%")
 	}
 
 	query.Count(&total)

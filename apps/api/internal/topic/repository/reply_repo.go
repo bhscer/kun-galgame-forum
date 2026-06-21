@@ -125,49 +125,11 @@ func findInteractionStatus(db *gorm.DB, table, fkCol string, userID int, ids []i
 // Cascade delete helpers
 // ──────────────────────────────────────────
 
-// CollectCascadeReplyIDs finds all replies that transitively target the given root IDs.
-func (r *ReplyRepository) CollectCascadeReplyIDs(tx *gorm.DB, rootIDs []int) ([]int, error) {
-	allIDs := make(map[int]bool)
-	for _, id := range rootIDs {
-		allIDs[id] = true
-	}
-
-	queue := rootIDs
-	for len(queue) > 0 {
-		var childIDs []int
-		err := tx.Table("topic_reply_target").
-			Where("target_reply_id IN ?", queue).
-			Distinct("reply_id").
-			Pluck("reply_id", &childIDs).Error
-		if err != nil {
-			return nil, err
-		}
-
-		queue = nil
-		for _, cid := range childIDs {
-			if !allIDs[cid] {
-				allIDs[cid] = true
-				queue = append(queue, cid)
-			}
-		}
-	}
-
-	result := make([]int, 0, len(allIDs))
-	for id := range allIDs {
-		result = append(result, id)
-	}
-	return result, nil
-}
-
 func (r *ReplyRepository) DeleteRepliesByIDs(tx *gorm.DB, ids []int) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	// Delete targets, comments, likes, dislikes first
-	tx.Where("reply_id IN ?", ids).Delete(&model.TopicReplyTarget{})
-	tx.Where("target_reply_id IN ?", ids).Delete(&model.TopicReplyTarget{})
-
-	// Delete comment likes for comments on these replies
+	// Delete child rows (comment likes, comments, likes, dislikes) first
 	tx.Exec("DELETE FROM topic_comment_like WHERE topic_comment_id IN (SELECT id FROM topic_comment WHERE topic_reply_id IN ?)", ids)
 	tx.Where("topic_reply_id IN ?", ids).Delete(&model.TopicComment{})
 	tx.Where("topic_reply_id IN ?", ids).Delete(&model.TopicReplyLike{})
@@ -177,11 +139,9 @@ func (r *ReplyRepository) DeleteRepliesByIDs(tx *gorm.DB, ids []int) error {
 }
 
 // CountReplyRelated returns counts used for moemoepoint penalty calculation.
-func (r *ReplyRepository) CountReplyRelated(replyID int) (commentCount, likeCount, targetCount, targetByCount int64, err error) {
+func (r *ReplyRepository) CountReplyRelated(replyID int) (commentCount, likeCount int64, err error) {
 	r.db.Model(&model.TopicComment{}).Where("topic_reply_id = ?", replyID).Count(&commentCount)
 	r.db.Model(&model.TopicReplyLike{}).Where("topic_reply_id = ?", replyID).Count(&likeCount)
-	r.db.Model(&model.TopicReplyTarget{}).Where("reply_id = ?", replyID).Count(&targetCount)
-	r.db.Model(&model.TopicReplyTarget{}).Where("target_reply_id = ?", replyID).Count(&targetByCount)
 	return
 }
 
@@ -251,27 +211,7 @@ func (r *ReplyRepository) CreateReply(tx *gorm.DB, reply *model.TopicReply) erro
 	return tx.Create(reply).Error
 }
 
-// CreateReplyTarget inserts a TopicReplyTarget inside the caller tx.
-func (r *ReplyRepository) CreateReplyTarget(tx *gorm.DB, target *model.TopicReplyTarget) error {
-	return tx.Create(target).Error
-}
-
 // UpdateReplyContent updates content + edited timestamp for a reply.
 func (r *ReplyRepository) UpdateReplyContent(tx *gorm.DB, replyID int, fields map[string]any) error {
 	return tx.Model(&model.TopicReply{}).Where("id = ?", replyID).Updates(fields).Error
-}
-
-// DeleteReplyTargetsByReplyID removes all targets authored by this reply.
-func (r *ReplyRepository) DeleteReplyTargetsByReplyID(tx *gorm.DB, replyID int) error {
-	return tx.Where("reply_id = ?", replyID).Delete(&model.TopicReplyTarget{}).Error
-}
-
-// FindTargetReplyUserID returns the user_id of the target reply (used to
-// collect distinct notification recipients when creating a reply).
-func (r *ReplyRepository) FindTargetReplyUserID(tx *gorm.DB, replyID int) (int, error) {
-	var reply model.TopicReply
-	if err := tx.Select("user_id").First(&reply, replyID).Error; err != nil {
-		return 0, err
-	}
-	return reply.UserID, nil
 }

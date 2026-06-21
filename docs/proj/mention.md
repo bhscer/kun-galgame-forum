@@ -148,8 +148,10 @@ SSR 网页论坛没这个前提。快照名作「用户已注销」兜底;`data-
    悬空目标只留笔记;**不发通知**。apply 前自动建 `topic_reply_target_backup` +
    `topic_reply_content_backup`(`IF NOT EXISTS`,重跑不覆盖,即回滚源);每条独立事务 →
    **幂等可续跑**。本地副本库实测:4517 回复迁移、备份齐(4541/4517)、重跑 no-op、空名
-   token 渲染正常。⏭ 用户跑完 prod 后的**收尾**:删 `Target.vue` + mapper targets 读路径 +
-   `DROP TABLE topic_reply_target`(留 backup)。
+   token 渲染正常。✅ **收尾(prod 数据迁移 2026-06-21 后)**:删 `Target.vue` + mapper
+   targets 读路径(33b4ed39);`DROP` 两张 backup 表;彻底退役——删 `TopicReplyTarget` 模型 +
+   lifecycle、activity/search/user 三处 content 聚合查询、`cmd/migrate-reply-targets`,
+   出 `migrations/028_drop_topic_reply_target`(`DROP TABLE topic_reply_target`,prod 待跑 migrate)。
 
    **prod 执行(用户操作,我不 push/不跑)**:推 master → CI 出 `kungal-tools` 镜像 →
    `docker compose -f docker-compose.prod.yml --profile jobs run --rm tools migrate-reply-targets`

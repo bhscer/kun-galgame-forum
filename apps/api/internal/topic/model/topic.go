@@ -190,25 +190,12 @@ type TopicReplyDislike struct {
 
 func (TopicReplyDislike) TableName() string { return "topic_reply_dislike" }
 
-// TopicReplyTarget records when a reply targets another reply.
-type TopicReplyTarget struct {
-	ID            int    `gorm:"primaryKey;autoIncrement" json:"id"`
-	Content       string `gorm:"type:text;default:''" json:"content"`
-	ReplyID       int    `gorm:"column:reply_id;not null;uniqueIndex:idx_reply_target" json:"reply_id"`
-	TargetReplyID int    `gorm:"column:target_reply_id;not null;uniqueIndex:idx_reply_target" json:"target_reply_id"`
-
-	CreatedAt time.Time `gorm:"column:created" json:"created"`
-	UpdatedAt time.Time `gorm:"column:updated" json:"updated"`
-}
-
-func (TopicReplyTarget) TableName() string { return "topic_reply_target" }
-
 // ──────────────────────────────────────────
 // Comment (on replies)
 // ──────────────────────────────────────────
 
 type TopicComment struct {
-	ID           int `gorm:"primaryKey;autoIncrement" json:"id"`
+	ID           int    `gorm:"primaryKey;autoIncrement" json:"id"`
 	Content      string `gorm:"type:varchar(1007);default:''" json:"content"`
 	TopicID      int    `gorm:"column:topic_id;not null" json:"topic_id"`
 	TopicReplyID int    `gorm:"column:topic_reply_id;not null" json:"topic_reply_id"`
@@ -241,18 +228,18 @@ func (TopicCommentLike) TableName() string { return "topic_comment_like" }
 // ──────────────────────────────────────────
 
 type TopicPoll struct {
-	ID          int        `gorm:"primaryKey;autoIncrement" json:"id"`
-	Title       string     `gorm:"type:varchar(100);not null" json:"title"`
-	Description string     `gorm:"type:varchar(500);default:''" json:"description"`
-	Type        string     `gorm:"default:'single'" json:"type"`     // single, multiple
-	MinChoice   int        `gorm:"column:min_choice;default:1" json:"min_choice"`
-	MaxChoice   int        `gorm:"column:max_choice;default:1" json:"max_choice"`
-	Deadline    *time.Time `gorm:"" json:"deadline"`
-	Status      string     `gorm:"default:'open'" json:"status"`     // open, closed
-	NotificationSent bool `gorm:"column:notification_sent;default:false" json:"notification_sent"`
-	ResultVisibility string `gorm:"column:result_visibility;default:'always'" json:"result_visibility"` // always, after_vote, after_deadline
-	IsAnonymous      bool   `gorm:"column:is_anonymous;default:false" json:"is_anonymous"`
-	CanChangeVote    bool   `gorm:"column:can_change_vote;default:true" json:"can_change_vote"`
+	ID               int        `gorm:"primaryKey;autoIncrement" json:"id"`
+	Title            string     `gorm:"type:varchar(100);not null" json:"title"`
+	Description      string     `gorm:"type:varchar(500);default:''" json:"description"`
+	Type             string     `gorm:"default:'single'" json:"type"` // single, multiple
+	MinChoice        int        `gorm:"column:min_choice;default:1" json:"min_choice"`
+	MaxChoice        int        `gorm:"column:max_choice;default:1" json:"max_choice"`
+	Deadline         *time.Time `gorm:"" json:"deadline"`
+	Status           string     `gorm:"default:'open'" json:"status"` // open, closed
+	NotificationSent bool       `gorm:"column:notification_sent;default:false" json:"notification_sent"`
+	ResultVisibility string     `gorm:"column:result_visibility;default:'always'" json:"result_visibility"` // always, after_vote, after_deadline
+	IsAnonymous      bool       `gorm:"column:is_anonymous;default:false" json:"is_anonymous"`
+	CanChangeVote    bool       `gorm:"column:can_change_vote;default:true" json:"can_change_vote"`
 
 	TopicID int `gorm:"column:topic_id;not null" json:"topic_id"`
 	UserID  int `gorm:"column:user_id;not null" json:"user_id"`

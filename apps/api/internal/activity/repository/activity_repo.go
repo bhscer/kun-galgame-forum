@@ -54,21 +54,10 @@ var Sources = map[string]ActivitySource{
 	},
 	"TOPIC_REPLY_CREATION": {
 		TypeStr: "TOPIC_REPLY_CREATION",
-		// A reply can target multiple other replies. When it does, the
-		// user's text is stored per-target in topic_reply_target.content
-		// and topic_reply.content itself is empty. Concatenate both so
-		// multi-target replies still show meaningful text.
+		// A reply's text is in topic_reply.content; the legacy multi-target
+		// rows were folded into it by the Phase-4 migration.
 		Query: `SELECT 'TOPIC_REPLY_CREATION' AS type_str, t.id,
-			SUBSTRING(
-				COALESCE(t.content, '') ||
-				COALESCE(
-					(SELECT STRING_AGG(trt.content, ' ' ORDER BY trt.id)
-					 FROM topic_reply_target trt
-					 WHERE trt.reply_id = t.id),
-					''
-				),
-				1, 100
-			) AS content,
+			SUBSTRING(COALESCE(t.content, ''), 1, 100) AS content,
 			'/topic/' || t.topic_id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM topic_reply t`,
 	},

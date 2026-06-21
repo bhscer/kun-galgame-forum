@@ -223,10 +223,6 @@ func (s *ReplyService) UpdateReply(
 			return err
 		}
 
-		// Any legacy TopicReplyTarget rows on this reply are left untouched — the
-		// new single-body editor doesn't surface them, and Phase 4 migrates them
-		// into Content. Editing the body must not silently drop that context.
-
 		// @mentions in the edited reply → notify newly mentioned users (deduped,
 		// so anyone already mentioned in this topic isn't re-notified on edit).
 		s.helpers.NotifyMentions(tx, userID, reply.TopicID, req.Content)
@@ -256,11 +252,11 @@ func (s *ReplyService) DeleteReply(
 		return errors.ErrForbidden("您没有权限删除此回复")
 	}
 
-	commentCount, likeCount, targetCount, targetByCount, _ := s.replyRepo.CountReplyRelated(replyID)
+	commentCount, likeCount, _ := s.replyRepo.CountReplyRelated(replyID)
 
 	penalty := 3
 	if reply.UserID == userID && role < 2 {
-		penalty = 3 * int(commentCount+likeCount+targetCount+targetByCount+1)
+		penalty = 3 * int(commentCount+likeCount+1)
 	}
 
 	txErr := s.replyRepo.DB().Transaction(func(tx *gorm.DB) error {
@@ -272,11 +268,7 @@ func (s *ReplyService) DeleteReply(
 			return gorm.ErrCheckConstraintViolated
 		}
 
-		allIDs, err := s.replyRepo.CollectCascadeReplyIDs(tx, []int{replyID})
-		if err != nil {
-			return err
-		}
-		if err := s.replyRepo.DeleteRepliesByIDs(tx, allIDs); err != nil {
+		if err := s.replyRepo.DeleteRepliesByIDs(tx, []int{replyID}); err != nil {
 			return err
 		}
 
