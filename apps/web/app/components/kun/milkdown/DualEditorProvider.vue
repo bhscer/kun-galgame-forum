@@ -3,16 +3,21 @@ import { MilkdownProvider } from '@milkdown/vue'
 import { ProsemirrorAdapterProvider } from '@prosemirror-adapter/vue'
 import { activeTab } from './atom'
 
+import type { ReplyReference } from '~/store/types/topic/reply'
+
 defineProps<{
   valueMarkdown: string
   language?: Language
   // Forwarded to the editor: true removes all image insertion (upload button,
   // paste/drop, sticker). The galgame 简介 editor sets it.
   disableImage?: boolean
+  // Forwarded 「引用」 signal (reply editor only).
+  pendingQuote?: ReplyReference | null
 }>()
 
 const emits = defineEmits<{
   setMarkdown: [value: string]
+  quoteInserted: []
 }>()
 
 const cmAPI = ref({
@@ -38,6 +43,8 @@ const setCmAPI = (api: { update: (markdown: string) => void }) => {
           @save-markdown="saveMarkdown"
           :language="language ?? 'zh-cn'"
           :disable-image="disableImage"
+          :pending-quote="pendingQuote"
+          @quote-inserted="emits('quoteInserted')"
         >
           <template #footer>
             <slot />

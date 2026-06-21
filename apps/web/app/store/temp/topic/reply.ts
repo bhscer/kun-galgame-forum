@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type {
+  ReplyReference,
   ReplyStoreTemp,
   SuccessfulReplyEvent
 } from '~/store/types/topic/reply'
@@ -14,6 +15,17 @@ export const useTempReplyStore = defineStore(
     const isReplyRewriting = ref<ReplyStoreTemp['isReplyRewriting']>(false)
     const replyRewrite = ref<ReplyStoreTemp['replyRewrite']>(null)
     const lastSuccessfulReply = ref<ReplyStoreTemp['lastSuccessfulReply']>(null)
+    // One-shot 「引用」 signal: the open reply editor inserts the inline header,
+    // then clears it.
+    const pendingQuote = ref<ReplyStoreTemp['pendingQuote']>(null)
+
+    const setPendingQuote = (reference: ReplyReference) => {
+      pendingQuote.value = reference
+    }
+
+    const clearPendingQuote = () => {
+      pendingQuote.value = null
+    }
 
     const setRewriteData = (reply: TopicReply) => {
       isReplyRewriting.value = true
@@ -43,6 +55,9 @@ export const useTempReplyStore = defineStore(
       isReplyRewriting,
       replyRewrite,
       lastSuccessfulReply,
+      pendingQuote,
+      setPendingQuote,
+      clearPendingQuote,
       setRewriteData,
       resetRewriteReplyData,
       setSuccessfulReply,

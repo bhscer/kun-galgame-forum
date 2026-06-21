@@ -1,7 +1,15 @@
 <script setup lang="ts">
 // Milkdown core
-import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core'
+import {
+  Editor,
+  rootCtx,
+  defaultValueCtx,
+  editorViewCtx
+} from '@milkdown/kit/core'
+import { Selection } from '@milkdown/prose/state'
+import type { EditorView as PmEditorView } from '@milkdown/prose/view'
 import { Milkdown, useEditor } from '@milkdown/vue'
+import type { ReplyReference } from '~/store/types/topic/reply'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
 // Milkdown Plugins
@@ -73,10 +81,15 @@ const props = defineProps<{
   // images). Used by the galgame 简介 editor — intro images now live in the
   // wiki gallery, so the introduction itself must stay image-free.
   disableImage?: boolean
+  // A 「引用」 signal (reply editor only): when set, the editor inserts an inline
+  // `@author #floor` header into its live document and emits `quoteInserted` so
+  // the parent can clear it. Other editors never pass this.
+  pendingQuote?: ReplyReference | null
 }>()
 
 const emits = defineEmits<{
   saveMarkdown: [markdown: string]
+  quoteInserted: []
 }>()
 
 const valueMarkdown = computed(() => props.valueMarkdown)
@@ -103,6 +116,76 @@ const renderLatex = (content: string, options?: KatexOptions) => {
   return html
 }
 
+// Insert a 「引用」 header (`@author #floor`) into the LIVE, focused editor — the
+// same transaction pattern the @-mention dropdown uses (build atom nodes →
+// dispatch → set selection), which is the only caret-reliable path (incl. IME).
+// Empty editor → [header paragraph, empty body paragraph] with the caret in the
+// body (so the reply types on the line below). Non-empty draft → drop the header
+// inline at the cursor. Deduped on reply id.
+const insertReference = (view: PmEditorView, q: ReplyReference) => {
+  const { state } = view
+  const mentionType = state.schema.nodes.mention
+  const quoteType = state.schema.nodes.quote
+  const paraType = state.schema.nodes.paragraph
+  if (!mentionType || !quoteType || !paraType) {
+    return
+  }
+
+  let already = false
+  state.doc.descendants((node) => {
+    if (node.type.name === 'quote' && node.attrs.replyId === q.replyId) {
+      already = true
+      return false
+    }
+    return undefined
+  })
+  if (already) {
+    return
+  }
+
+  const inline = [
+    mentionType.create({ userId: q.userId, name: q.userName }),
+    state.schema.text(' '),
+    quoteType.create({ replyId: q.replyId, floor: q.floor })
+  ]
+  const docEmpty =
+    state.doc.childCount === 1 &&
+    (state.doc.firstChild?.content.size ?? 0) === 0
+
+  const headerPara = paraType.create(null, inline)
+  let tr = state.tr
+  if (docEmpty) {
+    // Fresh editor: header on line 1, empty body line below, caret in the body.
+    const bodyPara = paraType.createAndFill()
+    tr = tr.replaceWith(
+      0,
+      state.doc.content.size,
+      bodyPara ? [headerPara, bodyPara] : [headerPara]
+    )
+    tr = tr.setSelection(Selection.atEnd(tr.doc))
+  } else {
+    // Already composing: prepend the header as its own line at the top, leaving
+    // the body (and the user's caret, which maps through the insert) untouched.
+    tr = tr.insert(0, headerPara)
+  }
+  view.focus()
+  view.dispatch(tr.scrollIntoView())
+}
+
+// Consume the pending 「引用」 signal against the live view, then tell the parent
+// to clear it. Deferred to the next frame so the (freshly Teleported) editor is
+// painted + focusable before we set the caret.
+const consumePendingQuote = (view: PmEditorView) => {
+  const q = props.pendingQuote
+  if (!q) {
+    return
+  }
+  requestAnimationFrame(() => {
+    insertReference(view, q)
+    emits('quoteInserted')
+  })
+}
+
 const editorInfo = useEditor((root) => {
   const editor = Editor.make()
     .config((ctx) => {
@@ -114,11 +197,16 @@ const editorInfo = useEditor((root) => {
         if (markdown !== prevMarkdown) {
           editorContent.value = markdown
           // Record what the editor produced so the valueMarkdown watch below can
-          // tell an external change (e.g. the 「引用」 button appending a token)
-          // from the editor's own edits and avoid a replaceAll feedback loop.
+          // tell an external change (a parent replacing the bound model) from the
+          // editor's own edits and avoid a replaceAll feedback loop.
           lastEmitted = markdown
           emits('saveMarkdown', markdown)
         }
+      })
+      // Fresh-open case: 「引用」 set pendingQuote BEFORE the panel (and this
+      // editor) mounted, so insert the header once the view is ready.
+      listener.mounted((ctx) => {
+        consumePendingQuote(ctx.get(editorViewCtx))
       })
 
       // Only wire the uploader when images are allowed. uploadConfig.key is
@@ -252,6 +340,22 @@ watch(
       return
     }
     editor.action(replaceAll(val))
+  }
+)
+
+// Live-append case: 「引用」 clicked while the panel is already open (editor
+// mounted). Insert the header into the live view. (Fresh-open is handled by
+// listener.mounted above; this watch is non-immediate so it won't double-fire
+// for a value that was already set at mount.)
+watch(
+  () => props.pendingQuote,
+  (q) => {
+    if (!q) {
+      return
+    }
+    editorInfo
+      .get()
+      ?.action((ctx) => consumePendingQuote(ctx.get(editorViewCtx)))
   }
 )
 </script>

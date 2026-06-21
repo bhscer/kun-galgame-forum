@@ -124,13 +124,17 @@ SSR 网页论坛没这个前提。快照名作「用户已注销」兜底;`data-
    `.kun-prose` + `.kun-prose-compact` 双作用域)。✅ 3c **退役多目标 compose**:回复
    = 单 body 编辑器,`replyDraft` 去掉 `targets`,提交只发 `{content}`;后端
    create/update 停写 `TopicReplyTarget`(**读路径保留**,旧回复仍显示 targets 卡片到
-   Phase 4)。**「引用」= 编辑器上方的可移除 reference 芯片**(回复 store 存
-   `{userId,userName,replyId,floor}`,`PanelBody` 渲染芯片,`PanelBtn` 发布时才把它折成
-   前置 `@作者 #楼层` 头注入 `{content}` —— 存储/渲染格式与旧版一致)。**根因复盘**:早期把
-   `@ #` 头放进编辑器正文、异步挂载后再摆光标,与 Vue 响应式 / Teleport 挂载 / 输入法合成
-   存在时序竞争(光标看似在第 2 行、首字却跳回第 1 行,且多 hook 竞争会多插空行);把引用
-   移出编辑器内容**彻底根治**(空编辑器 = 原生光标,与普通回复无异)。登录态实测:空编辑器
-   打字(含输入法 `execCommand insertText`)不跳行、芯片增/删/去重、发布 content 头前置均通过。✅ 3b `.kun-quote` hydrate(`useQuoteContent`
+   Phase 4)。**「引用」= 往编辑器内插入内联 `@作者 #楼层` 头**(WYSIWYG,编辑即所见):
+   `footer/Reply.vue` 置 `tempReply.pendingQuote`(一次性信号,经 `TargetEditor`→
+   `DualEditorProvider` 透传到 `Editor.vue`),编辑器在 **mounted**(空开)或 **watch**
+   (已开追加)时,对**已聚焦的活动 view** 直接 dispatch 事务插 mention+quote 原子节点 +
+   空 body 段并落光标(空文档 → `[头, 空 body]` 光标在 body;非空 → 段首前插头),插完
+   `emit('quoteInserted')` 清信号;按 reply id 去重。**根因复盘**:早期用 `defaultValueCtx`
+   带头挂载 + 挂载后追光标,与 Vue 响应式 / Teleport 挂载 / 输入法合成有时序竞争(光标看似
+   在第 2 行、首字却跳回第 1 行,多 hook 还会多插空行)。改用 **@ 下拉菜单同款"活动 view 内
+   dispatch"** 路径(其 IME 实测可靠)即根治。登录态实测:内联头 + 空 body 光标、输入法
+   (`execCommand insertText`)正文落第 2 行不跳、去重、多引用置顶、发布 content 内联 token、
+   取消重开不丢正文不重复均通过。✅ 3b `.kun-quote` hydrate(`useQuoteContent`
    委托监听 + `TopicQuotePreview` 卡片):点击 → 跳到该楼层(`[id^="<floor>."]` 锚点 +
    高亮);悬停 → 懒加载 `/topic/:tid/reply/detail` 预览卡(作者 + 楼层 + 摘要,按 id 缓存)。
    跨页跳转仍按 §10 延后(不在当前页 → 提示)。登录态注入实测:点击跳楼 + 悬停卡均通过。
