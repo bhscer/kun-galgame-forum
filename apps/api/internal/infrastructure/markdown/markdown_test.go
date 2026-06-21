@@ -174,4 +174,21 @@ func TestResolveMentionNames(t *testing.T) {
 	if ResolveMentionNames(html, nil) != html {
 		t.Errorf("nil names should be a no-op")
 	}
+
+	// The Phase-4 migration emits EMPTY-name mention tokens — [@](kungal-user:id)
+	// — relying on ResolveMentionNames to fill the current name at render. Guard
+	// that the empty-text link still renders a mention chip (+ a coexisting quote)
+	// and resolves to the current name.
+	mig := Render("[@](kungal-user:30) [#1](kungal-reply:14)")
+	for _, w := range []string{
+		`class="kun-mention"`, `data-uid="30"`,
+		`class="kun-quote"`, `data-reply-id="14"`, `data-floor="1"`,
+	} {
+		if !strings.Contains(mig, w) {
+			t.Errorf("empty-name migration token missing %q\n got: %s", w, mig)
+		}
+	}
+	if r := ResolveMentionNames(mig, map[int]string{30: "鲲"}); !strings.Contains(r, "@鲲") {
+		t.Errorf("empty-name mention should resolve to current name\n got: %s", r)
+	}
 }

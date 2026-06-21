@@ -134,8 +134,19 @@ SSR 网页论坛没这个前提。快照名作「用户已注销」兜底;`data-
    **触发架构(已定 A)**:`@`=用户;`#`=内容(话题/游戏,**未来阶段**,分类菜单);楼层引用
    走「引用」按钮。`kungal-<type>:<id>` token + node + `$remark` 模式可直接复用到
    `kungal-topic:`/`kungal-galgame:`,故 topic/galgame mention 是后续独立阶段,不阻塞当前。
-4. **迁移(Phase 4,增量在 3c 之后)**:脚本 + 备份 + dry-run + 跑(给命令)。迁移后再删
-   `TopicReplyTarget` 读路径 + `Target.vue`。
+4. **迁移(Phase 4)**:✅ 一次性 job `cmd/migrate-reply-targets`(默认 dry-run;
+   `-dry-run=false` 才写)。把每条 `topic_reply_target` 折成
+   `> 回复 [@](kungal-user:id) [#floor](kungal-reply:id)\n\n<笔记>` 前置到作者回复正文,
+   然后删该 target 行。**名字留空**靠 `ResolveMentionNames` 渲染期解析(不碰 OAuth);
+   悬空目标只留笔记;**不发通知**。apply 前自动建 `topic_reply_target_backup` +
+   `topic_reply_content_backup`(`IF NOT EXISTS`,重跑不覆盖,即回滚源);每条独立事务 →
+   **幂等可续跑**。本地副本库实测:4517 回复迁移、备份齐(4541/4517)、重跑 no-op、空名
+   token 渲染正常。⏭ 用户跑完 prod 后的**收尾**:删 `Target.vue` + mapper targets 读路径 +
+   `DROP TABLE topic_reply_target`(留 backup)。
+
+   **prod 执行(用户操作,我不 push/不跑)**:推 master → CI 出 `kungal-tools` 镜像 →
+   `docker compose -f docker-compose.prod.yml --profile jobs run --rm tools migrate-reply-targets`
+   (dry-run 核对)→ 加 `-dry-run=false` 正式跑;库 = infra postgres 容器的 `kungalgame`。
 
 ## 10. 暂不做(后续单独排期)
 
