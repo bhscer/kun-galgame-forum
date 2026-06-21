@@ -16,14 +16,13 @@ const handleClickReply = () => {
     return
   }
 
-  // Replying to a specific floor: drop a "> 回复 @author #floor" blockquote
-  // header into the draft (same shape as migrated replies). The @mention
-  // notifies the author, the #quote links the floor, and because the header is a
-  // blockquote the editor's trailing empty paragraph lands the caret on the line
-  // below — where the reply body goes. Replying to the topic (floor 0) just opens.
+  // Replying to a specific floor: drop a plain "@author #floor" header into the
+  // draft (no blockquote / 「回复」 wording). The @mention notifies the author,
+  // the #quote links the floor, and the editor lands the caret on the line below
+  // so the reply body starts there. Replying to the topic (floor 0) just opens.
   if (props.targetFloor !== 0 && props.targetReplyId) {
     appendReply(
-      `> 回复 [@${props.targetUserName}](kungal-user:${props.targetUserId}) [#${props.targetFloor}](kungal-reply:${props.targetReplyId})`
+      `[@${props.targetUserName}](kungal-user:${props.targetUserId}) [#${props.targetFloor}](kungal-reply:${props.targetReplyId})`
     )
   }
 

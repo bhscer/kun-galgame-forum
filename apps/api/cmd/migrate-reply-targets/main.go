@@ -1,7 +1,8 @@
 // migrate-reply-targets folds the legacy multi-target reply model into the new
 // single-body model: each topic_reply_target row becomes an inline
-// "> 回复 [@](kungal-user:id) [#floor](kungal-reply:id)\n\n<note>" block prepended
-// to its authoring reply's content, after which the target row is removed.
+// "[@](kungal-user:id) [#floor](kungal-reply:id)\n\n<note>" block prepended to
+// its authoring reply's content, after which the target row is removed. (Same
+// plain @mention/#quote header the live 「引用」 button produces — no blockquote.)
 //
 // Safety (docs/proj/mention.md §7):
 //   - DRY-RUN BY DEFAULT — reports a sample + counts, writes nothing.
@@ -43,7 +44,7 @@ type targetRow struct {
 }
 
 // buildMigratedContent composes the new reply body: each target folded into a
-// blockquote header above the original content. The mention name is left empty
+// plain "@mention #quote" header above the original content. The name is left empty
 // on purpose — the server resolves the CURRENT name at render
 // (markdown.ResolveMentionNames), so the migration never has to touch OAuth.
 func buildMigratedContent(original string, targets []targetRow) string {
@@ -53,7 +54,7 @@ func buildMigratedContent(original string, targets []targetRow) string {
 		header := ""
 		if t.TargetExists && t.TargetReplyID > 0 {
 			header = fmt.Sprintf(
-				"> 回复 [@](kungal-user:%d) [#%d](kungal-reply:%d)",
+				"[@](kungal-user:%d) [#%d](kungal-reply:%d)",
 				t.TargetUserID, t.TargetFloor, t.TargetReplyID,
 			)
 		}

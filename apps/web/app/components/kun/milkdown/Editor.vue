@@ -110,15 +110,17 @@ const renderLatex = (content: string, options?: KatexOptions) => {
   return html
 }
 
-// When a 「引用」 insert leaves the doc ending in a blockquote header
-// (`> 回复 @ #`), append an empty paragraph after it and put the caret there, so
-// the reply body is typed on the line BELOW the header (the user can Backspace
-// to merge). Narrowly gated on a trailing blockquote so normal content / other
-// editors are untouched. Called on mount (panel opened fresh by 「引用」) AND from
-// the external-sync watch (panel already open, token appended live).
+// A 「引用」 insert leaves the doc ending in a paragraph whose last inline node is
+// a quote chip (`@author #floor`). Append an empty paragraph after it and put the
+// caret there, so the reply body is typed on the line BELOW the header (Backspace
+// merges it back up). Gated tightly on a trailing quote chip so normal content /
+// other editors are untouched. Called on mount (panel opened fresh by 「引用」) AND
+// from the external-sync watch (panel already open, token appended live).
 const placeCaretBelowHeader = (view: PmEditorView) => {
   const last = view.state.doc.lastChild
-  if (!last || last.type.name !== 'blockquote') {
+  const endsInQuote =
+    last?.type.name === 'paragraph' && last.lastChild?.type.name === 'quote'
+  if (!endsInQuote) {
     return
   }
   const para = view.state.schema.nodes.paragraph?.createAndFill()
