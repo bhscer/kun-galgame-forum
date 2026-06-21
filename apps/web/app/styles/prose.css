@@ -151,3 +151,29 @@
     @apply mr-4 -ml-2 inline-block w-4 text-right text-gray-400;
   }
 }
+
+/* @mention / quote chips in RENDERED content. Topics render under `.kun-prose`,
+ * replies/comments under `.kun-prose-compact` (KunContent's `compact` prop), so
+ * both are scoped. The editor's own chips live in editor.css (`.milkdown …`).
+ *
+ * - .kun-mention is a real navigating link (server sets href=/user/<id>) — style
+ *   it as a chip so it reads differently from ordinary prose links.
+ * - .kun-quote is the `#<floor>` reference. Pre-hydration it's an inline badge;
+ *   the client upgrades it into a card + in-page jump (Phase 3b). */
+.kun-prose .kun-mention,
+.kun-prose-compact .kun-mention {
+  @apply text-primary bg-primary/10 rounded px-1 font-medium no-underline;
+
+  &:hover {
+    @apply bg-primary/20;
+  }
+}
+
+.kun-prose .kun-quote,
+.kun-prose-compact .kun-quote {
+  @apply text-default-700 bg-default-200 cursor-pointer rounded px-1 font-medium;
+
+  &:hover {
+    @apply bg-default-300;
+  }
+}
