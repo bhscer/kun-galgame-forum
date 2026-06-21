@@ -6,9 +6,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// ReplyRepository owns topic-reply rows: CRUD, paginated lists, target links,
-// reply-level interactions (like/dislike + count adjustments), cascade delete
-// and the reply-author brief projection.
+// ReplyRepository owns topic-reply rows: CRUD, paginated lists, reply-level
+// interactions (like/dislike + count adjustments), cascade delete and the
+// reply-author brief projection.
 //
 // Comment rows (TopicComment) have their own sibling repo in this package:
 //   - CommentRepository (comment_repo.go)

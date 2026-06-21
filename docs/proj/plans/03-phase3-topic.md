@@ -108,6 +108,8 @@ internal/topic/
 6. 创建消息通知话题作者 (如果不是自己回复自己)
 ```
 
+> ⚠️ **已废弃 (Phase 4)**:步骤 5 的多目标回复(`TopicReplyTarget` + `type=replied` 通知)已退役 —— 回复改为单正文 + 内联 `@mention` / `#quote` token,被回复者改由 `@mention` 通知;`topic_reply_target` 表已 DROP(migration 028,2026-06-21)。详见 [`mention.md`](../mention.md)。
+
 **最佳回答:**
 - 只有话题作者可以设置
 - 更新 topic.best_reply_id

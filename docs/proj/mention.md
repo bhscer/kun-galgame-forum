@@ -151,7 +151,7 @@ SSR 网页论坛没这个前提。快照名作「用户已注销」兜底;`data-
    token 渲染正常。✅ **收尾(prod 数据迁移 2026-06-21 后)**:删 `Target.vue` + mapper
    targets 读路径(33b4ed39);`DROP` 两张 backup 表;彻底退役——删 `TopicReplyTarget` 模型 +
    lifecycle、activity/search/user 三处 content 聚合查询、`cmd/migrate-reply-targets`,
-   出 `migrations/028_drop_topic_reply_target`(`DROP TABLE topic_reply_target`,prod 待跑 migrate)。
+   出 `migrations/028_drop_topic_reply_target`,**已于 2026-06-21 应用**(先 redeploy api,再 `migrate --only=028`;表 + 序列已 DROP,activity/search/user 三处改写查询线上 200 验证)。
 
    **prod 执行(用户操作,我不 push/不跑)**:推 master → CI 出 `kungal-tools` 镜像 →
    `docker compose -f docker-compose.prod.yml --profile jobs run --rm tools migrate-reply-targets`
