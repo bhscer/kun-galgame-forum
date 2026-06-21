@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { id } = usePersistUserStore()
 const { isEdit } = storeToRefs(useTempReplyStore())
-const { appendReply } = usePersistKUNGalgameReplyStore()
+const { addReference } = usePersistKUNGalgameReplyStore()
 
 const props = defineProps<{
   targetUserName: string
@@ -16,14 +16,17 @@ const handleClickReply = () => {
     return
   }
 
-  // Replying to a specific floor: drop a plain "@author #floor" header into the
-  // draft (no blockquote / 「回复」 wording). The @mention notifies the author,
-  // the #quote links the floor, and the editor lands the caret on the line below
-  // so the reply body starts there. Replying to the topic (floor 0) just opens.
+  // Replying to a specific floor: record it as a reference chip (shown above the
+  // editor, removable). Its @mention (notifies the author) + #quote (links the
+  // floor) tokens are prepended to the body on publish — the editor itself stays
+  // an empty composer. Replying to the topic (floor 0) just opens the panel.
   if (props.targetFloor !== 0 && props.targetReplyId) {
-    appendReply(
-      `[@${props.targetUserName}](kungal-user:${props.targetUserId}) [#${props.targetFloor}](kungal-reply:${props.targetReplyId})`
-    )
+    addReference({
+      userId: props.targetUserId,
+      userName: props.targetUserName,
+      replyId: props.targetReplyId,
+      floor: props.targetFloor
+    })
   }
 
   isEdit.value = true

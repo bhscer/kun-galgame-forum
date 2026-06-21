@@ -1,13 +1,6 @@
 <script setup lang="ts">
 // Milkdown core
-import {
-  Editor,
-  rootCtx,
-  defaultValueCtx,
-  editorViewCtx
-} from '@milkdown/kit/core'
-import { Selection } from '@milkdown/prose/state'
-import type { EditorView as PmEditorView } from '@milkdown/prose/view'
+import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core'
 import { Milkdown, useEditor } from '@milkdown/vue'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
@@ -110,47 +103,6 @@ const renderLatex = (content: string, options?: KatexOptions) => {
   return html
 }
 
-// After a 「引用」 insert (doc ending in a paragraph whose last inline node is a
-// quote chip, `@author #floor`), guarantee the doc ends in EXACTLY one empty body
-// paragraph and drop the caret there, so the reply is typed on the line BELOW the
-// header (Backspace merges it up).
-//
-// IDEMPOTENT BY DESIGN: this is called from both the mount hook and the
-// external-sync watch, which can race / fire repeatedly. Each call converges to
-// the same `[…quote header, one empty paragraph]` shape — it appends the empty
-// line only if it isn't already there — so racing calls can't stack extra blank
-// lines. It also focuses: a programmatic selection on an unfocused ProseMirror
-// view isn't synced to the DOM, so a later focus would read the DOM selection
-// (the header line) and send the first keystroke there.
-const placeCaretBelowHeader = (view: PmEditorView) => {
-  const { doc } = view.state
-  const last = doc.lastChild
-  if (!last || last.type.name !== 'paragraph') {
-    return
-  }
-  const lastEndsInQuote = last.lastChild?.type.name === 'quote'
-  const prev = doc.childCount >= 2 ? doc.child(doc.childCount - 2) : null
-  const bodyLineReady =
-    last.content.size === 0 && prev?.lastChild?.type.name === 'quote'
-
-  if (lastEndsInQuote) {
-    // Ends in the header itself → add the empty body line below it.
-    const para = view.state.schema.nodes.paragraph?.createAndFill()
-    if (!para) {
-      return
-    }
-    const tr = view.state.tr.insert(doc.content.size, para)
-    view.dispatch(tr.setSelection(Selection.atEnd(tr.doc)).scrollIntoView())
-    view.focus()
-  } else if (bodyLineReady) {
-    // Already [header, empty body line] → just (re)place the caret, no new line.
-    view.dispatch(
-      view.state.tr.setSelection(Selection.atEnd(doc)).scrollIntoView()
-    )
-    view.focus()
-  }
-}
-
 const editorInfo = useEditor((root) => {
   const editor = Editor.make()
     .config((ctx) => {
@@ -167,12 +119,6 @@ const editorInfo = useEditor((root) => {
           lastEmitted = markdown
           emits('saveMarkdown', markdown)
         }
-      })
-      // Fresh-mount case: the panel opened by 「引用」 mounts with the header in
-      // defaultValueCtx (no valueMarkdown change → the watch won't fire), so
-      // place the caret below the header here.
-      listener.mounted((ctx) => {
-        placeCaretBelowHeader(ctx.get(editorViewCtx))
       })
 
       // Only wire the uploader when images are allowed. uploadConfig.key is
@@ -290,10 +236,10 @@ watch(
   }
 )
 
-// Re-sync the doc when valueMarkdown changes from OUTSIDE the editor — e.g. the
-// 「引用」 button appends an @mention/#quote token to the draft. Guarded by
-// lastEmitted so the editor's own edits (which round-trip back through the model)
-// don't trigger a replaceAll and reset the cursor on every keystroke.
+// Re-sync the doc when valueMarkdown changes from OUTSIDE the editor (a parent
+// replacing the bound model). Guarded by lastEmitted so the editor's own edits
+// (which round-trip back through the model) don't trigger a replaceAll and reset
+// the cursor on every keystroke.
 watch(
   () => props.valueMarkdown,
   (val) => {
@@ -306,11 +252,6 @@ watch(
       return
     }
     editor.action(replaceAll(val))
-    // Live-append case (panel already open): a 「引用」 token was appended to the
-    // draft — drop the caret on the line below the new header.
-    editor.action((ctx) => {
-      placeCaretBelowHeader(ctx.get(editorViewCtx))
-    })
   }
 )
 </script>

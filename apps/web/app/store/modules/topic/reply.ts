@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
-import type { ReplyStorePersist } from '~/store/types/topic/reply'
+import type {
+  ReplyReference,
+  ReplyStorePersist
+} from '~/store/types/topic/reply'
 
 export const usePersistKUNGalgameReplyStore = defineStore(
   'KUNGalgameTopicReply',
@@ -9,33 +12,48 @@ export const usePersistKUNGalgameReplyStore = defineStore(
     const replyDraft = reactive<ReplyStorePersist['replyDraft']>({
       mainContent: ''
     })
+    // Floors this draft is replying to (rendered as removable chips above the
+    // editor). Their tokens are folded into the body only at publish time.
+    const replyReferences = ref<ReplyStorePersist['replyReferences']>([])
 
-    // Append the @mention + #quote tokens from a 「引用」 click as a header line,
-    // leaving the body to start on the next line (the editor moves the caret
-    // there; the user can Backspace to merge). The editor re-syncs from the draft
-    // and renders the tokens as chips.
-    const appendReply = (markdown: string) => {
-      // Dedup: clicking 「引用」 on the same floor repeatedly must not stack the
-      // same quote — skip if the draft already references that reply.
-      const quoteId = markdown.match(/kungal-reply:(\d+)/)?.[1]
-      if (
-        quoteId &&
-        replyDraft.mainContent.includes(`kungal-reply:${quoteId}`)
-      ) {
+    // 「引用」 a floor: add it as a reference chip (deduped by reply id). Kept out
+    // of the editor content entirely — no inline header, no caret juggling.
+    const addReference = (reference: ReplyReference) => {
+      if (replyReferences.value.some((r) => r.replyId === reference.replyId)) {
         return
       }
-      const body = replyDraft.mainContent.replace(/\s+$/, '')
-      replyDraft.mainContent = body ? `${body}\n\n${markdown}` : markdown
+      replyReferences.value.push(reference)
     }
+
+    const removeReference = (replyId: number) => {
+      replyReferences.value = replyReferences.value.filter(
+        (r) => r.replyId !== replyId
+      )
+    }
+
+    // The markdown header prepended to the body on publish: one
+    // `[@name](kungal-user:id) [#floor](kungal-reply:id)` per reference. Empty
+    // when there are no references.
+    const buildReferenceHeader = () =>
+      replyReferences.value
+        .map(
+          (r) =>
+            `[@${r.userName}](kungal-user:${r.userId}) [#${r.floor}](kungal-reply:${r.replyId})`
+        )
+        .join(' ')
 
     const resetReplyDraft = () => {
       replyDraft.mainContent = ''
+      replyReferences.value = []
     }
 
     return {
       mode,
       replyDraft,
-      appendReply,
+      replyReferences,
+      addReference,
+      removeReference,
+      buildReferenceHeader,
       resetReplyDraft
     }
   },

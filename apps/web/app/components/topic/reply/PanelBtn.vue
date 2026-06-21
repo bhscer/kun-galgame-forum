@@ -19,9 +19,16 @@ const handlePublish = async () => {
     return
   }
 
+  // Fold the 「引用」 reference chips into the body as a leading
+  // `@mention #quote` header (drives the notification + floor link); the chips
+  // live outside the editor, so this is the only place they enter the content.
+  const header = persistReplyStore.buildReferenceHeader()
+  const content = [header, replyDraft.value.mainContent]
+    .filter((part) => part && part.trim())
+    .join('\n\n')
   const body = {
     topicId: topicId.value,
-    content: replyDraft.value.mainContent || ''
+    content
   }
   const result = createReplySchema.safeParse(body)
   if (!result.success) {
