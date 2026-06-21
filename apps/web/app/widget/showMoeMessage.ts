@@ -20,11 +20,16 @@ export const showMoeMessage = () => {
 `
 
   const styles = {
+    // Sanctioned exception to the no-gradient house rule: the console ASCII
+    // startup banner uses a text gradient (see CLAUDE.md iron rule #2).
     ascii: `
       font-family: monospace;
       font-weight: bold;
       font-size: 12px;
-      color: #66AAF9;
+      color: transparent;
+      background: linear-gradient(45deg, #66AAF9 0%, #FF95E1 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
       text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
     `,
 

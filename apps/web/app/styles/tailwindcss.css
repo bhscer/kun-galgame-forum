@@ -74,3 +74,29 @@
 .rounded {
   border-radius: calc(0.375rem * var(--kun-radius-scale)); /* 6px = kun-sm */
 }
+
+/*
+ * Keep FLOATING overlays opaque. The 透明度 setting drives --kun-surface-opacity
+ * for the frosted-glass look of IN-PAGE surfaces (cards, form fields) over the
+ * background image. But KunUI routes overlays through the SAME `content1`
+ * surface, so the slider would also make modals / menus / dropdowns / tooltips
+ * see-through and their text unreadable over arbitrary page content.
+ *
+ * Re-declaring --kun-surface-opacity here does NOT work: KunUI declares
+ *   --color-content1: oklch(var(--content1) / var(--kun-surface-opacity))
+ * in @theme (i.e. on :root), so the var() is substituted AT :root (with the
+ * slider value) and the result is then inherited ALREADY-resolved — a descendant
+ * overlay changing --kun-surface-opacity can't retroactively recompute it. So we
+ * re-declare --color-content1 itself on the overlay roots, which re-runs oklch()
+ * locally with the inherited (light/dark) --content1 triple pinned to alpha 1.
+ * `bg-content1` reads that; the modal panel keeps its designed `content1/85`
+ * (a color-mix over the now-opaque token). The modal backdrop is a separate
+ * dark scrim (not content1) and is unaffected.
+ *   [data-kun-overlay] → Modal (ancestor of .kun-modal-panel) · Drawer · toasts
+ *   .z-kun-popover     → Dropdown · ContextMenu · Popover · Tooltip ·
+ *                        Select / Autocomplete lists · DatePicker calendar
+ */
+[data-kun-overlay],
+.z-kun-popover {
+  --color-content1: oklch(var(--content1) / 1);
+}

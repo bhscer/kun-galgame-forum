@@ -54,10 +54,14 @@ const toggle = () => {
     Users turn it back off via /user/:id/setting (KunSettingPanelComponentsNSFW).
   -->
   <template v-if="!isEnabled">
+    <!-- class-name overrides KunTooltip's default `inline-block` wrapper to a
+         full-width block so the inner `w-full` button fills the collapsed
+         column and its icon stays centered (inline-block would shrink + left-align). -->
     <KunTooltip
       v-if="isCollapsed"
       text="点击开启 NSFW 模式"
       position="right"
+      class-name="block w-full"
     >
       <button
         type="button"

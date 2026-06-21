@@ -14,7 +14,7 @@ export const usePersistSettingsStore = defineStore(
   'KUNGalgameSettings',
   () => {
     const showKUNGalgamePageTransparency =
-      ref<KUNGalgameSettingsStore['showKUNGalgamePageTransparency']>(50)
+      ref<KUNGalgameSettingsStore['showKUNGalgamePageTransparency']>(80)
     const showKUNGalgameFontStyle = ref<
       KUNGalgameSettingsStore['showKUNGalgameFontStyle']
     >(SETTINGS_DEFAULT_FONT_FAMILY)

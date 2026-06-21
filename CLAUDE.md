@@ -3,7 +3,7 @@
 ## 铁律 (Iron Rules — non-negotiable; these override every other guideline in this file)
 
 1. **Commit, but do not push.** Commit changes whenever appropriate, but do not run `git push` on your own initiative — the user pushes. When a push is genuinely required, and especially when several repos must be pushed in a specific order, stop and tell the user the exact push order instead of pushing yourself.
-2. **No background gradients in any UI, ever.** Never use gradient backgrounds in UI design (`bg-gradient-*`, `from-*/via-*/to-*`, `linear-gradient()`, `radial-gradient()`, `conic-gradient()`, etc.); use solid colors from the project's palette.
+2. **No background gradients in any UI, ever — except two sanctioned cases.** Never use gradient backgrounds in UI design (`bg-gradient-*`, `from-*/via-*/to-*`, `linear-gradient()`, `radial-gradient()`, `conic-gradient()`, etc.); use solid colors from the project's palette. **The only two sanctioned exceptions (do NOT remove them in a "no-gradient" sweep)**: (a) the galgame card cover's bottom→top legibility scrim — `bg-gradient-to-t from-black/60 to-transparent` in `apps/web/app/components/galgame/card/Card.vue`; (b) the console ASCII startup banner's text gradient in `apps/web/app/widget/showMoeMessage.ts`. Both are annotated in-code with a comment pointing back to this rule.
 
 
 Visual novel / galgame **forum**. `apps/api` = Go Fiber v3 + GORM + Postgres, `apps/web` = Nuxt 4.

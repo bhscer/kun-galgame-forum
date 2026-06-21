@@ -7,7 +7,8 @@ import { ref } from 'vue'
 // and whether a card opens in a new tab. Read by
 // components/galgame/card/Card.vue; toggled from the "显示设置" panel in
 // card/Nav.vue. Defaults reproduce the original always-on layout (corners +
-// NSFW badge + footer on; JP name opt-in) and open cards in a new tab.
+// NSFW badge + footer on; JP name opt-in) and open a clicked card in the
+// same tab.
 export const usePersistGalgameCardStore = defineStore(
   'KUNGalgameCardDisplay',
   () => {
@@ -18,7 +19,7 @@ export const usePersistGalgameCardStore = defineStore(
     const showNsfwBadge = ref(true)
     const showPublisher = ref(true)
     const showJapaneseName = ref(false)
-    const isOpenInNewTab = ref(true) // click a card → open /galgame/:id in a new tab
+    const isOpenInNewTab = ref(false) // click a card → open /galgame/:id (false = same tab; the default)
 
     const reset = () => {
       showPlatform.value = true
@@ -28,7 +29,7 @@ export const usePersistGalgameCardStore = defineStore(
       showNsfwBadge.value = true
       showPublisher.value = true
       showJapaneseName.value = false
-      isOpenInNewTab.value = true
+      isOpenInNewTab.value = false
     }
 
     return {

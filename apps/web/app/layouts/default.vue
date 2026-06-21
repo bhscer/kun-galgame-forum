@@ -45,7 +45,7 @@ const { showKUNGalgameSidebarCollapsed } = storeToRefs(
 
     <KunTopBar />
 
-    <div class="bg-primary-50 flex min-h-dvh min-h-screen justify-center">
+    <div class="bg-background flex min-h-dvh min-h-screen justify-center">
       <div
         :class="
           cn(
