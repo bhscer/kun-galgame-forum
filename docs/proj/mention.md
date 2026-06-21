@@ -125,7 +125,7 @@ SSR 网页论坛没这个前提。快照名作「用户已注销」兜底;`data-
    = 单 body 编辑器,`replyDraft` 去掉 `targets`,提交只发 `{content}`;后端
    create/update 停写 `TopicReplyTarget`(**读路径保留**,旧回复仍显示 targets 卡片到
    Phase 4)。**「引用」= 往编辑器内插入内联 `@作者 #楼层` 头**(WYSIWYG,编辑即所见):
-   `footer/Reply.vue` 置 `tempReply.pendingQuote`(一次性信号,经 `TargetEditor`→
+   `footer/Reply.vue` 置 `tempReply.pendingQuote`(一次性信号,经 `BodyEditor`→
    `DualEditorProvider` 透传到 `Editor.vue`),编辑器在 **mounted**(空开)或 **watch**
    (已开追加)时,对**已聚焦的活动 view** 直接 dispatch 事务插 mention+quote 原子节点 +
    空 body 段并落光标(空文档 → `[头, 空 body]` 光标在 body;非空 → 段首前插头),插完
