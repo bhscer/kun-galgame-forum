@@ -164,7 +164,7 @@ useIntersectionObserver(
         :to="activity.link"
         class-name="hover:text-primary line-clamp-3 break-all transition-colors"
       >
-        {{ activity.content }}
+        {{ markdownToText(activity.content) }}
         <KunChip class-name="cursor-pointer" color="primary" size="xs">
           {{ KUN_ACTIVITY_TYPE_TYPE[activity.type] }}
         </KunChip>

@@ -24,7 +24,7 @@ defineProps<{
         <KunAvatar :user="reply.user" :is-navigation="false" />
         <span class="ml-2 text-sm">{{ reply.user.name }}</span>
       </div>
-      {{ reply.content }}
+      {{ markdownToText(reply.content) }}
     </div>
 
     <!--
@@ -53,7 +53,7 @@ defineProps<{
           {{ target.contentPreview }}
         </p>
 
-        {{ target.content }}
+        {{ markdownToText(target.content) }}
       </div>
     </template>
   </KunLink>

@@ -26,7 +26,10 @@ const { preview, keepPreview, hidePreview } = useQuoteContent(contentRef)
 const replyContent = computed(() => {
   const targetsContent = props.reply.targets.map((t) => t.replyContentMarkdown)
   const content = props.reply.contentMarkdown + targetsContent.join('')
-  return markdownToText(content.slice(0, 20))
+  // Convert to plain text BEFORE slicing — slicing raw markdown first can cut a
+  // mention/quote token in half (`[@name](kungal-user`), which markdownToText
+  // then can't strip, leaking the broken token into the anchor id.
+  return markdownToText(content).slice(0, 20)
 })
 
 const cardClasses = computed(() => {

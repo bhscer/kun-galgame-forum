@@ -37,7 +37,7 @@ defineProps<{
         >
           <KunText
             class-name="whitespace-normal!"
-            :content="activity.content"
+            :content="markdownToText(activity.content)"
           />
           <KunChip color="primary" size="xs">
             {{ KUN_ACTIVITY_TYPE_TYPE[activity.type] }}
