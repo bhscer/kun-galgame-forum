@@ -120,8 +120,20 @@ SSR 网页论坛没这个前提。快照名作「用户已注销」兜底;`data-
    节点** + remark 往返(`[#floor](kungal-reply:id)` ↔ 芯片,`quotePlugin.ts`)+
    `insertQuoteCommand`(供 Phase 3 的「引用」按钮调用)。后端渲染 / 消毒在 1a 已就绪。
    全程登录态浏览器实测:@ 候选、插入芯片、quote 往返、改名反映均通过。
-3. **前端**:`.kun-mention`/`.kun-quote` 样式 + `.kun-quote` hydrate;compose 退役多目标。
-4. **迁移**:脚本 + 备份 + dry-run + 跑(给命令)。
+3. **前端**(进行中):✅ 3a `.kun-mention`/`.kun-quote` 渲染样式(`prose.css`,
+   `.kun-prose` + `.kun-prose-compact` 双作用域)。✅ 3c **退役多目标 compose**:回复
+   = 单 body 编辑器,`replyDraft` 去掉 `targets`,提交只发 `{content}`;后端
+   create/update 停写 `TopicReplyTarget`(**读路径保留**,旧回复仍显示 targets 卡片到
+   Phase 4)。「引用」按钮改为往草稿追加 `@作者 #楼层` token(被引用者经 mention 通知);
+   `Editor.vue` 加**受控外部同步 watch**(`lastEmitted` 守卫,外部改 → replaceAll,自身
+   编辑不回灌 → 不重置光标),使「引用」能往已开编辑器实时插芯片。登录态实测:引用→实时
+   芯片、多引用累加、打字不丢光标、markdown 往返均通过。⏭ 3b `.kun-quote` hydrate 成卡片
+   (懒加载 `/topic/:tid/reply/detail` 预览 + 页内跳楼层)。
+   **触发架构(已定 A)**:`@`=用户;`#`=内容(话题/游戏,**未来阶段**,分类菜单);楼层引用
+   走「引用」按钮。`kungal-<type>:<id>` token + node + `$remark` 模式可直接复用到
+   `kungal-topic:`/`kungal-galgame:`,故 topic/galgame mention 是后续独立阶段,不阻塞当前。
+4. **迁移(Phase 4,增量在 3c 之后)**:脚本 + 备份 + dry-run + 跑(给命令)。迁移后再删
+   `TopicReplyTarget` 读路径 + `Target.vue`。
 
 ## 10. 暂不做(后续单独排期)
 
