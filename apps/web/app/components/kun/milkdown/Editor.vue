@@ -129,6 +129,10 @@ const placeCaretBelowHeader = (view: PmEditorView) => {
   }
   const tr = view.state.tr.insert(view.state.doc.content.size, para)
   view.dispatch(tr.setSelection(Selection.atEnd(tr.doc)).scrollIntoView())
+  // Focus so the programmatic selection is synced to the DOM. Without focus, a
+  // later focus (panel autofocus / user click) reads the DOM selection (line 1)
+  // and clobbers our caret, sending the first keystroke to the header line.
+  view.focus()
 }
 
 const editorInfo = useEditor((root) => {
