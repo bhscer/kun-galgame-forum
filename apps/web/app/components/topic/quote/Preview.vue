@@ -31,7 +31,7 @@ const excerpt = computed(() => {
     >
       <div
         v-if="preview.visible"
-        class="kun-quote-preview border-default-200 bg-background fixed z-50 max-h-48 w-72 origin-top-left overflow-y-auto rounded-xl border p-3 shadow-lg"
+        class="kun-quote-preview border-default-200 bg-default-50/90 fixed z-50 max-h-48 w-72 origin-top-left overflow-y-auto rounded-xl border p-3 shadow-lg backdrop-blur-md"
         :style="{ top: `${preview.top}px`, left: `${preview.left}px` }"
         @mouseenter="emit('keep')"
         @mouseleave="emit('leave')"

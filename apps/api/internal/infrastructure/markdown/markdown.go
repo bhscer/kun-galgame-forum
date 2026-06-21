@@ -293,7 +293,7 @@ func applyTransforms(result string) string {
 	// href (relative is stripped by the sanitizer); data-uid drives SPA nav and
 	// lets the mapper re-resolve the current display name from the id.
 	result = mentionRegex.ReplaceAllString(result,
-		`<a class="kun-mention" data-uid="$1" href="`+contentSiteBase+`/user/$1">$2</a>`)
+		`<a class="kun-mention" data-uid="$1" href="`+contentSiteBase+`/user/$1/info">$2</a>`)
 	// Quote: <a href="kungal-reply:N">#F</a> → a quote span the frontend hydrates
 	// into a card (lazy preview + jump). No href avoids the relative-URL strip;
 	// data-reply-id + data-floor carry the target.

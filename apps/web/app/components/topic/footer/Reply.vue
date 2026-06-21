@@ -16,12 +16,14 @@ const handleClickReply = () => {
     return
   }
 
-  // Replying to a specific floor: drop an @mention of its author (notifies them)
-  // + a #quote of the floor into the draft. The mention/quote tokens render as
-  // chips in the composer. Replying to the topic itself (floor 0) just opens it.
+  // Replying to a specific floor: drop a "> 回复 @author #floor" blockquote
+  // header into the draft (same shape as migrated replies). The @mention
+  // notifies the author, the #quote links the floor, and because the header is a
+  // blockquote the editor's trailing empty paragraph lands the caret on the line
+  // below — where the reply body goes. Replying to the topic (floor 0) just opens.
   if (props.targetFloor !== 0 && props.targetReplyId) {
     appendReply(
-      `[@${props.targetUserName}](kungal-user:${props.targetUserId}) [#${props.targetFloor}](kungal-reply:${props.targetReplyId})`
+      `> 回复 [@${props.targetUserName}](kungal-user:${props.targetUserId}) [#${props.targetFloor}](kungal-reply:${props.targetReplyId})`
     )
   }
 

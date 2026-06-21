@@ -3,6 +3,7 @@ package markdown
 import (
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/yuin/goldmark/util"
 )
@@ -38,6 +39,26 @@ func ExtractMentionIDs(content string) []int {
 		ids = append(ids, id)
 	}
 	return ids
+}
+
+// Reference tokens + the migration "> 回复 " header — stripped for plain-text
+// notification previews (we want "the words said after the @", not the markup).
+var (
+	mentionTokenRe = regexp.MustCompile(`\[@[^\]]*\]\(kungal-user:\d+\)`)
+	quoteTokenRe   = regexp.MustCompile(`\[#[^\]]*\]\(kungal-reply:\d+\)`)
+	replyHeaderRe  = regexp.MustCompile(`(?m)^\s*>\s*回复\s*`)
+)
+
+// StripReferenceTokens removes @mention / #quote link tokens and the migration
+// reply-header prefix from raw markdown, collapsing whitespace into single
+// spaces — yielding the human-written text for a notification preview. Returns
+// "" when the body is nothing but references, so callers can fall back to the
+// generic "mentioned you" line.
+func StripReferenceTokens(content string) string {
+	s := mentionTokenRe.ReplaceAllString(content, "")
+	s = quoteTokenRe.ReplaceAllString(s, "")
+	s = replyHeaderRe.ReplaceAllString(s, "")
+	return strings.Join(strings.Fields(s), " ")
 }
 
 // ResolveMentionNames rewrites the display text of rendered @mention links to the

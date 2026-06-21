@@ -117,13 +117,14 @@ func TestRenderQuote(t *testing.T) {
 }
 
 // With a site base set, the mention href is absolute (UGCPolicy strips relative
-// URLs, so a relative /user/N href would be dropped).
+// URLs, so a relative href would be dropped) and points at the profile page
+// (/user/<id>/info, the actual user home route).
 func TestRenderMentionAbsoluteHref(t *testing.T) {
 	SetContentSiteBase("https://www.kungal.com")
 	defer SetContentSiteBase("")
 	out := Render("[@白狐](kungal-user:123)")
-	if !strings.Contains(out, `href="https://www.kungal.com/user/123"`) {
-		t.Errorf("mention should have an absolute href\n got: %s", out)
+	if !strings.Contains(out, `href="https://www.kungal.com/user/123/info"`) {
+		t.Errorf("mention should have an absolute profile href\n got: %s", out)
 	}
 }
 

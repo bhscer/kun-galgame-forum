@@ -1,6 +1,13 @@
 <script setup lang="ts">
 // Milkdown core
-import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core'
+import {
+  Editor,
+  rootCtx,
+  defaultValueCtx,
+  editorViewCtx
+} from '@milkdown/kit/core'
+import { Selection } from '@milkdown/prose/state'
+import type { EditorView as PmEditorView } from '@milkdown/prose/view'
 import { Milkdown, useEditor } from '@milkdown/vue'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
@@ -103,6 +110,25 @@ const renderLatex = (content: string, options?: KatexOptions) => {
   return html
 }
 
+// When a 「引用」 insert leaves the doc ending in a blockquote header
+// (`> 回复 @ #`), append an empty paragraph after it and put the caret there, so
+// the reply body is typed on the line BELOW the header (the user can Backspace
+// to merge). Narrowly gated on a trailing blockquote so normal content / other
+// editors are untouched. Called on mount (panel opened fresh by 「引用」) AND from
+// the external-sync watch (panel already open, token appended live).
+const placeCaretBelowHeader = (view: PmEditorView) => {
+  const last = view.state.doc.lastChild
+  if (!last || last.type.name !== 'blockquote') {
+    return
+  }
+  const para = view.state.schema.nodes.paragraph?.createAndFill()
+  if (!para) {
+    return
+  }
+  const tr = view.state.tr.insert(view.state.doc.content.size, para)
+  view.dispatch(tr.setSelection(Selection.atEnd(tr.doc)).scrollIntoView())
+}
+
 const editorInfo = useEditor((root) => {
   const editor = Editor.make()
     .config((ctx) => {
@@ -119,6 +145,12 @@ const editorInfo = useEditor((root) => {
           lastEmitted = markdown
           emits('saveMarkdown', markdown)
         }
+      })
+      // Fresh-mount case: the panel opened by 「引用」 mounts with the header in
+      // defaultValueCtx (no valueMarkdown change → the watch won't fire), so
+      // place the caret below the header here.
+      listener.mounted((ctx) => {
+        placeCaretBelowHeader(ctx.get(editorViewCtx))
       })
 
       // Only wire the uploader when images are allowed. uploadConfig.key is
@@ -247,7 +279,16 @@ watch(
       return
     }
     lastEmitted = val
-    editorInfo.get()?.action(replaceAll(val))
+    const editor = editorInfo.get()
+    if (!editor) {
+      return
+    }
+    editor.action(replaceAll(val))
+    // Live-append case (panel already open): a 「引用」 token was appended to the
+    // draft — drop the caret on the line below the new header.
+    editor.action((ctx) => {
+      placeCaretBelowHeader(ctx.get(editorViewCtx))
+    })
   }
 )
 </script>
