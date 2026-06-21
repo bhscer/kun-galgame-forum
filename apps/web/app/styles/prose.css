@@ -162,7 +162,7 @@
  *   the client upgrades it into a card + in-page jump (Phase 3b). */
 .kun-prose .kun-mention,
 .kun-prose-compact .kun-mention {
-  @apply text-primary bg-primary/10 rounded px-1 font-medium no-underline;
+  @apply text-primary bg-primary/10 mx-0.5 rounded px-1 font-medium no-underline;
 
   &:hover {
     @apply bg-primary/20;
@@ -171,7 +171,7 @@
 
 .kun-prose .kun-quote,
 .kun-prose-compact .kun-quote {
-  @apply text-default-700 bg-default-200 cursor-pointer rounded px-1 font-medium;
+  @apply text-default-700 bg-default-200 mx-0.5 cursor-pointer rounded px-1 font-medium;
 
   &:hover {
     @apply bg-default-300;

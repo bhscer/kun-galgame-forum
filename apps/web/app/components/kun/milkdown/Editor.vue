@@ -6,7 +6,6 @@ import {
   defaultValueCtx,
   editorViewCtx
 } from '@milkdown/kit/core'
-import { Selection } from '@milkdown/prose/state'
 import type { EditorView as PmEditorView } from '@milkdown/prose/view'
 import { Milkdown, useEditor } from '@milkdown/vue'
 import type { ReplyReference } from '~/store/types/topic/reply'
@@ -100,11 +99,10 @@ const mentionSlash = slashFactory('kunMention')
 const pluginViewFactory = usePluginViewFactory()
 const container = ref<HTMLElement | null>(null)
 const toolbar = ref<HTMLElement | null>(null)
-const editorContent = ref('')
-// The markdown the editor last emitted; lets the valueMarkdown watch below
-// distinguish an EXTERNAL change to the model (the 「引用」 button appending a
-// token, switching to edit content) from the editor's own edits, so only the
-// former triggers a replaceAll (the latter would reset the cursor every keystroke).
+// The markdown the editor last emitted; lets the valueMarkdown watch below tell
+// an EXTERNAL change to the bound model (a parent replacing it) from the editor's
+// own edits, so only the former triggers a replaceAll (the latter would reset the
+// cursor every keystroke).
 let lastEmitted = props.valueMarkdown
 
 const renderLatex = (content: string, options?: KatexOptions) => {
@@ -116,18 +114,20 @@ const renderLatex = (content: string, options?: KatexOptions) => {
   return html
 }
 
-// Insert a 「引用」 header (`@author #floor`) into the LIVE, focused editor — the
-// same transaction pattern the @-mention dropdown uses (build atom nodes →
-// dispatch → set selection), which is the only caret-reliable path (incl. IME).
-// Empty editor → [header paragraph, empty body paragraph] with the caret in the
-// body (so the reply types on the line below). Non-empty draft → drop the header
-// inline at the cursor. Deduped on reply id.
+// Insert "@author #floor " at the cursor in the LIVE, focused editor — the same
+// transaction the @-mention dropdown uses (which is caret-reliable, incl. IME).
+//
+// The TRAILING SPACE after the #quote atom is the whole fix: a paragraph that
+// ENDS in a non-editable inline atom has no stable caret position after it, so
+// the caret — and the next keystroke, especially an IME composition — snaps to
+// BEFORE the atom (the bug: text landed back on the @ line). A real text node
+// (the space) after the atom gives the caret somewhere to anchor. Deduped on
+// reply id.
 const insertReference = (view: PmEditorView, q: ReplyReference) => {
   const { state } = view
   const mentionType = state.schema.nodes.mention
   const quoteType = state.schema.nodes.quote
-  const paraType = state.schema.nodes.paragraph
-  if (!mentionType || !quoteType || !paraType) {
+  if (!mentionType || !quoteType) {
     return
   }
 
@@ -143,38 +143,23 @@ const insertReference = (view: PmEditorView, q: ReplyReference) => {
     return
   }
 
-  const inline = [
+  const fragment = [
     mentionType.create({ userId: q.userId, name: q.userName }),
     state.schema.text(' '),
-    quoteType.create({ replyId: q.replyId, floor: q.floor })
+    quoteType.create({ replyId: q.replyId, floor: q.floor }),
+    state.schema.text(' ')
   ]
-  const docEmpty =
-    state.doc.childCount === 1 &&
-    (state.doc.firstChild?.content.size ?? 0) === 0
-
-  const headerPara = paraType.create(null, inline)
-  let tr = state.tr
-  if (docEmpty) {
-    // Fresh editor: header on line 1, empty body line below, caret in the body.
-    const bodyPara = paraType.createAndFill()
-    tr = tr.replaceWith(
-      0,
-      state.doc.content.size,
-      bodyPara ? [headerPara, bodyPara] : [headerPara]
-    )
-    tr = tr.setSelection(Selection.atEnd(tr.doc))
-  } else {
-    // Already composing: prepend the header as its own line at the top, leaving
-    // the body (and the user's caret, which maps through the insert) untouched.
-    tr = tr.insert(0, headerPara)
-  }
+  const { from, to } = state.selection
+  // replaceWith leaves the caret right after the inserted content (the trailing
+  // space), where it anchors cleanly.
+  const tr = state.tr.replaceWith(from, to, fragment)
   view.focus()
   view.dispatch(tr.scrollIntoView())
 }
 
 // Consume the pending 「引用」 signal against the live view, then tell the parent
 // to clear it. Deferred to the next frame so the (freshly Teleported) editor is
-// painted + focusable before we set the caret.
+// painted + focusable before we insert.
 const consumePendingQuote = (view: PmEditorView) => {
   const q = props.pendingQuote
   if (!q) {
@@ -195,7 +180,6 @@ const editorInfo = useEditor((root) => {
       const listener = ctx.get(listenerCtx)
       listener.markdownUpdated((ctx, markdown, prevMarkdown) => {
         if (markdown !== prevMarkdown) {
-          editorContent.value = markdown
           // Record what the editor produced so the valueMarkdown watch below can
           // tell an external change (a parent replacing the bound model) from the
           // editor's own edits and avoid a replaceAll feedback loop.
@@ -317,10 +301,30 @@ const editorInfo = useEditor((root) => {
 
 const textCount = computed(() => markdownToText(props.valueMarkdown).length)
 
+// Only touch the WYSIWYG view while it's actually mounted. `<Milkdown>` is
+// v-if'd out in 'code' (markdown source) mode, so calling .action() on the
+// torn-down editor throws ("editorView not found" / null parentNode) — that was
+// the crash when editing in markdown mode. Switching back to preview remounts the
+// editor and re-syncs from defaultValueCtx, so skipping here loses nothing.
+const onPreviewEditor = (run: (editor: Editor) => void) => {
+  if (activeTab.value !== 'preview') {
+    return
+  }
+  const editor = editorInfo.get()
+  if (!editor) {
+    return
+  }
+  try {
+    run(editor)
+  } catch {
+    // The view may be mid-(un)mount around a tab switch; the next mount re-syncs.
+  }
+}
+
 watch(
   () => [props.language],
   () => {
-    editorInfo.get()?.action(replaceAll(valueMarkdown.value))
+    onPreviewEditor((editor) => editor.action(replaceAll(valueMarkdown.value)))
   }
 )
 
@@ -335,11 +339,7 @@ watch(
       return
     }
     lastEmitted = val
-    const editor = editorInfo.get()
-    if (!editor) {
-      return
-    }
-    editor.action(replaceAll(val))
+    onPreviewEditor((editor) => editor.action(replaceAll(val)))
   }
 )
 
@@ -353,9 +353,9 @@ watch(
     if (!q) {
       return
     }
-    editorInfo
-      .get()
-      ?.action((ctx) => consumePendingQuote(ctx.get(editorViewCtx)))
+    onPreviewEditor((editor) =>
+      editor.action((ctx) => consumePendingQuote(ctx.get(editorViewCtx)))
+    )
   }
 )
 </script>
