@@ -89,44 +89,6 @@ func (r *ReplyRepository) FindRepliesByIDs(ids []int) ([]ReplyRow, error) {
 }
 
 // ──────────────────────────────────────────
-// Targets
-// ──────────────────────────────────────────
-
-type TargetRow struct {
-	model.TopicReplyTarget
-	TargetFloor      int
-	TargetContent    string
-	TargetUserID     int
-	TargetUserName   string
-	TargetUserAvatar string
-}
-
-func (r *ReplyRepository) FindTargetsByReplyIDs(replyIDs []int) (map[int][]TargetRow, error) {
-	if len(replyIDs) == 0 {
-		return make(map[int][]TargetRow), nil
-	}
-	var rows []TargetRow
-	err := r.db.Table("topic_reply_target").
-		Select(`topic_reply_target.*,
-			tr.floor AS target_floor,
-			tr.content AS target_content,
-			tr.user_id AS target_user_id`).
-		Joins("LEFT JOIN topic_reply tr ON tr.id = topic_reply_target.target_reply_id").
-		Where("topic_reply_target.reply_id IN ?", replyIDs).
-		Order("tr.floor ASC").
-		Find(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-
-	result := make(map[int][]TargetRow)
-	for _, row := range rows {
-		result[row.ReplyID] = append(result[row.ReplyID], row)
-	}
-	return result, nil
-}
-
-// ──────────────────────────────────────────
 // Interaction status (batch)
 // ──────────────────────────────────────────
 
@@ -313,4 +275,3 @@ func (r *ReplyRepository) FindTargetReplyUserID(tx *gorm.DB, replyID int) (int, 
 	}
 	return reply.UserID, nil
 }
-

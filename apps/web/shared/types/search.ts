@@ -13,23 +13,12 @@ export interface SearchResultUser extends KunUser {
   created?: Date | string
 }
 
-export interface SearchResultReplyTarget {
-  id: number
-  user: KunUser
-  content: string
-  contentPreview: string
-}
-
-// `targets` is reserved for future "show what this reply is quoting".
-// BE `ReplyItem` doesn't populate it today, so FE marks it optional;
-// the consuming card guards with v-if to avoid empty-block layout gaps.
 export interface SearchResultReply {
   topicId: number
   topicTitle: string
   floor: number
   content: string
   user: KunUser
-  targets?: SearchResultReplyTarget[]
   created: Date | string
 }
 

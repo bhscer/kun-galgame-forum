@@ -542,7 +542,7 @@ func (s *TopicWriteService) SetBestAnswer(ctx context.Context, userID, role, top
 				SenderID:   userID,
 				ReceiverID: reply.UserID,
 				Kind:       msgService.NotifySolution,
-				Content:    replyPlainPreview(s.replyRepo, reply),
+				Content:    replyPlainPreview(reply),
 				TopicID:    topicID,
 			})
 		}

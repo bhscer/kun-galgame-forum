@@ -26,35 +26,5 @@ defineProps<{
       </div>
       {{ markdownToText(reply.content) }}
     </div>
-
-    <!--
-      BE `ReplyItem` (search/dto) doesn't populate `targets`; the field
-      is reserved for future "show what this reply is quoting". Use
-      `?? []` so the v-for short-circuits cleanly when missing.
-      See SearchResultReply in shared/types/search.ts.
-    -->
-    <template v-for="(target, index) in reply.targets ?? []" :key="index">
-      <div
-        class="border-primary bg-primary/10 my-2 rounded border-l-3 p-2 text-sm"
-      >
-        <div class="flex items-center gap-2">
-          <div class="flex items-center">
-            <KunAvatar :user="reply.user" :is-navigation="false" />
-            <span class="ml-2 text-sm">{{ reply.user.name }}</span>
-          </div>
-          <KunIcon name="lucide:arrow-right" class="h-4 w-4" />
-          <div class="flex items-center">
-            <KunAvatar :user="target.user" :is-navigation="false" />
-            <span class="ml-2 text-sm">{{ target.user.name }}</span>
-          </div>
-        </div>
-
-        <p class="text-default-500 mt-1 line-clamp-2 text-sm italic">
-          {{ target.contentPreview }}
-        </p>
-
-        {{ markdownToText(target.content) }}
-      </div>
-    </template>
   </KunLink>
 </template>

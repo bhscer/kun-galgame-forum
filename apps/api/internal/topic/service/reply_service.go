@@ -414,7 +414,7 @@ func (s *ReplyService) PinReply(ctx context.Context, userID, role, topicID, repl
 		if isPinning && userID != reply.UserID {
 			s.helpers.CreateTopicMessageWithContent(
 				tx, userID, reply.UserID, "pin-reply",
-				replyPlainPreview(s.replyRepo, *reply),
+				replyPlainPreview(*reply),
 				topicID,
 			)
 		}
@@ -426,19 +426,9 @@ func (s *ReplyService) PinReply(ctx context.Context, userID, role, topicID, repl
 	return nil
 }
 
-// replyPlainPreview concatenates a reply's own markdown-stripped content with
-// each topic_reply_target.content (markdown-stripped), mirroring the legacy
-// Nitro `reply.content + targets.toString()` pattern used for pin-reply /
-// solution notification previews on multi-target replies.
-func replyPlainPreview(repo *repository.ReplyRepository, reply topicModel.TopicReply) string {
-	var b strings.Builder
-	b.WriteString(markdown.ToPlainText(reply.Content, 500))
-
-	targets, err := repo.FindTargetsByReplyIDs([]int{reply.ID})
-	if err == nil {
-		for _, t := range targets[reply.ID] {
-			b.WriteString(markdown.ToPlainText(t.Content, 500))
-		}
-	}
-	return b.String()
+// replyPlainPreview is the reply's markdown-stripped content, used for pin-reply
+// / solution notification previews. (The Phase-4 migration folded legacy
+// multi-target content into Content, so there are no separate targets to append.)
+func replyPlainPreview(reply topicModel.TopicReply) string {
+	return markdown.ToPlainText(reply.Content, 500)
 }

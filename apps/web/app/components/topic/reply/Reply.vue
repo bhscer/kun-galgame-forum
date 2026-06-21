@@ -8,11 +8,6 @@ const bannerBaseClasses =
 const props = defineProps<{
   reply: TopicReply
   title: string
-  isLoadingTarget: number | null
-}>()
-
-const emit = defineEmits<{
-  loadReply: [targetReplyId: number, anchorReplyId: number]
 }>()
 
 const { scrollToReplyId } = storeToRefs(useTempReplyStore())
@@ -23,14 +18,11 @@ const comments = ref(props.reply.comment)
 const contentRef = ref<HTMLElement | null>(null)
 const { preview, keepPreview, hidePreview } = useQuoteContent(contentRef)
 
-const replyContent = computed(() => {
-  const targetsContent = props.reply.targets.map((t) => t.replyContentMarkdown)
-  const content = props.reply.contentMarkdown + targetsContent.join('')
-  // Convert to plain text BEFORE slicing — slicing raw markdown first can cut a
-  // mention/quote token in half (`[@name](kungal-user`), which markdownToText
-  // then can't strip, leaking the broken token into the anchor id.
-  return markdownToText(content).slice(0, 20)
-})
+// Short plain-text slug for the reply's anchor id. markdownToText first so a
+// mention/quote token isn't sliced mid-form into the id.
+const replyContent = computed(() =>
+  markdownToText(props.reply.contentMarkdown).slice(0, 20)
+)
 
 const cardClasses = computed(() => {
   if (props.reply.isBestAnswer) {
@@ -52,10 +44,6 @@ watch(
     }
   }
 )
-
-const handleLoadDetail = (targetReplyId: number) => {
-  emit('loadReply', targetReplyId, props.reply.id)
-}
 
 const handleNewComment = (comment: TopicComment) => {
   comments.value.push(comment)
@@ -114,19 +102,6 @@ const handleNewComment = (comment: TopicComment) => {
         :topic-id="reply.topicId"
         :floor="reply.floor"
       />
-
-      <div
-        v-if="reply.targets && reply.targets.length > 0"
-        class="flex flex-col gap-2"
-      >
-        <TopicReplyTarget
-          v-for="target in reply.targets"
-          :key="target.id"
-          :target="target"
-          :is-loading="isLoadingTarget === target.id"
-          @load-detail="handleLoadDetail"
-        />
-      </div>
 
       <div ref="contentRef">
         <KunContent

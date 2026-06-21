@@ -13,10 +13,9 @@ type ListRepliesRequest struct {
 	SortOrder string `query:"sortOrder" validate:"required,oneof=asc desc"`
 }
 
-// Multi-target replies were retired in favour of inline @mention / quote tokens
-// in Content (a reply now carries one body). The read-side ReplyTargetResponse
-// below is KEPT so existing replies still render their targets until the
-// Phase 4 migration folds them into Content.
+// Multi-target replies were retired: a reply now carries one body with inline
+// @mention / #quote tokens. The Phase-4 migration folded all legacy
+// topic_reply_target rows into Content, so the read-side target response is gone.
 
 type CreateReplyRequest struct {
 	TopicID int    `json:"topicId" validate:"required,min=1"`
@@ -59,19 +58,9 @@ type TopicReplyResponse struct {
 	DislikeCount    int                    `json:"dislikeCount"`
 	IsDisliked      bool                   `json:"isDisliked"`
 	Comments        []TopicCommentResponse `json:"comment"`
-	Targets         []ReplyTargetResponse  `json:"targets"`
 	IsPinned        bool                   `json:"isPinned"`
 	IsBestAnswer    bool                   `json:"isBestAnswer"`
 	Created         time.Time              `json:"created"`
-}
-
-type ReplyTargetResponse struct {
-	ID                   int     `json:"id"`
-	Floor                int     `json:"floor"`
-	User                 KunUser `json:"user"`
-	ContentPreview       string  `json:"contentPreview"`
-	ReplyContentMarkdown string  `json:"replyContentMarkdown"`
-	ReplyContentHtml     string  `json:"replyContentHtml"`
 }
 
 // ──────────────────────────────────────────

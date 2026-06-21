@@ -137,7 +137,6 @@ func (s *ReplyService) buildReplyResponses(
 		replyIDs[i] = r.ID
 	}
 
-	targetMap, _ := s.replyRepo.FindTargetsByReplyIDs(replyIDs)
 	commentMap, _ := s.commentRepo.FindCommentsByReplyIDs(replyIDs)
 
 	var likeMap, dislikeMap map[int]bool
@@ -162,14 +161,6 @@ func (s *ReplyService) buildReplyResponses(
 		uidSet[r.UserID] = struct{}{}
 		for _, id := range markdown.ExtractMentionIDs(r.Content) {
 			uidSet[id] = struct{}{}
-		}
-	}
-	for _, ts := range targetMap {
-		for _, t := range ts {
-			uidSet[t.TargetUserID] = struct{}{}
-			for _, id := range markdown.ExtractMentionIDs(t.Content) {
-				uidSet[id] = struct{}{}
-			}
 		}
 	}
 	for _, cs := range commentMap {
@@ -221,24 +212,6 @@ func (s *ReplyService) buildReplyResponses(
 		if u, ok := userMap[r.UserID]; ok && !userclient.IsRenderable(u) {
 			continue
 		}
-		var targets []dto.ReplyTargetResponse
-		if ts, ok := targetMap[r.ID]; ok {
-			for _, t := range ts {
-				preview := truncate(t.TargetContent, 150)
-				targets = append(targets, dto.ReplyTargetResponse{
-					ID:                   t.TargetReplyID,
-					Floor:                t.TargetFloor,
-					User:                 kunUser(t.TargetUserID),
-					ContentPreview:       preview,
-					ReplyContentMarkdown: t.Content,
-					ReplyContentHtml:     renderContent(t.Content),
-				})
-			}
-		}
-		if targets == nil {
-			targets = []dto.ReplyTargetResponse{}
-		}
-
 		var comments []dto.TopicCommentResponse
 		if cs, ok := commentMap[r.ID]; ok {
 			for _, c := range cs {
@@ -286,7 +259,6 @@ func (s *ReplyService) buildReplyResponses(
 			DislikeCount:    r.DislikeCount,
 			IsDisliked:      dislikeMap[r.ID],
 			Comments:        comments,
-			Targets:         targets,
 			IsPinned:        isPinned,
 			IsBestAnswer:    isBestAnswer,
 			Created:         r.CreatedAt,

@@ -1,14 +1,5 @@
 import type { TopicComment } from './topic-comment'
 
-export interface TopicReplyTargetInfo {
-  id: number
-  floor: number
-  user: KunUser
-  contentPreview: string
-  replyContentMarkdown: string
-  replyContentHtml: string
-}
-
 export interface TopicReply {
   id: number
   topicId: number
@@ -26,7 +17,6 @@ export interface TopicReply {
   created: Date | string
   edited: Date | string | null
 
-  targets: TopicReplyTargetInfo[]
   isPinned: boolean
   isBestAnswer: boolean
 }
