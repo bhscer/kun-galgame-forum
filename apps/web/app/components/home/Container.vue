@@ -103,8 +103,9 @@ useIntersectionObserver(
       />
     </div>
 
-    <!-- Desktop: vertical underline tab rail on the left (like the settings panel). -->
-    <div class="hidden shrink-0 sm:block sm:w-28">
+    <!-- Desktop: vertical underline tab rail on the left (like the settings
+         panel). Sticky so it stays put while the center feed scrolls. -->
+    <div class="sticky top-20 hidden shrink-0 self-start sm:block sm:w-28">
       <KunTab
         v-model="activeTab"
         :items="HOME_FEED_TABS"
@@ -143,5 +144,18 @@ useIntersectionObserver(
         <span v-else class="text-default-400 text-sm">没有更多动态了</span>
       </div>
     </div>
+
+    <!-- Right rail (desktop only, ≥lg): carousel · 使用提示 at the top, footer
+         pinned to the bottom. Sticky + viewport-tall so it stays fixed while the
+         center feed scrolls; fixed width keeps the feed the focus (~65-70%). -->
+    <aside
+      class="sticky top-20 hidden h-[calc(100dvh-6rem)] shrink-0 flex-col self-start lg:flex lg:w-72 xl:w-80"
+    >
+      <div class="space-y-4">
+        <HomeCarousel />
+        <HomeAsideHelp />
+      </div>
+      <HomeFooter class="mt-auto" />
+    </aside>
   </div>
 </template>
