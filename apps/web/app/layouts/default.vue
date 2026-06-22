@@ -24,10 +24,6 @@ watch(
     imageURL.value = await usePersistSettingsStore().getCurrentBackground()
   }
 )
-
-const { showKUNGalgameSidebarCollapsed } = storeToRefs(
-  usePersistSettingsStore()
-)
 </script>
 
 <template>
@@ -50,7 +46,8 @@ const { showKUNGalgameSidebarCollapsed } = storeToRefs(
         :class="
           cn(
             'z-10 w-full max-w-7xl min-w-0 transition-all duration-300 md:mr-3',
-            showKUNGalgameSidebarCollapsed ? 'md:ml-[84px]' : 'md:ml-66'
+            // Fixed offset for the desktop icon rail (w-20 + gap); mobile is ml-0.
+            'md:ml-[84px]'
           )
         "
       >

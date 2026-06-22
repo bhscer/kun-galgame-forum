@@ -128,9 +128,6 @@ func (a *App) setupRoutes() {
 	api.Get("/rss/topic", a.RSSHandler.GetTopicRSS)
 	api.Get("/rss/galgame", a.RSSHandler.GetGalgameRSS)
 
-	// Unmoe (public)
-	api.Get("/unmoe", a.UnmoeHandler.GetLogs)
-
 	// Toolset resource detail (public)
 	api.Get("/toolset/:id/resource/detail", a.ToolsetResourceHandler.GetResourceDetail)
 

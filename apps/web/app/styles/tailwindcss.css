@@ -95,8 +95,12 @@
  *   [data-kun-overlay] → Modal (ancestor of .kun-modal-panel) · Drawer · toasts
  *   .z-kun-popover     → Dropdown · ContextMenu · Popover · Tooltip ·
  *                        Select / Autocomplete lists · DatePicker calendar
+ *   .kun-rail-flyout   → the desktop sidebar icon-rail hover menus (side-bar/Rail.vue)
+ *   .kun-sidebar-drawer → the mobile hamburger drawer (force-expanded Sidebar.vue)
  */
 [data-kun-overlay],
-.z-kun-popover {
+.z-kun-popover,
+.kun-rail-flyout,
+.kun-sidebar-drawer {
   --color-content1: oklch(var(--content1) / 1);
 }

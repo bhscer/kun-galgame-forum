@@ -46,7 +46,6 @@ export const kungalgameStoreReset = () => {
   persistSettingsStore.showKUNGalgameBackgroundBlur = 0
   persistSettingsStore.showKUNGalgameBackgroundBrightness = 100
   persistSettingsStore.showKUNGalgameBackLoli = false
-  persistSettingsStore.showKUNGalgameSidebarCollapsed = false
 
   usePersistGalgameCardStore().reset()
 

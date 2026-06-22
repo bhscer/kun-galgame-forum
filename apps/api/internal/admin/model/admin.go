@@ -51,21 +51,3 @@ type Todo struct {
 }
 
 func (Todo) TableName() string { return "todo" }
-
-// Unmoe is the unmoe character translator entries.
-type Unmoe struct {
-	ID         int    `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name       string `gorm:"not null" json:"name"`
-	Result     string `gorm:"default:''" json:"result"`
-	DescEnUS   string `gorm:"column:desc_en_us;type:text;default:''" json:"desc_en_us"`
-	DescJaJP   string `gorm:"column:desc_ja_jp;type:text;default:''" json:"desc_ja_jp"`
-	DescZhCN   string `gorm:"column:desc_zh_cn;type:text;default:''" json:"desc_zh_cn"`
-	DescZhTW   string `gorm:"column:desc_zh_tw;type:text;default:''" json:"desc_zh_tw"`
-
-	UserID int `gorm:"column:user_id;not null" json:"user_id"`
-
-	CreatedAt time.Time `gorm:"column:created" json:"created"`
-	UpdatedAt time.Time `gorm:"column:updated" json:"updated"`
-}
-
-func (Unmoe) TableName() string { return "unmoe" }

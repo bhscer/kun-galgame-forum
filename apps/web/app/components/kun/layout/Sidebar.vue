@@ -7,13 +7,9 @@ const props = withDefaults(
   { className: '', forceExpanded: false }
 )
 
-const { showKUNGalgameSidebarCollapsed } = storeToRefs(
-  usePersistSettingsStore()
-)
-
-const isCollapsed = computed(
-  () => !props.forceExpanded && showKUNGalgameSidebarCollapsed.value
-)
+// Desktop is ALWAYS the icon rail (the expanded desktop form was retired); only
+// the mobile drawer passes force-expanded to get the full nav. No collapse toggle.
+const isCollapsed = computed(() => !props.forceExpanded)
 
 const links = [
   {
@@ -43,8 +39,11 @@ const links = [
   <div
     :class="
       cn(
-        'scrollbar-hide sm:bg-default-100 bg-default-200 border-default/20 fixed z-20 flex h-full shrink-0 -translate-x-1 flex-col justify-between rounded-none border-r p-0 transition-all duration-300 sm:backdrop-blur-[var(--kun-background-blur)]',
+        'scrollbar-hide bg-content1 border-kun fixed z-20 flex h-full shrink-0 -translate-x-1 flex-col justify-between rounded-none border-r p-0 shadow-kun-sm transition-all duration-300 sm:backdrop-blur-[var(--kun-background-blur)]',
         isCollapsed ? 'w-20' : 'w-3xs overflow-y-scroll',
+        // Mobile drawer (force-expanded) is a popup over a scrim → opaque, like
+        // the other menus (see .kun-sidebar-drawer in styles/tailwindcss.css).
+        forceExpanded && 'kun-sidebar-drawer',
         className
       )
     "
@@ -83,7 +82,7 @@ const links = [
           <KunLayoutSideBarNav />
         </template>
         <template v-else>
-          <KunLayoutSideBarCollapsed />
+          <KunLayoutSideBarRail />
         </template>
       </Transition>
     </div>

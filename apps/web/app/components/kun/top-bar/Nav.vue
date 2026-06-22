@@ -6,9 +6,6 @@ const { showKUNGalgameHamburger, messageStatus } = storeToRefs(
 )
 const { id, moemoepoint, isCheckIn, isCreator, dailyToolsetUploadBytes } =
   storeToRefs(usePersistUserStore())
-const { showKUNGalgameSidebarCollapsed } = storeToRefs(
-  usePersistSettingsStore()
-)
 
 const { isSnowing, toggleSnow, startSnow } = useKunSnowEffect()
 
@@ -54,30 +51,6 @@ onMounted(async () => {
 
 <template>
   <div class="flex items-center gap-1">
-    <KunTooltip
-      :text="showKUNGalgameSidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'"
-      position="bottom"
-    >
-      <KunButton
-        :is-icon-only="true"
-        color="default"
-        size="xl"
-        variant="light"
-        class-name="hidden md:flex"
-        @click="
-          showKUNGalgameSidebarCollapsed = !showKUNGalgameSidebarCollapsed
-        "
-      >
-        <KunIcon
-          :name="
-            showKUNGalgameSidebarCollapsed
-              ? 'lucide:panel-left-open'
-              : 'lucide:panel-left-close'
-          "
-        />
-      </KunButton>
-    </KunTooltip>
-
     <KunButton
       :is-icon-only="true"
       color="default"
@@ -101,15 +74,6 @@ onMounted(async () => {
         <KunIcon :name="canGoBack ? 'lucide:arrow-left' : 'lucide:home'" />
       </KunButton>
     </KunTooltip>
-
-    <!-- Collapsed-sidebar quick-nav icons. This is a md+ feature (the sidebar
-         and its collapse toggle are both `hidden md:*`); without the `md:`
-         gate, a collapse state persisted from desktop injected these 7 icons
-         into the mobile topbar and overflowed it. `md:contents` keeps them an
-         inline flex item on md+, hidden on phones. -->
-    <div v-if="showKUNGalgameSidebarCollapsed" class="hidden md:contents">
-      <KunTopBarSideCollapsed />
-    </div>
 
     <!-- Logged-out GitHub-star promo. Hidden on phones (< md); the ad slot below
          takes this spot on mobile, while desktop keeps showing both. -->

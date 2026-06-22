@@ -53,8 +53,6 @@ import (
 	topicHandler "kun-galgame-api/internal/topic/handler"
 	topicRepo "kun-galgame-api/internal/topic/repository"
 	topicService "kun-galgame-api/internal/topic/service"
-	unmoeHandler "kun-galgame-api/internal/unmoe/handler"
-	unmoeRepo "kun-galgame-api/internal/unmoe/repository"
 	updateHandler "kun-galgame-api/internal/update/handler"
 	updateRepo "kun-galgame-api/internal/update/repository"
 	"kun-galgame-api/internal/user/handler"
@@ -112,7 +110,6 @@ type App struct {
 	WebsiteTagHandler          *websiteHandler.TagHandler
 	UpdateHandler              *updateHandler.UpdateHandler
 	FriendLinkHandler          *friendHandler.FriendLinkHandler
-	UnmoeHandler               *unmoeHandler.UnmoeHandler
 	ReportHandler              *reportHandler.ReportHandler
 	RSSHandler                 *rssHandler.RSSHandler
 	GalgameHandler             *galgameHandler.GalgameHandler
@@ -365,7 +362,6 @@ func New(cfg *config.Config) *App {
 		WebsiteTagHandler:      websiteHandler.NewTagHandler(websiteTagSvc),
 		UpdateHandler:          updateHandler.NewUpdateHandler(updateRepo.NewUpdateRepository(db)),
 		FriendLinkHandler:      friendHandler.NewFriendLinkHandler(friendRepo.NewFriendLinkRepository(db)),
-		UnmoeHandler:           unmoeHandler.NewUnmoeHandler(unmoeRepo.NewUnmoeRepository(db), uc),
 		ReportHandler:          reportHandler.NewReportHandler(reportRepo.NewReportRepository(db)),
 		RSSHandler:             rssHandler.NewRSSHandler(rssRepo.NewRSSRepository(db), gc, uc),
 		GalgameHandler:         galgameHandler.NewGalgameHandler(galgameCoreSvc),

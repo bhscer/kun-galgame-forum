@@ -28,8 +28,6 @@ export const usePersistSettingsStore = defineStore(
       ref<KUNGalgameSettingsStore['showKUNGalgameBackgroundBrightness']>(100)
     const showKUNGalgameBackLoli =
       ref<KUNGalgameSettingsStore['showKUNGalgameBackLoli']>(false)
-    const showKUNGalgameSidebarCollapsed =
-      ref<KUNGalgameSettingsStore['showKUNGalgameSidebarCollapsed']>(false)
     // Global "显示没有下载资源的 Galgame" — off by default; hides resource-less
     // galgames across all local galgame lists. See KUNGalgameSettingsStore.
     const showKUNGalgameNoResource =
@@ -48,11 +46,6 @@ export const usePersistSettingsStore = defineStore(
       ref<KUNGalgameSettingsStore['showKUNGalgameGallerySexualLevels']>([])
     const showKUNGalgameGalleryViolenceLevels =
       ref<KUNGalgameSettingsStore['showKUNGalgameGalleryViolenceLevels']>([])
-
-    const toggleKUNGalgameSidebarCollapsed = () => {
-      showKUNGalgameSidebarCollapsed.value =
-        !showKUNGalgameSidebarCollapsed.value
-    }
 
     const setKUNGalgameFontStyle = (font: string) => {
       showKUNGalgameFontStyle.value = font
@@ -147,12 +140,10 @@ export const usePersistSettingsStore = defineStore(
       showKUNGalgameBackgroundBlur,
       showKUNGalgameBackgroundBrightness,
       showKUNGalgameBackLoli,
-      showKUNGalgameSidebarCollapsed,
       showKUNGalgameNoResource,
       showKUNGalgameRounded,
       showKUNGalgameGallerySexualLevels,
       showKUNGalgameGalleryViolenceLevels,
-      toggleKUNGalgameSidebarCollapsed,
       setKUNGalgameFontStyle,
       setKUNGalgameTransparency,
       setKUNGalgameBackgroundBlur,
