@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"kun-galgame-api/internal/constants"
+	"kun-galgame-api/internal/topic/model"
 
 	"gorm.io/gorm"
 )
@@ -33,6 +34,7 @@ type TopicCardRow struct {
 	BestAnswerID     *int
 	StatusUpdateTime time.Time
 	UpvoteTime       *time.Time
+	CoverImages      model.ImageTokens
 	UserID           int
 	UserName         string
 	UserAvatar       string
@@ -52,7 +54,7 @@ func (r *TopicListRepository) FindList(
 			topic.is_nsfw, topic.like_count, topic.reply_count,
 			topic.comment_count, topic.best_answer_id,
 			topic.status_update_time, topic.upvote_time,
-			topic.user_id`).
+			topic.cover_images, topic.user_id`).
 		Where("topic.status != 1")
 
 	if !isNSFW {
@@ -94,7 +96,7 @@ func (r *TopicListRepository) FindResourceList(
 			topic.is_nsfw, topic.like_count, topic.reply_count,
 			topic.comment_count, topic.best_answer_id,
 			topic.status_update_time, topic.upvote_time,
-			topic.user_id`).
+			topic.cover_images, topic.user_id`).
 		Joins(`JOIN topic_section_relation tsr ON tsr.topic_id = topic.id`).
 		Joins(`JOIN topic_section ts ON ts.id = tsr.topic_section_id`).
 		Where("topic.status != 1").

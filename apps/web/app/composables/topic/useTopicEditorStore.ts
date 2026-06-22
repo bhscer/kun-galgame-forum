@@ -50,12 +50,20 @@ export const useTopicEditorStore = () => {
     }
   })
 
+  const coverImages = computed<string[]>({
+    get: () => activeStore.value.coverImages,
+    set: (value) => {
+      activeStore.value.coverImages = value
+    }
+  })
+
   return {
     category,
     section,
     tags,
     title,
     content,
-    isNSFW
+    isNSFW,
+    coverImages
   }
 }

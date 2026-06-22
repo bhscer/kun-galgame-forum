@@ -13,6 +13,9 @@ export interface HomeTopic {
 
   section: string[]
   tag: string[]
+  // Optional 1..9 feed-card cover images, as /image/<hash> content tokens
+  // (usable directly as an <img src>). Empty array = no covers.
+  coverImages: string[]
   user: KunUser
   status: number
   hasBestAnswer: boolean

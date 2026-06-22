@@ -204,6 +204,10 @@ func (s *TopicService) GetDetail(
 	if sections == nil {
 		sections = []string{}
 	}
+	covers := []string(topic.CoverImages)
+	if covers == nil {
+		covers = []string{}
+	}
 
 	// Resolve @mention display names in the topic body to the authors' CURRENT
 	// names (one batch), so a renamed user shows their new name; unresolved ids

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"regexp"
 	"time"
 
 	"kun-galgame-api/internal/constants"
@@ -69,6 +70,35 @@ func topicSectionFootprint(consume bool) int {
 	return constants.RewardCreateTopic
 }
 
+// coverImageTokenRe matches a single /image/<64hex> content token — the only
+// shape a topic cover may take (see model.ImageTokens / migration 029).
+var coverImageTokenRe = regexp.MustCompile(`^/image/[0-9a-f]{64}$`)
+
+// normalizeCoverImages validates the incoming cover tokens, drops duplicates
+// (keeping first-seen order), and returns them ready to persist. A malformed
+// token or a list longer than 9 is a bad request. Empty in → nil (no covers).
+func normalizeCoverImages(in []string) (topicModel.ImageTokens, *errors.AppError) {
+	if len(in) == 0 {
+		return nil, nil
+	}
+	if len(in) > 9 {
+		return nil, errors.ErrBadRequest("封面图最多 9 张")
+	}
+	seen := make(map[string]struct{}, len(in))
+	out := make(topicModel.ImageTokens, 0, len(in))
+	for _, tk := range in {
+		if !coverImageTokenRe.MatchString(tk) {
+			return nil, errors.ErrBadRequest("封面图格式不正确")
+		}
+		if _, dup := seen[tk]; dup {
+			continue
+		}
+		seen[tk] = struct{}{}
+		out = append(out, tk)
+	}
+	return out, nil
+}
+
 // ──────────────────────────────────────────
 // Create — all checks inside transaction
 // ──────────────────────────────────────────
@@ -79,6 +109,11 @@ func (s *TopicWriteService) Create(
 	req *dto.CreateTopicRequest,
 ) (int, *errors.AppError) {
 	hasConsumeSection := anyConsumeSection(req.Sections)
+
+	covers, coverErr := normalizeCoverImages(req.CoverImages)
+	if coverErr != nil {
+		return 0, coverErr
+	}
 
 	var newTopicID int
 
@@ -102,11 +137,12 @@ func (s *TopicWriteService) Create(
 		}
 
 		topic := &topicModel.Topic{
-			Title:    req.Title,
-			Content:  req.Content,
-			Category: req.Category,
-			IsNSFW:   req.IsNSFW,
-			UserID:   userID,
+			Title:       req.Title,
+			Content:     req.Content,
+			Category:    req.Category,
+			IsNSFW:      req.IsNSFW,
+			UserID:      userID,
+			CoverImages: covers,
 		}
 		if err := s.topicRepo.CreateTopic(tx, topic); err != nil {
 			return err
@@ -191,6 +227,11 @@ func (s *TopicWriteService) Update(
 	oldConsume := anyConsumeSection(oldSections)
 	newConsume := anyConsumeSection(req.Sections)
 
+	covers, coverErr := normalizeCoverImages(req.CoverImages)
+	if coverErr != nil {
+		return coverErr
+	}
+
 	now := time.Now()
 	txErr := s.topicRepo.DB().Transaction(func(tx *gorm.DB) error {
 		if err := s.topicRepo.UpdateTopicFields(tx, topicID, map[string]any{
@@ -198,6 +239,7 @@ func (s *TopicWriteService) Update(
 			"content":            req.Content,
 			"category":           req.Category,
 			"is_nsfw":            req.IsNSFW,
+			"cover_images":       covers,
 			"edited":             &now,
 			"status_update_time": now,
 		}); err != nil {

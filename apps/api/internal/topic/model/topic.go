@@ -20,6 +20,11 @@ type Topic struct {
 
 	UserID int `gorm:"column:user_id;not null" json:"user_id"`
 
+	// Optional 1..9 feed-card cover images, stored as a JSON array of
+	// /image/<hash> content tokens in a scalar text column — see ImageTokens
+	// + migration 029 for why tokens-in-text (and not text[]) keeps them alive.
+	CoverImages ImageTokens `gorm:"column:cover_images;type:text;not null;default:''" json:"cover_images"`
+
 	// Both best_answer_id and pinned_reply_id reference topic_reply(id)
 	// with `ON DELETE SET NULL` at the DB level (see 000_baseline.up.sql).
 	// That means deleting the referenced reply silently clears the

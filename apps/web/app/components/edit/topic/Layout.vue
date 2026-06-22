@@ -47,6 +47,12 @@ onBeforeRouteLeave(async (to, from, next) => {
           >
             <EditTopicEditor />
           </KunCard>
+          <KunCard
+            :is-hoverable="false"
+            :is-transparent="false"
+          >
+            <EditTopicCoverPicker />
+          </KunCard>
         </div>
       </div>
     </ClientOnly>

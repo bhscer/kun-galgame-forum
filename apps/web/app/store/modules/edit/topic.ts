@@ -12,6 +12,7 @@ export const usePersistEditTopicStore = defineStore(
     const category = ref<EditStorePersist['category']>('')
     const section = ref<EditStorePersist['section']>([])
     const isNSFW = ref<EditStorePersist['isNSFW']>(false)
+    const coverImages = ref<EditStorePersist['coverImages']>([])
 
     const resetTopicData = () => {
       title.value = ''
@@ -20,6 +21,7 @@ export const usePersistEditTopicStore = defineStore(
       category.value = ''
       section.value = []
       isNSFW.value = false
+      coverImages.value = []
     }
 
     return {
@@ -30,6 +32,7 @@ export const usePersistEditTopicStore = defineStore(
       category,
       section,
       isNSFW,
+      coverImages,
       resetTopicData
     }
   },

@@ -4,6 +4,7 @@ export interface TopicCard {
   view: number
   tag: string[]
   section: string[]
+  coverImages: string[]
   user: KunUser
   status: number
   hasBestAnswer: boolean
@@ -45,6 +46,9 @@ export interface TopicDetail {
   category: string
   section: string[]
   tag: string[]
+  // Optional 1..9 cover images as /image/<hash> tokens; used to prefill the
+  // cover picker when editing, and (empty = none) for the feed card.
+  coverImages: string[]
   user: KunUser & { moemoepoint: number }
 
   likeCount: number

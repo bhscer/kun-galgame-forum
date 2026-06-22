@@ -15,6 +15,7 @@ const {
   category,
   section,
   isNSFW,
+  coverImages,
   isTopicRewriting
 } = storeToRefs(useTempEditStore())
 const { id: userId, role } = usePersistUserStore()
@@ -28,6 +29,7 @@ const rewriteTopic = async () => {
   category.value = props.topic.category
   section.value = props.topic.section ?? []
   isNSFW.value = !!props.topic.isNSFW
+  coverImages.value = props.topic.coverImages ?? []
   isTopicRewriting.value = true
 
   await navigateTo('/edit/topic')

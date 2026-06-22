@@ -54,7 +54,17 @@ export const createTopicSchema = z.object({
     .array(z.enum(KUN_TOPIC_SECTION_CONST))
     .min(1, { message: '您至少选择一个话题的分区' })
     .max(3, { message: '您至多选择三个话题的分区' }),
-  is_nsfw: z.coerce.boolean({ message: '未找到话题的 NSFW 设置' })
+  is_nsfw: z.coerce.boolean({ message: '未找到话题的 NSFW 设置' }),
+  // Optional 1..9 cover images, each a /image/<64hex> content token returned by
+  // the /image/topic upload endpoint (see CoverPicker.vue). Empty = no covers.
+  coverImages: z
+    .array(
+      z
+        .string()
+        .regex(/^\/image\/[0-9a-f]{64}$/, { message: '封面图格式不正确' })
+    )
+    .max(9, { message: '封面图最多 9 张' })
+    .optional()
 })
 
 export const updateTopicSchema = createTopicSchema.extend({

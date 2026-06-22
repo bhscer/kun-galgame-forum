@@ -37,6 +37,7 @@ type TopicCard struct {
 	View             int        `json:"view"`
 	Tags             []string   `json:"tag"`
 	Sections         []string   `json:"section"`
+	CoverImages      []string   `json:"coverImages"`
 	User             KunUser    `json:"user"`
 	Status           int        `json:"status"`
 	HasBestAnswer    bool       `json:"hasBestAnswer"`
@@ -64,6 +65,7 @@ type TopicDetail struct {
 	Category         string                 `json:"category"`
 	Sections         []string               `json:"section"`
 	Tags             []string               `json:"tag"`
+	CoverImages      []string               `json:"coverImages"`
 	User             KunUserWithMoemoepoint `json:"user"`
 	LikeCount        int                    `json:"likeCount"`
 	IsLiked          bool                   `json:"isLiked"`
@@ -102,21 +104,23 @@ type TopicBestAnswer struct {
 // ──────────────────────────────────────────
 
 type CreateTopicRequest struct {
-	Title    string   `json:"title" validate:"required,min=1,max=233"`
-	Content  string   `json:"content" validate:"required,min=1,max=100007"`
-	Tags     []string `json:"tag" validate:"required,min=1,max=7"`
-	Category string   `json:"category" validate:"required,oneof=galgame technique others"`
-	Sections []string `json:"section" validate:"required,min=1,max=3"`
-	IsNSFW   bool     `json:"is_nsfw"`
+	Title       string   `json:"title" validate:"required,min=1,max=233"`
+	Content     string   `json:"content" validate:"required,min=1,max=100007"`
+	Tags        []string `json:"tag" validate:"required,min=1,max=7"`
+	Category    string   `json:"category" validate:"required,oneof=galgame technique others"`
+	Sections    []string `json:"section" validate:"required,min=1,max=3"`
+	IsNSFW      bool     `json:"is_nsfw"`
+	CoverImages []string `json:"coverImages" validate:"omitempty,max=9"`
 }
 
 type UpdateTopicRequest struct {
-	Title    string   `json:"title" validate:"required,min=1,max=233"`
-	Content  string   `json:"content" validate:"required,min=1,max=100007"`
-	Tags     []string `json:"tag" validate:"required,min=1,max=7"`
-	Category string   `json:"category" validate:"required,oneof=galgame technique others"`
-	Sections []string `json:"section" validate:"required,min=1,max=3"`
-	IsNSFW   bool     `json:"is_nsfw"`
+	Title       string   `json:"title" validate:"required,min=1,max=233"`
+	Content     string   `json:"content" validate:"required,min=1,max=100007"`
+	Tags        []string `json:"tag" validate:"required,min=1,max=7"`
+	Category    string   `json:"category" validate:"required,oneof=galgame technique others"`
+	Sections    []string `json:"section" validate:"required,min=1,max=3"`
+	IsNSFW      bool     `json:"is_nsfw"`
+	CoverImages []string `json:"coverImages" validate:"omitempty,max=9"`
 }
 
 type TopicInteractionRequest struct {

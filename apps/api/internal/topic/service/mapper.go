@@ -280,12 +280,17 @@ func toTopicCard(r repository.TopicCardRow, tags, sections []string, isPollTopic
 	if sections == nil {
 		sections = []string{}
 	}
+	covers := []string(r.CoverImages)
+	if covers == nil {
+		covers = []string{}
+	}
 	return dto.TopicCard{
-		ID:       r.ID,
-		Title:    r.Title,
-		View:     r.View,
-		Tags:     tags,
-		Sections: sections,
+		ID:          r.ID,
+		Title:       r.Title,
+		View:        r.View,
+		Tags:        tags,
+		Sections:    sections,
+		CoverImages: covers,
 		User: dto.KunUser{
 			ID:     r.UserID,
 			Name:   r.UserName,

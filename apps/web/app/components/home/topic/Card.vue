@@ -23,6 +23,12 @@ defineProps<{
       </span>
     </div>
 
+    <TopicCoverGrid
+      v-if="topic.coverImages?.length"
+      :images="topic.coverImages"
+      class="my-1"
+    />
+
     <div class="flex w-full flex-wrap items-center justify-between gap-2">
       <TopicTagGroup
         :section="topic.section"
