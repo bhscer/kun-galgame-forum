@@ -1,8 +1,8 @@
 <script setup lang="ts"></script>
 
 <template>
-  <KunCard :is-transparent="false" :is-hoverable="false" color="success">
-    <h3 class="text-success-800 text-base">鲲论坛的使用小提示</h3>
+  <KunCard :is-transparent="false" :is-hoverable="false" color="default">
+    <h3 class="text-default-800 text-base">鲲论坛的使用小提示</h3>
     <div class="mt-3 space-y-3 text-sm">
       <p>1. 网站有些内容默认不会显示, 请在右上角设置按钮打开 NSFW 模式</p>
       <p>
