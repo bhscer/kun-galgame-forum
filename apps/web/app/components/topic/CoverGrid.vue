@@ -30,12 +30,11 @@ const gridClass = computed(() => {
         )
       "
     >
-      <!-- Plain <img>, NOT KunImage/NuxtImg: these are /image/<hash> redirect
-           tokens (resolved to the CDN by server/middleware/content-image.ts).
-           Routing them through @nuxt/image IPX yields /_ipx/_/image/<hash>,
-           which IPX can't resolve → 404. The CDN already serves optimized webp. -->
+      <!-- Plain <img> on the ABSOLUTE CDN URL (imageTokenUrl resolves the
+           /image/<hash> token): skips @nuxt/image IPX (which 404s on the token)
+           AND the /image 302 hop — straight to the CDN's optimized webp. -->
       <img
-        :src="token"
+        :src="imageTokenUrl(token)"
         alt="话题封面"
         loading="lazy"
         class="h-full w-full object-cover"

@@ -94,11 +94,10 @@ const handleShift = (index: number, dir: -1 | 1) => {
         :key="token"
         class="group border-default-200 relative overflow-hidden rounded-lg border"
       >
-        <!-- Plain <img>, NOT KunImage/NuxtImg: /image/<hash> is a redirect token
-             (resolved to the CDN by server middleware); @nuxt/image IPX would
-             turn it into /_ipx/_/image/<hash> and 404. -->
+        <!-- Plain <img> on the ABSOLUTE CDN URL (imageTokenUrl): skips @nuxt/image
+             IPX (404s on the /image/<hash> token) and the /image 302 hop. -->
         <img
-          :src="token"
+          :src="imageTokenUrl(token)"
           alt="封面图"
           loading="lazy"
           class="aspect-video w-full object-cover"

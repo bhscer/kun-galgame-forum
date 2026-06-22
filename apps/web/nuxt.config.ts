@@ -95,7 +95,15 @@ export default defineNuxtConfig({
 
       // Galgame Wiki Service
       galgameWikiUrl:
-        process.env.GALGAME_WIKI_URL || 'http://127.0.0.1:9280/api'
+        process.env.GALGAME_WIKI_URL || 'http://127.0.0.1:9280/api',
+
+      // Client-readable mirror of the server-only imageCdnBase above. Lets the FE
+      // resolve content-addressed image tokens (/image/<hash>) to an ABSOLUTE CDN
+      // URL (utils/imageSrc.ts), so covers / galgame images skip both @nuxt/image
+      // IPX (which 404s on the token) AND the /image 302 hop. Same literal default
+      // as the server one; override at runtime with NUXT_PUBLIC_IMAGE_CDN_BASE.
+      imageCdnBase:
+        process.env.IMAGE_CDN_BASE || 'https://image.kungal.iloveren.link'
     }
   },
 
