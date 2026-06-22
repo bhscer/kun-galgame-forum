@@ -248,6 +248,19 @@ func (r *ActivityRepository) GetSource(typeStr string) (ActivitySource, bool) {
 	return s, ok
 }
 
+// GetSources returns the sources for the given type strings (unknown ones are
+// skipped). Used by the home feed's tab buckets — a fixed subset of the
+// timeline merged with the same keyset machinery as AllSources.
+func (r *ActivityRepository) GetSources(types []string) []ActivitySource {
+	out := make([]ActivitySource, 0, len(types))
+	for _, t := range types {
+		if s, ok := Sources[t]; ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 // Cursor is the keyset position for the activity feed: the (created, type_str,
 // id) of the last row already returned. The feed is a UNION across many source
 // tables, so `id` is unique only WITHIN a source — the deterministic total order

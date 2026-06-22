@@ -102,6 +102,51 @@ func (s *ActivityService) cacheResult(ctx context.Context, key string, result *R
 	_ = s.rdb.Set(ctx, key, raw, activityCacheTTL).Err()
 }
 
+// homeTabTypes maps a home-page feed tab to its activity types. The home page
+// surfaces the feed as five tabs; "all" deliberately EXCLUDES galgame resources
+// (they get their own 资源 tab) so the main stream isn't drowned by download
+// spam. topic / galgame / resource / others partition every type; all = topic ∪
+// galgame ∪ others. Keep in lock-step with the FE tab order (home/Container.vue).
+var homeTabTypes = map[string][]string{
+	"topic": {
+		"TOPIC_CREATION", "TOPIC_REPLY_CREATION", "TOPIC_COMMENT_CREATION",
+		"MESSAGE_UPVOTE", "MESSAGE_SOLUTION",
+	},
+	"galgame": {
+		"GALGAME_CREATION", "GALGAME_EDIT", "GALGAME_PR_CREATION",
+		"GALGAME_COMMENT_CREATION", "GALGAME_RATING_CREATION",
+		"GALGAME_RATING_COMMENT_CREATION", "GALGAME_WEBSITE_CREATION",
+		"GALGAME_WEBSITE_COMMENT_CREATION", "TOOLSET_CREATION",
+		"TOOLSET_RESOURCE_CREATION", "TOOLSET_COMMENT_CREATION",
+	},
+	"resource": {"GALGAME_RESOURCE_CREATION"},
+	"others":   {"TODO_CREATION", "UPDATE_LOG_CREATION"},
+}
+
+// homeTabSourceTypes resolves a tab to its type list ("all" = every non-resource
+// type, i.e. topic ∪ galgame ∪ others). Unknown tab → nil.
+func homeTabSourceTypes(tab string) []string {
+	if tab == "all" {
+		out := make([]string, 0, 18)
+		out = append(out, homeTabTypes["topic"]...)
+		out = append(out, homeTabTypes["galgame"]...)
+		out = append(out, homeTabTypes["others"]...)
+		return out
+	}
+	return homeTabTypes[tab]
+}
+
+// GetTab returns one of the home page's five tab feeds (all/topic/galgame/
+// resource/others), merging only that bucket's sources. Unknown tab → empty.
+func (s *ActivityService) GetTab(ctx context.Context, tab, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
+	types := homeTabSourceTypes(tab)
+	if len(types) == 0 {
+		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
+	}
+	cacheKey := fmt.Sprintf("activity:v2:tab:%s:%s:%d:%t:%t", tab, cursor, limit, isSFW, showNoResource)
+	return s.cachedKeyset(ctx, cacheKey, s.repo.GetSources(types), cursor, limit, isSFW, showNoResource)
+}
+
 // GetTimeline returns the mixed activity timeline across all sources.
 func (s *ActivityService) GetTimeline(ctx context.Context, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
 	cacheKey := fmt.Sprintf("activity:v2:all:%s:%d:%t:%t", cursor, limit, isSFW, showNoResource)

@@ -32,6 +32,21 @@ func (h *ActivityHandler) GetActivity(c *fiber.Ctx) error {
 	return response.OK(c, res)
 }
 
+// GetTab returns one of the home-page feed's five tab buckets.
+// GET /api/activity/tab
+func (h *ActivityHandler) GetTab(c *fiber.Ctx) error {
+	var req dto.TabRequest
+	if appErr := utils.ParseQueryAndValidate(c, &req); appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	res, appErr := h.activityService.GetTab(c.Context(), req.Tab, req.Cursor, req.Limit, utils.IsSFW(c), req.ShowNoResource)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, res)
+}
+
 // GetTimeline returns mixed activity timeline.
 // GET /api/activity/timeline
 func (h *ActivityHandler) GetTimeline(c *fiber.Ctx) error {

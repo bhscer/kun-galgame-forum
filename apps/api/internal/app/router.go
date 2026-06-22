@@ -110,6 +110,7 @@ func (a *App) setupRoutes() {
 
 	// Activity (public)
 	api.Get("/activity", a.ActivityHandler.GetActivity)
+	api.Get("/activity/tab", a.ActivityHandler.GetTab)
 	api.Get("/activity/timeline", a.ActivityHandler.GetTimeline)
 
 	// Galgame rating — moved to optAuth group below so service handlers
