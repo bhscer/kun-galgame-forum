@@ -347,6 +347,13 @@ func (s *GalgameService) ToggleFavorite(ctx context.Context, userID, galgameID i
 	return nil
 }
 
+// GetMyInteractions returns the current user's liked + favorited galgame ids,
+// for hydrating feed-card like/favorite state.
+func (s *GalgameService) GetMyInteractions(userID int) dto.MyGalgameInteractions {
+	liked, favorited := s.interactionRepo.UserGalgameInteractions(userID)
+	return dto.MyGalgameInteractions{Liked: liked, Favorited: favorited}
+}
+
 // fetchOwnerAndName reads the galgame's owner user_id AND a display name from
 // wiki in ONE request (0 / "" on any failure). The name becomes the notification
 // content preview so a favorite/like notice shows WHICH galgame instead of a

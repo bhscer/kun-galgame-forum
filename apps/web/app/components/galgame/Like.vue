@@ -10,6 +10,14 @@ const { id } = usePersistUserStore()
 const isLiked = ref(props.isLiked)
 const likesCount = ref(props.likeCount)
 
+// The feed hydrates is-liked asynchronously (see useMyGalgameInteractions), so
+// reflect a late-arriving initial state. Harmless on the detail page where the
+// prop is already settled.
+watch(
+  () => props.isLiked,
+  (value) => (isLiked.value = value)
+)
+
 const toggleLikeGalgame = async () => {
   const result = await kunFetch(`/galgame/${props.galgameId}/like`, {
     method: 'PUT'

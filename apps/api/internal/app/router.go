@@ -314,7 +314,10 @@ func (a *App) setupRoutes() {
 	authed.Get("/galgame/messages/read-state", a.GalgameMessageHandler.GetReadState)
 	authed.Put("/galgame/messages/read-state", a.GalgameMessageHandler.SetReadState)
 
-	// Galgame interactions (authenticated, local)
+	// Galgame interactions (authenticated, local). The static
+	// /galgame/interactions/mine is declared before the :gid routes (and like
+	// /galgame/messages/mine, static segments win over :gid).
+	authed.Get("/galgame/interactions/mine", a.GalgameHandler.MyInteractions)
 	authed.Put("/galgame/:gid/like", a.GalgameHandler.ToggleLike)
 	authed.Put("/galgame/:gid/favorite", a.GalgameHandler.ToggleFavorite)
 	authed.Post("/galgame/:gid/comment", a.GalgameCommentHandler.CreateComment)

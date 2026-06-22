@@ -346,6 +346,57 @@ type GalgameBrief struct {
 	EffectiveBannerURL  string `json:"effective_banner_url"`
 }
 
+// GalgameDetailBrief is GalgameBrief plus the introduction + officials a richer
+// list view needs (the "new galgame" feed card). Served by
+// GET /galgame/batch?view=detail (see docs/galgame_wiki/01-galgame.md). Officials
+// are bare maker names — the caller joins them (e.g. 、) for "由 X 制作". The
+// embedded GalgameBrief's release_date IS populated in the detail view (the plain
+// brief omits it).
+type GalgameDetailBrief struct {
+	GalgameBrief
+	IntroEnUS string   `json:"intro_en_us"`
+	IntroJaJP string   `json:"intro_ja_jp"`
+	IntroZhCN string   `json:"intro_zh_cn"`
+	IntroZhTW string   `json:"intro_zh_tw"`
+	Officials []string `json:"officials"`
+}
+
+// GetBatchDetailPublic is GetBatchPublic's richer sibling: GET
+// /galgame/batch?view=detail returns GalgameDetailBrief (intro + officials +
+// release_date) for list cards that need it. Same NSFW contract as
+// GetBatchPublic (isSFW → content_limit=sfw). Anonymous (status=0 only).
+func (c *GalgameClient) GetBatchDetailPublic(ctx context.Context, ids []int, isSFW bool) (map[int]GalgameDetailBrief, *errors.AppError) {
+	if len(ids) == 0 {
+		return map[int]GalgameDetailBrief{}, nil
+	}
+	limit := "all"
+	if isSFW {
+		limit = "sfw"
+	}
+	idStrs := make([]string, len(ids))
+	for i, id := range ids {
+		idStrs[i] = strconv.Itoa(id)
+	}
+	query := url.Values{
+		"ids":           {joinStrings(idStrs, ",")},
+		"content_limit": {limit},
+		"view":          {"detail"},
+	}
+	data, appErr := c.Get(ctx, "/galgame/batch", query)
+	if appErr != nil {
+		return nil, appErr
+	}
+	var briefs []GalgameDetailBrief
+	if err := json.Unmarshal(data, &briefs); err != nil {
+		return nil, errors.ErrInternal("解析 Wiki 批量详情响应失败")
+	}
+	result := make(map[int]GalgameDetailBrief, len(briefs))
+	for _, b := range briefs {
+		result[b.ID] = b
+	}
+	return result, nil
+}
+
 // GetBatch fetches lightweight galgame info for multiple IDs anonymously
 // (status=0 only). Returns a map[galgameID] -> GalgameBrief for easy lookup.
 //

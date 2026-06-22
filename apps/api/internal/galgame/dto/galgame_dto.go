@@ -2,6 +2,14 @@ package dto
 
 import "encoding/json"
 
+// MyGalgameInteractions is the current user's liked + favorited galgame ids,
+// returned by GET /galgame/interactions/mine to hydrate feed-card like/favorite
+// state (the shared feed cache can't carry per-user state).
+type MyGalgameInteractions struct {
+	Liked     []int `json:"liked"`
+	Favorited []int `json:"favorited"`
+}
+
 // ──────────────────────────────────────────
 // Requests
 // ──────────────────────────────────────────

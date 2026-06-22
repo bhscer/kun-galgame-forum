@@ -351,6 +351,173 @@ func (r *ActivityRepository) FetchTopicPolls(ids []int) (map[int]bool, error) {
 	return out, nil
 }
 
+// FetchReplyTopicTitles batch-loads the parent topic title for each reply id
+// (reply_id → topic.title) — the feed's reply card shows it at the bottom.
+func (r *ActivityRepository) FetchReplyTopicTitles(replyIDs []int) (map[int]string, error) {
+	out := map[int]string{}
+	if len(replyIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID    int    `gorm:"column:id"`
+		Title string `gorm:"column:title"`
+	}
+	if err := r.db.Raw(`
+		SELECT r.id, t.title
+		FROM topic_reply r JOIN topic t ON t.id = r.topic_id
+		WHERE r.id IN ?`, replyIDs).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row.Title
+	}
+	return out, nil
+}
+
+// ReplyContent is a quoted reply's floor + raw body (tokens unresolved), for the
+// feed's reply card.
+type ReplyContent struct {
+	Floor   int
+	Content string
+}
+
+// FetchReplyContents batch-loads floor + content for reply ids — the quoted
+// replies referenced by feed reply cards (#floor tokens).
+func (r *ActivityRepository) FetchReplyContents(replyIDs []int) (map[int]ReplyContent, error) {
+	out := map[int]ReplyContent{}
+	if len(replyIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID      int    `gorm:"column:id"`
+		Floor   int    `gorm:"column:floor"`
+		Content string `gorm:"column:content"`
+	}
+	if err := r.db.Raw(`
+		SELECT id, floor, content
+		FROM topic_reply
+		WHERE id IN ?`, replyIDs).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = ReplyContent{Floor: row.Floor, Content: row.Content}
+	}
+	return out, nil
+}
+
+// GalgameCounts holds a galgame's local rollups for the new-galgame feed card.
+type GalgameCounts struct {
+	ResourceCount int
+	LikeCount     int
+	FavoriteCount int
+}
+
+// FetchGalgameCounts batch-loads resource/like/favorite counts for galgame ids
+// from the local galgame table (global counts — cache-safe).
+func (r *ActivityRepository) FetchGalgameCounts(galgameIDs []int) (map[int]GalgameCounts, error) {
+	out := map[int]GalgameCounts{}
+	if len(galgameIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID            int `gorm:"column:id"`
+		ResourceCount int `gorm:"column:resource_count"`
+		LikeCount     int `gorm:"column:like_count"`
+		FavoriteCount int `gorm:"column:favorite_count"`
+	}
+	if err := r.db.Raw(`
+		SELECT id, resource_count, like_count, favorite_count
+		FROM galgame
+		WHERE id IN ?`, galgameIDs).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = GalgameCounts{
+			ResourceCount: row.ResourceCount,
+			LikeCount:     row.LikeCount,
+			FavoriteCount: row.FavoriteCount,
+		}
+	}
+	return out, nil
+}
+
+// FetchEditRevisions maps galgame_activity ids → their wiki revision id (the
+// :rev the /galgame/:gid/revisions/:rev/diff endpoint expects), for the feed's
+// edit card to lazily load the diff.
+func (r *ActivityRepository) FetchEditRevisions(activityIDs []int) (map[int]int, error) {
+	out := map[int]int{}
+	if len(activityIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID         int `gorm:"column:id"`
+		RevisionID int `gorm:"column:wiki_revision_id"`
+	}
+	if err := r.db.Raw(`
+		SELECT id, wiki_revision_id
+		FROM galgame_activity
+		WHERE id IN ?`, activityIDs).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row.RevisionID
+	}
+	return out, nil
+}
+
+// RatingActivity is a galgame rating's feed-card fields. ShortSummary is blanked
+// when there's a spoiler so it never leaves the boundary.
+type RatingActivity struct {
+	Overall      int
+	PlayStatus   string
+	Recommend    string
+	ShortSummary string
+	SpoilerLevel string
+	LikeCount    int
+	AuthorID     int
+}
+
+// FetchRatingActivityData batch-loads rating fields by galgame_rating id for the
+// feed's rating card. Summaries of spoiler-flagged ratings are dropped.
+func (r *ActivityRepository) FetchRatingActivityData(ratingIDs []int) (map[int]RatingActivity, error) {
+	out := map[int]RatingActivity{}
+	if len(ratingIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID           int    `gorm:"column:id"`
+		Overall      int    `gorm:"column:overall"`
+		PlayStatus   string `gorm:"column:play_status"`
+		Recommend    string `gorm:"column:recommend"`
+		ShortSummary string `gorm:"column:short_summary"`
+		SpoilerLevel string `gorm:"column:spoiler_level"`
+		LikeCount    int    `gorm:"column:like_count"`
+		UserID       int    `gorm:"column:user_id"`
+	}
+	if err := r.db.Raw(`
+		SELECT id, overall, play_status, recommend, short_summary, spoiler_level, like_count, user_id
+		FROM galgame_rating
+		WHERE id IN ?`, ratingIDs).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		summary := row.ShortSummary
+		if row.SpoilerLevel != "none" {
+			summary = "" // never leak a spoiler-flagged summary into the feed
+		}
+		out[row.ID] = RatingActivity{
+			Overall:      row.Overall,
+			PlayStatus:   row.PlayStatus,
+			Recommend:    row.Recommend,
+			ShortSummary: summary,
+			SpoilerLevel: row.SpoilerLevel,
+			LikeCount:    row.LikeCount,
+			AuthorID:     row.UserID,
+		}
+	}
+	return out, nil
+}
+
 // TopReplyRow is a topic's most-liked reply (excerpt + like count).
 type TopReplyRow struct {
 	TopicID   int    `gorm:"column:topic_id"`

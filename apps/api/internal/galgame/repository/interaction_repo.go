@@ -32,6 +32,22 @@ func (r *GalgameInteractionRepository) UserInteraction(userID, galgameID int) (l
 	return lc > 0, fc > 0
 }
 
+// UserGalgameInteractions returns every galgame id the user has liked / favorited.
+// Hydrates feed-card like/favorite state (the shared feed cache can't carry
+// per-user state). Anonymous user → empty (non-nil) slices.
+func (r *GalgameInteractionRepository) UserGalgameInteractions(userID int) (liked, favorited []int) {
+	liked = []int{}
+	favorited = []int{}
+	if userID <= 0 {
+		return
+	}
+	r.db.Model(&model.GalgameLike{}).
+		Where("user_id = ?", userID).Pluck("galgame_id", &liked)
+	r.db.Model(&model.GalgameFavorite{}).
+		Where("user_id = ?", userID).Pluck("galgame_id", &favorited)
+	return
+}
+
 // ToggleLike inserts/removes a like row atomically within a caller-supplied tx.
 // Returns whether the result is "now liked".
 //

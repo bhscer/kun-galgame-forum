@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"kun-galgame-api/internal/activity/dto"
@@ -68,7 +71,8 @@ func (s *ActivityService) GetActivity(ctx context.Context, typeStr, cursor strin
 		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
 	}
 	cacheKey := fmt.Sprintf("activity:v2:%s:%s:%d:%t:%t", typeStr, cursor, limit, isSFW, showNoResource)
-	return s.cachedKeyset(ctx, cacheKey, []repository.ActivitySource{src}, cursor, limit, isSFW, showNoResource)
+	// "" tab → no tab-specific filtering (the NSFW-creation drop is the 全部 tab's).
+	return s.cachedKeyset(ctx, cacheKey, []repository.ActivitySource{src}, cursor, limit, isSFW, showNoResource, "")
 }
 
 // getCachedResult returns a cached activity Result, and true on a hit.
@@ -129,7 +133,13 @@ func homeTabSourceTypes(tab string) []string {
 	if tab == "all" {
 		out := make([]string, 0, 18)
 		out = append(out, homeTabTypes["topic"]...)
-		out = append(out, homeTabTypes["galgame"]...)
+		// 全部 excludes Galgame 评论 (still shown in the dedicated Galgame tab).
+		for _, t := range homeTabTypes["galgame"] {
+			if t == "GALGAME_COMMENT_CREATION" {
+				continue
+			}
+			out = append(out, t)
+		}
 		out = append(out, homeTabTypes["others"]...)
 		return out
 	}
@@ -144,24 +154,26 @@ func (s *ActivityService) GetTab(ctx context.Context, tab, cursor string, limit 
 		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
 	}
 	cacheKey := fmt.Sprintf("activity:v2:tab:%s:%s:%d:%t:%t", tab, cursor, limit, isSFW, showNoResource)
-	return s.cachedKeyset(ctx, cacheKey, s.repo.GetSources(types), cursor, limit, isSFW, showNoResource)
+	return s.cachedKeyset(ctx, cacheKey, s.repo.GetSources(types), cursor, limit, isSFW, showNoResource, tab)
 }
 
 // GetTimeline returns the mixed activity timeline across all sources.
 func (s *ActivityService) GetTimeline(ctx context.Context, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
 	cacheKey := fmt.Sprintf("activity:v2:all:%s:%d:%t:%t", cursor, limit, isSFW, showNoResource)
-	return s.cachedKeyset(ctx, cacheKey, s.repo.AllSources(), cursor, limit, isSFW, showNoResource)
+	// "" tab → the timeline applies no tab-specific filtering (e.g. the 全部-tab
+	// NSFW-galgame-creation drop).
+	return s.cachedKeyset(ctx, cacheKey, s.repo.AllSources(), cursor, limit, isSFW, showNoResource, "")
 }
 
 // cachedKeyset wraps serveKeyset with the activityCacheTTL cache-aside. Keyed by
 // cursor (the page), isSFW (which galgame names the wiki returns) and
 // showNoResource (whether resource-less GALGAME_CREATION rows are dropped) so
 // viewers with different filters never share an entry.
-func (s *ActivityService) cachedKeyset(ctx context.Context, cacheKey string, sources []repository.ActivitySource, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
+func (s *ActivityService) cachedKeyset(ctx context.Context, cacheKey string, sources []repository.ActivitySource, cursor string, limit int, isSFW, showNoResource bool, tab string) (*Result, *errors.AppError) {
 	if cached, ok := s.getCachedResult(ctx, cacheKey); ok {
 		return cached, nil
 	}
-	result, appErr := s.serveKeyset(ctx, sources, cursor, limit, isSFW, showNoResource)
+	result, appErr := s.serveKeyset(ctx, sources, cursor, limit, isSFW, showNoResource, tab)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -176,7 +188,7 @@ func (s *ActivityService) cachedKeyset(ctx context.Context, cacheKey string, sou
 // it has `limit` survivors or the feed is exhausted. nextCursor is the LAST
 // survivor's keyset, so the next page resumes exactly where this one stopped:
 // no offset drift, and the total-order tiebreaker means no dup/skip across pages.
-func (s *ActivityService) serveKeyset(ctx context.Context, sources []repository.ActivitySource, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
+func (s *ActivityService) serveKeyset(ctx context.Context, sources []repository.ActivitySource, cursor string, limit int, isSFW, showNoResource bool, tab string) (*Result, *errors.AppError) {
 	cur := decodeCursor(cursor)
 	collected := make([]dto.ActivityItem, 0, limit)
 	exhausted := false
@@ -190,7 +202,7 @@ func (s *ActivityService) serveKeyset(ctx context.Context, sources []repository.
 			exhausted = true
 			break
 		}
-		for _, it := range s.enrichAndHydrate(ctx, rows, isSFW) {
+		for _, it := range s.enrichAndHydrate(ctx, rows, isSFW, tab) {
 			collected = append(collected, it)
 			if len(collected) == limit {
 				break
@@ -266,12 +278,133 @@ func decodeCursor(cursor string) *repository.Cursor {
 // enrichAndHydrate runs the full row → item pipeline: galgame name/brief
 // enrichment (which drops brief-missing rows), topic rich-card enrichment, then
 // OAuth identity hydration.
-func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repository.ActivityRow, isSFW bool) []dto.ActivityItem {
+func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repository.ActivityRow, isSFW bool, tab string) []dto.ActivityItem {
 	items := rowsToItems(rows)
-	items = s.enrichGalgameItems(ctx, rows, items, isSFW)
+	items = s.enrichGalgameItems(ctx, rows, items, isSFW, tab)
 	s.enrichTopicItems(items)
+	s.enrichReplyItems(ctx, items)
 	s.hydrateActors(ctx, items)
 	return items
+}
+
+// Reply content stores @-mentions and #-quotes as markdown links:
+//   [@<name>](kungal-user:<id>)   and   [#<floor>](kungal-reply:<id>)
+// For the feed we render them to readable plain text: a mention → "@<current
+// name>" (resolved via OAuth), a quote → its "#<floor>" label kept as-is.
+var (
+	replyMentionRe = regexp.MustCompile(`\[[^\]]*\]\(kungal-user:(\d+)\)`)
+	replyQuoteRe   = regexp.MustCompile(`\[(#[^\]]*)\]\(kungal-reply:(\d+)\)`)
+)
+
+func collectReplyMentionIDs(content string) []int {
+	matches := replyMentionRe.FindAllStringSubmatch(content, -1)
+	ids := make([]int, 0, len(matches))
+	for _, m := range matches {
+		if id, err := strconv.Atoi(m[1]); err == nil && id > 0 {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// firstQuotedReplyID returns the reply id of the first #-quote token, or 0.
+func firstQuotedReplyID(content string) int {
+	m := replyQuoteRe.FindStringSubmatch(content)
+	if m == nil {
+		return 0
+	}
+	id, _ := strconv.Atoi(m[2])
+	return id
+}
+
+// renderReplyTokens rewrites @/# tokens to readable text: mentions → "@<name>"
+// (from the resolved names map; unknown → "@用户"), quotes → their "#<floor>" label.
+func renderReplyTokens(content string, names map[int]string) string {
+	content = replyMentionRe.ReplaceAllStringFunc(content, func(tok string) string {
+		m := replyMentionRe.FindStringSubmatch(tok)
+		id, _ := strconv.Atoi(m[1])
+		if name := names[id]; name != "" {
+			return "@" + name
+		}
+		return "@用户"
+	})
+	return replyQuoteRe.ReplaceAllString(content, "$1")
+}
+
+// enrichReplyItems builds each TOPIC_REPLY_CREATION item's reply card: it resolves
+// the @/# tokens in the reply body (in place on Content), attaches the parent
+// topic title, and — when the reply quoted another reply — the quoted reply's
+// floor + body. Item.ID is the reply id. Best-effort: any sub-query error simply
+// leaves that piece out rather than dropping the item.
+func (s *ActivityService) enrichReplyItems(ctx context.Context, items []dto.ActivityItem) {
+	idToIdx := map[int][]int{}
+	for i, it := range items {
+		if it.Type == "TOPIC_REPLY_CREATION" {
+			idToIdx[it.ID] = append(idToIdx[it.ID], i)
+		}
+	}
+	if len(idToIdx) == 0 {
+		return
+	}
+	ids := make([]int, 0, len(idToIdx))
+	for id := range idToIdx {
+		ids = append(ids, id)
+	}
+	titles, _ := s.repo.FetchReplyTopicTitles(ids)
+
+	// First quoted reply per reply → batch-fetch the quoted bodies.
+	quotedIDByReply := map[int]int{}
+	quotedIDSet := map[int]struct{}{}
+	for id, idxs := range idToIdx {
+		if qid := firstQuotedReplyID(items[idxs[0]].Content); qid > 0 {
+			quotedIDByReply[id] = qid
+			quotedIDSet[qid] = struct{}{}
+		}
+	}
+	quotedIDs := make([]int, 0, len(quotedIDSet))
+	for qid := range quotedIDSet {
+		quotedIDs = append(quotedIDs, qid)
+	}
+	quotedContents, _ := s.repo.FetchReplyContents(quotedIDs)
+
+	// Mention ids across both the reply bodies and the quoted bodies → resolve
+	// once to current names.
+	mentionSet := map[int]struct{}{}
+	for _, idxs := range idToIdx {
+		for _, mid := range collectReplyMentionIDs(items[idxs[0]].Content) {
+			mentionSet[mid] = struct{}{}
+		}
+	}
+	for _, qc := range quotedContents {
+		for _, mid := range collectReplyMentionIDs(qc.Content) {
+			mentionSet[mid] = struct{}{}
+		}
+	}
+	names := map[int]string{}
+	if len(mentionSet) > 0 {
+		mids := make([]int, 0, len(mentionSet))
+		for mid := range mentionSet {
+			mids = append(mids, mid)
+		}
+		for id, u := range s.userClient.Hydrate(ctx, mids) {
+			names[id] = u.Name
+		}
+	}
+
+	for id, idxs := range idToIdx {
+		var quoted *dto.QuotedReply
+		if qc, ok := quotedContents[quotedIDByReply[id]]; ok {
+			quoted = &dto.QuotedReply{
+				Floor:   qc.Floor,
+				Content: renderReplyTokens(qc.Content, names),
+			}
+		}
+		data := dto.ReplyActivityData{TopicTitle: titles[id], QuotedReply: quoted}
+		for _, i := range idxs {
+			items[i].Content = renderReplyTokens(items[i].Content, names)
+			items[i].Data = data
+		}
+	}
 }
 
 // enrichTopicItems attaches the rich-card payload (covers + counts) to every
@@ -386,6 +519,7 @@ func (s *ActivityService) enrichGalgameItems(
 	rows []repository.ActivityRow,
 	items []dto.ActivityItem,
 	isSFW bool,
+	tab string,
 ) []dto.ActivityItem {
 	idSet := map[int]struct{}{}
 	for _, r := range rows {
@@ -424,6 +558,43 @@ func (s *ActivityService) enrichGalgameItems(
 		return fmt.Sprintf("galgame#%d", b.ID)
 	}
 
+	preferredIntro := func(d galgameClient.GalgameDetailBrief) string {
+		for _, s := range []string{d.IntroZhCN, d.IntroZhTW, d.IntroJaJP, d.IntroEnUS} {
+			if s != "" {
+				return s
+			}
+		}
+		return ""
+	}
+
+	// Per-type extras: new-galgame counts (GALGAME_CREATION) + edit revision ids
+	// (GALGAME_EDIT, for lazily loading the diff on the card).
+	creationGIDs := make([]int, 0)
+	editIDs := make([]int, 0)
+	ratingIDs := make([]int, 0)
+	for _, r := range rows {
+		switch {
+		case r.TypeStr == "GALGAME_CREATION" && r.GalgameID > 0:
+			creationGIDs = append(creationGIDs, r.GalgameID)
+		case r.TypeStr == "GALGAME_EDIT":
+			editIDs = append(editIDs, r.ID)
+		case r.TypeStr == "GALGAME_RATING_CREATION":
+			ratingIDs = append(ratingIDs, r.ID)
+		}
+	}
+	countsMap, _ := s.repo.FetchGalgameCounts(creationGIDs)
+	revMap, _ := s.repo.FetchEditRevisions(editIDs)
+	ratingMap, _ := s.repo.FetchRatingActivityData(ratingIDs)
+
+	// Detail briefs (intro + officials + release date) for the new-galgame card.
+	// Best-effort: if the wiki view=detail isn't reachable, the card omits them.
+	detailMap := map[int]galgameClient.GalgameDetailBrief{}
+	if len(creationGIDs) > 0 {
+		if m, appErr := s.wikiGC.GetBatchDetailPublic(ctx, creationGIDs, isSFW); appErr == nil {
+			detailMap = m
+		}
+	}
+
 	kept := make([]dto.ActivityItem, 0, len(items))
 	for i, r := range rows {
 		if r.GalgameID == 0 {
@@ -435,7 +606,59 @@ func (s *ActivityService) enrichGalgameItems(
 			// NSFW (SFW viewer) or deleted → drop the whole activity.
 			continue
 		}
+		// 全部 tab: never surface ANY NSFW galgame's activity there, even for an
+		// NSFW viewer (only this tab behaves so; the dedicated Galgame tab still
+		// shows them subject to the viewer's isSFW setting).
+		if tab == "all" && b.ContentLimit == "nsfw" {
+			continue
+		}
 		name := briefName(b)
+		// Structured payload for the rich galgame cards (cover + name + meta),
+		// straight from the brief in hand — Content is still rewritten below for
+		// the generic/timeline card.
+		ga := dto.GalgameActivityData{
+			Name:        name,
+			CoverHash:   b.EffectiveBannerHash,
+			Language:    b.OriginalLanguage,
+			AgeLimit:    b.AgeLimit,
+			ReleaseDate: b.ReleaseDate,
+			GalgameID:   r.GalgameID,
+		}
+		if r.TypeStr == "GALGAME_CREATION" {
+			c := countsMap[r.GalgameID]
+			ga.ResourceCount = c.ResourceCount
+			ga.LikeCount = c.LikeCount
+			ga.FavoriteCount = c.FavoriteCount
+			if d, ok := detailMap[r.GalgameID]; ok {
+				ga.Developer = strings.Join(d.Officials, "、")
+				ga.ReleaseDate = d.ReleaseDate // detail view carries it; brief omits
+				// Bound the payload — the card shows a ~3-line preview.
+				if intro := []rune(preferredIntro(d)); len(intro) > 0 {
+					if len(intro) > 300 {
+						intro = intro[:300]
+					}
+					ga.Intro = string(intro)
+				}
+			}
+		}
+		if r.TypeStr == "GALGAME_EDIT" {
+			ga.RevisionID = revMap[r.ID]
+		}
+		if r.TypeStr == "GALGAME_RATING_CREATION" {
+			if rt, ok := ratingMap[r.ID]; ok {
+				ga.Rating = &dto.RatingInfo{
+					RatingID:     r.ID,
+					Overall:      rt.Overall,
+					PlayStatus:   rt.PlayStatus,
+					Recommend:    rt.Recommend,
+					ShortSummary: rt.ShortSummary,
+					SpoilerLevel: rt.SpoilerLevel,
+					LikeCount:    rt.LikeCount,
+					AuthorID:     rt.AuthorID,
+				}
+			}
+		}
+		items[i].Data = ga
 		switch r.TypeStr {
 		case "GALGAME_CREATION":
 			items[i].Content = name

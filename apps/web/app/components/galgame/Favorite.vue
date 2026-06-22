@@ -10,6 +10,14 @@ const { id } = usePersistUserStore()
 const isFavorited = ref(props.isFavorited)
 const favoriteCount = ref(props.favoriteCount)
 
+// The feed hydrates is-favorited asynchronously (see useMyGalgameInteractions),
+// so reflect a late-arriving initial state. Harmless on the detail page where
+// the prop is already settled.
+watch(
+  () => props.isFavorited,
+  (value) => (isFavorited.value = value)
+)
+
 const toggleFavoriteGalgame = async () => {
   const result = await kunFetch(`/galgame/${props.galgameId}/favorite`, {
     method: 'PUT'

@@ -209,3 +209,14 @@ func (h *GalgameHandler) ToggleFavorite(c *fiber.Ctx) error {
 	}
 	return response.OKMessage(c, "操作成功")
 }
+
+// MyInteractions — GET /api/galgame/interactions/mine
+// The current user's liked + favorited galgame ids, used to hydrate feed-card
+// like/favorite state (the shared feed cache can't carry per-user state).
+func (h *GalgameHandler) MyInteractions(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, h.galgameService.GetMyInteractions(user.ID))
+}

@@ -89,3 +89,65 @@ type TopReply struct {
 	Content   string `json:"content"`
 	LikeCount int    `json:"likeCount"`
 }
+
+// ReplyActivityData is the rich-card payload for TOPIC_REPLY_CREATION: the title
+// of the topic the reply belongs to (shown at the bottom of the card) and, if the
+// reply quoted another reply, that quoted reply. The reply body itself is
+// ActivityItem.Content (with @/# tokens already resolved to readable text).
+type ReplyActivityData struct {
+	TopicTitle  string       `json:"topicTitle"`
+	QuotedReply *QuotedReply `json:"quotedReply,omitempty"`
+}
+
+// QuotedReply is the reply this reply quoted (#floor → its body), shown as a
+// nested block in the middle of the reply card. Content has its @/# tokens
+// already resolved to readable text.
+type QuotedReply struct {
+	Floor   int    `json:"floor"`
+	Content string `json:"content"`
+}
+
+// GalgameActivityData is the rich-card payload for galgame-scoped activity
+// (creation / edit / PR / comment / rating / resource): the galgame's name +
+// cover + a little metadata, all pulled from the wiki brief already fetched
+// during enrichment (no extra query). CoverHash resolves to a CDN URL on the FE
+// (imageTokenUrl). Release date is nullable (TBA / unknown).
+type GalgameActivityData struct {
+	Name        string  `json:"name"`
+	CoverHash   string  `json:"coverHash"`
+	Language    string  `json:"language"`
+	AgeLimit    string  `json:"ageLimit"`
+	ReleaseDate *string `json:"releaseDate"`
+	// GalgameID lets the FE link / like / favorite without parsing the link.
+	GalgameID int `json:"galgameId,omitempty"`
+	// RevisionID is the wiki revision id for GALGAME_EDIT — the edit card lazily
+	// fetches /galgame/:gid/revisions/:revisionId/diff with it.
+	RevisionID int `json:"revisionId,omitempty"`
+	// Developer (制作会社) + Intro are only set for the GALGAME_CREATION card, from
+	// the wiki detail brief. Developer = officials joined with 、; Intro is the
+	// preferred-language introduction, truncated for a 3-line preview.
+	Developer string `json:"developer,omitempty"`
+	Intro     string `json:"intro,omitempty"`
+	// Local rollups, only set for the GALGAME_CREATION rich card (omitempty → the
+	// FE defaults each to 0). These are global counts (cache-safe); the viewer's
+	// own liked/favorited state is NOT here (would break the shared feed cache).
+	ResourceCount int `json:"resourceCount,omitempty"`
+	LikeCount     int `json:"likeCount,omitempty"`
+	FavoriteCount int `json:"favoriteCount,omitempty"`
+	// Rating is only set for GALGAME_RATING_CREATION (the rating card).
+	Rating *RatingInfo `json:"rating,omitempty"`
+}
+
+// RatingInfo is the GALGAME_RATING_CREATION rich-card payload — the galgame name
+// + cover come from the surrounding GalgameActivityData. ShortSummary is blanked
+// when SpoilerLevel != "none" so spoilers never cross the boundary.
+type RatingInfo struct {
+	RatingID     int    `json:"ratingId"`
+	Overall      int    `json:"overall"`
+	PlayStatus   string `json:"playStatus"`
+	Recommend    string `json:"recommend"`
+	ShortSummary string `json:"shortSummary"`
+	SpoilerLevel string `json:"spoilerLevel"`
+	LikeCount    int    `json:"likeCount"`
+	AuthorID     int    `json:"authorId"`
+}

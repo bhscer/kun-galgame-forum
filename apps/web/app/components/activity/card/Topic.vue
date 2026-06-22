@@ -1,17 +1,13 @@
 <script setup lang="ts">
-// Rich feed card for TOPIC_CREATION — x.com-style layout, forum data:
-// avatar · header(name · 新话题 · time) · title · excerpt · first-3 covers ·
-// badges (该话题被推 / 有解答 / 投票 / NSFW) · 高赞回复 · stat row (sections + 浏览/赞/回复).
-// Title is activity.content; everything else is activity.data (present by dispatcher).
+// Rich feed card for TOPIC_CREATION — title · excerpt · first-3 covers · badges
+// (该话题被推 / 有解答 / 投票 / NSFW via TopicTagGroup) · 高赞回复 · stat row (分区 +
+// 浏览/赞/回复). Header (avatar · username · time) comes from the shared shell.
 import { KUN_TOPIC_SECTION } from '~/constants/topic'
 
 const props = defineProps<{ activity: ActivityItem }>()
 
-const data = computed(() => props.activity.data)
-// At most the first three images, shown under the excerpt.
+const data = computed(() => props.activity.data as TopicActivityData | undefined)
 const covers = computed(() => (data.value?.coverImages ?? []).slice(0, 3))
-// Only mount the badge row when a badge can actually show (keeps an empty gap
-// off the common no-badge topic). 被推 is further gated to <24h inside TopicTagGroup.
 const hasBadge = computed(() => {
   const d = data.value
   return !!d && (d.hasBestAnswer || d.isPoll || d.isNSFW || !!d.upvoteTime)
@@ -19,19 +15,8 @@ const hasBadge = computed(() => {
 </script>
 
 <template>
-  <div class="flex w-full gap-3">
-    <KunAvatar v-if="activity.actor" :user="activity.actor" />
-
-    <div class="min-w-0 flex-1 space-y-3">
-      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-        <span class="text-default-800 font-medium">
-          {{ activity.actor?.name }}
-        </span>
-        <span class="text-default-500">
-          <KunTime :time="activity.timestamp" />
-        </span>
-      </div>
-
+  <ActivityCardShell :actor="activity.actor" :timestamp="activity.timestamp">
+    <div class="space-y-3">
       <KunLink
         underline="none"
         color="default"
@@ -115,5 +100,5 @@ const hasBadge = computed(() => {
         </div>
       </div>
     </div>
-  </div>
+  </ActivityCardShell>
 </template>
