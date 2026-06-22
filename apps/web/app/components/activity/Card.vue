@@ -1,38 +1,15 @@
 <script setup lang="ts">
-// One activity row — the shared "/activity" card (avatar · content + type chip ·
-// actor + time). Layout-only; the caller owns the list container / wrapper.
-import { KUN_ACTIVITY_TYPE_TYPE } from '~/constants/activity'
-
+// One feed item — dispatches to the rich card for its activity type, falling
+// back to the generic card for types without one yet (forward-compatible: a new
+// type renders fine until it gets a rich card). Add a branch here + a card under
+// ./card/ to enrich another type. All variants share the feed's spacing/chrome.
 defineProps<{ activity: ActivityItem }>()
 </script>
 
 <template>
-  <div class="flex items-center gap-3">
-    <KunAvatar v-if="activity.actor" :user="activity.actor" />
-
-    <div class="flex flex-col space-y-2">
-      <KunLink
-        underline="none"
-        color="default"
-        :to="activity.link"
-        class-name="hover:text-primary block space-x-3 break-all transition-colors"
-      >
-        <KunText
-          class-name="whitespace-normal!"
-          :content="markdownToText(activity.content)"
-        />
-        <KunChip color="primary" size="xs">
-          {{ KUN_ACTIVITY_TYPE_TYPE[activity.type] }}
-        </KunChip>
-      </KunLink>
-
-      <div class="flex items-center space-x-2">
-        <span class="text-default-500 text-sm">
-          <template v-if="activity.actor"
-            >{{ activity.actor.name }} 发布于 </template
-          ><KunTime :time="activity.timestamp" />
-        </span>
-      </div>
-    </div>
-  </div>
+  <ActivityCardTopic
+    v-if="activity.type === 'TOPIC_CREATION' && activity.data"
+    :activity="activity"
+  />
+  <ActivityCardGeneric v-else :activity="activity" />
 </template>

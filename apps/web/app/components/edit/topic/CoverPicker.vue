@@ -94,11 +94,14 @@ const handleShift = (index: number, dir: -1 | 1) => {
         :key="token"
         class="group border-default-200 relative overflow-hidden rounded-lg border"
       >
-        <KunImage
+        <!-- Plain <img>, NOT KunImage/NuxtImg: /image/<hash> is a redirect token
+             (resolved to the CDN by server middleware); @nuxt/image IPX would
+             turn it into /_ipx/_/image/<hash> and 404. -->
+        <img
           :src="token"
           alt="封面图"
           loading="lazy"
-          class-name="aspect-video w-full object-cover"
+          class="aspect-video w-full object-cover"
         />
 
         <div

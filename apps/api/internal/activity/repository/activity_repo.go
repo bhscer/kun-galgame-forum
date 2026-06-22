@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	topicModel "kun-galgame-api/internal/topic/model"
+
 	"gorm.io/gorm"
 )
 
@@ -259,6 +261,125 @@ func (r *ActivityRepository) GetSources(types []string) []ActivitySource {
 		}
 	}
 	return out
+}
+
+// TopicCardData is the per-topic core enrichment for the feed's rich topic card
+// (one row from the topic table). Sections/tags/poll/top-reply are separate
+// batch loaders below. Excerpt is a server-truncated slice of the body.
+type TopicCardData struct {
+	ID           int                    `gorm:"column:id"`
+	Excerpt      string                 `gorm:"column:excerpt"`
+	CoverImages  topicModel.ImageTokens `gorm:"column:cover_images"`
+	View         int                    `gorm:"column:view"`
+	LikeCount    int                    `gorm:"column:like_count"`
+	ReplyCount   int                    `gorm:"column:reply_count"`
+	CommentCount int                    `gorm:"column:comment_count"`
+	IsNSFW       bool                   `gorm:"column:is_nsfw"`
+	UpvoteTime   *time.Time             `gorm:"column:upvote_time"`
+	BestAnswerID *int                   `gorm:"column:best_answer_id"`
+}
+
+// FetchTopicActivityData batch-loads the topic core row for the given ids (one
+// query, no N+1), keyed by id. The body is truncated to a preview in SQL so a
+// 100k-char topic never bloats the feed payload. Empty ids → empty map.
+func (r *ActivityRepository) FetchTopicActivityData(ids []int) (map[int]TopicCardData, error) {
+	out := make(map[int]TopicCardData, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []TopicCardData
+	if err := r.db.Table("topic").
+		Select("id, SUBSTRING(content, 1, 300) AS excerpt, cover_images, view, like_count, reply_count, comment_count, is_nsfw, upvote_time, best_answer_id").
+		Where("id IN ?", ids).
+		Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row
+	}
+	return out, nil
+}
+
+// idNameRow is a (topic_id, name) pair for the section/tag batch joins.
+type idNameRow struct {
+	TopicID int    `gorm:"column:topic_id"`
+	Name    string `gorm:"column:name"`
+}
+
+func collectIDNames(rows []idNameRow) map[int][]string {
+	out := map[int][]string{}
+	for _, row := range rows {
+		out[row.TopicID] = append(out[row.TopicID], row.Name)
+	}
+	return out
+}
+
+// FetchTopicSections batch-loads section names per topic id (topic_id → names).
+func (r *ActivityRepository) FetchTopicSections(ids []int) (map[int][]string, error) {
+	if len(ids) == 0 {
+		return map[int][]string{}, nil
+	}
+	var rows []idNameRow
+	if err := r.db.Table("topic_section_relation tsr").
+		Select("tsr.topic_id, ts.name").
+		Joins("JOIN topic_section ts ON ts.id = tsr.topic_section_id").
+		Where("tsr.topic_id IN ?", ids).
+		Scan(&rows).Error; err != nil {
+		return map[int][]string{}, err
+	}
+	return collectIDNames(rows), nil
+}
+
+// FetchTopicPolls returns the set of given topic ids that have a poll attached.
+func (r *ActivityRepository) FetchTopicPolls(ids []int) (map[int]bool, error) {
+	out := map[int]bool{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		TopicID int `gorm:"column:topic_id"`
+	}
+	if err := r.db.Table("topic_poll").
+		Select("DISTINCT topic_id").
+		Where("topic_id IN ?", ids).
+		Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.TopicID] = true
+	}
+	return out, nil
+}
+
+// TopReplyRow is a topic's most-liked reply (excerpt + like count).
+type TopReplyRow struct {
+	TopicID   int    `gorm:"column:topic_id"`
+	Content   string `gorm:"column:content"`
+	LikeCount int    `gorm:"column:like_count"`
+}
+
+// FetchTopicTopReply batch-loads each topic's MOST-LIKED reply via DISTINCT ON
+// (one row per topic, highest like_count, id as the tiebreaker), restricted to
+// replies that actually have likes (>0) so the card only surfaces a notable one.
+func (r *ActivityRepository) FetchTopicTopReply(ids []int) (map[int]TopReplyRow, error) {
+	out := map[int]TopReplyRow{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []TopReplyRow
+	if err := r.db.Raw(`
+		SELECT DISTINCT ON (topic_id) topic_id,
+			SUBSTRING(content, 1, 200) AS content, like_count
+		FROM topic_reply
+		WHERE topic_id IN ? AND like_count > 0
+		ORDER BY topic_id, like_count DESC, id DESC`, ids).
+		Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.TopicID] = row
+	}
+	return out, nil
 }
 
 // Cursor is the keyset position for the activity feed: the (created, type_str,

@@ -264,12 +264,79 @@ func decodeCursor(cursor string) *repository.Cursor {
 }
 
 // enrichAndHydrate runs the full row → item pipeline: galgame name/brief
-// enrichment (which drops brief-missing rows) then OAuth identity hydration.
+// enrichment (which drops brief-missing rows), topic rich-card enrichment, then
+// OAuth identity hydration.
 func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repository.ActivityRow, isSFW bool) []dto.ActivityItem {
 	items := rowsToItems(rows)
 	items = s.enrichGalgameItems(ctx, rows, items, isSFW)
+	s.enrichTopicItems(items)
 	s.hydrateActors(ctx, items)
 	return items
+}
+
+// enrichTopicItems attaches the rich-card payload (covers + counts) to every
+// TOPIC_CREATION item via one batch query. Item.ID is the topic id for these
+// rows. Best-effort: on a query error the items keep a nil Data and fall back to
+// the generic card. Runs after enrichGalgameItems (topic items are never dropped
+// there — galgame_id is 0), so it operates on the surviving items.
+func (s *ActivityService) enrichTopicItems(items []dto.ActivityItem) {
+	idToIdx := map[int][]int{}
+	for i, it := range items {
+		if it.Type == "TOPIC_CREATION" {
+			idToIdx[it.ID] = append(idToIdx[it.ID], i)
+		}
+	}
+	if len(idToIdx) == 0 {
+		return
+	}
+	ids := make([]int, 0, len(idToIdx))
+	for id := range idToIdx {
+		ids = append(ids, id)
+	}
+	core, err := s.repo.FetchTopicActivityData(ids)
+	if err != nil {
+		return // graceful: fall back to the generic card
+	}
+	// The rest are best-effort: a failed side-load just omits that facet.
+	sections, _ := s.repo.FetchTopicSections(ids)
+	polls, _ := s.repo.FetchTopicPolls(ids)
+	topReplies, _ := s.repo.FetchTopicTopReply(ids)
+
+	for id, idxs := range idToIdx {
+		c, ok := core[id]
+		if !ok {
+			continue
+		}
+		covers := []string(c.CoverImages)
+		if covers == nil {
+			covers = []string{}
+		}
+		sec := sections[id]
+		if sec == nil {
+			sec = []string{}
+		}
+		var topReply *dto.TopReply
+		if tr, ok := topReplies[id]; ok {
+			topReply = &dto.TopReply{Content: tr.Content, LikeCount: tr.LikeCount}
+		}
+		payload := dto.TopicActivityData{
+			Excerpt:       c.Excerpt,
+			Sections:      sec,
+			CoverImages:   covers,
+			View:          c.View,
+			LikeCount:     c.LikeCount,
+			ReplyCount:    c.ReplyCount,
+			CommentCount:  c.CommentCount,
+			UpvoteTime:    c.UpvoteTime,
+			HasBestAnswer: c.BestAnswerID != nil,
+			IsPoll:        polls[id],
+			IsNSFW:        c.IsNSFW,
+			TopReply:      topReply,
+		}
+		for _, i := range idxs {
+			items[i].Data = payload
+		}
+	}
 }
 
 // rowsToItems converts DB rows into response items (no enrichment yet).

@@ -56,4 +56,36 @@ type ActivityItem struct {
 	Actor     Actor     `json:"actor"`
 	Link      string    `json:"link"`
 	Content   string    `json:"content"`
+	// Data is the per-type rich card payload (Activity Streams "object"),
+	// discriminated by Type and populated during enrichment. nil for types that
+	// have no rich card yet — the FE renders those with the generic card. Kept
+	// `any` so each type carries only its own shape (see TopicActivityData).
+	Data any `json:"data,omitempty"`
+}
+
+// TopicActivityData is the rich-card payload for TOPIC_CREATION: everything the
+// feed's topic card shows beyond the envelope (the title lives in Content).
+// Covers are /image/<hash> tokens (card shows the first few); Sections render in
+// the stat row; the badge flags feed the shared TopicTagGroup; TopReply is the
+// most-liked reply (omitted when none).
+type TopicActivityData struct {
+	Excerpt       string     `json:"excerpt"`
+	Sections      []string   `json:"sections"`
+	CoverImages   []string   `json:"coverImages"`
+	View          int        `json:"view"`
+	LikeCount     int        `json:"likeCount"`
+	ReplyCount    int        `json:"replyCount"`
+	CommentCount  int        `json:"commentCount"`
+	UpvoteTime    *time.Time `json:"upvoteTime"`
+	HasBestAnswer bool       `json:"hasBestAnswer"`
+	IsPoll        bool       `json:"isPoll"`
+	IsNSFW        bool       `json:"isNSFW"`
+	TopReply      *TopReply  `json:"topReply,omitempty"`
+}
+
+// TopReply is a topic's most-liked reply (a short excerpt + its like count),
+// shown on the feed's topic card. Only populated when a reply has >0 likes.
+type TopReply struct {
+	Content   string `json:"content"`
+	LikeCount int    `json:"likeCount"`
 }

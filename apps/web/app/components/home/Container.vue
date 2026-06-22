@@ -121,12 +121,14 @@ useIntersectionObserver(
         description="暂无动态"
       />
 
-      <div v-else class="space-y-6">
-        <ActivityCard
+      <div v-else class="divide-default-200/60 divide-y">
+        <div
           v-for="activity in items"
           :key="activity.uniqueId"
-          :activity="activity"
-        />
+          class="py-5 first:pt-0 last:pb-0"
+        >
+          <ActivityCard :activity="activity" />
+        </div>
       </div>
 
       <div v-if="items.length" ref="sentinel" class="flex justify-center pt-4">

@@ -1,13 +1,11 @@
 <script setup lang="ts">
-// Renders a topic's 1..9 feed-card covers as a 九宫格-style grid. Each entry is a
-// /image/<hash> content token, usable directly as an <img src>. Purely visual —
-// the caller wraps it in the card's <KunLink>, so a click opens the topic.
+// Renders a topic's covers as a 九宫格-style grid. Each entry is a
+// /image/<hash> content token. Purely visual — the caller wraps it in a link.
 const props = defineProps<{
   images: string[]
 }>()
 
-// Cap defensively at the stored max. 1 = single wide banner; 2/4 = 2-col;
-// everything else = 3-col (the classic feed grid).
+// Cap defensively at the stored max. 1 = single banner; 2/4 = 2-col; else 3-col.
 const shown = computed(() => props.images.slice(0, 9))
 const isSingle = computed(() => shown.value.length === 1)
 const gridClass = computed(() => {
@@ -23,15 +21,24 @@ const gridClass = computed(() => {
     <div
       v-for="(token, idx) in shown"
       :key="`${idx}-${token}`"
-      class="bg-default-100 overflow-hidden rounded-lg"
+      :class="
+        cn(
+          'bg-default-100 overflow-hidden rounded-lg',
+          // Capped heights so a wide desktop column doesn't make covers huge —
+          // a single banner stays ~256px, grid cells ~160px (community-feed sizing).
+          isSingle ? 'h-64' : 'h-40'
+        )
+      "
     >
-      <KunImage
+      <!-- Plain <img>, NOT KunImage/NuxtImg: these are /image/<hash> redirect
+           tokens (resolved to the CDN by server/middleware/content-image.ts).
+           Routing them through @nuxt/image IPX yields /_ipx/_/image/<hash>,
+           which IPX can't resolve → 404. The CDN already serves optimized webp. -->
+      <img
         :src="token"
         alt="话题封面"
         loading="lazy"
-        :class-name="
-          cn('w-full object-cover', isSingle ? 'aspect-video' : 'aspect-square')
-        "
+        class="h-full w-full object-cover"
       />
     </div>
   </div>

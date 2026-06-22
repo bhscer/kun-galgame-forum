@@ -19,6 +19,29 @@ export type ActivityEventType =
   | 'MESSAGE_UPVOTE'
   | 'MESSAGE_SOLUTION'
 
+// A topic's most-liked reply (excerpt + like count), shown on the topic card.
+export interface ActivityTopReply {
+  content: string
+  likeCount: number
+}
+
+// Rich-card payload for TOPIC_CREATION (BE dto.TopicActivityData). The title
+// lives in `content`; this carries the extras the topic feed card shows.
+export interface TopicActivityData {
+  excerpt: string
+  sections: string[]
+  coverImages: string[]
+  view: number
+  likeCount: number
+  replyCount: number
+  commentCount: number
+  upvoteTime: Date | string | null
+  hasBestAnswer: boolean
+  isPoll: boolean
+  isNSFW: boolean
+  topReply?: ActivityTopReply
+}
+
 export interface ActivityItem {
   uniqueId: string
   type: ActivityEventType
@@ -26,4 +49,7 @@ export interface ActivityItem {
   actor: KunUser
   link: string
   content: string
+  // Per-type rich-card payload (discriminated by `type`); absent for types
+  // without a rich card yet. Widen to a union as more types are enriched.
+  data?: TopicActivityData
 }
