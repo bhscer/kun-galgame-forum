@@ -81,7 +81,7 @@ onUnmounted(() => {
     v-if="isVisible"
     :class="
       cn(
-        'bg-background fixed right-3 bottom-3 z-100 rounded-full px-2 py-2 backdrop-blur-sm transition-opacity duration-300',
+        'bg-background fixed right-3 bottom-[60px] z-100 rounded-full px-2 py-2 backdrop-blur-sm transition-opacity duration-300',
         !autoHideStatus && 'hidden'
       )
     "

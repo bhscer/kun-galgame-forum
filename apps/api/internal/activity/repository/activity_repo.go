@@ -315,9 +315,17 @@ func buildKeysetSQL(sources []ActivitySource, limit int, cur *Cursor, isSFW, sho
 	for _, src := range sources {
 		q := sourceQuery(src, isSFW, showNoResource, cur != nil)
 		if cur != nil {
-			args = append(args, cur.Created)
+			// Args for the precise per-branch keyset cut emitted by sourceQuery:
+			// t.created < ? · t.created = ? · (?<?) branch<cursor type ·
+			// (?=?) branch=cursor type · t.id < ?. type_str is bound (not Go-
+			// compared) so PG uses the same collation as the outer row-value cut.
+			args = append(args, cur.Created, cur.Created, src.TypeStr, cur.TypeStr, src.TypeStr, cur.TypeStr, cur.ID)
 		}
-		parts = append(parts, fmt.Sprintf("(%s ORDER BY t.created DESC LIMIT %d)", q, limit))
+		// id DESC tiebreaker (type_str is constant within a branch) so the
+		// LIMIT slice picks the rows DIRECTLY below the cursor — without it,
+		// equal-`created` rows ordered arbitrarily and the slice could be all
+		// already-seen rows, returning 0 and freezing the feed.
+		parts = append(parts, fmt.Sprintf("(%s ORDER BY t.created DESC, t.id DESC LIMIT %d)", q, limit))
 	}
 	union := strings.Join(parts, " UNION ALL ")
 
@@ -366,7 +374,14 @@ func sourceQuery(src ActivitySource, isSFW, showNoResource, withCursor bool) str
 		add(src.SFWWhere)
 	}
 	if withCursor {
-		add("t.created <= ?")
+		// EXACT total-order cut for this branch — equivalent to the outer
+		// (created, type_str, id) < cursor, specialised to this branch's
+		// constant type_str (bound as a param, compared by PG). Pushing it into
+		// the branch means its `ORDER BY … LIMIT` returns only qualifying rows,
+		// so a cluster of equal-`created` rows can't waste the whole window and
+		// return 0 (which froze single-source feeds like 资源). The outer cut in
+		// FetchKeyset stays as a redundant safety net + the cross-branch merge.
+		add("t.created < ? OR (t.created = ? AND (? < ? OR (? = ? AND t.id < ?)))")
 	}
 	return q
 }

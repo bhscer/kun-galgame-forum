@@ -65,3 +65,20 @@ func TestBuildKeysetSQLPlaceholderParity(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildKeysetSQLPerBranchExactCut guards the 资源-feed freeze fix: each source
+// sub-query must carry the EXACT total-order cut (down to t.id) plus an id
+// tiebreaker in its ORDER BY. Without it, a cluster of equal-`created` rows fills
+// the LIMIT window with rows the outer cut rejects, the branch returns 0, and the
+// feed reports a premature end (single-source feeds like 资源 stop scrolling).
+func TestBuildKeysetSQLPerBranchExactCut(t *testing.T) {
+	one := []ActivitySource{Sources["GALGAME_RESOURCE_CREATION"]}
+	cur := &Cursor{Created: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), TypeStr: "GALGAME_RESOURCE_CREATION", ID: 42}
+	sql, _ := buildKeysetSQL(one, 30, cur, false, false)
+	if !strings.Contains(sql, "t.id <") {
+		t.Errorf("per-branch keyset cut missing the t.id tiebreaker — equal-created clusters can freeze the feed:\n%s", sql)
+	}
+	if !strings.Contains(sql, "ORDER BY t.created DESC, t.id DESC") {
+		t.Errorf("per-branch ORDER BY missing the id tiebreaker:\n%s", sql)
+	}
+}
