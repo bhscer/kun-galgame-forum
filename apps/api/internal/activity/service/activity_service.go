@@ -297,9 +297,50 @@ func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repositor
 	s.enrichTopicCommentItems(ctx, items)
 	s.enrichReplyItems(ctx, items)
 	s.enrichNoteItems(items)
+	s.enrichEntityRefItems(items)
 	s.renderMarkdownBodies(items)
 	s.hydrateActors(ctx, items)
 	return items
+}
+
+// enrichEntityRefItems attaches the parent entity name to the toolset / website
+// cards whose Content is a resource note or a comment: the owning toolset
+// (TOOLSET_RESOURCE_CREATION / TOOLSET_COMMENT_CREATION) or the commented website
+// (GALGAME_WEBSITE_COMMENT_CREATION). The creation cards carry the name in
+// Content directly, so they need no enrichment. Best-effort.
+func (s *ActivityService) enrichEntityRefItems(items []dto.ActivityItem) {
+	var resIDs, toolsetCommentIDs, websiteCommentIDs []int
+	for _, it := range items {
+		switch it.Type {
+		case "TOOLSET_RESOURCE_CREATION":
+			resIDs = append(resIDs, it.ID)
+		case "TOOLSET_COMMENT_CREATION":
+			toolsetCommentIDs = append(toolsetCommentIDs, it.ID)
+		case "GALGAME_WEBSITE_COMMENT_CREATION":
+			websiteCommentIDs = append(websiteCommentIDs, it.ID)
+		}
+	}
+	if len(resIDs)+len(toolsetCommentIDs)+len(websiteCommentIDs) == 0 {
+		return
+	}
+	resParents, _ := s.repo.FetchToolsetResourceParents(resIDs)
+	toolsetCommentParents, _ := s.repo.FetchToolsetCommentParents(toolsetCommentIDs)
+	websiteCommentParents, _ := s.repo.FetchWebsiteCommentParents(websiteCommentIDs)
+	set := func(i int, name string) {
+		if name != "" {
+			items[i].Data = dto.EntityRefActivityData{ParentName: name}
+		}
+	}
+	for i := range items {
+		switch items[i].Type {
+		case "TOOLSET_RESOURCE_CREATION":
+			set(i, resParents[items[i].ID])
+		case "TOOLSET_COMMENT_CREATION":
+			set(i, toolsetCommentParents[items[i].ID])
+		case "GALGAME_WEBSITE_COMMENT_CREATION":
+			set(i, websiteCommentParents[items[i].ID])
+		}
+	}
 }
 
 // renderMarkdownBodies renders the FULL reply / galgame-comment body to HTML, so

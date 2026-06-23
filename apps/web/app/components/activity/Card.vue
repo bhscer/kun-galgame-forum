@@ -54,5 +54,25 @@ defineProps<{ activity: ActivityItem }>()
     "
     :activity="activity"
   />
+  <ActivityCardToolset
+    v-else-if="activity.type === 'TOOLSET_CREATION'"
+    :activity="activity"
+  />
+  <ActivityCardWebsite
+    v-else-if="activity.type === 'GALGAME_WEBSITE_CREATION'"
+    :activity="activity"
+  />
+  <ActivityCardToolsetResource
+    v-else-if="activity.type === 'TOOLSET_RESOURCE_CREATION' && activity.data"
+    :activity="activity"
+  />
+  <ActivityCardEntityComment
+    v-else-if="
+      (activity.type === 'TOOLSET_COMMENT_CREATION' ||
+        activity.type === 'GALGAME_WEBSITE_COMMENT_CREATION') &&
+      activity.data
+    "
+    :activity="activity"
+  />
   <ActivityCardGeneric v-else :activity="activity" />
 </template>

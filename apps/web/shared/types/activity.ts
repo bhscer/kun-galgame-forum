@@ -137,6 +137,12 @@ export interface NoteActivityData {
   status?: number
 }
 
+// Parent-entity name for the toolset/website resource + comment cards (the
+// creation cards carry the name in `content` and need no payload).
+export interface EntityRefActivityData {
+  parentName: string
+}
+
 // Per-type rich-card payload, discriminated by ActivityItem.type. Each card
 // casts activity.data to the shape its type carries (the dispatcher routes by
 // type, so the cast is safe). Absent for types without a rich card yet.
@@ -146,6 +152,7 @@ export type ActivityData =
   | ReplyActivityData
   | TopicCommentActivityData
   | NoteActivityData
+  | EntityRefActivityData
 
 export interface ActivityItem {
   uniqueId: string

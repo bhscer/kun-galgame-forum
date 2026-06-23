@@ -117,6 +117,16 @@ type NoteActivityData struct {
 	Status  *int   `json:"status,omitempty"`
 }
 
+// EntityRefActivityData names the parent entity for the toolset / website
+// activity cards whose Content is a comment or resource note: the owning
+// toolset's name (TOOLSET_RESOURCE_CREATION, TOOLSET_COMMENT_CREATION) or the
+// commented website's name (GALGAME_WEBSITE_COMMENT_CREATION). The creation
+// cards (TOOLSET_CREATION / GALGAME_WEBSITE_CREATION) carry the name in Content
+// directly and need no payload.
+type EntityRefActivityData struct {
+	ParentName string `json:"parentName"`
+}
+
 // ReplyActivityData is the rich-card payload for TOPIC_REPLY_CREATION: the title
 // of the topic the reply belongs to (shown at the bottom of the card) and, if the
 // reply quoted another reply, that quoted reply. The reply body itself is

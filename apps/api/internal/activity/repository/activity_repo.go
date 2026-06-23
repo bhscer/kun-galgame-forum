@@ -466,6 +466,44 @@ func (r *ActivityRepository) FetchGalgameCommentParents(ids []int) (map[int]stri
 	return out, nil
 }
 
+// fetchParentNames is the shared id→parent-name lookup for the toolset / website
+// cards: `childTable c JOIN parentTable p ON p.id = c.<fk>` selecting p.name.
+func (r *ActivityRepository) fetchParentNames(childTable, parentTable, fk string, ids []int) (map[int]string, error) {
+	out := map[int]string{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID   int    `gorm:"column:id"`
+		Name string `gorm:"column:name"`
+	}
+	if err := r.db.Table(childTable+" c").
+		Select("c.id, p.name").
+		Joins("JOIN "+parentTable+" p ON p.id = c."+fk).
+		Where("c.id IN ?", ids).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row.Name
+	}
+	return out, nil
+}
+
+// FetchToolsetResourceParents maps each toolset-resource id → its toolset name.
+func (r *ActivityRepository) FetchToolsetResourceParents(ids []int) (map[int]string, error) {
+	return r.fetchParentNames("galgame_toolset_resource", "galgame_toolset", "toolset_id", ids)
+}
+
+// FetchToolsetCommentParents maps each toolset-comment id → its toolset name.
+func (r *ActivityRepository) FetchToolsetCommentParents(ids []int) (map[int]string, error) {
+	return r.fetchParentNames("galgame_toolset_comment", "galgame_toolset", "toolset_id", ids)
+}
+
+// FetchWebsiteCommentParents maps each website-comment id → its website name.
+func (r *ActivityRepository) FetchWebsiteCommentParents(ids []int) (map[int]string, error) {
+	return r.fetchParentNames("galgame_website_comment", "galgame_website", "website_id", ids)
+}
+
 // GalgameResourceRow is one resource's feed-card spec (no download link / codes).
 type GalgameResourceRow struct {
 	ID        int    `gorm:"column:id"`
