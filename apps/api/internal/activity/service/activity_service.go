@@ -649,7 +649,9 @@ func (s *ActivityService) enrichGalgameItems(
 			ga.FavoriteCount = c.FavoriteCount
 		}
 		if r.TypeStr == "GALGAME_EDIT" {
-			ga.RevisionID = revMap[r.ID]
+			e := revMap[r.ID]
+			ga.RevisionID = e.RevisionID         // legacy fallback (id→number)
+			ga.RevisionNumber = e.RevisionNumber // diff endpoint's :rev (0 = unknown)
 		}
 		if r.TypeStr == "GALGAME_RATING_CREATION" {
 			if rt, ok := ratingMap[r.ID]; ok {

@@ -56,10 +56,15 @@ export interface GalgameActivityData {
   resourceCount?: number
   likeCount?: number
   favoriteCount?: number
-  // GALGAME_EDIT only — wiki revision id for lazily loading the edit diff.
+  // GALGAME_EDIT only. revisionNumber = the per-galgame revision number the diff
+  // endpoint's :rev keys on (used directly); revisionId = the wiki revision ROW
+  // id, the legacy fallback resolved id→number for rows synced before the feed
+  // carried the number.
   revisionId?: number
-  // GALGAME_CREATION only (from the wiki detail brief): developer = 制作会社
-  // (officials joined with 、); intro = preferred-language introduction.
+  revisionNumber?: number
+  // GALGAME_CREATION + GALGAME_EDIT (shared info area), from the wiki detail
+  // brief: developer = 制作会社 (officials joined with 、); intro =
+  // preferred-language introduction.
   developer?: string
   intro?: string
   // GALGAME_RATING_CREATION only — the rating card's fields.

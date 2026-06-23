@@ -120,12 +120,16 @@ type GalgameActivityData struct {
 	ReleaseDate *string `json:"releaseDate"`
 	// GalgameID lets the FE link / like / favorite without parsing the link.
 	GalgameID int `json:"galgameId,omitempty"`
-	// RevisionID is the wiki revision id for GALGAME_EDIT — the edit card lazily
-	// fetches /galgame/:gid/revisions/:revisionId/diff with it.
-	RevisionID int `json:"revisionId,omitempty"`
-	// Developer (制作会社) + Intro are only set for the GALGAME_CREATION card, from
-	// the wiki detail brief. Developer = officials joined with 、; Intro is the
-	// preferred-language introduction, truncated for a 3-line preview.
+	// RevisionID is the wiki revision ROW id for GALGAME_EDIT — the legacy input
+	// for the id→number diff resolution. RevisionNumber is the per-galgame
+	// revision number the diff endpoint's :rev keys on; the card uses it directly
+	// when present (>0) and falls back to RevisionID otherwise.
+	RevisionID     int `json:"revisionId,omitempty"`
+	RevisionNumber int `json:"revisionNumber,omitempty"`
+	// Developer (制作会社) + Intro are set for the GALGAME_CREATION and GALGAME_EDIT
+	// cards (which share the info area), from the wiki detail brief. Developer =
+	// officials joined with 、; Intro is the preferred-language introduction,
+	// truncated for a 3-line preview.
 	Developer string `json:"developer,omitempty"`
 	Intro     string `json:"intro,omitempty"`
 	// Local rollups, only set for the GALGAME_CREATION rich card (omitempty → the

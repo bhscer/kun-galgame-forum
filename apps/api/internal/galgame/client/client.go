@@ -588,6 +588,7 @@ func (c *GalgameClient) MessagesFeed(ctx context.Context, sinceID int64, limit i
 type WikiRevision struct {
 	ID        int64  `json:"id"`
 	GalgameID int    `json:"galgame_id"`
+	Revision  int    `json:"revision"` // per-galgame number — the diff endpoint's :rev
 	UserID    int    `json:"user_id"`
 	Action    string `json:"action"`
 	Created   string `json:"created"`

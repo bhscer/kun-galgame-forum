@@ -111,10 +111,10 @@ func (s *WikiRevisionSync) upsert(rev client.WikiRevision) error {
 		created = time.Now()
 	}
 	return s.db.Exec(`
-		INSERT INTO galgame_activity (wiki_revision_id, galgame_id, user_id, type, created)
-		VALUES (?, ?, ?, 'GALGAME_EDIT', ?)
+		INSERT INTO galgame_activity (wiki_revision_id, wiki_revision_number, galgame_id, user_id, type, created)
+		VALUES (?, ?, ?, ?, 'GALGAME_EDIT', ?)
 		ON CONFLICT (wiki_revision_id) DO NOTHING
-	`, rev.ID, rev.GalgameID, rev.UserID, created).Error
+	`, rev.ID, rev.Revision, rev.GalgameID, rev.UserID, created).Error
 }
 
 func (s *WikiRevisionSync) readCursor(ctx context.Context) int64 {

@@ -27,18 +27,22 @@ const isLoading = ref(false)
 
 const loadDiff = async () => {
   const gid = data.value?.galgameId
-  // The activity carries the wiki revision's global ROW id (galgame_revision.id),
-  // but the diff endpoint keys on the per-galgame revision NUMBER. The /recent
-  // feed the sync consumes only exposes the row id, so resolve id → number via
-  // the history list (newest-first — a recently-edited revision is on page 1).
-  const rowId = data.value?.revisionId
-  if (!gid || !rowId || diff.value || isLoading.value) return
+  if (!gid || diff.value || isLoading.value) return
   isLoading.value = true
   try {
-    const history = await kunFetch<{
-      items?: { id: number; revision: number }[]
-    }>(`/galgame/${gid}/history/all?page=1&limit=100`)
-    const number = history?.items?.find((r) => r.id === rowId)?.revision
+    // The diff endpoint keys on the per-galgame revision NUMBER. The activity now
+    // carries it directly (revisionNumber). Legacy rows synced before the wiki
+    // feed exposed it have only the revision ROW id, so fall back to resolving
+    // id → number via the history list (newest-first — a recent edit is page 1).
+    let number = data.value?.revisionNumber
+    if (!number) {
+      const rowId = data.value?.revisionId
+      if (!rowId) return
+      const history = await kunFetch<{
+        items?: { id: number; revision: number }[]
+      }>(`/galgame/${gid}/history/all?page=1&limit=100`)
+      number = history?.items?.find((r) => r.id === rowId)?.revision
+    }
     if (!number) return
     const res = await kunFetch<SnapshotDiff>(
       `/galgame/${gid}/revisions/${number}/diff`

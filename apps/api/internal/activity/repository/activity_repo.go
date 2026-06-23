@@ -441,26 +441,40 @@ func (r *ActivityRepository) FetchGalgameCounts(galgameIDs []int) (map[int]Galga
 	return out, nil
 }
 
-// FetchEditRevisions maps galgame_activity ids → their wiki revision id (the
-// :rev the /galgame/:gid/revisions/:rev/diff endpoint expects), for the feed's
-// edit card to lazily load the diff.
-func (r *ActivityRepository) FetchEditRevisions(activityIDs []int) (map[int]int, error) {
-	out := map[int]int{}
+// EditRevision pairs a GALGAME_EDIT activity's wiki revision row id (global —
+// the input for the id→number fallback) with the per-galgame revision NUMBER
+// (what the diff endpoint's :rev expects). RevisionNumber is 0 for rows synced
+// before the wiki feed started carrying `revision`.
+type EditRevision struct {
+	RevisionID     int
+	RevisionNumber int
+}
+
+// FetchEditRevisions maps galgame_activity ids → their wiki revision ref, for the
+// feed's edit card to lazily load the diff (directly via the number, or via the
+// id→number resolution fallback for legacy rows where the number is unknown).
+func (r *ActivityRepository) FetchEditRevisions(activityIDs []int) (map[int]EditRevision, error) {
+	out := map[int]EditRevision{}
 	if len(activityIDs) == 0 {
 		return out, nil
 	}
 	var rows []struct {
-		ID         int `gorm:"column:id"`
-		RevisionID int `gorm:"column:wiki_revision_id"`
+		ID         int  `gorm:"column:id"`
+		RevisionID int  `gorm:"column:wiki_revision_id"`
+		RevisionNo *int `gorm:"column:wiki_revision_number"`
 	}
 	if err := r.db.Raw(`
-		SELECT id, wiki_revision_id
+		SELECT id, wiki_revision_id, wiki_revision_number
 		FROM galgame_activity
 		WHERE id IN ?`, activityIDs).Scan(&rows).Error; err != nil {
 		return out, err
 	}
 	for _, row := range rows {
-		out[row.ID] = row.RevisionID
+		num := 0
+		if row.RevisionNo != nil {
+			num = *row.RevisionNo
+		}
+		out[row.ID] = EditRevision{RevisionID: row.RevisionID, RevisionNumber: num}
 	}
 	return out, nil
 }
