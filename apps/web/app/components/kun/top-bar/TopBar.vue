@@ -23,7 +23,7 @@ const offsetClass = 'md:left-[80px] md:w-[calc(100%-88px)]'
     "
   >
     <div
-      class="bg-content1 border-kun mx-auto flex h-16 w-full max-w-7xl items-center justify-between rounded-b-lg border px-3 shadow-kun-sm backdrop-blur-[var(--kun-background-blur)]"
+      class="bg-content1 mx-auto flex h-16 w-full max-w-7xl items-center justify-between rounded-b-lg px-3 backdrop-blur-[var(--kun-background-blur)]"
     >
       <KunTopBarNav />
       <KunTopBarAvatar />
