@@ -204,7 +204,7 @@ if (data.value) {
     />
 
     <GalgameCard
-      :is-transparent="true"
+      :is-transparent="false"
       v-if="data.galgame.length"
       :galgames="data.galgame"
     />

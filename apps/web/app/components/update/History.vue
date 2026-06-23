@@ -63,7 +63,7 @@ const handleUpdateLogAction = async (data: UpdateUpdateLogPayload) => {
     </KunHeader>
     <KunCard
       :is-hoverable="false"
-      :is-transparent="true"
+      :is-transparent="false"
       v-for="update in data.updates"
       :key="update.id"
     >
@@ -101,7 +101,7 @@ const handleUpdateLogAction = async (data: UpdateUpdateLogPayload) => {
       @submit="handleUpdateLogAction"
     />
 
-    <KunCard :is-hoverable="false" :is-transparent="true">
+    <KunCard :is-hoverable="false" :is-transparent="false">
       <KunPagination
         v-if="data"
         v-model:current-page="pageData.page"

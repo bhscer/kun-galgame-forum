@@ -35,7 +35,7 @@ const scrolled = computed(() => y.value > 8)
     <div
       :class="
         cn(
-          'mx-auto flex h-16 w-full max-w-7xl transform-gpu items-center justify-between rounded-b-lg border backdrop-blur-md transition-all duration-300',
+          'mx-auto flex h-16 w-full max-w-7xl transform-gpu items-center justify-between rounded-b-lg border backdrop-blur-md transition-all duration-200',
           scrolled
             ? 'bg-content1 border-kun px-3 shadow-kun-sm'
             : 'border-transparent bg-transparent px-0 shadow-none'

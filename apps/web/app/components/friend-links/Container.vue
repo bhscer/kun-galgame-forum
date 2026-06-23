@@ -39,7 +39,7 @@ const groups = computed(() =>
 
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KunCard
-          :is-transparent="true"
+          :is-transparent="false"
           v-for="friend in group.links"
           :key="friend.id"
           :href="utmLink(friend.link)"

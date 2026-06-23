@@ -23,7 +23,7 @@ const { data } = await useKunFetch<RankingGalgameItem[]>('/ranking/galgame', {
         :to="`/galgame/${galgame.id}`"
         :class-name="
           cn(
-            'relative flex border border-default/20 items-center gap-3 rounded-xl p-3 transition-all hover:-translate-y-1',
+            'relative flex border border-default/20 items-center gap-3 rounded-xl p-3 transition-colors',
             getRankClasses(index)
           )
         "

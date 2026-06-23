@@ -11,7 +11,7 @@ defineProps<{
     :text="`${KUN_GALGAME_TAG_CATEGORY_MAP[tag.category]} - 含有 ${tag.galgameCount} 个 Galgame`"
   >
     <KunCard
-      :is-transparent="true"
+      :is-transparent="false"
       :is-hoverable="true"
       :href="`/galgame-tag/${tag.id}`"
     >

@@ -19,7 +19,7 @@ const utmLink = useUtmLink()
       <KunCard
         v-for="site in kunLayoutExternalItem"
         :key="site.name"
-        :is-transparent="true"
+        :is-transparent="false"
         :is-hoverable="true"
         :href="utmLink(site.router!)"
         target="_blank"

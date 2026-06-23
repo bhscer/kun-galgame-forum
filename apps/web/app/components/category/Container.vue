@@ -10,7 +10,7 @@ defineProps<{
 <template>
   <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
     <KunCard
-      :is-transparent="true"
+      :is-transparent="false"
       v-for="section in sections"
       :key="section.id"
       :href="`/section/${section.name}`"

@@ -37,7 +37,7 @@ const priceInfo = computed(() => {
 
 <template>
   <KunCard
-    :is-transparent="true"
+    :is-transparent="false"
     :href="`/website/${website.domain}`"
     class-name="group"
     content-class="space-y-3"

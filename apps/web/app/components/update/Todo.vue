@@ -79,7 +79,7 @@ const handleTodoAction = async (data: UpdateTodoPayload) => {
 
     <KunCard
       :is-hoverable="false"
-      :is-transparent="true"
+      :is-transparent="false"
       v-for="todo in data.todos"
       :key="todo.id"
       content-class="space-y-3"
@@ -129,7 +129,7 @@ const handleTodoAction = async (data: UpdateTodoPayload) => {
       @submit="handleTodoAction"
     />
 
-    <KunCard :is-hoverable="false" :is-transparent="true">
+    <KunCard :is-hoverable="false" :is-transparent="false">
       <KunPagination
         v-if="data"
         v-model:current-page="pageData.page"

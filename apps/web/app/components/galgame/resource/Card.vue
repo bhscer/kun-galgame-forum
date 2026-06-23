@@ -16,7 +16,7 @@ defineProps<{
 
 <template>
   <KunCard
-    :is-transparent="true"
+    :is-transparent="false"
     :is-hoverable="true"
     :href="`/galgame-resource/${resource.id}`"
     content-class="space-y-2"

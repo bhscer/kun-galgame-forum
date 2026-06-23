@@ -131,7 +131,7 @@ const handleDeleteSeries = async () => {
       @submit="handleUpdateSeries"
     />
 
-    <GalgameCard :is-transparent="true" :galgames="pagedGalgames" />
+    <GalgameCard :is-transparent="false" :galgames="pagedGalgames" />
 
     <KunPagination
       v-if="data.galgame.length > limit"

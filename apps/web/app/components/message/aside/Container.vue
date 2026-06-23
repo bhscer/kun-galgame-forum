@@ -32,7 +32,7 @@ const contact = computed(
   <aside
     :class="
       cn(
-        'scrollbar-hide border-default-300 border-r-none flex w-full shrink-0 flex-col space-y-3 overflow-y-auto pr-0 sm:w-88 sm:border-r sm:pr-3',
+        'scrollbar-hide border-default-200/60 flex w-full shrink-0 flex-col space-y-3 overflow-y-auto pr-0 sm:w-88 sm:border-r sm:pr-3',
         routeName !== 'message' ? 'hidden sm:flex' : ''
       )
     "

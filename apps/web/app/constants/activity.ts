@@ -3,6 +3,7 @@ export const KUN_ACTIVITY_TYPE_TYPE: Record<string, string> = {
   GALGAME_RATING_CREATION: 'Galgame 评分',
   GALGAME_RATING_COMMENT_CREATION: 'Galgame 评分评论',
   TOPIC_CREATION: '新话题',
+  TOPIC_UPVOTE: '话题被推',
   MESSAGE_UPVOTE: '话题被推',
   MESSAGE_SOLUTION: '最佳答案',
   TOPIC_REPLY_CREATION: '话题回复',
@@ -36,6 +37,7 @@ export const KUN_ALLOWED_ACTIVITY_TYPE = [
   'TOPIC_CREATION',
   'TOPIC_REPLY_CREATION',
   'TOPIC_COMMENT_CREATION',
+  'TOPIC_UPVOTE',
   'TODO_CREATION',
   'UPDATE_LOG_CREATION',
   'MESSAGE_UPVOTE',
@@ -67,6 +69,7 @@ export const KUN_ACTIVITY_GROUPS: { label: string; types: string[] }[] = [
       'TOPIC_CREATION',
       'TOPIC_REPLY_CREATION',
       'TOPIC_COMMENT_CREATION',
+      'TOPIC_UPVOTE',
       'MESSAGE_UPVOTE',
       'MESSAGE_SOLUTION'
     ]
@@ -99,6 +102,7 @@ export const KUN_ACTIVITY_ICON_MAP: Record<string, string> = {
   TOOLSET_RESOURCE_CREATION: 'lucide:package-plus',
   TOOLSET_COMMENT_CREATION: 'lucide:wrench',
   TOPIC_CREATION: 'icon-park-outline:topic',
+  TOPIC_UPVOTE: 'lucide:trending-up',
   TOPIC_REPLY_CREATION: 'carbon:reply',
   TOPIC_COMMENT_CREATION: 'lucide:message-circle-more',
   TODO_CREATION: 'lucide:list-checks',
