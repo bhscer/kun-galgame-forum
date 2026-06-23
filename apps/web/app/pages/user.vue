@@ -35,13 +35,7 @@ if (isBanned.value) {
 
 <template>
   <div class="contents">
-    <KunCard
-      v-if="!isBanned"
-      :is-hoverable="false"
-      :is-transparent="false"
-      class-name="m-auto"
-      content-class="h-[calc(100dvh-120px)]"
-    >
+    <div v-if="!isBanned" class="h-[calc(100dvh-120px)]">
       <div v-if="data" class="flex h-full w-full">
         <UserNavBar
           :user="{ id: data.id, name: data.name, avatar: data.avatar }"
@@ -53,15 +47,10 @@ if (isBanned.value) {
       </div>
 
       <KunNull v-else description="未找到该用户" />
-    </KunCard>
+    </div>
 
-    <KunCard
-      v-else
-      :is-hoverable="false"
-      :is-transparent="false"
-      content-class="h-[calc(100dvh-120px)]"
-    >
+    <div v-else class="h-[calc(100dvh-120px)]">
       <KunNull description="此用户已被封禁" />
-    </KunCard>
+    </div>
   </div>
 </template>

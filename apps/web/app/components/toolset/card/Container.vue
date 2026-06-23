@@ -33,7 +33,7 @@ const { data, status } = await useKunFetch<{
 
 <template>
   <div v-if="data" class="flex flex-col gap-3">
-    <KunCard class-name="z-10" :is-hoverable="false" :is-transparent="false">
+    <div class="z-10">
       <KunHeader
         name="Galgame 工具资源下载"
         description="Galgame 工具合集，模拟器, 翻译器, 解包工具, 补丁工具, 资源转换工具, 汉化工具, 开发者工具, 游戏管理工具, 自动化脚本 等 Galgame 工具资源下载"
@@ -42,7 +42,7 @@ const { data, status } = await useKunFetch<{
           <ToolsetCardNav />
         </template>
       </KunHeader>
-    </KunCard>
+    </div>
 
     <KunLoading :loading="status === 'pending'">
       <ToolsetCard v-if="data.items" :items="data.items" />

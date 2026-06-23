@@ -25,11 +25,7 @@ const { data, status } = await useKunFetch<{
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="space-y-3"
-  >
+  <div class="space-y-3">
     <div class="space-y-2">
       <KunHeader name="Galgame 评分列表">
         <template #description>
@@ -81,5 +77,5 @@ const { data, status } = await useKunFetch<{
       :total-page="Math.ceil((data?.total || 0) / params.limit)"
       :is-loading="status === 'pending'"
     />
-  </KunCard>
+  </div>
 </template>

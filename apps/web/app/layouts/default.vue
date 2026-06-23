@@ -51,10 +51,9 @@ watch(
           )
         "
       >
-        <!-- Page gutter lives here now (the per-page wrapper KunCards that used to
-             provide it were removed for a flatter layout); md:px-3 aligns with the
-             top bar's inner px-3. -->
-        <div class="h-full px-2 pt-19 pb-3 md:px-3">
+        <!-- Mobile keeps a small gutter; desktop is flush (md:px-0). pt clears the
+             fixed top bar. -->
+        <div class="h-full px-2 pt-22 pb-6 md:px-0">
           <NuxtPage />
         </div>
 

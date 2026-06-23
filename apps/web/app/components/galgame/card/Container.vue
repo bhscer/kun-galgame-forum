@@ -55,7 +55,7 @@ const { data, status } = await useKunFetch<{
 <template>
   <div class="flex flex-col gap-3">
     <template v-if="data">
-      <KunCard class-name="z-10" :is-hoverable="false" :is-transparent="false">
+      <div class="z-10">
         <KunHeader name="Galgame 资源 Wiki">
           <template #endContent>
             <GalgameCardNav :is-show-advanced="true" />
@@ -68,7 +68,7 @@ const { data, status } = await useKunFetch<{
             </p>
           </template>
         </KunHeader>
-      </KunCard>
+      </div>
 
       <KunLoading :loading="status === 'pending'">
         <GalgameCard v-if="data.galgames" :galgames="data.galgames" />
