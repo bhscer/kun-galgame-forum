@@ -10,8 +10,8 @@ const settings = usePersistSettingsStore()
 const { feedTabs } = storeToRefs(settings)
 
 const editingId = ref(feedTabs.value[0]?.id ?? '')
-const tabPickerItems = computed(() =>
-  feedTabs.value.map((t) => ({ value: t.id, textValue: t.name, icon: t.icon }))
+const tabOptions = computed(() =>
+  feedTabs.value.map((t) => ({ value: t.id, label: t.name }))
 )
 const editingTab = computed(() =>
   feedTabs.value.find((t) => t.id === editingId.value)
@@ -59,13 +59,7 @@ const toggleKind = (kind: string) => {
     </div>
 
     <!-- Pick which tab to edit -->
-    <KunTab
-      v-model="editingId"
-      :items="tabPickerItems"
-      variant="underlined"
-      color="primary"
-      full-width
-    />
+    <KunSelect v-model="editingId" :options="tabOptions" />
 
     <!-- Kinds for the selected tab -->
     <div v-if="editingTab" class="space-y-3">
