@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { backgroundImages } from './backgroundImage'
 
-const { showKUNGalgameBackground } = storeToRefs(usePersistSettingsStore())
+const { showKUNGalgameBackground, showKUNGalgameBackgroundOpacity } =
+  storeToRefs(usePersistSettingsStore())
 
 const itemsPerPage = 12
 const totalPages = Math.ceil(backgroundImages.length / itemsPerPage)
@@ -105,6 +106,25 @@ const handleChangeImage = async (index: number) => {
         </KunButton>
         <KunSettingPanelComponentsCustomBackground />
       </div>
+    </div>
+
+    <!-- 背景图片透明度 -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="text-default-700 flex items-center gap-2 font-medium">
+          <KunIcon class="text-primary" name="lucide:image" />
+          <span>背景图片透明度</span>
+        </div>
+        <span class="text-default-500 text-sm tabular-nums">
+          {{ showKUNGalgameBackgroundOpacity }}%
+        </span>
+      </div>
+      <KunSlider
+        :min="0"
+        :max="100"
+        :step="1"
+        v-model="showKUNGalgameBackgroundOpacity"
+      />
     </div>
   </div>
 </template>

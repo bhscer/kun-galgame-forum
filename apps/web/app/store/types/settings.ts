@@ -11,6 +11,9 @@ export interface KUNGalgameSettingsStore {
   showKUNGalgameBackground: number
   showKUNGalgameBackgroundBlur: number
   showKUNGalgameBackgroundBrightness: number
+  // Background IMAGE opacity (0–100 %). The fixed bg image in the default layout
+  // renders at this alpha — default 30 (replaces the old hard-coded opacity-30).
+  showKUNGalgameBackgroundOpacity: number
   showKUNGalgameBackLoli: boolean
   // Global "显示没有下载资源的 Galgame" toggle. false (default) hides
   // resource-less galgames across all local galgame lists (browse / ranking /

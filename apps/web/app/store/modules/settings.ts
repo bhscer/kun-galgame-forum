@@ -27,6 +27,10 @@ export const usePersistSettingsStore = defineStore(
       ref<KUNGalgameSettingsStore['showKUNGalgameBackgroundBlur']>(0)
     const showKUNGalgameBackgroundBrightness =
       ref<KUNGalgameSettingsStore['showKUNGalgameBackgroundBrightness']>(100)
+    // Background-image opacity (%). Read directly by the layout (bound on the bg
+    // div), so it's SSR-safe + reactive — no CSS-var setter / init flash needed.
+    const showKUNGalgameBackgroundOpacity =
+      ref<KUNGalgameSettingsStore['showKUNGalgameBackgroundOpacity']>(30)
     const showKUNGalgameBackLoli =
       ref<KUNGalgameSettingsStore['showKUNGalgameBackLoli']>(false)
     // Global "显示没有下载资源的 Galgame" — off by default; hides resource-less
@@ -150,6 +154,7 @@ export const usePersistSettingsStore = defineStore(
       showKUNGalgameBackground,
       showKUNGalgameBackgroundBlur,
       showKUNGalgameBackgroundBrightness,
+      showKUNGalgameBackgroundOpacity,
       showKUNGalgameBackLoli,
       showKUNGalgameNoResource,
       showKUNGalgameRounded,

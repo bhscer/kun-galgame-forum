@@ -4,9 +4,8 @@ import {
   KUN_VISUAL_NOVEL_FORUM_WINTER_THEME_BACKGROUND
 } from '~/config/theme'
 
-const { showKUNGalgameBackground, showKUNGalgameBackLoli } = storeToRefs(
-  usePersistSettingsStore()
-)
+const { showKUNGalgameBackground, showKUNGalgameBackLoli, showKUNGalgameBackgroundOpacity } =
+  storeToRefs(usePersistSettingsStore())
 
 const imageURL = ref(
   ENABLE_KUN_VISUAL_NOVEL_FORUM_WINTER_THEME
@@ -30,8 +29,11 @@ watch(
   <div class="contents">
     <div class="bg-background fixed top-0 left-0 h-full w-full">
       <div
-        class="fixed size-full bg-cover bg-fixed bg-center bg-no-repeat opacity-30 brightness-[var(--kun-background-brightness)]"
-        :style="{ backgroundImage: `url(${imageURL})` }"
+        class="fixed size-full bg-cover bg-fixed bg-center bg-no-repeat brightness-[var(--kun-background-brightness)]"
+        :style="{
+          backgroundImage: `url(${imageURL})`,
+          opacity: showKUNGalgameBackgroundOpacity / 100
+        }"
       />
     </div>
 

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const {
   showKUNGalgamePageTransparency,
-  showKUNGalgameBackgroundBlur,
   showKUNGalgameBackgroundBrightness,
   showKUNGalgameRounded
 } = storeToRefs(usePersistSettingsStore())
@@ -20,15 +19,6 @@ watch(
   debounce(() => {
     usePersistSettingsStore().setKUNGalgameTransparency(
       showKUNGalgamePageTransparency.value
-    )
-  }, 300)
-)
-
-watch(
-  () => showKUNGalgameBackgroundBlur.value,
-  debounce(() => {
-    usePersistSettingsStore().setKUNGalgameBackgroundBlur(
-      showKUNGalgameBackgroundBlur.value
     )
   }, 300)
 )
@@ -61,25 +51,6 @@ watch(
         :max="90"
         :step="1"
         v-model="showKUNGalgamePageTransparency"
-      />
-    </div>
-
-    <!-- 页面模糊度 -->
-    <div class="space-y-2">
-      <div class="flex items-center justify-between">
-        <div class="text-default-700 flex items-center gap-2 font-medium">
-          <KunIcon class="text-primary" name="tabler:blur" />
-          <span>页面模糊度</span>
-        </div>
-        <span class="text-default-500 text-sm tabular-nums">
-          {{ showKUNGalgameBackgroundBlur }}px
-        </span>
-      </div>
-      <KunSlider
-        :min="0"
-        :max="32"
-        :step="1"
-        v-model="showKUNGalgameBackgroundBlur"
       />
     </div>
 
