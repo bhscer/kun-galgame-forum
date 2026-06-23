@@ -11,7 +11,7 @@ const settingTabs = [
   { value: 'appearance', textValue: '外观', icon: 'lucide:palette' },
   { value: 'background', textValue: '背景', icon: 'lucide:image' },
   { value: 'galgame', textValue: 'Galgame', icon: 'lucide:gamepad-2' },
-  { value: 'feed', textValue: '动态', icon: 'lucide:rss' },
+  { value: 'feed', textValue: '主页', icon: 'lucide:house' },
   { value: 'content', textValue: '内容', icon: 'lucide:shield-alert' },
   { value: 'general', textValue: '通用', icon: 'lucide:settings-2' }
 ]
