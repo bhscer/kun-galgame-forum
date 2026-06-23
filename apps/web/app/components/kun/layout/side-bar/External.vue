@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { kunLayoutExternalItem } from '~/constants/layout'
+import { kunSubSites } from '~/constants/layout'
 </script>
 
 <template>
@@ -9,22 +9,19 @@ import { kunLayoutExternalItem } from '~/constants/layout'
     <KunLink
       color="default"
       underline="none"
-      v-for="(item, index) in kunLayoutExternalItem"
+      v-for="(site, index) in kunSubSites"
       target="_blank"
-      :to="item.router"
+      :to="site.link"
       :key="index"
       class-name="hover:bg-primary/20 gap-0 flex flex-nowrap items-center justify-between rounded-lg px-4 py-2 transition-all hover:opacity-80"
     >
-      <span
-        v-if="item.icon"
-        class="mr-3 flex items-center justify-center text-xl text-inherit"
-      >
-        <KunIcon class="mr-3 text-inherit" :name="item.icon" />
-        <span class="text-sm">{{ item.label }}</span>
+      <span class="mr-3 flex items-center justify-center text-xl text-inherit">
+        <KunIcon class="mr-3 text-inherit" :name="site.icon" />
+        <span class="text-sm">{{ site.short }}</span>
       </span>
 
-      <span class="text-primary text-xs" v-if="item.hint">
-        {{ item.hint }}
+      <span class="text-primary text-xs" v-if="site.hint">
+        {{ site.hint }}
       </span>
     </KunLink>
   </div>

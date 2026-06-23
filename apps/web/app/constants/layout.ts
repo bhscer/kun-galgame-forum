@@ -221,38 +221,77 @@ export const kunLayoutItem: KunLayoutItem[] = [
   }
 ]
 
-export const kunLayoutExternalItem: KunLayoutItem[] = [
+// ──────────────────────────────────────────
+// KUN Galgame family — the sub-sites
+// ──────────────────────────────────────────
+// The KUN Galgame family of sites, shown on /sites (full cards), the sidebar
+// drawer, and the home footer. Names / descriptions / links / GitHub follow the
+// nav project (kun-galgame-nav-solid) — the single source of truth — EXCEPT the
+// 补丁站, which the nav project doesn't list (best-effort copy; no public repo wired).
+export interface KunSubSite {
+  // Short label for compact lists (sidebar drawer, home footer).
+  short: string
+  // Full title shown on the /sites cards.
+  name: string
+  description: string
+  link: string
+  // GitHub source, when the site is open-source.
+  github?: string
+  icon: string
+  hint?: string
+}
+
+export const kunSubSites: KunSubSite[] = [
   {
-    name: 'patch',
+    short: '补丁站',
+    name: '鲲 Galgame 补丁站',
+    description: '鲲 Galgame 补丁站，提供 Galgame 补丁、整合与相关资源下载。',
+    link: 'https://www.moyu.moe/',
     icon: 'lucide:puzzle',
-    router: 'https://www.moyu.moe/',
-    label: 'Galgame 补丁站',
-    external: true,
     hint: '震憾上线'
   },
   {
-    name: 'sticker',
+    short: 'Gal 百科',
+    name: '鲲 Galgame Wiki (鲲 Galgame 百科)',
+    description:
+      '鲲 Galgame 百科是世界上最强大的可开放编辑的 Galgame Wiki，它是目前世界上最全的 Galgame 百科全书，涵盖了超过十万部 Galgame / 视觉小说 的全部信息，包括剧本，封面，游戏名，声优，截图，标签，制作会社，制作引擎等等一切你能想到的内容！',
+    link: 'https://wiki.kungal.com/',
+    icon: 'lucide:book-open-text'
+  },
+  {
+    short: 'OAuth 系统',
+    name: '鲲 Galgame OAuth 系统',
+    description:
+      '鲲 Galgame OAuth 系统，统一鲲 Galgame 所有用户账户，为用户一键登录鲲 Galgame 下的所有网站提供最良好的体验！',
+    link: 'https://oauth.kungal.com/',
+    icon: 'lucide:key-round'
+  },
+  {
+    short: '表情包',
+    name: '鲲 Galgame 表情包',
+    description:
+      'Galgame 表情包网站，鲲 Galgame 表情包下载站，海量 Visual Novel 表情包。',
+    link: 'https://sticker.kungal.com/',
+    github: 'https://github.com/KUN1007/kun-galgame-stickers-sveltekit',
     icon: 'lucide:image',
-    router: 'https://sticker.kungal.com/',
-    label: 'Galgame 表情包',
-    external: true,
     hint: '全网最全'
   },
   {
-    name: 'doc',
-    icon: 'lucide:code-xml',
-    router: 'https://soft.moe/kun-visualnovel-docs/kun-forum.html',
-    label: '开发文档',
-    hint: '开源一切',
-    external: true
+    short: '导航站',
+    name: '鲲 Galgame 导航',
+    description: '完全开源的导航站，可以前往鲲 Galgame 旗下的所有子网站！',
+    link: 'https://nav.kungal.org/',
+    github: 'https://github.com/KUN1007/kun-galgame-nav-solid',
+    icon: 'lucide:navigation',
+    hint: '防失联'
   },
   {
-    name: 'nav',
-    icon: 'lucide:navigation',
-    router: 'https://nav.kungal.org/',
-    label: '导航网站',
-    hint: '防失联',
-    external: true
+    short: '开发文档',
+    name: '鲲 Galgame 论坛开发文档',
+    description: '鲲 Galgame 论坛是完全开源免费的！ 开发文档完全公开！',
+    link: 'https://docs-kungal.nextmoe.dev/',
+    github: 'https://github.com/KUN1007/soft.moe',
+    icon: 'lucide:code-xml'
   }
 ]
 

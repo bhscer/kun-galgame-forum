@@ -1,10 +1,6 @@
 <script setup lang="ts">
-const siteList = [
-  { name: '补丁站', href: kungal.domain.patch },
-  { name: '表情包', href: kungal.domain.sticker },
-  { name: '导航网站', href: kungal.domain.nav },
-  { name: '开发文档', href: kungal.domain.doc }
-]
+// Same KUN Galgame family as /sites + the sidebar; short labels for the rail.
+import { kunSubSites } from '~/constants/layout'
 </script>
 
 <template>
@@ -13,16 +9,18 @@ const siteList = [
        the info above by the rail's flex gap. -->
   <footer class="text-default-500 space-y-2.5 text-center text-xs">
 
-    <div class="flex flex-wrap justify-center gap-x-3 gap-y-1">
-      <KunLink
-        v-for="(site, index) in siteList"
+    <!-- Each cell stretches to its grid track; text-center centers the inline
+         KunLink within it, so every label sits centered in its own box. -->
+    <div class="grid grid-cols-3 gap-x-2 gap-y-1">
+      <div
+        v-for="(site, index) in kunSubSites"
         :key="index"
-        size="sm"
-        :to="site.href"
-        target="_blank"
+        class="text-center"
       >
-        {{ site.name }}
-      </KunLink>
+        <KunLink size="sm" :to="site.link" target="_blank">
+          {{ site.short }}
+        </KunLink>
+      </div>
     </div>
 
     <div class="flex flex-wrap items-center justify-center gap-1.5">

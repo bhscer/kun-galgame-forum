@@ -116,7 +116,7 @@ export const KUN_ACTIVITY_ICON_MAP: Record<string, string> = {
 // EXCEPT topics are split into 普通话题 (TOPIC_NORMAL) / 资源求助话题
 // (TOPIC_RESOURCE_HELP) — backend pseudo-types (service.resolveKinds) that
 // collapse to TOPIC_CREATION + a section filter, so 资源/求助 topics can be routed
-// independently (matching the default 全部 / 资源和求助 split).
+// independently (the 话题 tab takes 普通话题, the 资源和求助话题 tab takes 资源求助话题).
 export interface KunFeedKind {
   value: string
   label: string
@@ -227,8 +227,15 @@ const KUN_ALL_TAB_KINDS = [
   'UPDATE_LOG_CREATION'
 ]
 
-// Default tabs — replicate the previous fixed five exactly. Stable ids so the
-// ?tab= URL + the active selection survive edits.
+// Bump when the DEFAULT tab structure changes (new / renamed / removed tabs) so
+// the settings store can force a one-time reset of stale persisted tabs (see its
+// afterHydrate). NOTE: this also resets users' CUSTOM tabs — acceptable here.
+export const KUN_FEED_TABS_VERSION = 1
+
+// Default tabs. Stable ids so the ?tab= URL + the active selection survive edits.
+//   资源        — galgame resources only (no topics)
+//   资源和求助话题 — only the three 资源/求助 topic sections (TOPIC_RESOURCE_HELP)
+//   话题        — normal topics only (TOPIC_NORMAL; those three sections excluded)
 export const KUN_DEFAULT_FEED_TABS: KunFeedTab[] = [
   { id: 'all', name: '全部', icon: 'lucide:layers', kinds: [...KUN_ALL_TAB_KINDS] },
   {
@@ -263,9 +270,15 @@ export const KUN_DEFAULT_FEED_TABS: KunFeedTab[] = [
   },
   {
     id: 'resource',
-    name: '资源和求助',
+    name: '资源',
     icon: 'lucide:box',
-    kinds: ['GALGAME_RESOURCE_CREATION', 'TOPIC_RESOURCE_HELP']
+    kinds: ['GALGAME_RESOURCE_CREATION']
+  },
+  {
+    id: 'resource-help-topic',
+    name: '资源和求助话题',
+    icon: 'lucide:life-buoy',
+    kinds: ['TOPIC_RESOURCE_HELP']
   },
   {
     id: 'others',

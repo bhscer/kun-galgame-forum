@@ -4,7 +4,7 @@ import {
   ENABLE_KUN_VISUAL_NOVEL_FORUM_WINTER_THEME,
   KUN_VISUAL_NOVEL_FORUM_WINTER_THEME_BACKGROUND
 } from '~/config/theme'
-import { KUN_DEFAULT_FEED_TABS } from '~/constants/activity'
+import { KUN_DEFAULT_FEED_TABS, KUN_FEED_TABS_VERSION } from '~/constants/activity'
 import type { KUNGalgameSettingsStore } from '../types/settings'
 
 const SETTINGS_CUSTOM_BACKGROUND_IMAGE_NAME: string = 'kun-galgame-custom-bg'
@@ -56,10 +56,15 @@ export const usePersistSettingsStore = defineStore(
     const feedTabs = ref<KUNGalgameSettingsStore['feedTabs']>(
       structuredClone(KUN_DEFAULT_FEED_TABS)
     )
+    // 0 = pre-versioning sentinel; afterHydrate (below) resets feedTabs whenever
+    // the persisted value trails KUN_FEED_TABS_VERSION.
+    const feedTabsVersion =
+      ref<KUNGalgameSettingsStore['feedTabsVersion']>(0)
 
     // Restore the home-feed tabs to the shipped defaults (设置 → 动态 → 恢复默认).
     const resetKUNGalgameFeedTabs = () => {
       feedTabs.value = structuredClone(KUN_DEFAULT_FEED_TABS)
+      feedTabsVersion.value = KUN_FEED_TABS_VERSION
     }
 
     const setKUNGalgameFontStyle = (font: string) => {
@@ -161,6 +166,7 @@ export const usePersistSettingsStore = defineStore(
       showKUNGalgameGallerySexualLevels,
       showKUNGalgameGalleryViolenceLevels,
       feedTabs,
+      feedTabsVersion,
       resetKUNGalgameFeedTabs,
       setKUNGalgameFontStyle,
       setKUNGalgameTransparency,
@@ -174,6 +180,21 @@ export const usePersistSettingsStore = defineStore(
     }
   },
   {
-    persist: true
+    persist: {
+      // Feed-tab DEFAULTS changed structurally (renamed 资源, added 资源和求助话题).
+      // Persisted tabs from an older schema would mask that — and keep showing
+      // 资源/求助 sections (g-other/g-seeking/t-help) in 话题 — so when the stored
+      // version trails the current one, reset feedTabs to the shipped defaults once.
+      afterHydrate: (ctx) => {
+        const store = ctx.store as unknown as {
+          feedTabsVersion: number
+          feedTabs: KUNGalgameSettingsStore['feedTabs']
+        }
+        if (store.feedTabsVersion < KUN_FEED_TABS_VERSION) {
+          store.feedTabs = structuredClone(KUN_DEFAULT_FEED_TABS)
+          store.feedTabsVersion = KUN_FEED_TABS_VERSION
+        }
+      }
+    }
   }
 )

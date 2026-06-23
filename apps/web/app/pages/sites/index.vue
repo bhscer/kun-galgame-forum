@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { kunLayoutExternalItem } from '~/constants/layout'
+import { kunSubSites } from '~/constants/layout'
 
 useKunSeoMeta({
   title: '子网站',
-  description: kunLayoutExternalItem.map((site) => site.label).join(', ')
+  description: kunSubSites.map((site) => site.short).join(', ')
 })
 </script>
 

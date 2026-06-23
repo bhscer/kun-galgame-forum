@@ -5,6 +5,9 @@ export interface KUNGalgameSettingsStore {
   // User-configured home-feed tabs (设置 → 动态). Each tab = name + icon + a set
   // of activity "kinds"; persisted so it follows the user. See constants/activity.
   feedTabs: KunFeedTab[]
+  // Schema version of the persisted feedTabs. Sentinel 0 = pre-versioning; when it
+  // trails KUN_FEED_TABS_VERSION the store resets feedTabs to the shipped defaults.
+  feedTabsVersion: number
   showKUNGalgamePageTransparency: number
   showKUNGalgameFontStyle: string
   showKUNGalgameContentLimit: string

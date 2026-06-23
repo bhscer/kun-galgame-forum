@@ -131,14 +131,16 @@ useIntersectionObserver(
 
 <template>
   <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-    <!-- Mobile: horizontal underline tabs on top. -->
+    <!-- Mobile: horizontal underline tabs on top. `scrollable` (not full-width)
+         so the user-configurable tab set scrolls sideways instead of overflowing
+         the viewport once there are more tabs than fit. -->
     <div class="sm:hidden">
       <KunTab
         v-model="activeTab"
         :items="tabItems"
         variant="underlined"
         color="primary"
-        full-width
+        scrollable
       />
     </div>
 
