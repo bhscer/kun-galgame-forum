@@ -97,6 +97,7 @@ type TopicReactionCount struct {
 // TopReply is a topic's most-liked reply (a short excerpt + its like count),
 // shown on the feed's topic card. Only populated when a reply has >0 likes.
 type TopReply struct {
+	User      Actor  `json:"user"`
 	Content   string `json:"content"`
 	LikeCount int    `json:"likeCount"`
 }

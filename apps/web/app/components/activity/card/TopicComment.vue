@@ -26,7 +26,7 @@ const quoted = computed(() => data.value?.quotedReply)
       />
 
       <p
-        class="group-hover:text-primary line-clamp-4 text-sm break-all transition-colors"
+        class="group-hover:text-primary line-clamp-4 text-base break-all transition-colors"
       >
         {{ markdownToText(activity.content) }}
       </p>

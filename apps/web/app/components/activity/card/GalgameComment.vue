@@ -22,7 +22,7 @@ const detailLink = computed(() =>
         :content="data.parentComment.content"
       />
 
-      <p class="text-default-700 text-sm break-all whitespace-pre-wrap">
+      <p class="text-default-700 text-base break-all whitespace-pre-wrap">
         {{ markdownToText(activity.content) }}
       </p>
       <KunLink

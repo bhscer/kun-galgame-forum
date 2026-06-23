@@ -114,7 +114,7 @@ const hasSpoiler = computed(
           </p>
           <p
             v-else-if="rating?.shortSummary"
-            class="text-default-500 line-clamp-3 text-sm break-all"
+            class="text-default-700 line-clamp-3 text-base break-all"
           >
             {{ rating.shortSummary }}
           </p>

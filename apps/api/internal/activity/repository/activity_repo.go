@@ -644,6 +644,7 @@ type TopReplyRow struct {
 	TopicID   int    `gorm:"column:topic_id"`
 	Content   string `gorm:"column:content"`
 	LikeCount int    `gorm:"column:like_count"`
+	UserID    int    `gorm:"column:user_id"`
 }
 
 // FetchTopicTopReply batch-loads each topic's MOST-LIKED reply via DISTINCT ON
@@ -657,7 +658,7 @@ func (r *ActivityRepository) FetchTopicTopReply(ids []int) (map[int]TopReplyRow,
 	var rows []TopReplyRow
 	if err := r.db.Raw(`
 		SELECT DISTINCT ON (topic_id) topic_id,
-			SUBSTRING(content, 1, 200) AS content, like_count
+			SUBSTRING(content, 1, 200) AS content, like_count, user_id
 		FROM topic_reply
 		WHERE topic_id IN ? AND like_count > 0
 		ORDER BY topic_id, like_count DESC, id DESC`, ids).

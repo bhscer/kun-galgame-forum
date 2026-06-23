@@ -43,5 +43,12 @@ defineProps<{ activity: ActivityItem }>()
     v-else-if="activity.type === 'GALGAME_PR_CREATION' && activity.data"
     :activity="activity"
   />
+  <ActivityCardNote
+    v-else-if="
+      activity.type === 'TODO_CREATION' ||
+      activity.type === 'UPDATE_LOG_CREATION'
+    "
+    :activity="activity"
+  />
   <ActivityCardGeneric v-else :activity="activity" />
 </template>

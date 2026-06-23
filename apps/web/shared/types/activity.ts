@@ -21,6 +21,7 @@ export type ActivityEventType =
 
 // A topic's most-liked reply (excerpt + like count), shown on the topic card.
 export interface ActivityTopReply {
+  user: KunUser
   content: string
   likeCount: number
 }

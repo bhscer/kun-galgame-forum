@@ -287,7 +287,7 @@ func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repositor
 	items = s.enrichGalgameItems(ctx, rows, items, isSFW, tab)
 	s.enrichGalgameCommentParents(items)
 	s.enrichGalgameResourceDetails(items)
-	s.enrichTopicItems(items)
+	s.enrichTopicItems(ctx, items)
 	s.enrichTopicCommentItems(ctx, items)
 	s.enrichReplyItems(ctx, items)
 	s.hydrateActors(ctx, items)
@@ -549,7 +549,7 @@ func (s *ActivityService) enrichReplyItems(ctx context.Context, items []dto.Acti
 // rows. Best-effort: on a query error the items keep a nil Data and fall back to
 // the generic card. Runs after enrichGalgameItems (topic items are never dropped
 // there — galgame_id is 0), so it operates on the surviving items.
-func (s *ActivityService) enrichTopicItems(items []dto.ActivityItem) {
+func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.ActivityItem) {
 	idToIdx := map[int][]int{}
 	for i, it := range items {
 		if it.Type == "TOPIC_CREATION" {
@@ -571,6 +571,15 @@ func (s *ActivityService) enrichTopicItems(items []dto.ActivityItem) {
 	sections, _ := s.repo.FetchTopicSections(ids)
 	polls, _ := s.repo.FetchTopicPolls(ids)
 	topReplies, _ := s.repo.FetchTopicTopReply(ids)
+
+	// Hydrate the top reply's author (a different user than the activity actor).
+	topReplyUserIDs := make([]int, 0, len(topReplies))
+	for _, tr := range topReplies {
+		if tr.UserID > 0 {
+			topReplyUserIDs = append(topReplyUserIDs, tr.UserID)
+		}
+	}
+	topReplyUsers := s.userClient.Hydrate(ctx, topReplyUserIDs)
 
 	reactionRows, _ := s.repo.FetchTopicsReactions(ids)
 	reactionsByTopic := map[int][]dto.TopicReactionCount{}
@@ -606,6 +615,9 @@ func (s *ActivityService) enrichTopicItems(items []dto.ActivityItem) {
 		var topReply *dto.TopReply
 		if tr, ok := topReplies[id]; ok {
 			topReply = &dto.TopReply{Content: tr.Content, LikeCount: tr.LikeCount}
+			if u, ok := topReplyUsers[tr.UserID]; ok {
+				topReply.User = dto.Actor{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
+			}
 		}
 		payload := dto.TopicActivityData{
 			TopicID:       id,

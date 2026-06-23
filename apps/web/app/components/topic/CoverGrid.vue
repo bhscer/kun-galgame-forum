@@ -19,13 +19,15 @@ const gridClass = computed(() =>
 
 <template>
   <div v-if="shown.length">
-    <!-- Single: at the image's own ratio (no crop), just cap the height. -->
+    <!-- Single: at the image's own ratio (no crop), just cap the height. A tall
+         image is letterboxed within the full width — keep it LEFT-aligned
+         (object-left), never centered. -->
     <img
       v-if="isSingle"
       :src="imageTokenUrl(shown[0]!)"
       alt="话题封面"
       loading="lazy"
-      class="bg-default-100 max-h-96 w-full rounded-lg object-contain"
+      class="bg-default-100 max-h-96 w-full rounded-lg object-contain object-left"
     />
 
     <!-- Multi: uniform grid; object-contain keeps each image's ratio (no crop),

@@ -20,12 +20,12 @@ const data = computed(
       <ActivityCardGalgameInfo :activity="activity" />
 
       <div class="flex items-center justify-between gap-2 text-sm">
-        <span class="text-warning">该更新请求需要被审核</span>
+        <span class="text-warning-600">该更新请求需要被审核</span>
         <KunLink
           underline="none"
           color="default"
           :to="activity.link"
-          class-name="text-default-500 hover:text-primary flex shrink-0 items-center gap-0.5"
+          class-name="text-default-500 hover:text-primary flex shrink-0 items-center gap-0.5 text-sm"
         >
           查看详情
           <KunIcon name="lucide:chevron-right" class="size-4" />

@@ -48,35 +48,20 @@ provide(
         underline="none"
         color="default"
         :to="activity.link"
-        class-name="group block"
+        class-name="group block space-y-2.5"
       >
-        <div :class="covers.length ? 'flex gap-3' : ''">
-          <!-- Cover on the LEFT, vertically centered, no background box. -->
-          <div
-            v-if="covers.length"
-            class="flex w-28 shrink-0 items-center sm:w-40"
-          >
-            <img
-              :src="imageTokenUrl(covers[0]!)"
-              alt="话题封面"
-              loading="lazy"
-              class="max-h-36 w-full rounded-lg object-contain"
-            />
-          </div>
-          <div class="min-w-0 flex-1 space-y-2">
-            <h3
-              class="group-hover:text-primary line-clamp-2 text-base font-medium break-all transition-colors"
-            >
-              {{ activity.content }}
-            </h3>
-            <p
-              v-if="data?.excerpt"
-              class="text-default-500 line-clamp-3 text-sm break-all"
-            >
-              {{ markdownToText(data.excerpt) }}
-            </p>
-          </div>
-        </div>
+        <h3
+          class="group-hover:text-primary line-clamp-2 text-lg font-medium break-all transition-colors"
+        >
+          {{ activity.content }}
+        </h3>
+        <p
+          v-if="data?.excerpt"
+          class="text-default-500 line-clamp-3 text-base break-all"
+        >
+          {{ markdownToText(data.excerpt) }}
+        </p>
+        <TopicCoverGrid v-if="covers.length" :images="covers" />
       </KunLink>
 
       <!-- Badges (NSFW / 有解答 / 投票 / 被推), then the section chips after them. -->
@@ -109,19 +94,27 @@ provide(
         underline="none"
         color="default"
         :to="activity.link"
-        class-name="border-primary bg-default-100/50 text-default-700 hover:bg-default-100 flex items-start gap-2 rounded-md border-l-2 px-2 py-1.5 text-sm"
+        class-name="border-primary bg-default-100/50 hover:bg-default-100 block space-y-1 rounded-md border-l-2 px-2.5 py-2"
       >
-        <KunIcon
-          name="lucide:message-circle-heart"
-          class="mt-0.5 size-4 shrink-0"
-        />
-        <span class="line-clamp-2 min-w-0 flex-1 break-all">
+        <div class="flex items-center justify-between gap-2">
+          <span class="flex min-w-0 items-center gap-1.5">
+            <KunAvatar
+              :user="data.topReply.user"
+              size="sm"
+              :is-navigation="false"
+            />
+            <span class="text-default-700 line-clamp-1 text-sm font-medium">
+              {{ data.topReply.user.name }}
+            </span>
+          </span>
+          <span class="text-default-500 flex shrink-0 items-center gap-1 text-sm">
+            <KunIcon name="lucide:thumbs-up" class="size-3.5" />
+            {{ data.topReply.likeCount }}
+          </span>
+        </div>
+        <p class="text-default-700 line-clamp-2 text-base break-all">
           {{ markdownToText(data.topReply.content) }}
-        </span>
-        <span class="text-default-500 flex shrink-0 items-center gap-1">
-          <KunIcon name="lucide:thumbs-up" class="size-3.5" />
-          {{ data.topReply.likeCount }}
-        </span>
+        </p>
       </KunLink>
 
       <!-- Footer: 收藏 + reactions (clickable) · 浏览 + 查看更多. -->
