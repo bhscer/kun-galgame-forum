@@ -571,6 +571,7 @@ func (s *ActivityService) enrichGalgameItems(
 	// (GALGAME_EDIT, for lazily loading the diff on the card).
 	creationGIDs := make([]int, 0)
 	editIDs := make([]int, 0)
+	editGIDs := make([]int, 0)
 	ratingIDs := make([]int, 0)
 	for _, r := range rows {
 		switch {
@@ -578,6 +579,9 @@ func (s *ActivityService) enrichGalgameItems(
 			creationGIDs = append(creationGIDs, r.GalgameID)
 		case r.TypeStr == "GALGAME_EDIT":
 			editIDs = append(editIDs, r.ID)
+			if r.GalgameID > 0 {
+				editGIDs = append(editGIDs, r.GalgameID)
+			}
 		case r.TypeStr == "GALGAME_RATING_CREATION":
 			ratingIDs = append(ratingIDs, r.ID)
 		}
@@ -586,11 +590,12 @@ func (s *ActivityService) enrichGalgameItems(
 	revMap, _ := s.repo.FetchEditRevisions(editIDs)
 	ratingMap, _ := s.repo.FetchRatingActivityData(ratingIDs)
 
-	// Detail briefs (intro + officials + release date) for the new-galgame card.
-	// Best-effort: if the wiki view=detail isn't reachable, the card omits them.
+	// Detail briefs (intro + officials + release date) for the cards that render
+	// the full galgame info area — the new-galgame card AND the edit card, which
+	// share that area. Best-effort: if wiki view=detail is unreachable, omitted.
 	detailMap := map[int]galgameClient.GalgameDetailBrief{}
-	if len(creationGIDs) > 0 {
-		if m, appErr := s.wikiGC.GetBatchDetailPublic(ctx, creationGIDs, isSFW); appErr == nil {
+	if detailGIDs := append(append([]int{}, creationGIDs...), editGIDs...); len(detailGIDs) > 0 {
+		if m, appErr := s.wikiGC.GetBatchDetailPublic(ctx, detailGIDs, isSFW); appErr == nil {
 			detailMap = m
 		}
 	}
@@ -624,22 +629,24 @@ func (s *ActivityService) enrichGalgameItems(
 			ReleaseDate: b.ReleaseDate,
 			GalgameID:   r.GalgameID,
 		}
+		// Full info area (shared by the new-galgame + edit cards): officials →
+		// developer, detail release date, bounded ~3-line intro.
+		if d, ok := detailMap[r.GalgameID]; ok &&
+			(r.TypeStr == "GALGAME_CREATION" || r.TypeStr == "GALGAME_EDIT") {
+			ga.Developer = strings.Join(d.Officials, "、")
+			ga.ReleaseDate = d.ReleaseDate // detail view carries it; brief omits
+			if intro := []rune(preferredIntro(d)); len(intro) > 0 {
+				if len(intro) > 300 {
+					intro = intro[:300]
+				}
+				ga.Intro = string(intro)
+			}
+		}
 		if r.TypeStr == "GALGAME_CREATION" {
 			c := countsMap[r.GalgameID]
 			ga.ResourceCount = c.ResourceCount
 			ga.LikeCount = c.LikeCount
 			ga.FavoriteCount = c.FavoriteCount
-			if d, ok := detailMap[r.GalgameID]; ok {
-				ga.Developer = strings.Join(d.Officials, "、")
-				ga.ReleaseDate = d.ReleaseDate // detail view carries it; brief omits
-				// Bound the payload — the card shows a ~3-line preview.
-				if intro := []rune(preferredIntro(d)); len(intro) > 0 {
-					if len(intro) > 300 {
-						intro = intro[:300]
-					}
-					ga.Intro = string(intro)
-				}
-			}
 		}
 		if r.TypeStr == "GALGAME_EDIT" {
 			ga.RevisionID = revMap[r.ID]

@@ -27,14 +27,26 @@ const isLoading = ref(false)
 
 const loadDiff = async () => {
   const gid = data.value?.galgameId
-  const rev = data.value?.revisionId
-  if (!gid || !rev || diff.value || isLoading.value) return
+  // The activity carries the wiki revision's global ROW id (galgame_revision.id),
+  // but the diff endpoint keys on the per-galgame revision NUMBER. The /recent
+  // feed the sync consumes only exposes the row id, so resolve id → number via
+  // the history list (newest-first — a recently-edited revision is on page 1).
+  const rowId = data.value?.revisionId
+  if (!gid || !rowId || diff.value || isLoading.value) return
   isLoading.value = true
-  const res = await kunFetch<SnapshotDiff>(
-    `/galgame/${gid}/revisions/${rev}/diff`
-  )
-  isLoading.value = false
-  if (res) diff.value = res
+  try {
+    const history = await kunFetch<{
+      items?: { id: number; revision: number }[]
+    }>(`/galgame/${gid}/history/all?page=1&limit=100`)
+    const number = history?.items?.find((r) => r.id === rowId)?.revision
+    if (!number) return
+    const res = await kunFetch<SnapshotDiff>(
+      `/galgame/${gid}/revisions/${number}/diff`
+    )
+    if (res) diff.value = res
+  } finally {
+    isLoading.value = false
+  }
 }
 onMounted(loadDiff)
 
@@ -77,18 +89,12 @@ onBeforeUnmount(() => {
 
 <template>
   <ActivityCardShell :actor="activity.actor" :timestamp="activity.timestamp">
-    <div class="space-y-2">
-      <ActivityCardGalgamePreview
-        :to="activity.link"
-        :cover-hash="data?.coverHash"
-        :name="data?.name"
-      >
-        <p
-          class="text-default-700 group-hover:text-primary line-clamp-2 text-sm break-all transition-colors"
-        >
-          {{ markdownToText(activity.content) }}
-        </p>
-      </ActivityCardGalgamePreview>
+    <div class="space-y-3">
+      <p class="text-default-600 text-sm break-all">
+        编辑了《{{ data?.name || activity.content }}》
+      </p>
+
+      <ActivityCardGalgameInfo :activity="activity" />
 
       <div v-if="isLoading" class="text-default-400 text-sm">
         加载编辑内容…
