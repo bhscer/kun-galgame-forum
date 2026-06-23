@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useIntersectionObserver } from '@vueuse/core'
+import { useIntersectionObserver, useThrottleFn } from '@vueuse/core'
 
 // Home page = the activity feed, split into five tabs. Each tab is a server-side
 // bucket of activity types (GET /activity/tab?tab=…); "全部" is every type EXCEPT
@@ -23,6 +23,15 @@ const items = ref<ActivityItem[]>([])
 const cursor = ref('')
 const hasMore = ref(true)
 const isLoadingMore = ref(false)
+
+// Cap consecutive AUTO-loads so a fast scroll can't pull page after page (each
+// page is a heavy backend enrichment); past the cap the 加载更多 button takes over,
+// and a manual click resumes auto-loading for another batch.
+const MAX_AUTO_LOADS = 4
+const autoLoadCount = ref(0)
+// Aborts the in-flight page on a tab switch / unmount so the backend isn't left
+// enriching a page nobody will see.
+let controller: AbortController | null = null
 
 // First page is SSR-rendered (SEO, no spinner). The reactive query re-fetches
 // when the tab or the showNoResource toggle changes; the watch re-seeds the
@@ -56,38 +65,55 @@ watch(
 watch(activeTab, () => {
   cursor.value = ''
   hasMore.value = true
+  autoLoadCount.value = 0
+  controller?.abort()
 })
 
-const loadMore = async () => {
+const loadMore = async (auto = false) => {
   if (isLoadingMore.value || !hasMore.value || !cursor.value) return
+  if (auto) {
+    if (autoLoadCount.value >= MAX_AUTO_LOADS) return // cap → wait for a click
+    autoLoadCount.value++
+  } else {
+    autoLoadCount.value = 0 // a manual 加载更多 resumes auto-loading
+  }
+  const tab = activeTab.value
   isLoadingMore.value = true
+  controller = new AbortController()
   const next = await kunFetch<{ items: ActivityItem[]; nextCursor: string }>(
     '/activity/tab',
     {
       method: 'GET',
       query: {
-        tab: activeTab.value,
+        tab,
         limit: 30,
         cursor: cursor.value,
         showNoResource: settings.showKUNGalgameNoResource
-      }
+      },
+      signal: controller.signal
     }
   )
   isLoadingMore.value = false
-  if (!next) return
+  // Discard a stale page: aborted (kunFetch → null), or the tab changed mid-flight.
+  if (!next || activeTab.value !== tab) return
   items.value.push(...next.items)
   cursor.value = next.nextCursor
   hasMore.value = !!next.nextCursor
 }
 
-// Auto-load near the bottom (VueUse no-ops on SSR); the button is the fallback.
+// Auto-load near the bottom, THROTTLED so a fast scroll fires at most ~once/600ms
+// instead of page-after-page (VueUse no-ops on SSR). The 加载更多 button is the
+// manual fallback once the auto-load cap is hit.
+const autoLoad = useThrottleFn(() => loadMore(true), 600)
+onBeforeUnmount(() => controller?.abort())
+
 const sentinel = ref<HTMLElement | null>(null)
 useIntersectionObserver(
   sentinel,
   ([entry]) => {
-    if (entry?.isIntersecting) loadMore()
+    if (entry?.isIntersecting) autoLoad()
   },
-  { rootMargin: '400px' }
+  { rootMargin: '150px' }
 )
 </script>
 
@@ -132,18 +158,25 @@ useIntersectionObserver(
         >
           <ActivityCard :activity="activity" />
         </div>
+        <!-- Skeleton while a page loads — generic feed-card placeholders. -->
+        <template v-if="isLoadingMore">
+          <div v-for="n in 3" :key="`skeleton-${n}`" class="py-5">
+            <ActivityCardSkeleton />
+          </div>
+        </template>
       </div>
 
       <div v-if="items.length" ref="sentinel" class="flex justify-center pt-4">
         <KunButton
-          v-if="hasMore"
+          v-if="hasMore && !isLoadingMore"
           variant="light"
-          :loading="isLoadingMore"
-          @click="loadMore"
+          @click="loadMore(false)"
         >
           加载更多
         </KunButton>
-        <span v-else class="text-default-400 text-sm">没有更多动态了</span>
+        <span v-else-if="!hasMore" class="text-default-400 text-sm">
+          没有更多动态了
+        </span>
       </div>
     </div>
 

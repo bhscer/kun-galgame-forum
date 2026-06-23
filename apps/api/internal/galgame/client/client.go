@@ -11,10 +11,80 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"kun-galgame-api/pkg/errors"
 )
+
+// briefCacheTTL memoizes the public batch lookups (names/covers + detail briefs)
+// so the activity feed's repeated GetBatchPublic / GetBatchDetailPublic calls —
+// across scroll pages and concurrent viewers — don't re-hit the wiki for the same
+// galgames. Names/covers are stable enough to tolerate a couple of minutes stale.
+const briefCacheTTL = 2 * time.Minute
+
+// batchCacheMaxEntries crudely bounds each cache's memory: past it the cache is
+// cleared (it re-warms within one TTL window). The feed touches recent galgames,
+// so this is rarely hit.
+const batchCacheMaxEntries = 4096
+
+type batchCacheKey struct {
+	id  int
+	sfw bool
+}
+
+type batchCacheEntry[T any] struct {
+	found  bool // false = negative cache (id absent / deleted / NSFW-filtered)
+	val    T
+	expire time.Time
+}
+
+// cachedBatch serves a per-(id,sfw) TTL cache over a batch fetch: returns the
+// hits, calls `fetch` for ONLY the misses, then caches the results — including
+// negatives, so a deleted/NSFW id isn't re-fetched on every page.
+func cachedBatch[T any](
+	mu *sync.RWMutex,
+	cache map[batchCacheKey]batchCacheEntry[T],
+	ids []int,
+	sfw bool,
+	fetch func([]int) (map[int]T, *errors.AppError),
+) (map[int]T, *errors.AppError) {
+	result := make(map[int]T, len(ids))
+	var missing []int
+	now := time.Now()
+	mu.RLock()
+	for _, id := range ids {
+		if e, ok := cache[batchCacheKey{id, sfw}]; ok && now.Before(e.expire) {
+			if e.found {
+				result[id] = e.val
+			}
+		} else {
+			missing = append(missing, id)
+		}
+	}
+	mu.RUnlock()
+	if len(missing) == 0 {
+		return result, nil
+	}
+	fetched, appErr := fetch(missing)
+	if appErr != nil {
+		return nil, appErr
+	}
+	expire := now.Add(briefCacheTTL)
+	mu.Lock()
+	if len(cache) > batchCacheMaxEntries {
+		clear(cache)
+	}
+	for _, id := range missing {
+		v, ok := fetched[id]
+		cache[batchCacheKey{id, sfw}] = batchCacheEntry[T]{found: ok, val: v, expire: expire}
+		if ok {
+			result[id] = v
+		}
+	}
+	mu.Unlock()
+	return result, nil
+}
 
 // GalgameClient calls the Galgame Wiki Service via HTTP.
 //
@@ -32,6 +102,12 @@ type GalgameClient struct {
 	// doRequest (see banner.go). Empty disables resolution (responses
 	// pass through untouched).
 	imageCDNBase string
+
+	// Public batch-lookup caches (see cachedBatch / briefCacheTTL).
+	briefMu     sync.RWMutex
+	briefCache  map[batchCacheKey]batchCacheEntry[GalgameBrief]
+	detailMu    sync.RWMutex
+	detailCache map[batchCacheKey]batchCacheEntry[GalgameDetailBrief]
 }
 
 // NewGalgameClient builds a client that can only do anonymous + Bearer calls.
@@ -58,6 +134,8 @@ func NewGalgameClient(baseURL, imageCDNBase string) *GalgameClient {
 			Transport: transport,
 		},
 		imageCDNBase: imageCDNBase,
+		briefCache:   map[batchCacheKey]batchCacheEntry[GalgameBrief]{},
+		detailCache:  map[batchCacheKey]batchCacheEntry[GalgameDetailBrief]{},
 	}
 }
 
@@ -131,12 +209,12 @@ func (c *GalgameClient) EntityGalgameIDs(ctx context.Context, kind string, id in
 //
 // contentType controls how body is forwarded:
 //   - "" (empty)        → defaults to "application/json"; struct/map bodies
-//                         are JSON-marshaled
+//     are JSON-marshaled
 //   - "application/json" → same as empty
 //   - any multipart/* / form-encoded / etc. → body MUST be passed as
-//                                              []byte / json.RawMessage,
-//                                              forwarded byte-for-byte
-//                                              with the boundary preserved
+//     []byte / json.RawMessage,
+//     forwarded byte-for-byte
+//     with the boundary preserved
 func (c *GalgameClient) PostWithToken(ctx context.Context, path, token string, body any, contentType string) (json.RawMessage, *errors.AppError) {
 	return c.mutateWithToken(ctx, "POST", path, token, body, contentType)
 }
@@ -283,8 +361,8 @@ func (c *GalgameClient) GetUserContributedGalgames(ctx context.Context, userID, 
 
 // WikiAdminStats is the admin stats response from wiki service.
 type WikiAdminStats struct {
-	Totals map[string]int64   `json:"totals"`
-	Daily  []map[string]any   `json:"daily"`
+	Totals map[string]int64 `json:"totals"`
+	Daily  []map[string]any `json:"daily"`
 }
 
 // GetAdminStats fetches wiki-side admin stats for the last N days. The wiki's
@@ -328,13 +406,13 @@ type GalgameBrief struct {
 	Status             int    `json:"status"`
 	ContentLimit       string `json:"content_limit"`
 	UserID             int    `json:"user_id"`
-	ResourceUpdateTime string  `json:"resource_update_time"`
-	OriginalLanguage   string  `json:"original_language"`
-	AgeLimit           string  `json:"age_limit"`
+	ResourceUpdateTime string `json:"resource_update_time"`
+	OriginalLanguage   string `json:"original_language"`
+	AgeLimit           string `json:"age_limit"`
 	// U1: see WikiGalgameDetailFull. nil = unknown; TBA can coexist with a
 	// concrete date ("predicted 2024 sometime") so don't enforce mutex.
-	ReleaseDate        *string `json:"release_date"`
-	ReleaseDateTBA     bool    `json:"release_date_tba"`
+	ReleaseDate    *string `json:"release_date"`
+	ReleaseDateTBA bool    `json:"release_date_tba"`
 	// U2: derived effective banner hash on briefs (wiki computes from the
 	// row's covers[sort_order=0]). EffectiveBannerURL is injected by
 	// rewriteBanners over the wiki response BEFORE this struct is
@@ -366,35 +444,34 @@ type GalgameDetailBrief struct {
 // release_date) for list cards that need it. Same NSFW contract as
 // GetBatchPublic (isSFW → content_limit=sfw). Anonymous (status=0 only).
 func (c *GalgameClient) GetBatchDetailPublic(ctx context.Context, ids []int, isSFW bool) (map[int]GalgameDetailBrief, *errors.AppError) {
-	if len(ids) == 0 {
-		return map[int]GalgameDetailBrief{}, nil
-	}
-	limit := "all"
-	if isSFW {
-		limit = "sfw"
-	}
-	idStrs := make([]string, len(ids))
-	for i, id := range ids {
-		idStrs[i] = strconv.Itoa(id)
-	}
-	query := url.Values{
-		"ids":           {joinStrings(idStrs, ",")},
-		"content_limit": {limit},
-		"view":          {"detail"},
-	}
-	data, appErr := c.Get(ctx, "/galgame/batch", query)
-	if appErr != nil {
-		return nil, appErr
-	}
-	var briefs []GalgameDetailBrief
-	if err := json.Unmarshal(data, &briefs); err != nil {
-		return nil, errors.ErrInternal("解析 Wiki 批量详情响应失败")
-	}
-	result := make(map[int]GalgameDetailBrief, len(briefs))
-	for _, b := range briefs {
-		result[b.ID] = b
-	}
-	return result, nil
+	return cachedBatch(&c.detailMu, c.detailCache, ids, isSFW, func(miss []int) (map[int]GalgameDetailBrief, *errors.AppError) {
+		limit := "all"
+		if isSFW {
+			limit = "sfw"
+		}
+		idStrs := make([]string, len(miss))
+		for i, id := range miss {
+			idStrs[i] = strconv.Itoa(id)
+		}
+		query := url.Values{
+			"ids":           {joinStrings(idStrs, ",")},
+			"content_limit": {limit},
+			"view":          {"detail"},
+		}
+		data, appErr := c.Get(ctx, "/galgame/batch", query)
+		if appErr != nil {
+			return nil, appErr
+		}
+		var briefs []GalgameDetailBrief
+		if err := json.Unmarshal(data, &briefs); err != nil {
+			return nil, errors.ErrInternal("解析 Wiki 批量详情响应失败")
+		}
+		result := make(map[int]GalgameDetailBrief, len(briefs))
+		for _, b := range briefs {
+			result[b.ID] = b
+		}
+		return result, nil
+	})
 }
 
 // GetBatch fetches lightweight galgame info for multiple IDs anonymously
@@ -409,8 +486,8 @@ func (c *GalgameClient) GetBatch(ctx context.Context, ids []int) (map[int]Galgam
 // feed enrichment path: enriches kungal-local IDs with wiki briefs while
 // honouring the caller's NSFW preference.
 //
-//   isSFW=true  → content_limit=sfw  (drop NSFW server-side)
-//   isSFW=false → content_limit=all  (caller opted in to NSFW)
+//	isSFW=true  → content_limit=sfw  (drop NSFW server-side)
+//	isSFW=false → content_limit=all  (caller opted in to NSFW)
 //
 // Per docs/galgame_wiki/00-handbook §16, /galgame/batch defaults to
 // NO filter (callers presumed to know the IDs they want). Any path
@@ -419,11 +496,13 @@ func (c *GalgameClient) GetBatch(ctx context.Context, ids []int) (map[int]Galgam
 // 客户端 filtering" for why service-layer post-filtering isn't
 // equivalent (data has already left the wiki boundary).
 func (c *GalgameClient) GetBatchPublic(ctx context.Context, ids []int, isSFW bool) (map[int]GalgameBrief, *errors.AppError) {
-	limit := "all"
-	if isSFW {
-		limit = "sfw"
-	}
-	return c.GetBatchWithOptions(ctx, ids, "", limit)
+	return cachedBatch(&c.briefMu, c.briefCache, ids, isSFW, func(miss []int) (map[int]GalgameBrief, *errors.AppError) {
+		limit := "all"
+		if isSFW {
+			limit = "sfw"
+		}
+		return c.GetBatchWithOptions(ctx, miss, "", limit)
+	})
 }
 
 // GetBatchWithViewer is the Bearer-aware batch fetch. With a non-empty token
