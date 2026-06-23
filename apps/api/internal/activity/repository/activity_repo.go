@@ -934,3 +934,59 @@ func sourceQuery(src ActivitySource, isSFW, showNoResource, withCursor bool, tab
 	}
 	return q
 }
+
+// FetchFeed is the materialized-table replacement for FetchKeyset: instead of a
+// UNION across ~18 source tables, it keyset-paginates the single feed_activity
+// table (maintained by triggers — see migration 034), so per-page cost is flat
+// regardless of depth / source count. `types` is the tab's activity-type set
+// (nil/empty = the whole timeline). The dynamic filters that used to live in each
+// UNION branch are applied once, here:
+//
+//   - SFW: drop is_nsfw rows (r18 website activity) for SFW viewers.
+//   - resource-less: drop GALGAME_CREATION of galgames with no download resource
+//     (unless showNoResource) so they never occupy a LIMIT slot.
+//   - section: 资源/求助 topics (g-seeking/g-other/t-help) belong ONLY in the
+//     资源和求助 tab (tab="resource"); every other feed excludes them.
+//
+// Order + cut use the SAME (created, type, source_id) total order as the cursor
+// (feed_activity has UNIQUE(type, source_id)), so serveKeyset / encode / decode
+// are reused unchanged. Galgame NSFW is still dropped at enrichment (wiki-owned),
+// bounded by activityMaxRounds.
+func (r *ActivityRepository) FetchFeed(types []string, limit int, cur *Cursor, isSFW, showNoResource bool, tab string) ([]ActivityRow, error) {
+	conds := make([]string, 0, 6)
+	args := make([]any, 0, 6)
+	if len(types) > 0 {
+		conds = append(conds, "fa.type IN ?")
+		args = append(args, types)
+	}
+	if isSFW {
+		conds = append(conds, "NOT fa.is_nsfw")
+	}
+	if !showNoResource {
+		conds = append(conds, "(fa.type <> 'GALGAME_CREATION' OR EXISTS (SELECT 1 FROM galgame_resource r WHERE r.galgame_id = fa.galgame_id))")
+	}
+	const inHelp = "EXISTS (SELECT 1 FROM topic_section_relation tsr " +
+		"JOIN topic_section ts ON ts.id = tsr.topic_section_id " +
+		"WHERE tsr.topic_id = fa.source_id AND ts.name IN ('g-seeking','g-other','t-help'))"
+	if tab == "resource" {
+		conds = append(conds, "(fa.type <> 'TOPIC_CREATION' OR "+inHelp+")")
+	} else {
+		conds = append(conds, "(fa.type <> 'TOPIC_CREATION' OR NOT "+inHelp+")")
+	}
+	if cur != nil {
+		conds = append(conds, "(fa.created, fa.type, fa.source_id) < (?, ?, ?)")
+		args = append(args, cur.Created, cur.TypeStr, cur.ID)
+	}
+
+	sql := "SELECT fa.type AS type_str, fa.source_id AS id, fa.content, fa.link, fa.created, fa.user_id, fa.galgame_id FROM feed_activity fa"
+	if len(conds) > 0 {
+		sql += " WHERE " + strings.Join(conds, " AND ")
+	}
+	sql += fmt.Sprintf(" ORDER BY fa.created DESC, fa.type DESC, fa.source_id DESC LIMIT %d", limit)
+
+	var rows []ActivityRow
+	if err := r.db.Raw(sql, args...).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}

@@ -34,8 +34,10 @@ const activityCacheTTL = 30 * time.Second
 const (
 	// activityMaxRounds bounds serveKeyset's fetch-until-`limit`-survivors loop
 	// so a pathological run of enrichment drops (NSFW-in-SFW, deleted-from-wiki)
-	// can't fan out unboundedly. Each round is one keyset slice of `limit` rows.
-	activityMaxRounds = 12
+	// can't fan out unboundedly. Each round is one keyset slice of `limit` rows +
+	// a full enrichment pass (DB + wiki/OAuth), so this is the dominant per-request
+	// cost multiplier — kept tight; a short page just lets the FE load one more.
+	activityMaxRounds = 5
 	// wikiBatchChunk caps ids per GetBatchPublic call — it sends every id in one
 	// query param (no chunking). Matches the ≤100 batch convention.
 	wikiBatchChunk = 100
@@ -71,13 +73,12 @@ func (s *ActivityService) GetActivity(ctx context.Context, typeStr, cursor strin
 	if typeStr == "all" {
 		return s.GetTimeline(ctx, cursor, limit, isSFW, showNoResource)
 	}
-	src, ok := s.repo.GetSource(typeStr)
-	if !ok {
+	if _, ok := s.repo.GetSource(typeStr); !ok {
 		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
 	}
 	cacheKey := fmt.Sprintf("activity:v2:%s:%s:%d:%t:%t", typeStr, cursor, limit, isSFW, showNoResource)
 	// "" tab → no tab-specific filtering (the NSFW-creation drop is the 全部 tab's).
-	return s.cachedKeyset(ctx, cacheKey, []repository.ActivitySource{src}, cursor, limit, isSFW, showNoResource, "")
+	return s.cachedKeyset(ctx, cacheKey, []string{typeStr}, cursor, limit, isSFW, showNoResource, "")
 }
 
 // getCachedResult returns a cached activity Result, and true on a hit.
@@ -164,26 +165,26 @@ func (s *ActivityService) GetTab(ctx context.Context, tab, cursor string, limit 
 		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
 	}
 	cacheKey := fmt.Sprintf("activity:v2:tab:%s:%s:%d:%t:%t", tab, cursor, limit, isSFW, showNoResource)
-	return s.cachedKeyset(ctx, cacheKey, s.repo.GetSources(types), cursor, limit, isSFW, showNoResource, tab)
+	return s.cachedKeyset(ctx, cacheKey, types, cursor, limit, isSFW, showNoResource, tab)
 }
 
 // GetTimeline returns the mixed activity timeline across all sources.
 func (s *ActivityService) GetTimeline(ctx context.Context, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
 	cacheKey := fmt.Sprintf("activity:v2:all:%s:%d:%t:%t", cursor, limit, isSFW, showNoResource)
-	// "" tab → the timeline applies no tab-specific filtering (e.g. the 全部-tab
-	// NSFW-galgame-creation drop).
-	return s.cachedKeyset(ctx, cacheKey, s.repo.AllSources(), cursor, limit, isSFW, showNoResource, "")
+	// nil types → no type filter (every feed_activity row); "" tab → no tab-specific
+	// filtering (e.g. the 全部-tab NSFW-galgame-creation drop).
+	return s.cachedKeyset(ctx, cacheKey, nil, cursor, limit, isSFW, showNoResource, "")
 }
 
 // cachedKeyset wraps serveKeyset with the activityCacheTTL cache-aside. Keyed by
 // cursor (the page), isSFW (which galgame names the wiki returns) and
 // showNoResource (whether resource-less GALGAME_CREATION rows are dropped) so
 // viewers with different filters never share an entry.
-func (s *ActivityService) cachedKeyset(ctx context.Context, cacheKey string, sources []repository.ActivitySource, cursor string, limit int, isSFW, showNoResource bool, tab string) (*Result, *errors.AppError) {
+func (s *ActivityService) cachedKeyset(ctx context.Context, cacheKey string, types []string, cursor string, limit int, isSFW, showNoResource bool, tab string) (*Result, *errors.AppError) {
 	if cached, ok := s.getCachedResult(ctx, cacheKey); ok {
 		return cached, nil
 	}
-	result, appErr := s.serveKeyset(ctx, sources, cursor, limit, isSFW, showNoResource, tab)
+	result, appErr := s.serveKeyset(ctx, types, cursor, limit, isSFW, showNoResource, tab)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -198,13 +199,13 @@ func (s *ActivityService) cachedKeyset(ctx context.Context, cacheKey string, sou
 // it has `limit` survivors or the feed is exhausted. nextCursor is the LAST
 // survivor's keyset, so the next page resumes exactly where this one stopped:
 // no offset drift, and the total-order tiebreaker means no dup/skip across pages.
-func (s *ActivityService) serveKeyset(ctx context.Context, sources []repository.ActivitySource, cursor string, limit int, isSFW, showNoResource bool, tab string) (*Result, *errors.AppError) {
+func (s *ActivityService) serveKeyset(ctx context.Context, types []string, cursor string, limit int, isSFW, showNoResource bool, tab string) (*Result, *errors.AppError) {
 	cur := decodeCursor(cursor)
 	collected := make([]dto.ActivityItem, 0, limit)
 	exhausted := false
 
 	for round := 0; len(collected) < limit && round < activityMaxRounds; round++ {
-		rows, err := s.repo.FetchKeyset(sources, limit, cur, isSFW, showNoResource, tab)
+		rows, err := s.repo.FetchFeed(types, limit, cur, isSFW, showNoResource, tab)
 		if err != nil {
 			return nil, errors.ErrInternal("查询活动数据失败")
 		}
