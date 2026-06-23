@@ -43,9 +43,9 @@ export interface TopicActivityData {
   isPoll: boolean
   isNSFW: boolean
   topReply?: ActivityTopReply
-  // Reaction counts per key (shared/cacheable). The viewer's own "mine" is
-  // hydrated separately via useMyTopicInteractions (the feed is shared-cached).
-  reactions: { reaction: string; count: number }[]
+  // Reaction counts per key + up to 3 reactor avatars (shared/cacheable). The
+  // viewer's own "mine" is hydrated separately via useMyTopicInteractions.
+  reactions: { reaction: string; count: number; reactors?: KunUser[] }[]
 }
 
 // Rich-card payload for galgame-scoped activity (BE dto.GalgameActivityData).
@@ -123,6 +123,13 @@ export interface TopicCommentActivityData {
   quotedReply?: ActivityQuotedReply
 }
 
+// Rich-card payload for the 其他-tab Note card. UPDATE_LOG_CREATION carries the
+// changelog version; TODO_CREATION carries the completion status (0待处理 …).
+export interface NoteActivityData {
+  version?: string
+  status?: number
+}
+
 // Per-type rich-card payload, discriminated by ActivityItem.type. Each card
 // casts activity.data to the shape its type carries (the dispatcher routes by
 // type, so the cast is safe). Absent for types without a rich card yet.
@@ -131,6 +138,7 @@ export type ActivityData =
   | GalgameActivityData
   | ReplyActivityData
   | TopicCommentActivityData
+  | NoteActivityData
 
 export interface ActivityItem {
   uniqueId: string

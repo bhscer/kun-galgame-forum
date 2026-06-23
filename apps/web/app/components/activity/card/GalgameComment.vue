@@ -22,9 +22,11 @@ const detailLink = computed(() =>
         :content="data.parentComment.content"
       />
 
-      <p class="text-default-700 text-base break-all whitespace-pre-wrap">
-        {{ markdownToText(activity.content) }}
-      </p>
+      <ActivityCollapse :max-height="300">
+        <p class="text-default-700 text-base break-all whitespace-pre-line">
+          {{ markdownToText(activity.content, { preserveNewlines: true }) }}
+        </p>
+      </ActivityCollapse>
       <KunLink
         underline="none"
         color="default"

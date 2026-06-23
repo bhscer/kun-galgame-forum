@@ -301,27 +301,79 @@ func (r *ActivityRepository) FetchTopicActivityData(ids []int) (map[int]TopicCar
 	return out, nil
 }
 
-// TopicReactionCountRow is one (topic, reaction key, total) — the batch reaction
-// counts for the feed cards. Counts only; no per-viewer state.
+// TopicReactionCountRow is one windowed reactor row for the feed cards: the
+// (topic, reaction key) with its total count (cnt, repeated on every row) plus
+// ONE reactor's user_id — up to feedReactionAvatarCap rows per key.
 type TopicReactionCountRow struct {
 	TopicID  int    `gorm:"column:topic_id"`
 	Reaction string `gorm:"column:reaction"`
 	Count    int    `gorm:"column:cnt"`
+	UserID   int    `gorm:"column:user_id"`
 }
 
-// FetchTopicsReactions batch-loads reaction counts per key for the given topics
-// (one GROUP BY query). Empty ids → empty slice.
+// feedReactionAvatarCap bounds the reactor avatars fetched per (topic, reaction)
+// for the feed cards; the rest collapse to a "+N" (mirrors the detail's cap of 3).
+const feedReactionAvatarCap = 3
+
+// FetchTopicsReactions batch-loads each topic's reaction keys with their total
+// count AND up to feedReactionAvatarCap reactor ids per key (a windowed query),
+// so the feed card can render ≤3 avatars + a "+N". Empty ids → empty slice.
 func (r *ActivityRepository) FetchTopicsReactions(ids []int) ([]TopicReactionCountRow, error) {
 	out := []TopicReactionCountRow{}
 	if len(ids) == 0 {
 		return out, nil
 	}
-	err := r.db.Table("topic_reaction").
-		Select("topic_id, reaction, count(*) AS cnt").
-		Where("topic_id IN ?", ids).
-		Group("topic_id, reaction").
+	err := r.db.Raw(`
+		SELECT topic_id, reaction, user_id, cnt FROM (
+			SELECT topic_id, reaction, user_id,
+				COUNT(*) OVER (PARTITION BY topic_id, reaction) AS cnt,
+				ROW_NUMBER() OVER (PARTITION BY topic_id, reaction ORDER BY id) AS rn
+			FROM topic_reaction WHERE topic_id IN ?
+		) t WHERE rn <= ? ORDER BY topic_id, reaction, rn`, ids, feedReactionAvatarCap).
 		Scan(&out).Error
 	return out, err
+}
+
+// FetchTodoStatuses maps todo id → status (0待处理/1进行中/2已完成/3已废弃) for the
+// 其他-tab Note card. Empty ids → empty map.
+func (r *ActivityRepository) FetchTodoStatuses(ids []int) (map[int]int, error) {
+	out := map[int]int{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID     int `gorm:"column:id"`
+		Status int `gorm:"column:status"`
+	}
+	if err := r.db.Table("todo").Select("id, status").
+		Where("id IN ?", ids).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row.Status
+	}
+	return out, nil
+}
+
+// FetchUpdateLogVersions maps update_log id → version string for the Note card.
+// Empty ids → empty map.
+func (r *ActivityRepository) FetchUpdateLogVersions(ids []int) (map[int]string, error) {
+	out := map[int]string{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID      int    `gorm:"column:id"`
+		Version string `gorm:"column:version"`
+	}
+	if err := r.db.Table("update_log").Select("id, version").
+		Where("id IN ?", ids).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row.Version
+	}
+	return out, nil
 }
 
 // TopicCommentContext is the owning topic's title + the reply (被评论的评论) for a

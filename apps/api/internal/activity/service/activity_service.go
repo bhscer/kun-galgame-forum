@@ -290,8 +290,52 @@ func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repositor
 	s.enrichTopicItems(ctx, items)
 	s.enrichTopicCommentItems(ctx, items)
 	s.enrichReplyItems(ctx, items)
+	s.enrichNoteItems(items)
 	s.hydrateActors(ctx, items)
 	return items
+}
+
+// enrichNoteItems attaches the small extras the 其他-tab Note card shows: the
+// changelog Version (UPDATE_LOG_CREATION) and the todo completion Status
+// (TODO_CREATION). Best-effort — a failed lookup just leaves the badge off.
+func (s *ActivityService) enrichNoteItems(items []dto.ActivityItem) {
+	todoIdx := map[int][]int{}
+	logIdx := map[int][]int{}
+	for i, it := range items {
+		switch it.Type {
+		case "TODO_CREATION":
+			todoIdx[it.ID] = append(todoIdx[it.ID], i)
+		case "UPDATE_LOG_CREATION":
+			logIdx[it.ID] = append(logIdx[it.ID], i)
+		}
+	}
+	if len(todoIdx) > 0 {
+		ids := make([]int, 0, len(todoIdx))
+		for id := range todoIdx {
+			ids = append(ids, id)
+		}
+		if m, err := s.repo.FetchTodoStatuses(ids); err == nil {
+			for id, st := range m {
+				status := st
+				for _, i := range todoIdx[id] {
+					items[i].Data = dto.NoteActivityData{Status: &status}
+				}
+			}
+		}
+	}
+	if len(logIdx) > 0 {
+		ids := make([]int, 0, len(logIdx))
+		for id := range logIdx {
+			ids = append(ids, id)
+		}
+		if m, err := s.repo.FetchUpdateLogVersions(ids); err == nil {
+			for id, v := range m {
+				for _, i := range logIdx[id] {
+					items[i].Data = dto.NoteActivityData{Version: v}
+				}
+			}
+		}
+	}
 }
 
 // enrichTopicCommentItems attaches the owning topic title + the reply being
@@ -571,21 +615,49 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 	sections, _ := s.repo.FetchTopicSections(ids)
 	polls, _ := s.repo.FetchTopicPolls(ids)
 	topReplies, _ := s.repo.FetchTopicTopReply(ids)
+	reactionRows, _ := s.repo.FetchTopicsReactions(ids)
 
-	// Hydrate the top reply's author (a different user than the activity actor).
-	topReplyUserIDs := make([]int, 0, len(topReplies))
+	// Hydrate the "other" users shown on the card — top-reply authors AND the
+	// reaction avatars (both shared, not per-viewer) — in one batch.
+	extraIDs := make([]int, 0, len(topReplies)+len(reactionRows))
 	for _, tr := range topReplies {
 		if tr.UserID > 0 {
-			topReplyUserIDs = append(topReplyUserIDs, tr.UserID)
+			extraIDs = append(extraIDs, tr.UserID)
 		}
 	}
-	topReplyUsers := s.userClient.Hydrate(ctx, topReplyUserIDs)
-
-	reactionRows, _ := s.repo.FetchTopicsReactions(ids)
-	reactionsByTopic := map[int][]dto.TopicReactionCount{}
 	for _, row := range reactionRows {
-		reactionsByTopic[row.TopicID] = append(reactionsByTopic[row.TopicID],
-			dto.TopicReactionCount{Reaction: row.Reaction, Count: row.Count})
+		if row.UserID > 0 {
+			extraIDs = append(extraIDs, row.UserID)
+		}
+	}
+	extraUsers := s.userClient.Hydrate(ctx, extraIDs)
+
+	// Group the windowed reaction rows per topic → one entry per key (total count
+	// + up to a few reactor avatars), preserving the per-topic order.
+	type rkey struct {
+		tid int
+		r   string
+	}
+	racc := map[rkey]*dto.TopicReactionCount{}
+	rorder := map[int][]rkey{}
+	for _, row := range reactionRows {
+		k := rkey{row.TopicID, row.Reaction}
+		rc, ok := racc[k]
+		if !ok {
+			rc = &dto.TopicReactionCount{Reaction: row.Reaction, Count: row.Count}
+			racc[k] = rc
+			rorder[row.TopicID] = append(rorder[row.TopicID], k)
+		}
+		if u, ok := extraUsers[row.UserID]; ok {
+			rc.Reactors = append(rc.Reactors,
+				dto.Actor{ID: u.ID, Name: u.Name, Avatar: u.Avatar})
+		}
+	}
+	reactionsByTopic := map[int][]dto.TopicReactionCount{}
+	for tid, keys := range rorder {
+		for _, k := range keys {
+			reactionsByTopic[tid] = append(reactionsByTopic[tid], *racc[k])
+		}
 	}
 
 	for id, idxs := range idToIdx {
@@ -615,7 +687,7 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 		var topReply *dto.TopReply
 		if tr, ok := topReplies[id]; ok {
 			topReply = &dto.TopReply{Content: tr.Content, LikeCount: tr.LikeCount}
-			if u, ok := topReplyUsers[tr.UserID]; ok {
+			if u, ok := extraUsers[tr.UserID]; ok {
 				topReply.User = dto.Actor{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
 			}
 		}

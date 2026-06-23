@@ -251,6 +251,15 @@ const rows = computed<Row[]>(() => {
 
 const inlineRow = (item: Record<string, unknown>): string =>
   JSON.stringify(item)
+
+// Image-valued array fields (covers / screenshots) render the picture itself —
+// far more legible than a raw JSON row when a cover changes.
+const IMAGE_FIELDS = new Set(['covers', 'screenshots'])
+const isImageRow = (key: string): boolean => IMAGE_FIELDS.has(key)
+const imageOf = (item: Record<string, unknown>): string => {
+  const hash = item['image_hash']
+  return hash ? imageHashUrl(imageCdnBase(), String(hash), 'mini') : ''
+}
 </script>
 
 <template>
@@ -331,7 +340,13 @@ const inlineRow = (item: Record<string, unknown>): string =>
                     {{ ch.fields.join(' / ') }}
                   </span>
                 </div>
-                <code class="text-default-600 block text-xs break-all">
+                <img
+                  v-if="isImageRow(row.key)"
+                  :src="imageOf(ch.old)"
+                  loading="lazy"
+                  class="border-default-200 max-h-32 max-w-full rounded-md border object-contain"
+                />
+                <code v-else class="text-default-600 block text-xs break-all">
                   {{ inlineRow(ch.old) }}
                 </code>
               </div>
@@ -343,7 +358,13 @@ const inlineRow = (item: Record<string, unknown>): string =>
                 <KunChip color="danger" size="sm" variant="flat"
                   >- 删除</KunChip
                 >
-                <code class="text-default-600 block text-xs break-all">
+                <img
+                  v-if="isImageRow(row.key)"
+                  :src="imageOf(item)"
+                  loading="lazy"
+                  class="border-default-200 max-h-32 max-w-full rounded-md border object-contain"
+                />
+                <code v-else class="text-default-600 block text-xs break-all">
                   {{ inlineRow(item) }}
                 </code>
               </div>
@@ -425,7 +446,13 @@ const inlineRow = (item: Record<string, unknown>): string =>
                     {{ ch.fields.join(' / ') }}
                   </span>
                 </div>
-                <code class="text-default-700 block text-xs break-all">
+                <img
+                  v-if="isImageRow(row.key)"
+                  :src="imageOf(ch.new)"
+                  loading="lazy"
+                  class="border-default-200 max-h-32 max-w-full rounded-md border object-contain"
+                />
+                <code v-else class="text-default-700 block text-xs break-all">
                   {{ inlineRow(ch.new) }}
                 </code>
               </div>
@@ -437,7 +464,13 @@ const inlineRow = (item: Record<string, unknown>): string =>
                 <KunChip color="success" size="sm" variant="flat"
                   >+ 新增</KunChip
                 >
-                <code class="text-default-700 block text-xs break-all">
+                <img
+                  v-if="isImageRow(row.key)"
+                  :src="imageOf(item)"
+                  loading="lazy"
+                  class="border-default-200 max-h-32 max-w-full rounded-md border object-contain"
+                />
+                <code v-else class="text-default-700 block text-xs break-all">
                   {{ inlineRow(item) }}
                 </code>
               </div>

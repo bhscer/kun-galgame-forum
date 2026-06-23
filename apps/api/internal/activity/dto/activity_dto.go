@@ -86,12 +86,14 @@ type TopicActivityData struct {
 	Reactions     []TopicReactionCount `json:"reactions"`
 }
 
-// TopicReactionCount is one reaction key's total on a topic, for the feed card.
-// Counts only — per-viewer "mine" is NOT here (the feed is shared-cached); it's
-// hydrated client-side via GET /topic/interactions/mine.
+// TopicReactionCount is one reaction key's total on a topic, for the feed card,
+// plus up to a few reactor avatars (Reactors, shared not per-viewer — the card
+// shows ≤3 + a "+N"). Per-viewer "mine" is NOT here (the feed is shared-cached);
+// it's hydrated client-side via GET /topic/interactions/mine.
 type TopicReactionCount struct {
-	Reaction string `json:"reaction"`
-	Count    int    `json:"count"`
+	Reaction string  `json:"reaction"`
+	Count    int     `json:"count"`
+	Reactors []Actor `json:"reactors,omitempty"`
 }
 
 // TopReply is a topic's most-liked reply (a short excerpt + its like count),
@@ -100,6 +102,14 @@ type TopReply struct {
 	User      Actor  `json:"user"`
 	Content   string `json:"content"`
 	LikeCount int    `json:"likeCount"`
+}
+
+// NoteActivityData — extras for the 其他 cards: UPDATE_LOG_CREATION carries the
+// release Version; TODO_CREATION carries the completion Status (a pointer so 0 =
+// 待处理 is still sent, not omitted). Each card reads only its own field.
+type NoteActivityData struct {
+	Version string `json:"version,omitempty"`
+	Status  *int   `json:"status,omitempty"`
 }
 
 // ReplyActivityData is the rich-card payload for TOPIC_REPLY_CREATION: the title

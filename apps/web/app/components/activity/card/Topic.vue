@@ -27,6 +27,7 @@ const reactionList = computed<KunReaction[]>(() =>
   (data.value?.reactions ?? []).map((r) => ({
     reaction: r.reaction,
     count: r.count,
+    reactors: r.reactors,
     mine: reactionKeysOf(topicId.value).includes(r.reaction)
   }))
 )
@@ -36,7 +37,8 @@ provide(
     topicId: topicId.value,
     targetUserId: props.activity.actor?.id ?? 0,
     reactions: reactionList.value,
-    sync: () => reactionList.value
+    sync: () => reactionList.value,
+    showReactors: true
   })
 )
 </script>
@@ -57,7 +59,7 @@ provide(
         </h3>
         <p
           v-if="data?.excerpt"
-          class="text-default-500 line-clamp-3 text-base break-all"
+          class="text-default-500 line-clamp-3 text-sm break-all"
         >
           {{ markdownToText(data.excerpt) }}
         </p>

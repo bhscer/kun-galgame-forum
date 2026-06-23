@@ -12,12 +12,7 @@ const quoted = computed(() => data.value?.quotedReply)
 
 <template>
   <ActivityCardShell :actor="activity.actor" :timestamp="activity.timestamp">
-    <KunLink
-      underline="none"
-      color="default"
-      :to="activity.link"
-      class-name="group block space-y-2"
-    >
+    <div class="space-y-2">
       <!-- The reply being commented on (被评论的评论). -->
       <ActivityCardQuote
         v-if="quoted"
@@ -25,19 +20,24 @@ const quoted = computed(() => data.value?.quotedReply)
         :label="`#${quoted.floor}`"
       />
 
-      <p
-        class="group-hover:text-primary line-clamp-4 text-base break-all transition-colors"
-      >
-        {{ markdownToText(activity.content) }}
-      </p>
+      <!-- Body sits OUTSIDE the link so its 显示更多 toggle never navigates;
+           preserveNewlines + pre-line keep the author's line breaks. -->
+      <ActivityCollapse :max-height="300">
+        <p class="text-default-700 text-base break-all whitespace-pre-line">
+          {{ markdownToText(activity.content, { preserveNewlines: true }) }}
+        </p>
+      </ActivityCollapse>
 
-      <p
+      <KunLink
         v-if="data?.topicTitle"
-        class="text-default-500 flex items-center gap-1 text-sm"
+        underline="none"
+        color="default"
+        :to="activity.link"
+        class-name="text-default-500 hover:text-primary flex items-center gap-1 text-sm"
       >
         <KunIcon name="icon-park-outline:topic" class="size-4 shrink-0" />
         <span class="line-clamp-1">{{ data.topicTitle }}</span>
-      </p>
-    </KunLink>
+      </KunLink>
+    </div>
   </ActivityCardShell>
 </template>
