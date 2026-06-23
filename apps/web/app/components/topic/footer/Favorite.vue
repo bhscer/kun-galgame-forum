@@ -8,50 +8,45 @@ const props = defineProps<{
 const { id } = usePersistUserStore()
 const isFavorite = ref(props.isFavorite)
 const favoriteCount = ref(props.favoriteCount)
+const pending = ref(false)
 
-const toggleFavoriteGalgame = async () => {
-  const result = await kunFetch<string>(
-    `/topic/${props.topicId}/favorite`,
-    { method: 'PUT' }
-  )
-
-  if (result) {
-    favoriteCount.value += isFavorite.value ? -1 : 1
-
-    if (!isFavorite.value) {
-      useMessage(10230, 'success')
-    } else {
-      useMessage(10231, 'success')
-    }
-
-    isFavorite.value = !isFavorite.value
-  }
+// KunReaction flips isFavorite + favoriteCount optimistically before @change;
+// we fire the API and undo on failure / when not signed in. `pending` disables
+// the control during the request (replaces the old click throttle).
+const revert = (next: boolean) => {
+  isFavorite.value = !next
+  favoriteCount.value += next ? -1 : 1
 }
 
-const handleClickFavoriteThrottled = throttle(toggleFavoriteGalgame, 1007, () =>
-  useMessage(10227, 'warn')
-)
-
-const handleClickFavorite = () => {
+const onChange = async (next: boolean) => {
   if (!id) {
     useAuthModal().open()
+    revert(next)
     return
   }
-  handleClickFavoriteThrottled()
+  pending.value = true
+  const result = await kunFetch<string>(`/topic/${props.topicId}/favorite`, {
+    method: 'PUT'
+  })
+  pending.value = false
+  if (!result) {
+    revert(next)
+    return
+  }
+  useMessage(next ? 10230 : 10231, 'success')
 }
 </script>
 
 <template>
   <KunTooltip text="收藏">
-    <KunButton
-      :variant="isFavorite ? 'flat' : 'light'"
-      :color="isFavorite ? 'secondary' : 'default'"
-      :size="favoriteCount ? 'md' : 'lg'"
-      class-name="gap-1"
-      @click="handleClickFavorite"
-    >
-      <KunIcon name="lucide:heart" />
-      <span v-if="favoriteCount">{{ favoriteCount }}</span>
-    </KunButton>
+    <KunReaction
+      v-model="isFavorite"
+      v-model:count="favoriteCount"
+      :disabled="pending"
+      icon="lucide:heart"
+      color="danger"
+      label="收藏"
+      @change="onChange"
+    />
   </KunTooltip>
 </template>

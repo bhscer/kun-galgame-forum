@@ -11,45 +11,62 @@ const props = defineProps<{
 const { id, moemoepoint } = usePersistUserStore()
 const isUpvoted = ref(props.isUpvoted)
 const upvoteCount = ref(props.upvoteCount)
+const pending = ref(false)
 
-const upvoteTopic = async () => {
-  const res = await useComponentMessageStore().alert(
+// Shared: self / moemoepoint checks → confirm dialog → API. Returns true once
+// the upvote actually lands. Upvote is one-way (no undo) and costs 20 萌萌点.
+const confirmAndUpvote = async (): Promise<boolean> => {
+  if (id === props.targetUserId) {
+    useMessage(10241, 'warn')
+    return false
+  }
+  if (moemoepoint < 20) {
+    useMessage(10242, 'warn')
+    return false
+  }
+  const ok = await useComponentMessageStore().alert(
     '您确定推这个话题吗?',
     '推话题将会消耗您 20 萌萌点, 并给被推者增加 3 萌萌点。'
   )
-  if (!res) {
-    return
-  }
+  if (!ok) return false
 
-  const result = await kunFetch<string>(
-    `/topic/${props.topicId}/upvote`,
-    { method: 'PUT' }
-  )
+  pending.value = true
+  const result = await kunFetch<string>(`/topic/${props.topicId}/upvote`, {
+    method: 'PUT'
+  })
+  pending.value = false
+  if (!result) return false
 
-  if (result) {
-    upvoteCount.value++
-    isUpvoted.value = true
-    useMessage(10238, 'success')
-  }
+  useMessage(10238, 'success')
+  return true
 }
 
+// Menu (KunButton) path: imperative — set state only after a confirmed upvote.
 const handleClickUpvote = async () => {
   if (!id) {
     useAuthModal().open()
     return
   }
+  if (isUpvoted.value || pending.value) return
+  if (await confirmAndUpvote()) {
+    upvoteCount.value++
+    isUpvoted.value = true
+  }
+}
 
-  if (id === props.targetUserId) {
-    useMessage(10241, 'warn')
+// KunReaction path: it already flipped to upvoted; keep it on success, undo otherwise.
+const revert = () => {
+  isUpvoted.value = false
+  upvoteCount.value--
+}
+const onChange = async (next: boolean) => {
+  if (!next) return
+  if (!id) {
+    useAuthModal().open()
+    revert()
     return
   }
-
-  if (moemoepoint < 20) {
-    useMessage(10242, 'warn')
-    return
-  }
-
-  await upvoteTopic()
+  if (!(await confirmAndUpvote())) revert()
 }
 </script>
 
@@ -60,6 +77,7 @@ const handleClickUpvote = async () => {
     :color="isUpvoted ? 'secondary' : 'default'"
     size="sm"
     class-name="w-full justify-start gap-2 whitespace-nowrap"
+    :disabled="pending"
     @click="handleClickUpvote"
   >
     <KunIcon class-name="text-lg" name="lucide:sparkles" />
@@ -69,16 +87,15 @@ const handleClickUpvote = async () => {
     </span>
   </KunButton>
 
-  <KunTooltip v-else text="推！">
-    <KunButton
-      :variant="isUpvoted ? 'flat' : 'light'"
-      :color="isUpvoted ? 'secondary' : 'default'"
-      :size="upvoteCount ? 'md' : 'lg'"
-      class-name="gap-1"
-      @click="handleClickUpvote"
-    >
-      <KunIcon class="icon" name="lucide:sparkles" />
-      <span v-if="upvoteCount">{{ upvoteCount }}</span>
-    </KunButton>
+  <KunTooltip v-else text="推话题">
+    <KunReaction
+      v-model="isUpvoted"
+      v-model:count="upvoteCount"
+      :disabled="isUpvoted || pending"
+      icon="lucide:sparkles"
+      color="warning"
+      label="推话题"
+      @change="onChange"
+    />
   </KunTooltip>
 </template>

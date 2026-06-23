@@ -10,51 +10,49 @@ const props = defineProps<{
 const { id } = usePersistUserStore()
 const isLiked = ref(props.isLiked)
 const likeCount = ref(props.likeCount)
+const pending = ref(false)
 
-const likeResource = async () => {
+const revert = (next: boolean) => {
+  isLiked.value = !next
+  likeCount.value += next ? -1 : 1
+}
+
+const onChange = async (next: boolean) => {
+  if (!id) {
+    useAuthModal().open()
+    revert(next)
+    return
+  }
+  if (id === props.targetUserId) {
+    useMessage('您不能给自己点赞', 'warn')
+    revert(next)
+    return
+  }
+  pending.value = true
   const result = await kunFetch(`/galgame/${props.galgameId}/resource/like`, {
     method: 'PUT',
     body: { galgameResourceId: props.galgameResourceId }
   })
-
-  if (result) {
-    likeCount.value += isLiked.value ? -1 : 1
-
-    if (!isLiked.value) {
-      useMessage('点赞资源成功', 'success')
-    } else {
-      useMessage('取消点赞成功', 'success')
-    }
-
-    isLiked.value = !isLiked.value
-  }
-}
-
-const handleClickLike = async () => {
-  if (!id) {
-    useAuthModal().open()
+  pending.value = false
+  if (!result) {
+    revert(next)
     return
   }
-
-  if (id === props.targetUserId) {
-    useMessage('您不能给自己点赞', 'warn')
-    return
-  }
-  await likeResource()
+  useMessage(next ? '点赞资源成功' : '取消点赞成功', 'success')
 }
 </script>
 
 <template>
   <KunTooltip text="点赞">
-    <KunButton
-      :variant="isLiked ? 'flat' : 'light'"
-      :color="isLiked ? 'secondary' : 'default'"
-      :size="likeCount ? 'sm' : 'md'"
-      class-name="gap-1"
-      @click="handleClickLike"
-    >
-      <KunIcon name="lucide:thumbs-up" />
-      <span v-if="likeCount">{{ likeCount }}</span>
-    </KunButton>
+    <KunReaction
+      v-model="isLiked"
+      v-model:count="likeCount"
+      :disabled="pending"
+      size="sm"
+      icon="lucide:thumbs-up"
+      color="primary"
+      label="点赞"
+      @change="onChange"
+    />
   </KunTooltip>
 </template>

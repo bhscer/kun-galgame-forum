@@ -18,48 +18,41 @@ watch(
   (value) => (isFavorited.value = value)
 )
 
-const toggleFavoriteGalgame = async () => {
+const pending = ref(false)
+const revert = (next: boolean) => {
+  isFavorited.value = !next
+  favoriteCount.value += next ? -1 : 1
+}
+
+const onChange = async (next: boolean) => {
+  if (!id) {
+    useAuthModal().open()
+    revert(next)
+    return
+  }
+  pending.value = true
   const result = await kunFetch(`/galgame/${props.galgameId}/favorite`, {
     method: 'PUT'
   })
-
-  if (result) {
-    favoriteCount.value += isFavorited.value ? -1 : 1
-
-    if (!isFavorited.value) {
-      useMessage(10526, 'success')
-    } else {
-      useMessage(10527, 'success')
-    }
-
-    isFavorited.value = !isFavorited.value
-  }
-}
-
-const handleClickFavoriteThrottled = throttle(toggleFavoriteGalgame, 1007, () =>
-  useMessage(10528, 'warn')
-)
-
-const handleClickFavorite = () => {
-  if (!id) {
-    useAuthModal().open()
+  pending.value = false
+  if (!result) {
+    revert(next)
     return
   }
-  handleClickFavoriteThrottled()
+  useMessage(next ? 10526 : 10527, 'success')
 }
 </script>
 
 <template>
   <KunTooltip text="收藏">
-    <KunButton
-      :variant="isFavorited ? 'flat' : 'light'"
-      :color="isFavorited ? 'secondary' : 'default'"
-      :size="favoriteCount ? 'md' : 'lg'"
-      class-name="gap-1"
-      @click="handleClickFavorite"
-    >
-      <KunIcon name="lucide:heart" />
-      <span v-if="favoriteCount">{{ favoriteCount }}</span>
-    </KunButton>
+    <KunReaction
+      v-model="isFavorited"
+      v-model:count="favoriteCount"
+      :disabled="pending"
+      icon="lucide:heart"
+      color="danger"
+      label="收藏"
+      @change="onChange"
+    />
   </KunTooltip>
 </template>

@@ -6,52 +6,47 @@ const props = defineProps<{
 const { id } = usePersistUserStore()
 const isLiked = ref(props.comment.isLiked)
 const likeCount = ref(props.comment.likeCount)
+const pending = ref(false)
 
-const likeComment = async () => {
-  if (id === props.comment.user.id) {
-    useMessage(10218, 'warn')
-    return
-  }
-
-  const result = await kunFetch<string>(
-    `/topic/${props.comment.topicId}/comment/like`,
-    {
-      method: 'PUT',
-      body: { commentId: props.comment.id }
-    }
-  )
-
-  if (result) {
-    likeCount.value += isLiked.value ? -1 : 1
-
-    if (!isLiked.value) {
-      useMessage('点赞评论成功', 'success')
-    } else {
-      useMessage('取消点赞成功', 'success')
-    }
-
-    isLiked.value = !isLiked.value
-  }
+const revert = (next: boolean) => {
+  isLiked.value = !next
+  likeCount.value += next ? -1 : 1
 }
 
-const handleClickLike = async () => {
+const onChange = async (next: boolean) => {
   if (!id) {
     useAuthModal().open()
+    revert(next)
     return
   }
-  await likeComment()
+  if (id === props.comment.user.id) {
+    useMessage(10218, 'warn')
+    revert(next)
+    return
+  }
+  pending.value = true
+  const result = await kunFetch<string>(
+    `/topic/${props.comment.topicId}/comment/like`,
+    { method: 'PUT', body: { commentId: props.comment.id } }
+  )
+  pending.value = false
+  if (!result) {
+    revert(next)
+    return
+  }
+  useMessage(next ? '点赞评论成功' : '取消点赞成功', 'success')
 }
 </script>
 
 <template>
-  <KunButton
-    :variant="isLiked ? 'flat' : 'light'"
-    :color="isLiked ? 'secondary' : 'default'"
-    :size="likeCount ? 'sm' : 'md'"
-    class-name="gap-1"
-    @click="handleClickLike"
-  >
-    <KunIcon class="icon" name="lucide:thumbs-up" />
-    <span v-if="likeCount">{{ likeCount }}</span>
-  </KunButton>
+  <KunReaction
+    v-model="isLiked"
+    v-model:count="likeCount"
+    :disabled="pending"
+    size="sm"
+    icon="lucide:thumbs-up"
+    color="primary"
+    label="点赞"
+    @change="onChange"
+  />
 </template>

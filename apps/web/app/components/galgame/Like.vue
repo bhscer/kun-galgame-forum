@@ -18,52 +18,46 @@ watch(
   (value) => (isLiked.value = value)
 )
 
-const toggleLikeGalgame = async () => {
-  const result = await kunFetch(`/galgame/${props.galgameId}/like`, {
-    method: 'PUT'
-  })
-
-  if (result) {
-    likesCount.value += isLiked.value ? -1 : 1
-
-    if (!isLiked.value) {
-      useMessage(10530, 'success')
-    } else {
-      useMessage(10531, 'success')
-    }
-
-    isLiked.value = !isLiked.value
-  }
+const pending = ref(false)
+const revert = (next: boolean) => {
+  isLiked.value = !next
+  likesCount.value += next ? -1 : 1
 }
 
-const handleClickLikeThrottled = throttle(toggleLikeGalgame, 1007, () =>
-  useMessage(10528, 'warn')
-)
-
-const handleClickLike = () => {
+const onChange = async (next: boolean) => {
   if (!id) {
     useAuthModal().open()
+    revert(next)
     return
   }
   if (id === props.targetUserId) {
     useMessage(10533, 'warn')
+    revert(next)
     return
   }
-  handleClickLikeThrottled()
+  pending.value = true
+  const result = await kunFetch(`/galgame/${props.galgameId}/like`, {
+    method: 'PUT'
+  })
+  pending.value = false
+  if (!result) {
+    revert(next)
+    return
+  }
+  useMessage(next ? 10530 : 10531, 'success')
 }
 </script>
 
 <template>
   <KunTooltip text="点赞">
-    <KunButton
-      :variant="isLiked ? 'flat' : 'light'"
-      :color="isLiked ? 'secondary' : 'default'"
-      :size="likesCount ? 'md' : 'lg'"
-      class-name="gap-1"
-      @click="handleClickLike"
-    >
-      <KunIcon name="lucide:thumbs-up" />
-      <span v-if="likesCount">{{ likesCount }}</span>
-    </KunButton>
+    <KunReaction
+      v-model="isLiked"
+      v-model:count="likesCount"
+      :disabled="pending"
+      icon="lucide:thumbs-up"
+      color="primary"
+      label="点赞"
+      @change="onChange"
+    />
   </KunTooltip>
 </template>
