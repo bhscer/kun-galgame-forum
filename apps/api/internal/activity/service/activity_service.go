@@ -130,7 +130,10 @@ var homeTabTypes = map[string][]string{
 		"GALGAME_WEBSITE_COMMENT_CREATION", "TOOLSET_CREATION",
 		"TOOLSET_RESOURCE_CREATION", "TOOLSET_COMMENT_CREATION",
 	},
-	"resource": {"GALGAME_RESOURCE_CREATION"},
+	// 资源和求助 tab: newly published galgame resources + 资源/求助 topics (the
+	// section filter in sourceQuery scopes TOPIC_CREATION to g-seeking/g-other/
+	// t-help here, and excludes them from every other tab).
+	"resource": {"GALGAME_RESOURCE_CREATION", "TOPIC_CREATION"},
 	"others":   {"TODO_CREATION", "UPDATE_LOG_CREATION"},
 }
 
@@ -201,7 +204,7 @@ func (s *ActivityService) serveKeyset(ctx context.Context, sources []repository.
 	exhausted := false
 
 	for round := 0; len(collected) < limit && round < activityMaxRounds; round++ {
-		rows, err := s.repo.FetchKeyset(sources, limit, cur, isSFW, showNoResource)
+		rows, err := s.repo.FetchKeyset(sources, limit, cur, isSFW, showNoResource, tab)
 		if err != nil {
 			return nil, errors.ErrInternal("查询活动数据失败")
 		}

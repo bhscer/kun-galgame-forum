@@ -793,8 +793,8 @@ func (r *ActivityRepository) AllSources() []ActivitySource {
 // outer query then applies the EXACT row-value cut `(created,type_str,id) < cur`
 // and merges the branches. One source = a type-filtered feed; all sources = the
 // mixed timeline. Cursor values are bound as parameters (never interpolated).
-func (r *ActivityRepository) FetchKeyset(sources []ActivitySource, limit int, cur *Cursor, isSFW, showNoResource bool) ([]ActivityRow, error) {
-	sql, args := buildKeysetSQL(sources, limit, cur, isSFW, showNoResource)
+func (r *ActivityRepository) FetchKeyset(sources []ActivitySource, limit int, cur *Cursor, isSFW, showNoResource bool, tab string) ([]ActivityRow, error) {
+	sql, args := buildKeysetSQL(sources, limit, cur, isSFW, showNoResource, tab)
 	var rows []ActivityRow
 	if err := r.db.Raw(sql, args...).Scan(&rows).Error; err != nil {
 		return nil, err
@@ -807,11 +807,11 @@ func (r *ActivityRepository) FetchKeyset(sources []ActivitySource, limit int, cu
 // `t.created <= ?` placeholders bind in branch order; the outer row-value
 // comparison's three placeholders bind last — matching their left-to-right
 // position in the final SQL.
-func buildKeysetSQL(sources []ActivitySource, limit int, cur *Cursor, isSFW, showNoResource bool) (string, []any) {
+func buildKeysetSQL(sources []ActivitySource, limit int, cur *Cursor, isSFW, showNoResource bool, tab string) (string, []any) {
 	parts := make([]string, 0, len(sources))
 	args := make([]any, 0, len(sources)+3)
 	for _, src := range sources {
-		q := sourceQuery(src, isSFW, showNoResource, cur != nil)
+		q := sourceQuery(src, isSFW, showNoResource, cur != nil, tab)
 		if cur != nil {
 			// Args for the precise per-branch keyset cut emitted by sourceQuery:
 			// t.created < ? · t.created = ? · (?<?) branch<cursor type ·
@@ -854,7 +854,7 @@ func buildKeysetSQL(sources []ActivitySource, limit int, cur *Cursor, isSFW, sho
 //
 // The hasWhere tracker AND-combines predicates so a second/third one never emits
 // a malformed `WHERE … WHERE …` (the old version assumed at most one applied).
-func sourceQuery(src ActivitySource, isSFW, showNoResource, withCursor bool) string {
+func sourceQuery(src ActivitySource, isSFW, showNoResource, withCursor bool, tab string) string {
 	q := src.Query
 	hasWhere := src.HasBaseWhere
 	add := func(pred string) {
@@ -867,6 +867,19 @@ func sourceQuery(src ActivitySource, isSFW, showNoResource, withCursor bool) str
 	}
 	if !showNoResource && src.TypeStr == "GALGAME_CREATION" {
 		add("EXISTS (SELECT 1 FROM galgame_resource r WHERE r.galgame_id = t.id)")
+	}
+	// 资源和求助 topics — sections g-seeking / g-other / t-help — belong ONLY in the
+	// 资源和求助 tab (tab="resource", alongside the galgame resources). Every other
+	// feed (全部 / 话题 / timeline / single-type) excludes them.
+	if src.TypeStr == "TOPIC_CREATION" {
+		const inHelp = "EXISTS (SELECT 1 FROM topic_section_relation tsr " +
+			"JOIN topic_section ts ON ts.id = tsr.topic_section_id " +
+			"WHERE tsr.topic_id = t.id AND ts.name IN ('g-seeking','g-other','t-help'))"
+		if tab == "resource" {
+			add(inHelp)
+		} else {
+			add("NOT " + inHelp)
+		}
 	}
 	if isSFW && src.SFWWhere != "" {
 		add(src.SFWWhere)

@@ -11,7 +11,7 @@ const HOME_FEED_TABS = [
   { value: 'all', textValue: '全部', icon: 'lucide:layers' },
   { value: 'topic', textValue: '话题', icon: 'icon-park-outline:topic' },
   { value: 'galgame', textValue: 'Galgame', icon: 'lucide:gamepad-2' },
-  { value: 'resource', textValue: '资源', icon: 'lucide:box' },
+  { value: 'resource', textValue: '资源和求助', icon: 'lucide:box' },
   { value: 'others', textValue: '其他', icon: 'lucide:layout-grid' }
 ]
 

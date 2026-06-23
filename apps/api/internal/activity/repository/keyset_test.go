@@ -59,7 +59,7 @@ func TestBuildKeysetSQLPlaceholderParity(t *testing.T) {
 		{Created: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), TypeStr: "TOPIC_CREATION", ID: 1},
 	}
 	for _, cur := range cases {
-		sql, args := buildKeysetSQL(all, 50, cur, true, false)
+		sql, args := buildKeysetSQL(all, 50, cur, true, false, "")
 		if got := strings.Count(sql, "?"); got != len(args) {
 			t.Errorf("cursor=%v: %d placeholders but %d args", cur != nil, got, len(args))
 		}
@@ -74,7 +74,7 @@ func TestBuildKeysetSQLPlaceholderParity(t *testing.T) {
 func TestBuildKeysetSQLPerBranchExactCut(t *testing.T) {
 	one := []ActivitySource{Sources["GALGAME_RESOURCE_CREATION"]}
 	cur := &Cursor{Created: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), TypeStr: "GALGAME_RESOURCE_CREATION", ID: 42}
-	sql, _ := buildKeysetSQL(one, 30, cur, false, false)
+	sql, _ := buildKeysetSQL(one, 30, cur, false, false, "")
 	if !strings.Contains(sql, "t.id <") {
 		t.Errorf("per-branch keyset cut missing the t.id tiebreaker — equal-created clusters can freeze the feed:\n%s", sql)
 	}
