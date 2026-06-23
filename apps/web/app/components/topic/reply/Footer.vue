@@ -27,23 +27,7 @@ const handleNewComment = (comment: TopicComment) => {
 
 <template>
   <div class="w-full">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-1">
-        <TopicFooterLike
-          :reply-id="reply.id"
-          :target-user-id="reply.user.id"
-          :like-count="reply.likeCount"
-          :is-liked="reply.isLiked"
-        />
-
-        <TopicFooterDislike
-          :reply-id="reply.id"
-          :target-user-id="reply.user.id"
-          :dislike-count="reply.dislikeCount"
-          :is-disliked="reply.isDisliked"
-        />
-      </div>
-
+    <div class="flex items-center justify-end">
       <div class="flex items-center gap-1">
         <TopicFooterReply
           :target-user-name="reply.user.name"

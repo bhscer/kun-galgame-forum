@@ -82,20 +82,6 @@ const handleShare = () => {
           :upvote-count="topic.upvoteCount"
           :is-upvoted="topic.isUpvoted"
         />
-        <TopicFooterLike
-          menu
-          :topic-id="topic.id"
-          :target-user-id="topic.user.id"
-          :like-count="topic.likeCount"
-          :is-liked="topic.isLiked"
-        />
-        <TopicFooterDislike
-          menu
-          :topic-id="topic.id"
-          :target-user-id="topic.user.id"
-          :dislike-count="topic.dislikeCount"
-          :is-disliked="topic.isDisliked"
-        />
         <KunButton
           variant="light"
           color="default"

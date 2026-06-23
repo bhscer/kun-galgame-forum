@@ -117,6 +117,13 @@ const handleNewComment = (comment: TopicComment) => {
         @leave="hidePreview"
       />
 
+      <TopicReactionBar
+        class="mt-2"
+        :reply-id="reply.id"
+        :target-user-id="reply.user.id"
+        :reactions="reply.reactions"
+      />
+
       <TopicReplyFooter
         :reply="reply"
         :title="title"

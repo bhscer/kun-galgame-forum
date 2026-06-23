@@ -59,6 +59,7 @@ export interface TopicDetail {
   isFavorited: boolean
   upvoteCount: number
   isUpvoted: boolean
+  reactions: KunReaction[]
 
   replyCount: number
   isPollTopic: boolean

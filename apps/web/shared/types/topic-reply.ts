@@ -12,6 +12,7 @@ export interface TopicReply {
   isLiked: boolean
   dislikeCount: number
   isDisliked: boolean
+  reactions: KunReaction[]
 
   comment: TopicComment[]
   created: Date | string

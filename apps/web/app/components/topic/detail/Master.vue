@@ -82,6 +82,12 @@ defineProps<{
 
       <KunDivider />
 
+      <TopicReactionBar
+        :topic-id="topic.id"
+        :target-user-id="topic.user.id"
+        :reactions="topic.reactions"
+      />
+
       <p class="text-default-500 ml-auto text-sm">
         本文版权遵循
         <KunLink

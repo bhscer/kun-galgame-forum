@@ -17,20 +17,6 @@ const { id } = usePersistUserStore()
         :is-upvoted="topic.isUpvoted"
       />
 
-      <TopicFooterLike
-        :topic-id="topic.id"
-        :target-user-id="topic.user.id"
-        :like-count="topic.likeCount"
-        :is-liked="topic.isLiked"
-      />
-
-      <TopicFooterDislike
-        :topic-id="topic.id"
-        :target-user-id="topic.user.id"
-        :dislike-count="topic.dislikeCount"
-        :is-disliked="topic.isDisliked"
-      />
-
       <TopicFooterFavorite
         :topic-id="topic.id"
         :target-user-id="topic.user.id"
