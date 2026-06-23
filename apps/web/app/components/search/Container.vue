@@ -13,8 +13,9 @@ interface SearchPage {
 const results = ref<SearchResult[]>([])
 const total = ref(0)
 const isLoading = ref(false)
+// Search type lives in the URL (?type=) so it survives back/forward + sharing.
+const activeType = useTabQuery('topic', 'type')
 const pageData = reactive({
-  type: 'topic' as SearchType,
   page: 1,
   limit: 12
 })
@@ -29,14 +30,14 @@ const searchQuery = async (): Promise<SearchPage> => {
   isLoading.value = true
   const result = await kunFetch<SearchPage>('/search', {
     method: 'GET',
-    query: { keywords: keywords.value, ...pageData }
+    query: { keywords: keywords.value, type: activeType.value, ...pageData }
   })
   isLoading.value = false
   return result ?? { items: [], total: 0 }
 }
 
 const handleSetType = async (value: SearchType) => {
-  pageData.type = value
+  activeType.value = value
   pageData.page = 1
   results.value = []
   total.value = 0
@@ -100,7 +101,7 @@ const handleLoadMore = async () => {
     </KunHeader>
     <KunTab
       :items="navItems"
-      :model-value="pageData.type"
+      :model-value="activeType"
       @update:model-value="(value) => handleSetType(value as SearchType)"
       size="sm"
     />
@@ -111,7 +112,7 @@ const handleLoadMore = async () => {
 
     <SearchResult
       :results="results"
-      :type="pageData.type"
+      :type="activeType as SearchType"
       v-if="results.length"
     />
 

@@ -16,7 +16,8 @@ const HOME_FEED_TABS = [
 ]
 
 const settings = usePersistSettingsStore()
-const activeTab = ref('all')
+// Tab lives in the URL (?tab=) so it survives back/forward, refresh + sharing.
+const activeTab = useTabQuery('all')
 
 const items = ref<ActivityItem[]>([])
 const cursor = ref('')

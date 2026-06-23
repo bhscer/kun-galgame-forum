@@ -6,6 +6,10 @@
 // of the index at the page layer (here + the conditional noindex on R18 detail
 // pages), NOT by filtering search results. moyu's /search already does this.
 useKunDisableSeo('搜索 Galgame')
+
+// keepalive: returning from a result restores the type tab + results + scroll
+// instead of re-mounting (which would clear results until the next search).
+definePageMeta({ keepalive: true })
 </script>
 
 <template>
