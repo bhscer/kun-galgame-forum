@@ -6,17 +6,13 @@ import (
 	"kun-galgame-api/pkg/userclient"
 )
 
-// reactionAvatarThreshold: reactions with fewer than this many reactors show the
-// reactors' avatars; at or above it the FE shows just the emoji + count
-// (Telegram-style). Matches the FE rule (<5 → avatars).
-const reactionAvatarThreshold = 5
-
-// reactionReactorIDs collects the reactor ids worth hydrating (those on small-
-// count reactions, which render as avatars). Large reactions show only a count.
+// reactionReactorIDs collects the reactor ids to hydrate. Every reaction shows a
+// few avatars now (the repo's window already caps reactors per reaction), so
+// there's no count gate — the FE renders up to 3 avatars + a "+N" overflow.
 func reactionReactorIDs(rows []repository.ReactionRow) []int {
 	ids := make([]int, 0, len(rows))
 	for _, row := range rows {
-		if row.Cnt < reactionAvatarThreshold && row.UserID > 0 {
+		if row.UserID > 0 {
 			ids = append(ids, row.UserID)
 		}
 	}
@@ -24,8 +20,8 @@ func reactionReactorIDs(rows []repository.ReactionRow) []int {
 }
 
 // buildReactionSummaries turns the windowed rows for ONE target + the viewer's
-// own keys + a hydrated user map into ordered DTO summaries (reactor avatars only
-// for small counts).
+// own keys + a hydrated user map into ordered DTO summaries — each carries up to
+// the window's cap of reactor avatars (the rest become a "+N" on the FE).
 func buildReactionSummaries(
 	rows []repository.ReactionRow,
 	mine []string,
@@ -48,11 +44,9 @@ func buildReactionSummaries(
 				Mine:     mineSet[row.Reaction],
 			})
 		}
-		if row.Cnt < reactionAvatarThreshold {
-			if u, ok := userMap[row.UserID]; ok {
-				out[i].Reactors = append(out[i].Reactors,
-					dto.KunUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar})
-			}
+		if u, ok := userMap[row.UserID]; ok {
+			out[i].Reactors = append(out[i].Reactors,
+				dto.KunUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar})
 		}
 	}
 	return out
@@ -62,7 +56,7 @@ func buildReactionSummaries(
 func replyReactorIDs(rows []repository.ReplyReactionRow) []int {
 	ids := make([]int, 0, len(rows))
 	for _, row := range rows {
-		if row.Cnt < reactionAvatarThreshold && row.UserID > 0 {
+		if row.UserID > 0 {
 			ids = append(ids, row.UserID)
 		}
 	}

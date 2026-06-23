@@ -59,9 +59,9 @@ func (r *ReplyRepository) RemoveReplyReaction(tx *gorm.DB, replyID, userID int, 
 // Reaction aggregates (read / display)
 // ──────────────────────────────────────────
 
-// reactionAvatarCap bounds reactor ids fetched per reaction (only the first few
-// are ever shown as avatars — see reactionAvatarThreshold in the service).
-const reactionAvatarCap = 5
+// reactionAvatarCap bounds reactor ids fetched (and shown as avatars) per
+// reaction; the remainder collapse to a "+N" overflow badge on the FE.
+const reactionAvatarCap = 3
 
 // ReactionRow is a windowed reactor row: the reaction key, one reactor, and the
 // reaction's total count (repeated across the group's rows).

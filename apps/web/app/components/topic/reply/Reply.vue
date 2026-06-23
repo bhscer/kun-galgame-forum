@@ -19,7 +19,8 @@ provide(
   useReactions({
     replyId: props.reply.id,
     targetUserId: props.reply.user.id,
-    reactions: props.reply.reactions
+    reactions: props.reply.reactions,
+    showReactors: true
   })
 )
 

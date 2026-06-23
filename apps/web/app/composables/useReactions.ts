@@ -21,11 +21,14 @@ interface UseReactionsOptions {
   // card, whose per-viewer "mine" hydrates after mount). Stops after the first
   // user toggle so it never clobbers an optimistic change.
   sync?: () => KunReaction[]
+  // When true (topic/reply detail), chips show up to MAX_AVATARS reactor avatars
+  // + a "+N" overflow, so every chip has the same height. The feed leaves this
+  // off and renders emoji + count instead (it doesn't ship reactors).
+  showReactors?: boolean
 }
 
-// Avatars are shown for reactions with fewer than this many reactors (matches
-// the backend hydration threshold); above it we show emoji + count.
-const AVATAR_THRESHOLD = 5
+// Max reactor avatars shown per chip; the rest collapse to a "+N" badge.
+const MAX_AVATARS = 3
 
 export const useReactions = (opts: UseReactionsOptions): ReactionsState => {
   const { id, name, avatar } = usePersistUserStore()
@@ -76,7 +79,7 @@ export const useReactions = (opts: UseReactionsOptions): ReactionsState => {
       const r = list.value[idx]!
       r.count++
       r.mine = true
-      if (r.count < AVATAR_THRESHOLD) {
+      if (opts.showReactors && (r.reactors?.length ?? 0) < MAX_AVATARS) {
         ;(r.reactors ??= []).push({ id, name, avatar })
       }
     } else {
@@ -84,7 +87,7 @@ export const useReactions = (opts: UseReactionsOptions): ReactionsState => {
         reaction: key,
         count: 1,
         mine: true,
-        reactors: [{ id, name, avatar }]
+        reactors: opts.showReactors ? [{ id, name, avatar }] : undefined
       })
     }
     // like ⇄ dislike are mutually exclusive — drop the opposite if it was mine.

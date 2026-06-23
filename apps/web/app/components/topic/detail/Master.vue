@@ -10,7 +10,8 @@ provide(
   useReactions({
     topicId: props.topic.id,
     targetUserId: props.topic.user.id,
-    reactions: props.topic.reactions
+    reactions: props.topic.reactions,
+    showReactors: true
   })
 )
 </script>
