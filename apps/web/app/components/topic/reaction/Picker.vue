@@ -32,7 +32,7 @@ const isMine = (key: string) => props.mineKeys?.includes(key) ?? false
       <img
         :src="reactionAsset(KUN_REACTION_LIKE)"
         alt="点赞"
-        class="size-7 shrink-0"
+        class="size-7 shrink-0 max-w-none"
       />
       <span class="min-w-0">
         <span class="text-default-800 block text-sm font-medium">点赞</span>
@@ -53,7 +53,7 @@ const isMine = (key: string) => props.mineKeys?.includes(key) ?? false
       <img
         :src="reactionAsset(KUN_REACTION_DISLIKE)"
         alt="点踩"
-        class="size-7 shrink-0"
+        class="size-7 shrink-0 max-w-none"
       />
       <span class="min-w-0">
         <span class="text-default-800 block text-sm font-medium">点踩</span>
@@ -64,7 +64,7 @@ const isMine = (key: string) => props.mineKeys?.includes(key) ?? false
     <KunDivider />
 
     <!-- Emoji grid -->
-    <div class="grid grid-cols-8 gap-1">
+    <div class="grid grid-cols-6 gap-1">
       <button
         v-for="e in KUN_REACTION_EMOJIS"
         :key="e.key"
@@ -72,13 +72,18 @@ const isMine = (key: string) => props.mineKeys?.includes(key) ?? false
         :title="e.label"
         :class="
           cn(
-            'rounded-md p-1 transition-colors hover:bg-default-100',
+            'flex items-center justify-center rounded-md p-1 transition-colors hover:bg-default-100',
             isMine(e.key) && 'bg-primary/10'
           )
         "
         @click="emit('select', e.key)"
       >
-        <img :src="reactionAsset(e.key)" :alt="e.label" class="size-7" loading="lazy" />
+        <img
+          :src="reactionAsset(e.key)"
+          :alt="e.label"
+          class="size-7 max-w-none"
+          loading="lazy"
+        />
       </button>
     </div>
   </div>

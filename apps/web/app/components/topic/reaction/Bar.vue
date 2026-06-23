@@ -125,7 +125,7 @@ const toggle = async (key: string) => {
       <img
         :src="reactionAsset(r.reaction)"
         :alt="KUN_REACTION_EMOJI[r.reaction] ?? r.reaction"
-        class="size-5 shrink-0"
+        class="size-5 shrink-0 max-w-none"
         loading="lazy"
       />
       <span v-if="showAvatars(r)" class="flex -space-x-1.5">
