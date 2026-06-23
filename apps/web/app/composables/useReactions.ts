@@ -8,6 +8,9 @@ export interface ReactionsState {
   list: Ref<KunReaction[]>
   mineKeys: ComputedRef<string[]>
   toggle: (key: string) => Promise<void>
+  // Set only for a TOPIC's reactions (not replies) — gates the 查看历史 row + tells
+  // the history modal which topic to fetch.
+  topicId?: number
 }
 
 export const reactionsKey: InjectionKey<ReactionsState> = Symbol('reactions')
@@ -120,5 +123,5 @@ export const useReactions = (opts: UseReactionsOptions): ReactionsState => {
     inflight.delete(key)
   }
 
-  return { list, mineKeys, toggle }
+  return { list, mineKeys, toggle, topicId: opts.topicId }
 }

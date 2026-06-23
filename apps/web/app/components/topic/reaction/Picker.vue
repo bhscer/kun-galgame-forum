@@ -10,8 +10,14 @@ import {
   reactionAsset
 } from '~/constants/reaction'
 
-const props = defineProps<{ mineKeys?: string[] }>()
-const emit = defineEmits<{ select: [key: string] }>()
+const props = defineProps<{
+  mineKeys?: string[]
+  // Topic context only: enables the 查看历史 row (replies don't get it).
+  topicId?: number
+  // Total reactions on the topic, shown as "xxx 人回应了话题".
+  total?: number
+}>()
+const emit = defineEmits<{ select: [key: string]; viewHistory: [] }>()
 
 const isMine = (key: string) => props.mineKeys?.includes(key) ?? false
 </script>
@@ -86,5 +92,20 @@ const isMine = (key: string) => props.mineKeys?.includes(key) ?? false
         />
       </button>
     </div>
+
+    <!-- 查看历史 — topic reactions only (left: count, right: open the modal). -->
+    <template v-if="topicId">
+      <KunDivider />
+      <div class="flex items-center justify-between px-1 text-sm">
+        <span class="text-default-500">{{ total ?? 0 }} 人回应了话题</span>
+        <button
+          type="button"
+          class="text-primary shrink-0 hover:underline"
+          @click="emit('viewHistory')"
+        >
+          查看历史
+        </button>
+      </div>
+    </template>
   </div>
 </template>

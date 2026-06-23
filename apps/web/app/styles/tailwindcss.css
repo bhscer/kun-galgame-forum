@@ -93,14 +93,33 @@
  * (a color-mix over the now-opaque token). The modal backdrop is a separate
  * dark scrim (not content1) and is unaffected.
  *   [data-kun-overlay] → Modal (ancestor of .kun-modal-panel) · Drawer · toasts
+ *   .z-kun-modal / .z-kun-alert / .z-kun-message → modal / alert-dialog / toast
+ *                        panels, explicit in case a panel carries the z-class but
+ *                        not data-kun-overlay (kun-ui 2.x; alert was see-through)
  *   .z-kun-popover     → Dropdown · ContextMenu · Popover · Tooltip ·
  *                        Select / Autocomplete lists · DatePicker calendar
- *   .kun-rail-flyout   → the desktop sidebar icon-rail hover menus (side-bar/Rail.vue)
+ *   .kun-rail-flyout   → the desktop sidebar icon-rail hover menus (side-bar/RailGroup.vue)
  *   .kun-sidebar-drawer → the mobile hamburger drawer (force-expanded Sidebar.vue)
+ * The loli (KunLoliProvider / useKunLoliInfo) carries NONE of these classes, so it
+ * keeps the frosted --kun-surface-opacity look on purpose. KunPopover panels we
+ * own can also opt in directly via the 2.2.0 `opaque` prop (e.g. the editor menu).
  */
 [data-kun-overlay],
 .z-kun-popover,
+.z-kun-modal,
+.z-kun-alert,
+.z-kun-message,
 .kun-rail-flyout,
 .kun-sidebar-drawer {
   --color-content1: oklch(var(--content1) / 1);
+}
+
+/*
+ * Even with the token re-declared opaque above, the MODAL PANEL still ships as
+ * `bg-content1/85` (a deliberate 15% glass in kun-ui), so the page bleeds through
+ * the 15% on a frosted site. Pin the panel to the fully-opaque token. The
+ * descendant selector (0,2,0) outranks the `/85` utility (0,1,0) — no !important.
+ */
+[data-kun-overlay] .kun-modal-panel {
+  background-color: var(--color-content1);
 }

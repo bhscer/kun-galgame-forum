@@ -123,6 +123,23 @@ func (h *TopicHandler) GetDetail(c *fiber.Ctx) error {
 	return response.OK(c, detail)
 }
 
+// GetTopicReactionHistory lists a topic's reaction events (newest first) for the
+// 查看历史 modal — reactor + reaction key + time.
+// GET /api/topic/:tid/reaction/history
+func (h *TopicHandler) GetTopicReactionHistory(c *fiber.Ctx) error {
+	tid, err := strconv.Atoi(c.Params("tid"))
+	if err != nil {
+		return response.Error(c, errors.ErrBadRequest("无效的话题 ID"))
+	}
+
+	records, appErr := h.topicService.GetTopicReactionHistory(c.Context(), tid)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	return response.OK(c, records)
+}
+
 // Create creates a new topic.
 // POST /api/topic
 func (h *TopicHandler) Create(c *fiber.Ctx) error {

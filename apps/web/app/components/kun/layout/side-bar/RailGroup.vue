@@ -62,7 +62,7 @@ const { triggerHandlers, panelHandlers } = useKunPointerMenu(panelRef, {
         @pointerleave="panelHandlers.pointerleave"
       >
         <div
-          class="bg-content1 border-kun max-h-[80vh] min-w-52 overflow-y-auto rounded-lg border p-2 shadow-kun-sm"
+          class="kun-rail-flyout bg-content1 border-kun max-h-[80vh] min-w-52 overflow-y-auto rounded-lg border p-2 shadow-kun-sm"
         >
           <template
             v-for="(section, si) in group.sections"

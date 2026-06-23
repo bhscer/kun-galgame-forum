@@ -80,6 +80,35 @@ func (s *TopicService) GetTopicUpvotes(ctx context.Context, topicID int) ([]dto.
 	return out, nil
 }
 
+// topicReactionHistoryLimit caps the reaction events shown in 查看历史 (newest
+// first). Generous so it covers practically every topic; Hydrate auto-shards the
+// reactor ids into ≤100-id batches, so a large cap stays safe.
+const topicReactionHistoryLimit = 300
+
+// GetTopicReactionHistory returns a topic's reaction events — who reacted, with
+// which reaction, and when — newest first, capped. Powers the 查看历史 modal.
+func (s *TopicService) GetTopicReactionHistory(ctx context.Context, topicID int) ([]dto.ReactionHistoryItem, *errors.AppError) {
+	rows, err := s.topicRepo.GetTopicReactionHistory(topicID, topicReactionHistoryLimit)
+	if err != nil {
+		return nil, errors.ErrInternal("操作失败")
+	}
+	ids := make([]int, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.UserID)
+	}
+	userMap := s.userClient.Hydrate(ctx, ids)
+	out := make([]dto.ReactionHistoryItem, 0, len(rows))
+	for _, row := range rows {
+		u := userMap[row.UserID]
+		out = append(out, dto.ReactionHistoryItem{
+			User:     dto.KunUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
+			Reaction: row.Reaction,
+			Created:  row.Created,
+		})
+	}
+	return out, nil
+}
+
 // ──────────────────────────────────────────
 // List
 // ──────────────────────────────────────────

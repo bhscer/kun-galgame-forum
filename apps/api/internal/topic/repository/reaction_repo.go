@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"kun-galgame-api/internal/topic/model"
 
 	"gorm.io/gorm"
@@ -94,6 +96,26 @@ func (r *TopicRepository) GetUserTopicReactions(topicID, userID int) ([]string, 
 	err := r.db.Model(&model.TopicReaction{}).
 		Where("topic_id = ? AND user_id = ?", topicID, userID).Pluck("reaction", &keys).Error
 	return keys, err
+}
+
+// ReactionHistoryRow is one reaction event: who reacted, with what key, and when.
+type ReactionHistoryRow struct {
+	UserID   int       `gorm:"column:user_id"`
+	Reaction string    `gorm:"column:reaction"`
+	Created  time.Time `gorm:"column:created"`
+}
+
+// GetTopicReactionHistory returns a topic's reaction events newest-first, capped,
+// for the 查看历史 list — one row per reaction event.
+func (r *TopicRepository) GetTopicReactionHistory(topicID, limit int) ([]ReactionHistoryRow, error) {
+	var rows []ReactionHistoryRow
+	err := r.db.Model(&model.TopicReaction{}).
+		Select("user_id, reaction, created").
+		Where("topic_id = ?", topicID).
+		Order("created DESC").
+		Limit(limit).
+		Scan(&rows).Error
+	return rows, err
 }
 
 // ReplyReactionRow is GetRepliesReactions' windowed row (adds the reply id).

@@ -28,6 +28,14 @@ type TopicUpvoteRecord struct {
 	Created     time.Time `json:"created"`
 }
 
+// ReactionHistoryItem is one reaction event for the 查看历史 modal: who reacted,
+// with which reaction key, and when. Newest first.
+type ReactionHistoryItem struct {
+	User     KunUser   `json:"user"`
+	Reaction string    `json:"reaction"`
+	Created  time.Time `json:"created"`
+}
+
 // ──────────────────────────────────────────
 // Topic list
 // ──────────────────────────────────────────
