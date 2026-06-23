@@ -5,11 +5,7 @@ const { data } = await useKunFetch<GalgameEngineItem[]>(`/galgame-engine`, {
 </script>
 
 <template>
-  <KunCard
-    :is-transparent="false"
-    :is-hoverable="false"
-    content-class="space-y-6"
-  >
+  <div class="space-y-6">
     <KunHeader
       name="Galgame 引擎 Wiki"
       description="Galgame 引擎 Wiki, 这里展示了世界上大多数常见的 Galgame 制作引擎, 例如 KRKR 引擎, YU-RIS 引擎, 椎名理绪引擎等"
@@ -32,5 +28,5 @@ const { data } = await useKunFetch<GalgameEngineItem[]>(`/galgame-engine`, {
     </div>
 
     <KunNull v-if="data && !data.length" />
-  </KunCard>
+  </div>
 </template>
