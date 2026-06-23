@@ -204,6 +204,7 @@ func (a *App) setupRoutes() {
 	// Topic (optional auth for interaction status)
 	optAuth.Get("/topic", a.TopicHandler.GetList)
 	optAuth.Get("/topic/:tid", a.TopicHandler.GetDetail)
+	optAuth.Get("/topic/:tid/upvotes", a.TopicHandler.GetUpvotes)
 	optAuth.Get("/topic/:tid/reply", a.ReplyHandler.GetReplies)
 	optAuth.Get("/topic/:tid/reply/detail", a.ReplyHandler.GetReplyDetail)
 	optAuth.Get("/topic/:tid/poll/topic", a.PollHandler.GetPollsByTopic)

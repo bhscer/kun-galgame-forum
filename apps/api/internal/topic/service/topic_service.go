@@ -52,6 +52,34 @@ func (s *TopicService) GetMyInteractions(userID int) dto.MyTopicInteractions {
 	return dto.MyTopicInteractions{Favorited: favorited, Reactions: reactions}
 }
 
+// topicUpvoteRecordLimit caps the push records shown below a topic (newest first).
+const topicUpvoteRecordLimit = 50
+
+// GetTopicUpvotes returns a topic's 推话题 records — who pushed it, their one-
+// liner, and when — newest first, capped. Shown below the topic body.
+func (s *TopicService) GetTopicUpvotes(ctx context.Context, topicID int) ([]dto.TopicUpvoteRecord, *errors.AppError) {
+	rows, err := s.topicRepo.FetchTopicUpvotes(topicID, topicUpvoteRecordLimit)
+	if err != nil {
+		return nil, errors.ErrInternal("操作失败")
+	}
+	ids := make([]int, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.UserID)
+	}
+	userMap := s.userClient.Hydrate(ctx, ids)
+	out := make([]dto.TopicUpvoteRecord, 0, len(rows))
+	for _, row := range rows {
+		u := userMap[row.UserID]
+		out = append(out, dto.TopicUpvoteRecord{
+			ID:          row.ID,
+			User:        dto.KunUser{ID: u.ID, Name: u.Name, Avatar: u.Avatar},
+			Description: row.Description,
+			Created:     row.Created,
+		})
+	}
+	return out, nil
+}
+
 // ──────────────────────────────────────────
 // List
 // ──────────────────────────────────────────

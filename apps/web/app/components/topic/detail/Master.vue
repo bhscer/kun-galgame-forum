@@ -94,6 +94,10 @@ provide(
 
       <KunDivider />
 
+      <!-- 推话题 records: who pushed this topic + their one-liner + how long ago.
+           Sits between the divider and the reaction row. -->
+      <TopicUpvoteRecords :topic-id="topic.id" />
+
       <div class="flex flex-wrap items-center gap-1.5">
         <TopicReactionBar />
         <!-- Desktop shows the trigger in the footer (next to favorite). -->

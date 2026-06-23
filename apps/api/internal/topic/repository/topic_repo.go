@@ -254,9 +254,29 @@ func (r *TopicRepository) UserTopicInteractions(userID int) ([]int, map[int][]st
 }
 
 // CreateTopicUpvote inserts a TopicUpvote row (duplicates allowed). description
-// is the optional "why I pushed it" one-liner ('' when omitted).
+// is the optional "why I pushed it" one-liner (” when omitted).
 func (r *TopicRepository) CreateTopicUpvote(tx *gorm.DB, userID, topicID int, description string) error {
 	return tx.Create(&model.TopicUpvote{UserID: userID, TopicID: topicID, Description: description}).Error
+}
+
+// TopicUpvoteRow is one 推话题 record: who pushed, their one-liner, and when.
+type TopicUpvoteRow struct {
+	ID          int       `gorm:"column:id"`
+	UserID      int       `gorm:"column:user_id"`
+	Description string    `gorm:"column:description"`
+	Created     time.Time `gorm:"column:created"`
+}
+
+// FetchTopicUpvotes returns a topic's push records, newest first, capped at limit.
+func (r *TopicRepository) FetchTopicUpvotes(topicID, limit int) ([]TopicUpvoteRow, error) {
+	var rows []TopicUpvoteRow
+	err := r.db.Table("topic_upvote").
+		Select("id, user_id, description, created").
+		Where("topic_id = ?", topicID).
+		Order("created DESC, id DESC").
+		Limit(limit).
+		Scan(&rows).Error
+	return rows, err
 }
 
 // AdjustLikeCount adjusts topic.like_count by delta.

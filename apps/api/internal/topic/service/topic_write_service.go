@@ -458,17 +458,9 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int, des
 		if err != nil {
 			return err
 		}
-		// Once-per-user: reject a repeat upvote. The FOR UPDATE lock above
-		// serializes concurrent upvotes by the same user, so this check is
-		// race-safe even without a unique constraint on (topic_id, user_id) —
-		// it stops the unbounded upvote_count inflation + repeated owner credit.
-		upvoted, err := s.topicRepo.HasUserUpvotedTx(tx, userID, topicID)
-		if err != nil {
-			return err
-		}
-		if upvoted {
-			return gorm.ErrDuplicatedKey
-		}
+		// Repeat upvotes ARE allowed: a topic can be pushed again and again. Each
+		// push costs the sender afresh (the FOR UPDATE lock serializes the balance)
+		// and credits the owner again — self-limited by the 10-萌萌点 cost.
 		if state.Moemoepoint < constants.CostUpvoteSender {
 			return gorm.ErrCheckConstraintViolated
 		}
@@ -482,10 +474,14 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int, des
 			return err
 		}
 
+		// Distinct ref-kind ("topic_upvote") so the moemoepoint ledger renders
+		// 推话题消耗 / 话题被推荐 — NOT 话题被移除 / 话题被采纳, which the bare "topic"
+		// kind composes. The reason enum is OAuth's (content_removed is the only
+		// debit reason a downstream may use), so the ref is what disambiguates.
 		s.helpers.AdjustMoemoepoint(tx, userID, -constants.CostUpvoteSender,
-			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("topic", topicID))
+			moemoepoint.ReasonContentRemoved, moemoepoint.Ref("topic_upvote", topicID))
 		s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardUpvoteOwner,
-			moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic", topicID))
+			moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic_upvote", topicID))
 		s.helpers.CreateTopicMessageWithContent(tx, userID, topic.UserID, "upvoted",
 			truncate(topic.Title, constants.TextPreviewLength), topicID)
 		return nil
@@ -496,9 +492,6 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int, des
 	}
 	if err == gorm.ErrInvalidData {
 		return errors.ErrBadRequest("您不能推自己的话题")
-	}
-	if err == gorm.ErrDuplicatedKey {
-		return errors.ErrBadRequest("您已经推过该话题了")
 	}
 	if err == gorm.ErrCheckConstraintViolated {
 		return errors.ErrBadRequest("萌萌点不足, 推话题需要 10 萌萌点")

@@ -19,6 +19,15 @@ type KunUserWithMoemoepoint struct {
 	Moemoepoint int    `json:"moemoepoint"`
 }
 
+// TopicUpvoteRecord is one 推话题 record shown below a topic: who pushed it, their
+// optional one-liner (may be empty — the FE shows a random default then), when.
+type TopicUpvoteRecord struct {
+	ID          int       `json:"id"`
+	User        KunUser   `json:"user"`
+	Description string    `json:"description"`
+	Created     time.Time `json:"created"`
+}
+
 // ──────────────────────────────────────────
 // Topic list
 // ──────────────────────────────────────────

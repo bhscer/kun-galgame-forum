@@ -72,32 +72,19 @@ const confirmAndUpvote = async (): Promise<boolean> => {
   return true
 }
 
-// Menu (KunButton) path: imperative — set state only after a confirmed upvote.
+// Both the menu button + the reaction icon funnel here. Repeatable — a topic can
+// be pushed again and again — so there's NO "already upvoted" guard; every click
+// is a fresh push (each costs 10 萌萌点 + credits the author 5).
 const handleClickUpvote = async () => {
   if (!id) {
     useAuthModal().open()
     return
   }
-  if (isUpvoted.value || pending.value) return
+  if (pending.value) return
   if (await confirmAndUpvote()) {
     upvoteCount.value++
     isUpvoted.value = true
   }
-}
-
-// KunReaction path: it already flipped to upvoted; keep it on success, undo otherwise.
-const revert = () => {
-  isUpvoted.value = false
-  upvoteCount.value--
-}
-const onChange = async (next: boolean) => {
-  if (!next) return
-  if (!id) {
-    useAuthModal().open()
-    revert()
-    return
-  }
-  if (!(await confirmAndUpvote())) revert()
 }
 </script>
 
@@ -119,15 +106,19 @@ const onChange = async (next: boolean) => {
   </KunButton>
 
   <KunTooltip v-else text="推话题">
+    <!-- Action mode (repeatable): each click is a fresh push, never disabled
+         after upvoting. The count rolls when a push lands. -->
     <KunReaction
-      v-model="isUpvoted"
-      v-model:count="upvoteCount"
-      :disabled="isUpvoted || pending"
-      icon="lucide:sparkles"
-      color="warning"
+      :toggle="false"
+      :count="upvoteCount"
+      :disabled="pending"
       label="推话题"
-      @change="onChange"
-    />
+      @click="handleClickUpvote"
+    >
+      <template #icon>
+        <KunIcon name="lucide:sparkles" class="text-warning" />
+      </template>
+    </KunReaction>
   </KunTooltip>
 
   <KunModal v-model="dialogOpen" role="alertdialog" inner-class-name="max-w-md">

@@ -91,7 +91,11 @@ const BEHAVIOR_LABEL: Record<string, string> = {
   'content_approved:galgame_comment': '游戏评论被采纳',
   'content_approved:topic': '发布的话题被采纳',
   'content_approved:topic_reply': '回复被采纳',
-  'content_approved:topic_comment': '话题评论被采纳'
+  'content_approved:topic_comment': '话题评论被采纳',
+  // 推话题: a distinct ref-kind so the cost reads as 推话题消耗 (not 话题被移除) and
+  // the owner's credit as 话题被推荐 (not 被采纳). Reasons stay OAuth's enum.
+  'content_removed:topic_upvote': '推话题消耗',
+  'content_approved:topic_upvote': '话题被推荐'
 }
 
 const refKindOf = (ref: string) => ref.split(':')[0] ?? ''

@@ -261,6 +261,22 @@ func (h *TopicHandler) Upvote(c *fiber.Ctx) error {
 	return response.OKMessage(c, "推话题成功")
 }
 
+// GetUpvotes returns a topic's 推话题 records — who pushed it + their one-liner.
+// GET /api/topic/:tid/upvotes
+func (h *TopicHandler) GetUpvotes(c *fiber.Ctx) error {
+	tid, err := strconv.Atoi(c.Params("tid"))
+	if err != nil {
+		return response.Error(c, errors.ErrBadRequest("无效的话题 ID"))
+	}
+
+	records, appErr := h.topicService.GetTopicUpvotes(c.Context(), tid)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	return response.OK(c, records)
+}
+
 // ToggleFavorite toggles favorite on a topic.
 // PUT /api/topic/:tid/favorite
 func (h *TopicHandler) ToggleFavorite(c *fiber.Ctx) error {

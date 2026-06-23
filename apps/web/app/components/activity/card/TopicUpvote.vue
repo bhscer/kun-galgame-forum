@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 推话题 (TOPIC_UPVOTE) — a user pushed a topic. The shell shows who (avatar +
 // name + time); this card adds:
-//   top    — 推了一个话题，<blurb> (the user's one-liner, or a stable random
+//   top    — 推了这个话题，<blurb> (the user's one-liner, or a stable random
 //            default, in secondary — the playful "why I pushed it")
 //   middle — the pushed topic's title + preview (links to the topic)
 //   bottom — the same footer as the new-topic card (收藏 + reactions · 浏览 +
@@ -54,7 +54,7 @@ provide(
   <ActivityCardShell :actor="activity.actor" :timestamp="activity.timestamp">
     <div class="space-y-3">
       <p class="text-default-600 text-sm break-all">
-        推了一个话题，<span class="text-secondary">{{ blurb }}</span>
+        推了这个话题，<span class="text-secondary font-bold">{{ blurb }}</span>
       </p>
 
       <KunLink
