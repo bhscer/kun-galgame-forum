@@ -74,6 +74,18 @@ export interface GalgameActivityData {
   intro?: string
   // GALGAME_RATING_CREATION only — the rating card's fields.
   rating?: ActivityRatingInfo
+  // GALGAME_COMMENT_CREATION — the parent comment being replied to (被评论的评论).
+  parentComment?: { content: string }
+  // GALGAME_RESOURCE_CREATION — the published resource's spec (download link /
+  // 提取码 / 解压码 deliberately omitted).
+  resource?: {
+    type: string
+    language: string
+    platform: string
+    size: string
+    note: string
+    likeCount: number
+  }
 }
 
 // Rating card payload (BE dto.RatingInfo). shortSummary is blank when spoilerLevel
@@ -102,6 +114,14 @@ export interface ReplyActivityData {
   quotedReply?: ActivityQuotedReply
 }
 
+// Rich-card payload for TOPIC_COMMENT_CREATION (BE dto.TopicCommentActivityData).
+// The comment is on a reply — quotedReply is that reply (被评论的评论), topicTitle
+// anchors the bottom; the comment body is in ActivityItem.content.
+export interface TopicCommentActivityData {
+  topicTitle: string
+  quotedReply?: ActivityQuotedReply
+}
+
 // Per-type rich-card payload, discriminated by ActivityItem.type. Each card
 // casts activity.data to the shape its type carries (the dispatcher routes by
 // type, so the cast is safe). Absent for types without a rich card yet.
@@ -109,6 +129,7 @@ export type ActivityData =
   | TopicActivityData
   | GalgameActivityData
   | ReplyActivityData
+  | TopicCommentActivityData
 
 export interface ActivityItem {
   uniqueId: string

@@ -324,6 +324,89 @@ func (r *ActivityRepository) FetchTopicsReactions(ids []int) ([]TopicReactionCou
 	return out, err
 }
 
+// TopicCommentContext is the owning topic's title + the reply (被评论的评论) for a
+// TOPIC_COMMENT_CREATION card.
+type TopicCommentContext struct {
+	CommentID    int    `gorm:"column:comment_id"`
+	TopicTitle   string `gorm:"column:topic_title"`
+	ReplyFloor   int    `gorm:"column:reply_floor"`
+	ReplyContent string `gorm:"column:reply_content"`
+}
+
+// FetchTopicCommentContext loads, per comment id, the parent reply's floor +
+// content and the owning topic's title (one JOIN). Empty ids → empty map.
+func (r *ActivityRepository) FetchTopicCommentContext(ids []int) (map[int]TopicCommentContext, error) {
+	out := map[int]TopicCommentContext{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []TopicCommentContext
+	if err := r.db.Table("topic_comment c").
+		Select(`c.id AS comment_id, tp.title AS topic_title,
+			r.floor AS reply_floor, r.content AS reply_content`).
+		Joins("JOIN topic_reply r ON r.id = c.topic_reply_id").
+		Joins("JOIN topic tp ON tp.id = r.topic_id").
+		Where("c.id IN ?", ids).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.CommentID] = row
+	}
+	return out, nil
+}
+
+// FetchGalgameCommentParents loads, per comment id, the parent comment's content
+// (被评论的评论). Only comments WITH a parent appear in the result.
+func (r *ActivityRepository) FetchGalgameCommentParents(ids []int) (map[int]string, error) {
+	out := map[int]string{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		CommentID int    `gorm:"column:comment_id"`
+		Content   string `gorm:"column:content"`
+	}
+	if err := r.db.Table("galgame_comment c").
+		Select("c.id AS comment_id, p.content AS content").
+		Joins("JOIN galgame_comment p ON p.id = c.parent_comment_id").
+		Where("c.id IN ?", ids).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.CommentID] = row.Content
+	}
+	return out, nil
+}
+
+// GalgameResourceRow is one resource's feed-card spec (no download link / codes).
+type GalgameResourceRow struct {
+	ID        int    `gorm:"column:id"`
+	Type      string `gorm:"column:type"`
+	Language  string `gorm:"column:language"`
+	Platform  string `gorm:"column:platform"`
+	Size      string `gorm:"column:size"`
+	Note      string `gorm:"column:note"`
+	LikeCount int    `gorm:"column:like_count"`
+}
+
+// FetchGalgameResourceDetails batch-loads resource specs by id. Empty → empty.
+func (r *ActivityRepository) FetchGalgameResourceDetails(ids []int) (map[int]GalgameResourceRow, error) {
+	out := map[int]GalgameResourceRow{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []GalgameResourceRow
+	if err := r.db.Table("galgame_resource").
+		Select("id, type, language, platform, size, note, like_count").
+		Where("id IN ?", ids).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row
+	}
+	return out, nil
+}
+
 // idNameRow is a (topic_id, name) pair for the section/tag batch joins.
 type idNameRow struct {
 	TopicID int    `gorm:"column:topic_id"`

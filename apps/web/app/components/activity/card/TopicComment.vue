@@ -1,13 +1,12 @@
 <script setup lang="ts">
-// Rich feed card for TOPIC_REPLY_CREATION:
-//   top    — username + time (shell)
-//   middle — the reply body (a few lines); if it quoted another reply, that
-//            quoted reply shows as a nested block above the body
-//   bottom — the title of the topic the reply is in
-// content + the quoted body arrive with @/# tokens already resolved (BE).
+// TOPIC_COMMENT_CREATION — a comment on a reply. Same shape as the reply card:
+// the comment body (a few lines), the reply it's on (被评论的评论) quoted above,
+// and the topic name anchored at the bottom.
 const props = defineProps<{ activity: ActivityItem }>()
 
-const data = computed(() => props.activity.data as ReplyActivityData | undefined)
+const data = computed(
+  () => props.activity.data as TopicCommentActivityData | undefined
+)
 const quoted = computed(() => data.value?.quotedReply)
 </script>
 
@@ -19,7 +18,7 @@ const quoted = computed(() => data.value?.quotedReply)
       :to="activity.link"
       class-name="group block space-y-2"
     >
-      <!-- The reply being replied to (quoted #floor). -->
+      <!-- The reply being commented on (被评论的评论). -->
       <ActivityCardQuote
         v-if="quoted"
         :content="quoted.content"

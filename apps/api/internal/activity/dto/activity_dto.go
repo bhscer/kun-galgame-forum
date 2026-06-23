@@ -118,6 +118,15 @@ type QuotedReply struct {
 	Content string `json:"content"`
 }
 
+// TopicCommentActivityData is the rich-card payload for TOPIC_COMMENT_CREATION —
+// a comment on a reply. Shaped like the reply card: the comment body is in
+// ActivityItem.Content; QuotedReply is the reply being commented on (被评论的评论);
+// TopicTitle anchors it at the bottom.
+type TopicCommentActivityData struct {
+	TopicTitle  string       `json:"topicTitle"`
+	QuotedReply *QuotedReply `json:"quotedReply,omitempty"`
+}
+
 // GalgameActivityData is the rich-card payload for galgame-scoped activity
 // (creation / edit / PR / comment / rating / resource): the galgame's name +
 // cover + a little metadata, all pulled from the wiki brief already fetched
@@ -151,6 +160,28 @@ type GalgameActivityData struct {
 	FavoriteCount int `json:"favoriteCount,omitempty"`
 	// Rating is only set for GALGAME_RATING_CREATION (the rating card).
 	Rating *RatingInfo `json:"rating,omitempty"`
+	// ParentComment is the comment being replied to — only for
+	// GALGAME_COMMENT_CREATION rows that have a parent (被评论的评论).
+	ParentComment *CommentContext `json:"parentComment,omitempty"`
+	// Resource is the published resource's spec — only for
+	// GALGAME_RESOURCE_CREATION (download link / codes deliberately omitted).
+	Resource *GalgameResourceDetails `json:"resource,omitempty"`
+}
+
+// CommentContext is a minimal preview of a parent comment (被评论的评论).
+type CommentContext struct {
+	Content string `json:"content"`
+}
+
+// GalgameResourceDetails is the published resource's spec for its feed card —
+// everything EXCEPT the download link / 提取码 / 解压码.
+type GalgameResourceDetails struct {
+	Type      string `json:"type"`
+	Language  string `json:"language"`
+	Platform  string `json:"platform"`
+	Size      string `json:"size"`
+	Note      string `json:"note"`
+	LikeCount int    `json:"likeCount"`
 }
 
 // RatingInfo is the GALGAME_RATING_CREATION rich-card payload — the galgame name

@@ -16,6 +16,12 @@ const detailLink = computed(() =>
 <template>
   <ActivityCardShell :actor="activity.actor" :timestamp="activity.timestamp">
     <div class="space-y-1.5">
+      <!-- The comment being commented on (被评论的评论). -->
+      <ActivityCardQuote
+        v-if="data?.parentComment"
+        :content="data.parentComment.content"
+      />
+
       <p class="text-default-700 text-sm break-all whitespace-pre-wrap">
         {{ markdownToText(activity.content) }}
       </p>

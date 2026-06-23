@@ -48,22 +48,35 @@ provide(
         underline="none"
         color="default"
         :to="activity.link"
-        class-name="group block space-y-2.5"
+        class-name="group block"
       >
-        <h3
-          class="group-hover:text-primary line-clamp-2 text-base font-medium break-all transition-colors"
-        >
-          {{ activity.content }}
-        </h3>
-
-        <p
-          v-if="data?.excerpt"
-          class="text-default-500 line-clamp-3 text-sm break-all"
-        >
-          {{ markdownToText(data.excerpt) }}
-        </p>
-
-        <TopicCoverGrid v-if="covers.length" :images="covers" />
+        <div :class="covers.length ? 'flex gap-3' : ''">
+          <!-- Cover on the LEFT, vertically centered, no background box. -->
+          <div
+            v-if="covers.length"
+            class="flex w-28 shrink-0 items-center sm:w-40"
+          >
+            <img
+              :src="imageTokenUrl(covers[0]!)"
+              alt="话题封面"
+              loading="lazy"
+              class="max-h-36 w-full rounded-lg object-contain"
+            />
+          </div>
+          <div class="min-w-0 flex-1 space-y-2">
+            <h3
+              class="group-hover:text-primary line-clamp-2 text-base font-medium break-all transition-colors"
+            >
+              {{ activity.content }}
+            </h3>
+            <p
+              v-if="data?.excerpt"
+              class="text-default-500 line-clamp-3 text-sm break-all"
+            >
+              {{ markdownToText(data.excerpt) }}
+            </p>
+          </div>
+        </div>
       </KunLink>
 
       <!-- Badges (NSFW / 有解答 / 投票 / 被推), then the section chips after them. -->
@@ -134,9 +147,9 @@ provide(
             underline="none"
             color="default"
             :to="activity.link"
-            class-name="hover:text-primary flex items-center gap-0.5"
+            class-name="text-default-500 hover:text-primary flex items-center gap-0.5 text-sm"
           >
-            查看更多
+            查看详情
             <KunIcon name="lucide:chevron-right" class="size-4" />
           </KunLink>
         </div>

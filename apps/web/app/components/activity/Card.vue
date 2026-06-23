@@ -6,12 +6,8 @@
 defineProps<{ activity: ActivityItem }>()
 
 // Galgame-scoped types that share the compact "references a galgame" card.
-// (GALGAME_EDIT, GALGAME_RATING_CREATION and GALGAME_COMMENT_CREATION have their
-// own richer cards.)
-const GALGAME_REF_TYPES = new Set([
-  'GALGAME_PR_CREATION',
-  'GALGAME_RESOURCE_CREATION'
-])
+// (GALGAME_EDIT / RATING / COMMENT / RESOURCE have their own richer cards.)
+const GALGAME_REF_TYPES = new Set(['GALGAME_PR_CREATION'])
 </script>
 
 <template>
@@ -37,6 +33,14 @@ const GALGAME_REF_TYPES = new Set([
   />
   <ActivityCardGalgameComment
     v-else-if="activity.type === 'GALGAME_COMMENT_CREATION' && activity.data"
+    :activity="activity"
+  />
+  <ActivityCardGalgameResource
+    v-else-if="activity.type === 'GALGAME_RESOURCE_CREATION' && activity.data"
+    :activity="activity"
+  />
+  <ActivityCardTopicComment
+    v-else-if="activity.type === 'TOPIC_COMMENT_CREATION' && activity.data"
     :activity="activity"
   />
   <ActivityCardGalgameRef

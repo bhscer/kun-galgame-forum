@@ -285,10 +285,141 @@ func decodeCursor(cursor string) *repository.Cursor {
 func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repository.ActivityRow, isSFW bool, tab string) []dto.ActivityItem {
 	items := rowsToItems(rows)
 	items = s.enrichGalgameItems(ctx, rows, items, isSFW, tab)
+	s.enrichGalgameCommentParents(items)
+	s.enrichGalgameResourceDetails(items)
 	s.enrichTopicItems(items)
+	s.enrichTopicCommentItems(ctx, items)
 	s.enrichReplyItems(ctx, items)
 	s.hydrateActors(ctx, items)
 	return items
+}
+
+// enrichTopicCommentItems attaches the owning topic title + the reply being
+// commented on (被评论的评论) to TOPIC_COMMENT_CREATION rows, so the card renders
+// like the reply card. The @/# tokens in both the comment body and the quoted
+// reply are resolved to readable text (same as the reply card).
+func (s *ActivityService) enrichTopicCommentItems(ctx context.Context, items []dto.ActivityItem) {
+	idToIdx := map[int][]int{}
+	for i, it := range items {
+		if it.Type == "TOPIC_COMMENT_CREATION" {
+			idToIdx[it.ID] = append(idToIdx[it.ID], i)
+		}
+	}
+	if len(idToIdx) == 0 {
+		return
+	}
+	ids := make([]int, 0, len(idToIdx))
+	for id := range idToIdx {
+		ids = append(ids, id)
+	}
+	ctxMap, err := s.repo.FetchTopicCommentContext(ids)
+	if err != nil {
+		return
+	}
+
+	// Resolve @-mentions across both the comment bodies and the quoted replies.
+	mentionSet := map[int]struct{}{}
+	for id, idxs := range idToIdx {
+		for _, mid := range collectReplyMentionIDs(items[idxs[0]].Content) {
+			mentionSet[mid] = struct{}{}
+		}
+		if c, ok := ctxMap[id]; ok {
+			for _, mid := range collectReplyMentionIDs(c.ReplyContent) {
+				mentionSet[mid] = struct{}{}
+			}
+		}
+	}
+	names := map[int]string{}
+	if len(mentionSet) > 0 {
+		mids := make([]int, 0, len(mentionSet))
+		for mid := range mentionSet {
+			mids = append(mids, mid)
+		}
+		for id, u := range s.userClient.Hydrate(ctx, mids) {
+			names[id] = u.Name
+		}
+	}
+
+	for id, idxs := range idToIdx {
+		c, ok := ctxMap[id]
+		if !ok {
+			continue
+		}
+		payload := dto.TopicCommentActivityData{
+			TopicTitle: c.TopicTitle,
+			QuotedReply: &dto.QuotedReply{
+				Floor:   c.ReplyFloor,
+				Content: renderReplyTokens(c.ReplyContent, names),
+			},
+		}
+		for _, i := range idxs {
+			items[i].Content = renderReplyTokens(items[i].Content, names)
+			items[i].Data = payload
+		}
+	}
+}
+
+// enrichGalgameCommentParents attaches the parent comment (被评论的评论) to
+// GALGAME_COMMENT_CREATION rows that have one, patching the galgame payload.
+func (s *ActivityService) enrichGalgameCommentParents(items []dto.ActivityItem) {
+	ids := []int{}
+	for _, it := range items {
+		if it.Type == "GALGAME_COMMENT_CREATION" {
+			ids = append(ids, it.ID)
+		}
+	}
+	parents, err := s.repo.FetchGalgameCommentParents(ids)
+	if err != nil || len(parents) == 0 {
+		return
+	}
+	for i := range items {
+		if items[i].Type != "GALGAME_COMMENT_CREATION" {
+			continue
+		}
+		content, ok := parents[items[i].ID]
+		if !ok {
+			continue
+		}
+		if ga, ok := items[i].Data.(dto.GalgameActivityData); ok {
+			ga.ParentComment = &dto.CommentContext{Content: content}
+			items[i].Data = ga
+		}
+	}
+}
+
+// enrichGalgameResourceDetails attaches the resource spec (no download link /
+// codes) to GALGAME_RESOURCE_CREATION rows, patching the galgame payload.
+func (s *ActivityService) enrichGalgameResourceDetails(items []dto.ActivityItem) {
+	ids := []int{}
+	for _, it := range items {
+		if it.Type == "GALGAME_RESOURCE_CREATION" {
+			ids = append(ids, it.ID)
+		}
+	}
+	details, err := s.repo.FetchGalgameResourceDetails(ids)
+	if err != nil {
+		return
+	}
+	for i := range items {
+		if items[i].Type != "GALGAME_RESOURCE_CREATION" {
+			continue
+		}
+		d, ok := details[items[i].ID]
+		if !ok {
+			continue
+		}
+		if ga, ok := items[i].Data.(dto.GalgameActivityData); ok {
+			ga.Resource = &dto.GalgameResourceDetails{
+				Type:      d.Type,
+				Language:  d.Language,
+				Platform:  d.Platform,
+				Size:      d.Size,
+				Note:      d.Note,
+				LikeCount: d.LikeCount,
+			}
+			items[i].Data = ga
+		}
+	}
 }
 
 // Reply content stores @-mentions and #-quotes as markdown links:
