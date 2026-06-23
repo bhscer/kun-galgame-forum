@@ -27,7 +27,9 @@ const {
 // query so toggling it re-fetches.
 const { showKUNGalgameNoResource } = storeToRefs(usePersistSettingsStore())
 
-const { data, status } = await useKunFetch<{
+const route = useRoute()
+
+const { data, status, refresh } = await useKunFetch<{
   galgames: GalgameCard[]
   total: number
 }>(`/galgame`, {
@@ -48,6 +50,18 @@ const { data, status } = await useKunFetch<{
     minRatingCount,
     minRating,
     showNoResource: showKUNGalgameNoResource
+  },
+  // Don't auto-refetch on every query-ref change: clicking a card navigates to
+  // /galgame/:id, which resets these URL-backed filters to their defaults and
+  // would otherwise fire a wasted default-params fetch right before unmount.
+  // Refetch manually instead, and ONLY while still on the list route.
+  watch: false
+})
+
+const listPath = route.path
+watch([() => route.fullPath, showKUNGalgameNoResource], () => {
+  if (route.path === listPath) {
+    refresh()
   }
 })
 </script>

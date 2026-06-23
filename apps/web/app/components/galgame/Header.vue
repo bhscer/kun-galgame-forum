@@ -133,12 +133,17 @@ const isRatingOpen = ref(false)
 
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-1">
-            <KunTooltip :text="`浏览量: ${galgame.view}`">
-              <KunChip size="md">
-                <KunIcon name="lucide:eye" />
-                <span>{{ formatNumber(galgame.view) }}</span>
-              </KunChip>
-            </KunTooltip>
+            <!-- View count: the same compact pill as 点赞 / 收藏 (KunReaction),
+                 but STATIC — action skin (no toggle), no animation, and
+                 pointer-events-none so it has no hover / click effect. -->
+            <KunReaction
+              :count="galgame.view"
+              :toggle="false"
+              icon="lucide:eye"
+              label="浏览量"
+              disable-animation
+              class="pointer-events-none"
+            />
 
             <GalgameLike
               :galgame-id="galgame.id"
