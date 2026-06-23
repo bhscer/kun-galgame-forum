@@ -71,6 +71,17 @@ var Sources = map[string]ActivitySource{
 			'/topic/' || t.topic_id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM topic_comment t`,
 	},
+	"TOPIC_UPVOTE": {
+		TypeStr: "TOPIC_UPVOTE",
+		// A user pushed (推) a topic. id = the upvote row id (unique per push, so
+		// the cursor + uniqueId don't collide when many users push one topic).
+		// content = the optional "why" one-liner; the card pulls the topic's
+		// title / excerpt / footer via topic_id during enrichment.
+		Query: `SELECT 'TOPIC_UPVOTE' AS type_str, t.id,
+			COALESCE(t.description, '') AS content,
+			'/topic/' || t.topic_id AS link, t.created, t.user_id, 0 AS galgame_id
+			FROM topic_upvote t`,
+	},
 	"GALGAME_CREATION": {
 		TypeStr: "GALGAME_CREATION",
 		// Local galgame table has no user_id (moved to wiki); actor is
@@ -270,6 +281,7 @@ func (r *ActivityRepository) GetSources(types []string) []ActivitySource {
 // batch loaders below. Excerpt is a server-truncated slice of the body.
 type TopicCardData struct {
 	ID            int                    `gorm:"column:id"`
+	Title         string                 `gorm:"column:title"`
 	Excerpt       string                 `gorm:"column:excerpt"`
 	CoverImages   topicModel.ImageTokens `gorm:"column:cover_images"`
 	View          int                    `gorm:"column:view"`
@@ -280,6 +292,7 @@ type TopicCardData struct {
 	IsNSFW        bool                   `gorm:"column:is_nsfw"`
 	UpvoteTime    *time.Time             `gorm:"column:upvote_time"`
 	BestAnswerID  *int                   `gorm:"column:best_answer_id"`
+	AuthorID      int                    `gorm:"column:user_id"`
 }
 
 // FetchTopicActivityData batch-loads the topic core row for the given ids (one
@@ -292,13 +305,34 @@ func (r *ActivityRepository) FetchTopicActivityData(ids []int) (map[int]TopicCar
 	}
 	var rows []TopicCardData
 	if err := r.db.Table("topic").
-		Select("id, SUBSTRING(content, 1, 300) AS excerpt, cover_images, view, like_count, favorite_count, reply_count, comment_count, is_nsfw, upvote_time, best_answer_id").
+		Select("id, title, user_id, SUBSTRING(content, 1, 300) AS excerpt, cover_images, view, like_count, favorite_count, reply_count, comment_count, is_nsfw, upvote_time, best_answer_id").
 		Where("id IN ?", ids).
 		Scan(&rows).Error; err != nil {
 		return out, err
 	}
 	for _, row := range rows {
 		out[row.ID] = row
+	}
+	return out, nil
+}
+
+// FetchUpvoteTopics maps each topic_upvote row id → its topic id, so the 推话题
+// card can pull the pushed topic's data via the topic enrichment. Empty → empty.
+func (r *ActivityRepository) FetchUpvoteTopics(upvoteIDs []int) (map[int]int, error) {
+	out := map[int]int{}
+	if len(upvoteIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID      int `gorm:"column:id"`
+		TopicID int `gorm:"column:topic_id"`
+	}
+	if err := r.db.Table("topic_upvote").Select("id, topic_id").
+		Where("id IN ?", upvoteIDs).Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row.TopicID
 	}
 	return out, nil
 }

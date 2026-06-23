@@ -69,7 +69,12 @@ type ActivityItem struct {
 // the stat row; the badge flags feed the shared TopicTagGroup; TopReply is the
 // most-liked reply (omitted when none).
 type TopicActivityData struct {
-	TopicID       int                  `json:"topicId"`
+	TopicID int `json:"topicId"`
+	// Title is the topic title. For TOPIC_CREATION the title is also in Content
+	// (the card uses that); the 推话题 (TOPIC_UPVOTE) card reads it here, since
+	// its Content carries the push description instead.
+	Title         string               `json:"title,omitempty"`
+	AuthorID      int                  `json:"authorId,omitempty"`
 	Excerpt       string               `json:"excerpt"`
 	Sections      []string             `json:"sections"`
 	CoverImages   []string             `json:"coverImages"`

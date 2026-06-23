@@ -128,9 +128,12 @@ func (TopicDislike) TableName() string { return "topic_dislike" }
 
 // TopicUpvote allows duplicate upvotes (no unique constraint).
 type TopicUpvote struct {
-	ID      int `gorm:"primaryKey;autoIncrement" json:"id"`
-	TopicID int `gorm:"column:topic_id;not null" json:"topic_id"`
-	UserID  int `gorm:"column:user_id;not null" json:"user_id"`
+	ID      int    `gorm:"primaryKey;autoIncrement" json:"id"`
+	TopicID int    `gorm:"column:topic_id;not null" json:"topic_id"`
+	UserID  int    `gorm:"column:user_id;not null" json:"user_id"`
+	// Description: the optional "why I pushed it" one-liner (<=30 chars, '' when
+	// omitted), shown on the 推话题 activity card.
+	Description string `gorm:"column:description;default:''" json:"description"`
 
 	CreatedAt time.Time `gorm:"column:created" json:"created"`
 	UpdatedAt time.Time `gorm:"column:updated" json:"updated"`

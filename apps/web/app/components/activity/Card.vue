@@ -11,6 +11,10 @@ defineProps<{ activity: ActivityItem }>()
     v-if="activity.type === 'TOPIC_CREATION' && activity.data"
     :activity="activity"
   />
+  <ActivityCardTopicUpvote
+    v-else-if="activity.type === 'TOPIC_UPVOTE' && activity.data"
+    :activity="activity"
+  />
   <ActivityCardReply
     v-else-if="activity.type === 'TOPIC_REPLY_CREATION'"
     :activity="activity"

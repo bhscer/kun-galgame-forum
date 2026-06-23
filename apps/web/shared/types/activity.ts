@@ -14,6 +14,7 @@ export type ActivityEventType =
   | 'TOPIC_CREATION'
   | 'TOPIC_REPLY_CREATION'
   | 'TOPIC_COMMENT_CREATION'
+  | 'TOPIC_UPVOTE'
   | 'TODO_CREATION'
   | 'UPDATE_LOG_CREATION'
   | 'MESSAGE_UPVOTE'
@@ -30,6 +31,12 @@ export interface ActivityTopReply {
 // lives in `content`; this carries the extras the topic feed card shows.
 export interface TopicActivityData {
   topicId: number
+  // The 推话题 (TOPIC_UPVOTE) card reads the title here (its `content` carries the
+  // push description); TOPIC_CREATION uses `content` for the title.
+  title?: string
+  // The topic author's id (reaction target on the 推话题 card, whose actor is the
+  // pusher, not the author).
+  authorId?: number
   excerpt: string
   sections: string[]
   coverImages: string[]

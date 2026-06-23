@@ -253,9 +253,10 @@ func (r *TopicRepository) UserTopicInteractions(userID int) ([]int, map[int][]st
 	return favorited, reactions, nil
 }
 
-// CreateTopicUpvote inserts a TopicUpvote row (duplicates allowed).
-func (r *TopicRepository) CreateTopicUpvote(tx *gorm.DB, userID, topicID int) error {
-	return tx.Create(&model.TopicUpvote{UserID: userID, TopicID: topicID}).Error
+// CreateTopicUpvote inserts a TopicUpvote row (duplicates allowed). description
+// is the optional "why I pushed it" one-liner ('' when omitted).
+func (r *TopicRepository) CreateTopicUpvote(tx *gorm.DB, userID, topicID int, description string) error {
+	return tx.Create(&model.TopicUpvote{UserID: userID, TopicID: topicID, Description: description}).Error
 }
 
 // AdjustLikeCount adjusts topic.like_count by delta.

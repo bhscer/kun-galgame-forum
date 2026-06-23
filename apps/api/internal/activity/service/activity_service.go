@@ -119,7 +119,9 @@ func (s *ActivityService) cacheResult(ctx context.Context, key string, result *R
 var homeTabTypes = map[string][]string{
 	"topic": {
 		"TOPIC_CREATION", "TOPIC_REPLY_CREATION", "TOPIC_COMMENT_CREATION",
-		"MESSAGE_UPVOTE", "MESSAGE_SOLUTION",
+		// TOPIC_UPVOTE (the rich 推话题 card) replaces MESSAGE_UPVOTE, which
+		// surfaced the same upvote via its notification row (1:1 → a duplicate).
+		"TOPIC_UPVOTE", "MESSAGE_SOLUTION",
 	},
 	"galgame": {
 		"GALGAME_CREATION", "GALGAME_EDIT", "GALGAME_PR_CREATION",
@@ -617,6 +619,28 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 			idToIdx[it.ID] = append(idToIdx[it.ID], i)
 		}
 	}
+	// 推话题 (TOPIC_UPVOTE) cards reuse this enrichment: resolve each upvote row
+	// id → its topic id, then map that topic id to the upvote item(s) too. The
+	// upvote card reads payload.Title (its Content carries the push description).
+	upvoteIdx := map[int][]int{}
+	for i, it := range items {
+		if it.Type == "TOPIC_UPVOTE" {
+			upvoteIdx[it.ID] = append(upvoteIdx[it.ID], i)
+		}
+	}
+	if len(upvoteIdx) > 0 {
+		upvoteIDs := make([]int, 0, len(upvoteIdx))
+		for id := range upvoteIdx {
+			upvoteIDs = append(upvoteIDs, id)
+		}
+		if topicByUpvote, err := s.repo.FetchUpvoteTopics(upvoteIDs); err == nil {
+			for upvoteID, idxs := range upvoteIdx {
+				if tid := topicByUpvote[upvoteID]; tid > 0 {
+					idToIdx[tid] = append(idToIdx[tid], idxs...)
+				}
+			}
+		}
+	}
 	if len(idToIdx) == 0 {
 		return
 	}
@@ -710,6 +734,8 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 		}
 		payload := dto.TopicActivityData{
 			TopicID:       id,
+			Title:         c.Title,
+			AuthorID:      c.AuthorID,
 			Excerpt:       c.Excerpt,
 			Sections:      sec,
 			CoverImages:   covers,

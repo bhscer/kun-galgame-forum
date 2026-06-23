@@ -440,7 +440,8 @@ func (s *TopicWriteService) clearTopicReaction(tx *gorm.DB, topicID, userID int,
 	return nil
 }
 
-func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int) *errors.AppError {
+func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int, description string) *errors.AppError {
+	description = truncate(description, 30)
 	err := s.topicRepo.DB().Transaction(func(tx *gorm.DB) error {
 		topic, err := s.topicRepo.FindByIDTx(tx, topicID)
 		if err != nil {
@@ -474,7 +475,7 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int) *er
 
 		now := time.Now()
 
-		if err := s.topicRepo.CreateTopicUpvote(tx, userID, topicID); err != nil {
+		if err := s.topicRepo.CreateTopicUpvote(tx, userID, topicID, description); err != nil {
 			return err
 		}
 		if err := s.topicRepo.ApplyUpvoteCountAndTime(tx, topicID, now); err != nil {
@@ -500,7 +501,7 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int) *er
 		return errors.ErrBadRequest("您已经推过该话题了")
 	}
 	if err == gorm.ErrCheckConstraintViolated {
-		return errors.ErrBadRequest("萌萌点不足, 推话题需要 20 萌萌点")
+		return errors.ErrBadRequest("萌萌点不足, 推话题需要 10 萌萌点")
 	}
 	if err != nil {
 		return errors.ErrInternal("操作失败")

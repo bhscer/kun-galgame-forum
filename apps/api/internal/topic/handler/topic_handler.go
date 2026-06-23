@@ -247,7 +247,14 @@ func (h *TopicHandler) Upvote(c *fiber.Ctx) error {
 		return response.Error(c, errors.ErrBadRequest("无效��话�� ID"))
 	}
 
-	if appErr := h.topicWriteService.Upvote(c.Context(), user.ID, tid); appErr != nil {
+	// Optional "why I pushed it" one-liner (<=30 chars, capped server-side);
+	// an absent / non-JSON body is fine — it just means no description.
+	var body struct {
+		Description string `json:"description"`
+	}
+	_ = c.BodyParser(&body)
+
+	if appErr := h.topicWriteService.Upvote(c.Context(), user.ID, tid, body.Description); appErr != nil {
 		return response.Error(c, appErr)
 	}
 
