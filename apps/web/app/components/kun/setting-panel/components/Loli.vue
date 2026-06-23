@@ -55,34 +55,40 @@ const canvasStyle = computed(() => {
   }
 })
 
-// The 5 webp layers are fetched + blob-encoded on demand; the FIRST load is slow
-// (cold cache), during which the stage was blank — so show a KunLoading until it
-// resolves. Clicking re-rolls a fresh random character through the same loader.
-const isLoading = ref(true)
+// The 5 webp layers are fetched + blob-encoded on demand. We DECODE all of them
+// before revealing, so head/eyes/brows/mouth/body paint together (no part-by-part
+// pop-in) — and nothing (no KunLoading) shows until they're ready. `ready` flips
+// true after the first successful load and stays true; a re-roll keeps the current
+// character on screen and swaps atomically once the new one is fully decoded, so
+// there's never a blank flash.
+const ready = ref(false)
+
+const decode = (src: string) => {
+  if (!src) return Promise.resolve()
+  const img = new Image()
+  img.src = src
+  return img.decode().catch(() => {})
+}
 
 const reroll = async () => {
-  isLoading.value = true
-  try {
-    loliData.value = await getLoli()
-  } finally {
-    isLoading.value = false
-  }
+  const data = await getLoli()
+  await Promise.all(
+    [data.body, data.eye, data.brow, data.mouth, data.face].map(decode)
+  )
+  loliData.value = data
+  ready.value = true
 }
 
 onMounted(reroll)
 </script>
 
 <template>
-  <div class="hidden shrink-0 sm:block">
-    <div
-      v-if="isLoading"
-      class="flex items-center justify-center"
-      :style="{ width: `${stageW}px`, height: `${stageH}px` }"
-    >
-      <KunLoading />
-    </div>
-
-    <KunTooltip v-else-if="loliData.body" text="点击换一个孩子" position="left">
+  <div
+    class="hidden shrink-0 sm:block"
+    :style="{ width: `${stageW}px`, height: `${stageH}px` }"
+  >
+    <!-- Nothing until every layer has decoded; then all parts paint at once. -->
+    <KunTooltip v-if="ready && loliData.body" text="点击换一个孩子" position="left">
       <div
         class="relative cursor-pointer overflow-hidden"
         :style="{ width: `${stageW}px`, height: `${stageH}px` }"

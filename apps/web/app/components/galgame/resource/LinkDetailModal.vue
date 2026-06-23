@@ -336,6 +336,17 @@ const handleEditDone = () => {
             />
           </div>
 
+          <KunInfo title="鲲的小请求">
+            <p>
+              在您下载这部 Galgame 并游玩之后, 可否请您在本网站的
+              <KunLink size="sm" :to="`/galgame/${resource.galgameId}`">
+                Galgame 评分页面
+              </KunLink>
+              为这部 Galgame 提交一个评分, 这将有助于我们把优秀的 Galgame
+              推荐给更多人, 谢谢您的支持
+            </p>
+          </KunInfo>
+
           <KunInfo color="danger" variant="bordered" title="补票提示">
             <p class="text-sm">
               Galgame 厂商制作游戏不易, 很多厂商如今都在炒冷饭,
