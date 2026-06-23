@@ -159,6 +159,26 @@ func (h *ReplyHandler) ToggleReplyDislike(c *fiber.Ctx) error {
 	return response.OKMessage(c, "操作成功")
 }
 
+// ToggleReplyReaction adds/removes a reaction (like/dislike/emoji) on a reply.
+// PUT /api/topic/:tid/reply/reaction
+func (h *ReplyHandler) ToggleReplyReaction(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	var req dto.ReplyReactionRequest
+	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	if appErr := h.replyService.ToggleReplyReaction(c.Context(), user.ID, req.ReplyID, req.Reaction); appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	return response.OKMessage(c, "操作成功")
+}
+
 // PinReply toggles pinning a reply.
 // PUT /api/topic/:tid/reply/pin
 func (h *ReplyHandler) PinReply(c *fiber.Ctx) error {

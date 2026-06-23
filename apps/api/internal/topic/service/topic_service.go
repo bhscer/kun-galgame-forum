@@ -252,6 +252,17 @@ func (s *TopicService) GetDetail(
 		Created:          topic.CreatedAt,
 	}
 
+	// Reactions: per-key counts + the viewer's own reactions + (for small counts)
+	// reactor avatars.
+	viewerID := 0
+	if userInfo != nil {
+		viewerID = userInfo.ID
+	}
+	rrows, _ := s.topicRepo.GetTopicReactions(topicID)
+	mineKeys, _ := s.topicRepo.GetUserTopicReactions(topicID, viewerID)
+	detail.Reactions = buildReactionSummaries(
+		rrows, mineKeys, s.userClient.Hydrate(ctx, reactionReactorIDs(rrows)))
+
 	// Hydrate best-answer summary (JSON-LD acceptedAnswer on FE side).
 	// Identity comes from OAuth via userClient — same path as the topic
 	// author. Errors are tolerated: a broken best-answer reply must not

@@ -178,6 +178,31 @@ func (h *TopicHandler) ToggleLike(c *fiber.Ctx) error {
 	return response.OKMessage(c, "操作成功")
 }
 
+// ToggleReaction adds/removes a reaction (like/dislike/emoji) on a topic.
+// PUT /api/topic/:tid/reaction
+func (h *TopicHandler) ToggleReaction(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	tid, err := strconv.Atoi(c.Params("tid"))
+	if err != nil {
+		return response.Error(c, errors.ErrBadRequest("无效的话题 ID"))
+	}
+
+	var req dto.ReactionRequest
+	if appErr := utils.ParseAndValidate(c, &req); appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	if appErr := h.topicWriteService.ToggleReaction(c.Context(), user.ID, tid, req.Reaction); appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	return response.OKMessage(c, "操作成功")
+}
+
 // ToggleDislike toggles dislike on a topic.
 // PUT /api/topic/:tid/dislike
 func (h *TopicHandler) ToggleDislike(c *fiber.Ctx) error {

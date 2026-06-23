@@ -93,11 +93,11 @@ func (r *ReplyRepository) FindRepliesByIDs(ids []int) ([]ReplyRow, error) {
 // ──────────────────────────────────────────
 
 func (r *ReplyRepository) FindReplyLikeStatus(userID int, replyIDs []int) (map[int]bool, error) {
-	return findInteractionStatus(r.db, "topic_reply_like", "topic_reply_id", userID, replyIDs)
+	return findReactionStatus(r.db, "topic_reply_reaction", "topic_reply_id", "like", userID, replyIDs)
 }
 
 func (r *ReplyRepository) FindReplyDislikeStatus(userID int, replyIDs []int) (map[int]bool, error) {
-	return findInteractionStatus(r.db, "topic_reply_dislike", "topic_reply_id", userID, replyIDs)
+	return findReactionStatus(r.db, "topic_reply_reaction", "topic_reply_id", "dislike", userID, replyIDs)
 }
 
 // findInteractionStatus is shared by both ReplyRepository and CommentRepository

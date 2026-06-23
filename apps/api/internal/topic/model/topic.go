@@ -196,6 +196,35 @@ type TopicReplyDislike struct {
 func (TopicReplyDislike) TableName() string { return "topic_reply_dislike" }
 
 // ──────────────────────────────────────────
+// Reactions (Telegram-style; unify like/dislike + emoji keys)
+// ──────────────────────────────────────────
+
+// TopicReaction is a reaction on a topic: 'like' / 'dislike' (effectful — like
+// grants the owner +1 moemoepoint) or an emoji key ('fire', 'heart', …). A user
+// may hold several different reactions on one topic; like⇄dislike mutual
+// exclusion is enforced in the service. Unique (topic_id, user_id, reaction).
+type TopicReaction struct {
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	TopicID   int       `gorm:"column:topic_id;not null" json:"topic_id"`
+	UserID    int       `gorm:"column:user_id;not null" json:"user_id"`
+	Reaction  string    `gorm:"column:reaction;not null" json:"reaction"`
+	CreatedAt time.Time `gorm:"column:created" json:"created"`
+}
+
+func (TopicReaction) TableName() string { return "topic_reaction" }
+
+// TopicReplyReaction is the reply-level counterpart of TopicReaction.
+type TopicReplyReaction struct {
+	ID           int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	TopicReplyID int       `gorm:"column:topic_reply_id;not null" json:"topic_reply_id"`
+	UserID       int       `gorm:"column:user_id;not null" json:"user_id"`
+	Reaction     string    `gorm:"column:reaction;not null" json:"reaction"`
+	CreatedAt    time.Time `gorm:"column:created" json:"created"`
+}
+
+func (TopicReplyReaction) TableName() string { return "topic_reply_reaction" }
+
+// ──────────────────────────────────────────
 // Comment (on replies)
 // ──────────────────────────────────────────
 

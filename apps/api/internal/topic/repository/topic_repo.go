@@ -67,13 +67,15 @@ func (r *TopicRepository) IncrementView(id int) error {
 
 func (r *TopicRepository) HasUserLiked(userID, topicID int) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.TopicLike{}).Where("user_id = ? AND topic_id = ?", userID, topicID).Count(&count).Error
+	err := r.db.Model(&model.TopicReaction{}).
+		Where("user_id = ? AND topic_id = ? AND reaction = 'like'", userID, topicID).Count(&count).Error
 	return count > 0, err
 }
 
 func (r *TopicRepository) HasUserDisliked(userID, topicID int) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.TopicDislike{}).Where("user_id = ? AND topic_id = ?", userID, topicID).Count(&count).Error
+	err := r.db.Model(&model.TopicReaction{}).
+		Where("user_id = ? AND topic_id = ? AND reaction = 'dislike'", userID, topicID).Count(&count).Error
 	return count > 0, err
 }
 

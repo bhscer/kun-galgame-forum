@@ -301,7 +301,35 @@ func (s *TopicWriteService) Update(
 // Interactions — all checks inside transaction
 // ──────────────────────────────────────────
 
+// reactionKeys is the allowlist of valid reaction keys: the two effectful ones
+// (like/dislike) + the emoji set (kept in sync with the FE picker / 16 assets).
+var reactionKeys = map[string]bool{
+	"like": true, "dislike": true,
+	"heart": true, "fire": true, "party": true, "love": true,
+	"clap": true, "grin": true, "thinking": true, "mindblown": true,
+	"scream": true, "cry": true, "pray": true, "eyes": true,
+	"hundred": true, "rofl": true, "partyface": true, "hearteyes": true,
+}
+
+// ToggleLike / ToggleDislike are kept as thin aliases (the legacy endpoints still
+// call them) — both now route through the unified reaction path.
 func (s *TopicWriteService) ToggleLike(ctx context.Context, userID, topicID int) *errors.AppError {
+	return s.ToggleReaction(ctx, userID, topicID, "like")
+}
+
+func (s *TopicWriteService) ToggleDislike(ctx context.Context, userID, topicID int) *errors.AppError {
+	return s.ToggleReaction(ctx, userID, topicID, "dislike")
+}
+
+// ToggleReaction adds/removes a reaction on a topic. like/dislike are effectful
+// (like → ±1 moemoepoint to the owner + a "liked" notification) and mutually
+// exclusive; emoji reactions are plain. Only 'like' is blocked on one's own
+// topic (it grants the owner moemoepoint). like/dislike counts stay denormalized
+// on the topic row.
+func (s *TopicWriteService) ToggleReaction(ctx context.Context, userID, topicID int, reaction string) *errors.AppError {
+	if !reactionKeys[reaction] {
+		return errors.ErrBadRequest("无效的 reaction")
+	}
 	err := s.topicRepo.DB().Transaction(func(tx *gorm.DB) error {
 		topic, err := s.topicRepo.FindByIDTx(tx, topicID)
 		if err != nil {
@@ -310,14 +338,39 @@ func (s *TopicWriteService) ToggleLike(ctx context.Context, userID, topicID int)
 		if topic.Status == 1 {
 			return gorm.ErrRecordNotFound
 		}
-		if topic.UserID == userID {
+		if reaction == "like" && topic.UserID == userID {
 			return gorm.ErrInvalidData
 		}
 
-		existing, findErr := s.topicRepo.FindTopicLike(tx, userID, topicID)
+		has, err := s.topicRepo.HasReaction(tx, topicID, userID, reaction)
+		if err != nil {
+			return err
+		}
+		if has {
+			if err := s.topicRepo.RemoveReaction(tx, topicID, userID, reaction); err != nil {
+				return err
+			}
+			switch reaction {
+			case "like":
+				if err := s.topicRepo.AdjustLikeCount(tx, topicID, -1); err != nil {
+					return err
+				}
+				s.helpers.AdjustMoemoepoint(tx, topic.UserID, -1,
+					moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
+			case "dislike":
+				if err := s.topicRepo.AdjustDislikeCount(tx, topicID, -1); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 
-		if findErr == gorm.ErrRecordNotFound {
-			if err := s.topicRepo.CreateTopicLike(tx, userID, topicID); err != nil {
+		switch reaction {
+		case "like":
+			if err := s.clearTopicReaction(tx, topicID, userID, "dislike", topic.UserID); err != nil {
+				return err
+			}
+			if err := s.topicRepo.AddReaction(tx, topicID, userID, "like"); err != nil {
 				return err
 			}
 			if err := s.topicRepo.AdjustLikeCount(tx, topicID, 1); err != nil {
@@ -327,64 +380,57 @@ func (s *TopicWriteService) ToggleLike(ctx context.Context, userID, topicID int)
 				moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
 			s.helpers.CreateTopicMessageWithContent(tx, userID, topic.UserID, "liked",
 				truncate(topic.Title, constants.TextPreviewLength), topicID)
-		} else if findErr == nil {
-			if err := s.topicRepo.DeleteTopicLike(tx, existing); err != nil {
+		case "dislike":
+			if err := s.clearTopicReaction(tx, topicID, userID, "like", topic.UserID); err != nil {
 				return err
 			}
-			if err := s.topicRepo.AdjustLikeCount(tx, topicID, -1); err != nil {
+			if err := s.topicRepo.AddReaction(tx, topicID, userID, "dislike"); err != nil {
 				return err
 			}
-			s.helpers.AdjustMoemoepoint(tx, topic.UserID, -1,
-				moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
-		} else {
-			return findErr
+			if err := s.topicRepo.AdjustDislikeCount(tx, topicID, 1); err != nil {
+				return err
+			}
+		default:
+			if err := s.topicRepo.AddReaction(tx, topicID, userID, reaction); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
 
-	if err == gorm.ErrRecordNotFound {
+	switch err {
+	case nil:
+		return nil
+	case gorm.ErrRecordNotFound:
 		return errors.ErrNotFound("未找到该话题")
-	}
-	if err == gorm.ErrInvalidData {
+	case gorm.ErrInvalidData:
 		return errors.ErrBadRequest("您不能给自己点赞")
-	}
-	if err != nil {
+	default:
 		return errors.ErrInternal("操作失败")
 	}
-	return nil
 }
 
-func (s *TopicWriteService) ToggleDislike(ctx context.Context, userID, topicID int) *errors.AppError {
-	err := s.topicRepo.DB().Transaction(func(tx *gorm.DB) error {
-		topic, err := s.topicRepo.FindByIDTx(tx, topicID)
-		if err != nil {
+// clearTopicReaction removes the user's `reaction` if present (for like⇄dislike
+// exclusion), reversing the like count + moemoepoint when it was a 'like'.
+func (s *TopicWriteService) clearTopicReaction(tx *gorm.DB, topicID, userID int, reaction string, ownerID int) error {
+	has, err := s.topicRepo.HasReaction(tx, topicID, userID, reaction)
+	if err != nil || !has {
+		return err
+	}
+	if err := s.topicRepo.RemoveReaction(tx, topicID, userID, reaction); err != nil {
+		return err
+	}
+	switch reaction {
+	case "like":
+		if err := s.topicRepo.AdjustLikeCount(tx, topicID, -1); err != nil {
 			return err
 		}
-		if topic.Status == 1 {
-			return gorm.ErrRecordNotFound
+		s.helpers.AdjustMoemoepoint(tx, ownerID, -1,
+			moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
+	case "dislike":
+		if err := s.topicRepo.AdjustDislikeCount(tx, topicID, -1); err != nil {
+			return err
 		}
-
-		existing, findErr := s.topicRepo.FindTopicDislike(tx, userID, topicID)
-
-		if findErr == gorm.ErrRecordNotFound {
-			if err := s.topicRepo.CreateTopicDislike(tx, userID, topicID); err != nil {
-				return err
-			}
-			return s.topicRepo.AdjustDislikeCount(tx, topicID, 1)
-		} else if findErr == nil {
-			if err := s.topicRepo.DeleteTopicDislike(tx, existing); err != nil {
-				return err
-			}
-			return s.topicRepo.AdjustDislikeCount(tx, topicID, -1)
-		}
-		return findErr
-	})
-
-	if err == gorm.ErrRecordNotFound {
-		return errors.ErrNotFound("未找到该话题")
-	}
-	if err != nil {
-		return errors.ErrInternal("操作失败")
 	}
 	return nil
 }

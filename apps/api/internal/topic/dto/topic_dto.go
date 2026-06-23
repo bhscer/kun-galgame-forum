@@ -54,6 +54,16 @@ type TopicCard struct {
 // Topic detail
 // ──────────────────────────────────────────
 
+// ReactionSummary is one reaction key on a topic/reply: total count, whether the
+// viewer reacted (`mine`), and — only when count < 5 — the reactors, so the FE
+// shows avatars for small counts and just the emoji+count for large ones.
+type ReactionSummary struct {
+	Reaction string    `json:"reaction"`
+	Count    int       `json:"count"`
+	Mine     bool      `json:"mine"`
+	Reactors []KunUser `json:"reactors,omitempty"`
+}
+
 type TopicDetail struct {
 	ID               int                    `json:"id"`
 	Title            string                 `json:"title"`
@@ -75,6 +85,7 @@ type TopicDetail struct {
 	IsFavorited      bool                   `json:"isFavorited"`
 	UpvoteCount      int                    `json:"upvoteCount"`
 	IsUpvoted        bool                   `json:"isUpvoted"`
+	Reactions        []ReactionSummary      `json:"reactions"`
 	ReplyCount       int                    `json:"replyCount"`
 	IsPollTopic      bool                   `json:"isPollTopic"`
 	StatusUpdateTime time.Time              `json:"statusUpdateTime"`

@@ -31,6 +31,17 @@ type ReplyInteractionRequest struct {
 	ReplyID int `json:"replyId" validate:"required,min=1"`
 }
 
+// ReactionRequest is the body for PUT /topic/:tid/reaction.
+type ReactionRequest struct {
+	Reaction string `json:"reaction" validate:"required"`
+}
+
+// ReplyReactionRequest is the body for PUT /topic/:tid/reply/reaction.
+type ReplyReactionRequest struct {
+	ReplyID  int    `json:"replyId" validate:"required,min=1"`
+	Reaction string `json:"reaction" validate:"required"`
+}
+
 type BestAnswerRequest struct {
 	TopicID int `json:"topicId" validate:"required,min=1"`
 	ReplyID int `json:"replyId" validate:"required,min=1"`
@@ -57,6 +68,7 @@ type TopicReplyResponse struct {
 	IsLiked         bool                   `json:"isLiked"`
 	DislikeCount    int                    `json:"dislikeCount"`
 	IsDisliked      bool                   `json:"isDisliked"`
+	Reactions       []ReactionSummary      `json:"reactions"`
 	Comments        []TopicCommentResponse `json:"comment"`
 	IsPinned        bool                   `json:"isPinned"`
 	IsBestAnswer    bool                   `json:"isBestAnswer"`

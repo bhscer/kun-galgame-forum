@@ -138,12 +138,15 @@ func (s *ReplyService) buildReplyResponses(
 	}
 
 	commentMap, _ := s.commentRepo.FindCommentsByReplyIDs(replyIDs)
+	reactionRows, _ := s.replyRepo.GetRepliesReactions(replyIDs)
 
 	var likeMap, dislikeMap map[int]bool
 	var commentLikeMap map[int]bool
+	var mineReactions map[int][]string
 	if userInfo != nil {
 		likeMap, _ = s.replyRepo.FindReplyLikeStatus(userInfo.ID, replyIDs)
 		dislikeMap, _ = s.replyRepo.FindReplyDislikeStatus(userInfo.ID, replyIDs)
+		mineReactions, _ = s.replyRepo.GetUserRepliesReactions(replyIDs, userInfo.ID)
 
 		var commentIDs []int
 		for _, comments := range commentMap {
@@ -171,6 +174,9 @@ func (s *ReplyService) buildReplyResponses(
 			}
 		}
 	}
+	for _, id := range replyReactorIDs(reactionRows) {
+		uidSet[id] = struct{}{}
+	}
 	uids := make([]int, 0, len(uidSet))
 	for id := range uidSet {
 		if id > 0 {
@@ -178,6 +184,7 @@ func (s *ReplyService) buildReplyResponses(
 		}
 	}
 	userMap := s.userClient.Hydrate(ctx, uids)
+	repliesReactions := buildRepliesReactions(reactionRows, mineReactions, userMap)
 
 	// moemoepoint comes from kungal_user_state, not OAuth.
 	moeMap := make(map[int]int, len(rows))
@@ -258,6 +265,7 @@ func (s *ReplyService) buildReplyResponses(
 			IsLiked:         likeMap[r.ID],
 			DislikeCount:    r.DislikeCount,
 			IsDisliked:      dislikeMap[r.ID],
+			Reactions:       repliesReactions[r.ID],
 			Comments:        comments,
 			IsPinned:        isPinned,
 			IsBestAnswer:    isBestAnswer,

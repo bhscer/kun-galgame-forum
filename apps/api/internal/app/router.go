@@ -243,6 +243,7 @@ func (a *App) setupRoutes() {
 	authed.Put("/topic/:tid/dislike", a.TopicHandler.ToggleDislike)
 	authed.Put("/topic/:tid/upvote", a.TopicHandler.Upvote)
 	authed.Put("/topic/:tid/favorite", a.TopicHandler.ToggleFavorite)
+	authed.Put("/topic/:tid/reaction", a.TopicHandler.ToggleReaction)
 	authed.Put("/topic/:tid/hide", a.TopicHandler.ToggleHide)
 	authed.Put("/topic/:tid/best-answer", a.TopicHandler.SetBestAnswer)
 
@@ -252,6 +253,7 @@ func (a *App) setupRoutes() {
 	authed.Delete("/topic/:tid/reply", a.ReplyHandler.DeleteReply)
 	authed.Put("/topic/:tid/reply/like", a.ReplyHandler.ToggleReplyLike)
 	authed.Put("/topic/:tid/reply/dislike", a.ReplyHandler.ToggleReplyDislike)
+	authed.Put("/topic/:tid/reply/reaction", a.ReplyHandler.ToggleReplyReaction)
 	authed.Put("/topic/:tid/reply/pin", a.ReplyHandler.PinReply)
 
 	// Comment (authenticated)

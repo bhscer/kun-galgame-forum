@@ -171,8 +171,8 @@ func (r *UserContentRepository) FindUserTopics(userID int, queryType string, pag
 		baseQuery = baseQuery.Where("topic.user_id = ?", userID)
 	case "topic_like":
 		baseQuery = baseQuery.
-			Joins("JOIN topic_like ON topic_like.topic_id = topic.id").
-			Where("topic_like.user_id = ?", userID)
+			Joins("JOIN topic_reaction ON topic_reaction.topic_id = topic.id AND topic_reaction.reaction = 'like'").
+			Where("topic_reaction.user_id = ?", userID)
 	case "topic_upvote":
 		baseQuery = baseQuery.
 			Joins("JOIN topic_upvote ON topic_upvote.topic_id = topic.id").
@@ -231,8 +231,8 @@ func (r *UserContentRepository) FindUserReplies(userID int, queryType string, pa
 			Where("topic_reply.topic_id IN (SELECT id FROM topic WHERE user_id = ?) AND topic_reply.user_id != ?", userID, userID)
 	case "reply_like":
 		baseQuery = baseQuery.
-			Joins("JOIN topic_reply_like ON topic_reply_like.topic_reply_id = topic_reply.id").
-			Where("topic_reply_like.user_id = ?", userID)
+			Joins("JOIN topic_reply_reaction ON topic_reply_reaction.topic_reply_id = topic_reply.id AND topic_reply_reaction.reaction = 'like'").
+			Where("topic_reply_reaction.user_id = ?", userID)
 	default: // reply_created
 		baseQuery = baseQuery.Where("topic_reply.user_id = ?", userID)
 	}

@@ -35,8 +35,8 @@ func (r *UserStatsRepository) GetUserStats(userID int) (*model.UserStats, error)
 			(SELECT COUNT(*) FROM galgame_website WHERE user_id = @userID) AS galgame_toolset,
 			(SELECT COUNT(*) FROM galgame_toolset_resource WHERE user_id = @userID) AS galgame_toolset_resource,
 			(SELECT COUNT(*) FROM topic_upvote WHERE topic_id IN (SELECT id FROM topic WHERE user_id = @userID)) AS upvote,
-			(SELECT COUNT(*) FROM topic_like WHERE topic_id IN (SELECT id FROM topic WHERE user_id = @userID)) AS "like",
-			(SELECT COUNT(*) FROM topic_dislike WHERE topic_id IN (SELECT id FROM topic WHERE user_id = @userID)) AS dislike,
+			(SELECT COUNT(*) FROM topic_reaction WHERE reaction = 'like' AND topic_id IN (SELECT id FROM topic WHERE user_id = @userID)) AS "like",
+			(SELECT COUNT(*) FROM topic_reaction WHERE reaction = 'dislike' AND topic_id IN (SELECT id FROM topic WHERE user_id = @userID)) AS dislike,
 			(SELECT COUNT(*) FROM topic WHERE user_id = @userID AND created >= CURRENT_DATE) AS daily_topic_count
 	`, map[string]any{"userID": userID}).Scan(&stats).Error
 	return &stats, err
