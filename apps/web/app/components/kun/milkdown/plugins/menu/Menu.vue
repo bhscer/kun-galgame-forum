@@ -113,7 +113,9 @@ const insertTabItems = [
       <!-- One merged popover for stickers + emoji. Emoji icon as the trigger; a
            贴纸/表情 tab switches the body (tab hidden when images are disallowed,
            leaving 表情 only). -->
-      <KunPopover opaque inner-class="-left-28">
+      <!-- kun-ui 2.3 auto-positions (flip/shift/size-cap) by default, so the old
+           manual `-left-28` nudge is gone — the panel now fits the edge on its own. -->
+      <KunPopover opaque>
         <template #trigger>
           <KunButton variant="light" class-name="text-xl" :is-icon-only="true">
             <KunIcon class="text-foreground" name="lucide:smile-plus" />
