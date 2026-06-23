@@ -2,9 +2,14 @@ package model
 
 // GalgameListFilter is the parameter bundle for the galgame list repository.
 type GalgameListFilter struct {
-	Type                 string
-	Language             string
-	Platform             string
+	Type     string
+	Language string
+	Platform string
+	// GameType filters by the work type that raters assigned in galgame_rating
+	// (JSONB array galgame_type, e.g. ["ba_saku","moe"]): a galgame matches if ANY
+	// of its ratings carries the tag. "uncategorized" = no rating tagged it;
+	// "" / "all" = no filter.
+	GameType             string
 	SortField            string
 	SortOrder            string
 	IncludeProviders     []string

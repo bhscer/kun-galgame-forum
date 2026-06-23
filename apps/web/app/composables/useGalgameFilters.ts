@@ -48,6 +48,9 @@ export const useGalgameFilters = () => {
     'all',
     opts
   )
+  // 作品类型 — the rating-derived work type (ba_saku/plot/moe/daily), plus
+  // 'uncategorized' (no rating tagged the game). 'all' = no filter (URL-omitted).
+  const gameType = useRouteQuery<string>('gameType', 'all', opts)
   const sortField = useRouteQuery<SortField>('sortField', 'time', opts)
   const sortOrder = useRouteQuery<KunOrder>('sortOrder', 'desc', opts)
 
@@ -91,6 +94,7 @@ export const useGalgameFilters = () => {
     type,
     language,
     platform,
+    gameType,
     sortField,
     sortOrder,
     releasedFrom,

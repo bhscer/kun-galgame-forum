@@ -20,6 +20,7 @@ type GalgameListRequest struct {
 	Type                 string `query:"type"`
 	Language             string `query:"language"`
 	Platform             string `query:"platform"`
+	GameType             string `query:"gameType" validate:"omitempty,oneof=all ba_saku plot moe daily uncategorized"`
 	SortField            string `query:"sortField"`
 	SortOrder            string `query:"sortOrder" validate:"omitempty,oneof=asc desc"`
 	IncludeProviders     string `query:"includeProviders"`
@@ -80,23 +81,23 @@ type GalgameScreenshot struct {
 // GalgameListCard matches the existing frontend card used on galgame listings.
 // Note: platform/language are denormalised from galgame_resource.
 type GalgameListCard struct {
-	ID                 int         `json:"id"`
-	Name               KunLanguage `json:"name"`
-	Banner             string      `json:"banner"`
-	User               UserBrief   `json:"user"`
-	ContentLimit       string      `json:"contentLimit"`
-	View               int         `json:"view"`
-	LikeCount          int         `json:"likeCount"`
+	ID           int         `json:"id"`
+	Name         KunLanguage `json:"name"`
+	Banner       string      `json:"banner"`
+	User         UserBrief   `json:"user"`
+	ContentLimit string      `json:"contentLimit"`
+	View         int         `json:"view"`
+	LikeCount    int         `json:"likeCount"`
 	// Bayesian-smoothed display rating + raw vote count. ratingCount 0 =
 	// unrated → FE omits the rating badge (rating would otherwise be 0).
-	Rating             float64     `json:"rating"`
-	RatingCount        int         `json:"ratingCount"`
-	ResourceUpdateTime string      `json:"resourceUpdateTime"`
-	Platform           []string    `json:"platform"`
-	Language           []string    `json:"language"`
+	Rating             float64  `json:"rating"`
+	RatingCount        int      `json:"ratingCount"`
+	ResourceUpdateTime string   `json:"resourceUpdateTime"`
+	Platform           []string `json:"platform"`
+	Language           []string `json:"language"`
 	// U1: nil = unknown; cards may sort/filter by release date when set.
-	ReleaseDate        *string     `json:"releaseDate"`
-	ReleaseDateTBA     bool        `json:"releaseDateTBA"`
+	ReleaseDate    *string `json:"releaseDate"`
+	ReleaseDateTBA bool    `json:"releaseDateTBA"`
 	// U2: list cards only need the derived banner. Full covers[] /
 	// screenshots[] are detail-only. URL injected by rewriteBanners.
 	// banner_image_hash retired in wiki PR5 (K-PR6).
@@ -190,22 +191,22 @@ type GalgameDetailRating struct {
 
 // GalgameDetail is the full response for GET /galgame/:gid.
 type GalgameDetail struct {
-	ID                 int                     `json:"id"`
-	VndbID             string                  `json:"vndbId"`
-	User               UserBrief               `json:"user"`
-	Name               KunLanguage             `json:"name"`
-	Banner             string                  `json:"banner"`
-	Introduction       KunLanguage             `json:"introduction"`
-	Markdown           KunLanguage             `json:"markdown"`
-	ContentLimit       string                  `json:"contentLimit"`
-	ResourceUpdateTime string                  `json:"resourceUpdateTime"`
-	View               int                     `json:"view"`
-	OriginalLanguage   string                  `json:"originalLanguage"`
-	AgeLimit           string                  `json:"ageLimit"`
+	ID                 int         `json:"id"`
+	VndbID             string      `json:"vndbId"`
+	User               UserBrief   `json:"user"`
+	Name               KunLanguage `json:"name"`
+	Banner             string      `json:"banner"`
+	Introduction       KunLanguage `json:"introduction"`
+	Markdown           KunLanguage `json:"markdown"`
+	ContentLimit       string      `json:"contentLimit"`
+	ResourceUpdateTime string      `json:"resourceUpdateTime"`
+	View               int         `json:"view"`
+	OriginalLanguage   string      `json:"originalLanguage"`
+	AgeLimit           string      `json:"ageLimit"`
 	// U1 (release_date / release_date_tba): nil = unknown; TBA is
 	// independent of the date (a TBA entry may still carry "预计 Y/M").
-	ReleaseDate        *string                 `json:"releaseDate"`
-	ReleaseDateTBA     bool                    `json:"releaseDateTBA"`
+	ReleaseDate    *string `json:"releaseDate"`
+	ReleaseDateTBA bool    `json:"releaseDateTBA"`
 	// U2: derived effective banner (sort_order=0 cover). URL is injected
 	// by client.rewriteBanners so the FE never has to hash → URL on its
 	// own. covers/screenshots also receive a `cdn_url` per row from the
@@ -215,20 +216,20 @@ type GalgameDetail struct {
 	EffectiveBannerURL  string                  `json:"effective_banner_url,omitempty"`
 	Covers              []GalgameCover          `json:"covers"`
 	Screenshots         []GalgameScreenshot     `json:"screenshots"`
-	Platform           []string                `json:"platform"`
-	Language           []string                `json:"language"`
-	Type               []string                `json:"type"`
-	Contributor        []UserBrief             `json:"contributor"`
-	LikeCount          int                     `json:"likeCount"`
-	IsLiked            bool                    `json:"isLiked"`
-	FavoriteCount      int                     `json:"favoriteCount"`
-	IsFavorited        bool                    `json:"isFavorited"`
-	Alias              []string                `json:"alias"`
-	Series             *GalgameDetailSeries    `json:"series"`
-	Engine             []GalgameDetailEngine   `json:"engine"`
-	Official           []GalgameDetailOfficial `json:"official"`
-	Tag                []GalgameDetailTag      `json:"tag"`
-	Ratings            []GalgameDetailRating   `json:"ratings"`
-	Created            string                  `json:"created"`
-	Updated            string                  `json:"updated"`
+	Platform            []string                `json:"platform"`
+	Language            []string                `json:"language"`
+	Type                []string                `json:"type"`
+	Contributor         []UserBrief             `json:"contributor"`
+	LikeCount           int                     `json:"likeCount"`
+	IsLiked             bool                    `json:"isLiked"`
+	FavoriteCount       int                     `json:"favoriteCount"`
+	IsFavorited         bool                    `json:"isFavorited"`
+	Alias               []string                `json:"alias"`
+	Series              *GalgameDetailSeries    `json:"series"`
+	Engine              []GalgameDetailEngine   `json:"engine"`
+	Official            []GalgameDetailOfficial `json:"official"`
+	Tag                 []GalgameDetailTag      `json:"tag"`
+	Ratings             []GalgameDetailRating   `json:"ratings"`
+	Created             string                  `json:"created"`
+	Updated             string                  `json:"updated"`
 }

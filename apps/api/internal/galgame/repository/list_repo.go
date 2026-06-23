@@ -105,6 +105,7 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 				q = q.Joins(ratingAggJoin)
 			}
 			q = applyReleaseFilter(q, f)
+			q = applyGameTypeFilter(q, f)
 			if ratingFilter {
 				q = applyRatingFilter(q, f, bayes)
 			}
@@ -145,6 +146,7 @@ func (r *GalgameListRepository) ListIDs(f model.GalgameListFilter) (ids []int, t
 	}
 
 	inner = applyReleaseFilter(inner, f)
+	inner = applyGameTypeFilter(inner, f)
 	if f.Type != "" && f.Type != "all" {
 		inner = inner.Where("gr.type = ?", f.Type)
 	}
@@ -292,6 +294,26 @@ func applyReleaseFilter(q *gorm.DB, f model.GalgameListFilter) *gorm.DB {
 		q = q.Where("EXTRACT(MONTH FROM g.release_date)::int IN ?", f.ReleasedMonths)
 	}
 	return q
+}
+
+// applyGameTypeFilter narrows to galgames classified as a given WORK type by
+// their raters. The type lives in galgame_rating.galgame_type — a JSONB array of
+// tags like ["ba_saku","moe"]; a galgame matches a type if ANY of its ratings
+// carries that tag (`@> ?`, mirroring the rating-list filter). "uncategorized" =
+// no rating tagged the game at all (no non-empty type array). "" / "all" = no-op.
+// f.GameType is whitelisted at the DTO (oneof), so the JSON literal is safe.
+func applyGameTypeFilter(q *gorm.DB, f model.GalgameListFilter) *gorm.DB {
+	switch f.GameType {
+	case "", "all":
+		return q
+	case "uncategorized":
+		return q.Where("NOT EXISTS (SELECT 1 FROM galgame_rating grt WHERE grt.galgame_id = g.id AND grt.galgame_type <> '[]'::jsonb)")
+	default:
+		return q.Where(
+			"EXISTS (SELECT 1 FROM galgame_rating grt WHERE grt.galgame_id = g.id AND grt.galgame_type @> ?)",
+			"[\""+f.GameType+"\"]",
+		)
+	}
 }
 
 func hasResourceFilter(f model.GalgameListFilter) bool {

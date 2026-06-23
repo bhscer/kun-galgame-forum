@@ -11,6 +11,7 @@ import {
   PROVIDER_KEY_OPTIONS,
   type ProviderKey
 } from '~/constants/galgameResource'
+import { KUN_GALGAME_RATING_GAME_TYPE_MAP } from '~/constants/galgame-rating'
 import type {
   KunGalgameResourceTypeOptions,
   KunGalgameResourceLanguageOptions,
@@ -32,6 +33,7 @@ const {
   type,
   language,
   platform,
+  gameType,
   sortField,
   sortOrder,
   releasedFrom,
@@ -70,6 +72,7 @@ watch(
     type.value,
     language.value,
     platform.value,
+    gameType.value,
     sortField.value,
     sortOrder.value,
     releasedFrom.value,
@@ -188,6 +191,16 @@ const typeOptions = Object.entries(KUN_GALGAME_RESOURCE_TYPE_MAP)
   .filter(([k]) => k !== 'name')
   .map(([value, label]) => ({ value, label }))
 
+// 作品类型 (rating-derived): 全部 + the work types + 未分类.
+const gameTypeOptions = [
+  { value: 'all', label: '全部作品' },
+  ...Object.entries(KUN_GALGAME_RATING_GAME_TYPE_MAP).map(([value, label]) => ({
+    value,
+    label
+  })),
+  { value: 'uncategorized', label: '未分类' }
+]
+
 const langOptions = Object.entries(KUN_GALGAME_RESOURCE_LANGUAGE_MAP).map(
   ([value, label]) => ({ value, label })
 )
@@ -212,6 +225,7 @@ const hasActiveFilter = computed(
     type.value !== 'all' ||
     language.value !== 'all' ||
     platform.value !== 'all' ||
+    gameType.value !== 'all' ||
     sortField.value !== 'time' ||
     sortOrder.value !== 'desc' ||
     !!releasedFrom.value ||
@@ -240,6 +254,7 @@ const resetFilters = () => {
   type.value = 'all'
   language.value = 'all'
   platform.value = 'all'
+  gameType.value = 'all'
   sortField.value = 'time'
   sortOrder.value = 'desc'
   releasedFrom.value = ''
@@ -297,6 +312,23 @@ const resetFilters = () => {
             : 'text-default-600 hover:bg-default-100'
         "
         @click="platform = opt.value as KunGalgameResourcePlatformOptions"
+      >
+        {{ opt.label }}
+      </button>
+    </KunScrollShadow>
+
+    <!-- 作品类型 — from raters' galgame_type tags (see useGalgameFilters). -->
+    <KunScrollShadow>
+      <button
+        v-for="opt in gameTypeOptions"
+        :key="opt.value"
+        class="cursor-pointer rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors"
+        :class="
+          gameType === opt.value
+            ? 'bg-primary/15 text-primary font-medium'
+            : 'text-default-600 hover:bg-default-100'
+        "
+        @click="gameType = opt.value"
       >
         {{ opt.label }}
       </button>

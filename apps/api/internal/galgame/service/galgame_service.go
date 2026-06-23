@@ -582,6 +582,7 @@ func (s *GalgameService) GetList(
 		Type:                 req.Type,
 		Language:             req.Language,
 		Platform:             req.Platform,
+		GameType:             req.GameType,
 		SortField:            req.SortField,
 		SortOrder:            sortOrder,
 		IncludeProviders:     splitCSV(req.IncludeProviders),
