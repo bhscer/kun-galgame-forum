@@ -4,10 +4,6 @@
 // type renders fine until it gets a rich card). Add a branch here + a card under
 // ./card/ to enrich another type. All variants share the feed's spacing/chrome.
 defineProps<{ activity: ActivityItem }>()
-
-// Galgame-scoped types that share the compact "references a galgame" card.
-// (GALGAME_EDIT / RATING / COMMENT / RESOURCE have their own richer cards.)
-const GALGAME_REF_TYPES = new Set(['GALGAME_PR_CREATION'])
 </script>
 
 <template>
@@ -43,8 +39,8 @@ const GALGAME_REF_TYPES = new Set(['GALGAME_PR_CREATION'])
     v-else-if="activity.type === 'TOPIC_COMMENT_CREATION' && activity.data"
     :activity="activity"
   />
-  <ActivityCardGalgameRef
-    v-else-if="GALGAME_REF_TYPES.has(activity.type) && activity.data"
+  <ActivityCardGalgamePr
+    v-else-if="activity.type === 'GALGAME_PR_CREATION' && activity.data"
     :activity="activity"
   />
   <ActivityCardGeneric v-else :activity="activity" />

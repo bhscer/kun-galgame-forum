@@ -12,7 +12,9 @@ defineProps<{ content: string; label?: string }>()
       <span v-if="label" class="text-default-400 mr-1 text-xs font-medium">
         {{ label }}
       </span>
-      <span class="line-clamp-2 break-all">{{ markdownToText(content) }}</span>
+      <span class="text-default-500 line-clamp-2 break-all">
+        {{ markdownToText(content) }}
+      </span>
     </div>
   </div>
 </template>

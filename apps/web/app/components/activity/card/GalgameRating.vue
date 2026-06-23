@@ -59,11 +59,11 @@ const hasSpoiler = computed(
 <template>
   <ActivityCardShell :actor="activity.actor" :timestamp="activity.timestamp">
     <div class="space-y-3">
-      <p class="text-default-600 text-sm">
-        评分了一个 Galgame，评分
+      <p class="text-default-600 flex items-center gap-1 text-sm">
+        <span>评分了一个 Galgame，评分</span>
         <span
           v-if="rating"
-          class="text-default-800 inline-flex items-center gap-0.5 align-text-bottom font-semibold"
+          class="text-default-800 inline-flex items-center gap-0.5 font-semibold"
         >
           <KunIcon name="lucide:star" class="text-warning size-4" />
           {{ overall }}

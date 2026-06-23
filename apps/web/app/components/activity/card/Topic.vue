@@ -109,7 +109,7 @@ provide(
         underline="none"
         color="default"
         :to="activity.link"
-        class-name="border-primary/40 bg-default-100/50 text-default-600 hover:bg-default-100 flex items-start gap-2 rounded-md border-l-2 px-2 py-1.5 text-sm"
+        class-name="border-primary bg-default-100/50 text-default-700 hover:bg-default-100 flex items-start gap-2 rounded-md border-l-2 px-2 py-1.5 text-sm"
       >
         <KunIcon
           name="lucide:message-circle-heart"

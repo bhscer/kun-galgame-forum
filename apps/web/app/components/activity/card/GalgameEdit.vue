@@ -128,6 +128,19 @@ onBeforeUnmount(() => {
           />
         </button>
       </div>
+
+      <div class="flex items-center justify-between gap-2 text-sm">
+        <span class="text-default-500">该更新已经被合并到 鲲Galgame百科</span>
+        <KunLink
+          underline="none"
+          color="default"
+          :to="activity.link"
+          class-name="text-default-500 hover:text-primary flex shrink-0 items-center gap-0.5"
+        >
+          查看详情
+          <KunIcon name="lucide:chevron-right" class="size-4" />
+        </KunLink>
+      </div>
     </div>
   </ActivityCardShell>
 </template>

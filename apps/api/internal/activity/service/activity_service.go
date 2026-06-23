@@ -730,6 +730,7 @@ func (s *ActivityService) enrichGalgameItems(
 	creationGIDs := make([]int, 0)
 	editIDs := make([]int, 0)
 	editGIDs := make([]int, 0)
+	prGIDs := make([]int, 0)
 	ratingIDs := make([]int, 0)
 	for _, r := range rows {
 		switch {
@@ -740,6 +741,8 @@ func (s *ActivityService) enrichGalgameItems(
 			if r.GalgameID > 0 {
 				editGIDs = append(editGIDs, r.GalgameID)
 			}
+		case r.TypeStr == "GALGAME_PR_CREATION" && r.GalgameID > 0:
+			prGIDs = append(prGIDs, r.GalgameID)
 		case r.TypeStr == "GALGAME_RATING_CREATION":
 			ratingIDs = append(ratingIDs, r.ID)
 		}
@@ -749,10 +752,10 @@ func (s *ActivityService) enrichGalgameItems(
 	ratingMap, _ := s.repo.FetchRatingActivityData(ratingIDs)
 
 	// Detail briefs (intro + officials + release date) for the cards that render
-	// the full galgame info area — the new-galgame card AND the edit card, which
-	// share that area. Best-effort: if wiki view=detail is unreachable, omitted.
+	// the full galgame info area — the new-galgame, edit AND PR cards, which share
+	// that area. Best-effort: if wiki view=detail is unreachable, omitted.
 	detailMap := map[int]galgameClient.GalgameDetailBrief{}
-	if detailGIDs := append(append([]int{}, creationGIDs...), editGIDs...); len(detailGIDs) > 0 {
+	if detailGIDs := append(append(append([]int{}, creationGIDs...), editGIDs...), prGIDs...); len(detailGIDs) > 0 {
 		if m, appErr := s.wikiGC.GetBatchDetailPublic(ctx, detailGIDs, isSFW); appErr == nil {
 			detailMap = m
 		}
@@ -787,10 +790,11 @@ func (s *ActivityService) enrichGalgameItems(
 			ReleaseDate: b.ReleaseDate,
 			GalgameID:   r.GalgameID,
 		}
-		// Full info area (shared by the new-galgame + edit cards): officials →
+		// Full info area (shared by the new-galgame, edit + PR cards): officials →
 		// developer, detail release date, bounded ~3-line intro.
 		if d, ok := detailMap[r.GalgameID]; ok &&
-			(r.TypeStr == "GALGAME_CREATION" || r.TypeStr == "GALGAME_EDIT") {
+			(r.TypeStr == "GALGAME_CREATION" || r.TypeStr == "GALGAME_EDIT" ||
+				r.TypeStr == "GALGAME_PR_CREATION") {
 			ga.Developer = strings.Join(d.Officials, "、")
 			ga.ReleaseDate = d.ReleaseDate // detail view carries it; brief omits
 			if intro := []rune(preferredIntro(d)); len(intro) > 0 {
