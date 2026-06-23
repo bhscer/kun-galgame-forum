@@ -28,11 +28,13 @@ export interface ActivityTopReply {
 // Rich-card payload for TOPIC_CREATION (BE dto.TopicActivityData). The title
 // lives in `content`; this carries the extras the topic feed card shows.
 export interface TopicActivityData {
+  topicId: number
   excerpt: string
   sections: string[]
   coverImages: string[]
   view: number
   likeCount: number
+  favoriteCount: number
   replyCount: number
   commentCount: number
   upvoteTime: Date | string | null
@@ -40,6 +42,9 @@ export interface TopicActivityData {
   isPoll: boolean
   isNSFW: boolean
   topReply?: ActivityTopReply
+  // Reaction counts per key (shared/cacheable). The viewer's own "mine" is
+  // hydrated separately via useMyTopicInteractions (the feed is shared-cached).
+  reactions: { reaction: string; count: number }[]
 }
 
 // Rich-card payload for galgame-scoped activity (BE dto.GalgameActivityData).

@@ -237,6 +237,9 @@ func (a *App) setupRoutes() {
 	authed.Get("/auth/me", a.OAuthHandler.Me)
 
 	// Topic (authenticated)
+	// Static /topic/interactions/mine wins over /topic/:tid (static segments beat
+	// the param route), so feed cards hydrate the viewer's own 收藏 + reactions.
+	authed.Get("/topic/interactions/mine", a.TopicHandler.MyInteractions)
 	authed.Post("/topic", a.TopicHandler.Create)
 	authed.Put("/topic/:tid", a.TopicHandler.Update)
 	authed.Put("/topic/:tid/like", a.TopicHandler.ToggleLike)

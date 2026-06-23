@@ -42,6 +42,16 @@ func NewTopicService(
 	}
 }
 
+// GetMyInteractions returns the current user's favorited topic ids + reactions,
+// for hydrating the feed card's 收藏 + reaction state client-side.
+func (s *TopicService) GetMyInteractions(userID int) dto.MyTopicInteractions {
+	favorited, reactions, err := s.topicRepo.UserTopicInteractions(userID)
+	if err != nil {
+		return dto.MyTopicInteractions{Favorited: []int{}, Reactions: map[int][]string{}}
+	}
+	return dto.MyTopicInteractions{Favorited: favorited, Reactions: reactions}
+}
+
 // ──────────────────────────────────────────
 // List
 // ──────────────────────────────────────────

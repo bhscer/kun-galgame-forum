@@ -10,6 +10,13 @@ const isFavorite = ref(props.isFavorite)
 const favoriteCount = ref(props.favoriteCount)
 const pending = ref(false)
 
+// The feed card hydrates is-favorite asynchronously (useMyTopicInteractions);
+// reflect a late-arriving initial state. Harmless where the prop is settled.
+watch(
+  () => props.isFavorite,
+  (value) => (isFavorite.value = value)
+)
+
 // KunReaction flips isFavorite + favoriteCount optimistically before @change;
 // we fire the API and undo on failure / when not signed in. `pending` disables
 // the control during the request (replaces the old click throttle).

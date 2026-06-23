@@ -20,6 +20,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// contentImageTokenRe matches a topic body's inline image token (/image/<64hex>),
+// used as a feed-card cover fallback when a topic has no explicit cover_images.
+var contentImageTokenRe = regexp.MustCompile(`/image/[0-9a-f]{64}`)
+
 // activityCacheTTL bounds how stale the "最新动态" feed can be. Short on purpose:
 // it collapses the home page's per-render cost (the multi-source timeline query
 // + wiki name-enrichment + OAuth identity round-trips) into one computation per
@@ -288,7 +292,9 @@ func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repositor
 }
 
 // Reply content stores @-mentions and #-quotes as markdown links:
-//   [@<name>](kungal-user:<id>)   and   [#<floor>](kungal-reply:<id>)
+//
+//	[@<name>](kungal-user:<id>)   and   [#<floor>](kungal-reply:<id>)
+//
 // For the feed we render them to readable plain text: a mention → "@<current
 // name>" (resolved via OAuth), a quote → its "#<floor>" label kept as-is.
 var (
@@ -435,6 +441,13 @@ func (s *ActivityService) enrichTopicItems(items []dto.ActivityItem) {
 	polls, _ := s.repo.FetchTopicPolls(ids)
 	topReplies, _ := s.repo.FetchTopicTopReply(ids)
 
+	reactionRows, _ := s.repo.FetchTopicsReactions(ids)
+	reactionsByTopic := map[int][]dto.TopicReactionCount{}
+	for _, row := range reactionRows {
+		reactionsByTopic[row.TopicID] = append(reactionsByTopic[row.TopicID],
+			dto.TopicReactionCount{Reaction: row.Reaction, Count: row.Count})
+	}
+
 	for id, idxs := range idToIdx {
 		c, ok := core[id]
 		if !ok {
@@ -443,6 +456,17 @@ func (s *ActivityService) enrichTopicItems(items []dto.ActivityItem) {
 		covers := []string(c.CoverImages)
 		if covers == nil {
 			covers = []string{}
+		}
+		// No explicit cover? Fall back to the first inline content image so an
+		// image-only post still shows its picture in the feed instead of blank.
+		if len(covers) == 0 {
+			if img := contentImageTokenRe.FindString(c.Excerpt); img != "" {
+				covers = []string{img}
+			}
+		}
+		reactions := reactionsByTopic[id]
+		if reactions == nil {
+			reactions = []dto.TopicReactionCount{}
 		}
 		sec := sections[id]
 		if sec == nil {
@@ -453,11 +477,13 @@ func (s *ActivityService) enrichTopicItems(items []dto.ActivityItem) {
 			topReply = &dto.TopReply{Content: tr.Content, LikeCount: tr.LikeCount}
 		}
 		payload := dto.TopicActivityData{
+			TopicID:       id,
 			Excerpt:       c.Excerpt,
 			Sections:      sec,
 			CoverImages:   covers,
 			View:          c.View,
 			LikeCount:     c.LikeCount,
+			FavoriteCount: c.FavoriteCount,
 			ReplyCount:    c.ReplyCount,
 			CommentCount:  c.CommentCount,
 			UpvoteTime:    c.UpvoteTime,
@@ -465,6 +491,7 @@ func (s *ActivityService) enrichTopicItems(items []dto.ActivityItem) {
 			IsPoll:        polls[id],
 			IsNSFW:        c.IsNSFW,
 			TopReply:      topReply,
+			Reactions:     reactions,
 		}
 		for _, i := range idxs {
 			items[i].Data = payload

@@ -17,6 +17,10 @@ interface UseReactionsOptions {
   replyId?: number
   targetUserId: number
   reactions: KunReaction[]
+  // Optional reactive source: re-seed the list when it emits (used by the feed
+  // card, whose per-viewer "mine" hydrates after mount). Stops after the first
+  // user toggle so it never clobbers an optimistic change.
+  sync?: () => KunReaction[]
 }
 
 // Avatars are shown for reactions with fewer than this many reactors (matches
@@ -31,6 +35,15 @@ export const useReactions = (opts: UseReactionsOptions): ReactionsState => {
 
   const list = ref<KunReaction[]>(opts.reactions ? clone(opts.reactions) : [])
   const inflight = new Set<string>()
+
+  // Re-seed from the reactive source (late "mine" hydration) until the viewer
+  // first interacts — after that the local list is authoritative.
+  let userTouched = false
+  if (opts.sync) {
+    watch(opts.sync, (v) => {
+      if (!userTouched) list.value = clone(v)
+    })
+  }
 
   const mineKeys = computed(() =>
     list.value.filter((r) => r.mine).map((r) => r.reaction)
@@ -94,6 +107,7 @@ export const useReactions = (opts: UseReactionsOptions): ReactionsState => {
     }
     if (inflight.has(key)) return
     inflight.add(key)
+    userTouched = true
 
     const snapshot = clone(list.value)
     applyOptimistic(key)

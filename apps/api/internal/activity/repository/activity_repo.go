@@ -267,16 +267,17 @@ func (r *ActivityRepository) GetSources(types []string) []ActivitySource {
 // (one row from the topic table). Sections/tags/poll/top-reply are separate
 // batch loaders below. Excerpt is a server-truncated slice of the body.
 type TopicCardData struct {
-	ID           int                    `gorm:"column:id"`
-	Excerpt      string                 `gorm:"column:excerpt"`
-	CoverImages  topicModel.ImageTokens `gorm:"column:cover_images"`
-	View         int                    `gorm:"column:view"`
-	LikeCount    int                    `gorm:"column:like_count"`
-	ReplyCount   int                    `gorm:"column:reply_count"`
-	CommentCount int                    `gorm:"column:comment_count"`
-	IsNSFW       bool                   `gorm:"column:is_nsfw"`
-	UpvoteTime   *time.Time             `gorm:"column:upvote_time"`
-	BestAnswerID *int                   `gorm:"column:best_answer_id"`
+	ID            int                    `gorm:"column:id"`
+	Excerpt       string                 `gorm:"column:excerpt"`
+	CoverImages   topicModel.ImageTokens `gorm:"column:cover_images"`
+	View          int                    `gorm:"column:view"`
+	LikeCount     int                    `gorm:"column:like_count"`
+	FavoriteCount int                    `gorm:"column:favorite_count"`
+	ReplyCount    int                    `gorm:"column:reply_count"`
+	CommentCount  int                    `gorm:"column:comment_count"`
+	IsNSFW        bool                   `gorm:"column:is_nsfw"`
+	UpvoteTime    *time.Time             `gorm:"column:upvote_time"`
+	BestAnswerID  *int                   `gorm:"column:best_answer_id"`
 }
 
 // FetchTopicActivityData batch-loads the topic core row for the given ids (one
@@ -289,7 +290,7 @@ func (r *ActivityRepository) FetchTopicActivityData(ids []int) (map[int]TopicCar
 	}
 	var rows []TopicCardData
 	if err := r.db.Table("topic").
-		Select("id, SUBSTRING(content, 1, 300) AS excerpt, cover_images, view, like_count, reply_count, comment_count, is_nsfw, upvote_time, best_answer_id").
+		Select("id, SUBSTRING(content, 1, 300) AS excerpt, cover_images, view, like_count, favorite_count, reply_count, comment_count, is_nsfw, upvote_time, best_answer_id").
 		Where("id IN ?", ids).
 		Scan(&rows).Error; err != nil {
 		return out, err
@@ -298,6 +299,29 @@ func (r *ActivityRepository) FetchTopicActivityData(ids []int) (map[int]TopicCar
 		out[row.ID] = row
 	}
 	return out, nil
+}
+
+// TopicReactionCountRow is one (topic, reaction key, total) — the batch reaction
+// counts for the feed cards. Counts only; no per-viewer state.
+type TopicReactionCountRow struct {
+	TopicID  int    `gorm:"column:topic_id"`
+	Reaction string `gorm:"column:reaction"`
+	Count    int    `gorm:"column:cnt"`
+}
+
+// FetchTopicsReactions batch-loads reaction counts per key for the given topics
+// (one GROUP BY query). Empty ids → empty slice.
+func (r *ActivityRepository) FetchTopicsReactions(ids []int) ([]TopicReactionCountRow, error) {
+	out := []TopicReactionCountRow{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	err := r.db.Table("topic_reaction").
+		Select("topic_id, reaction, count(*) AS cnt").
+		Where("topic_id IN ?", ids).
+		Group("topic_id, reaction").
+		Scan(&out).Error
+	return out, err
 }
 
 // idNameRow is a (topic_id, name) pair for the section/tag batch joins.

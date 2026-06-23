@@ -18,9 +18,11 @@ export const markdownToText = (
     // (notes like `1. <br />` otherwise showed a literal "<br />" in the card).
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, '')
-    // Image BEFORE link (an image is a link with a leading `!`) → alt text;
-    // doing links first left a stray "!" on every image.
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    // Image BEFORE link (an image is a link with a leading `!`) → DROP it
+    // entirely: a one-line preview shouldn't surface the image's alt, which is
+    // usually the upload filename (e.g. "rtdyhsg-…jpg"). Must run before the
+    // link rule, which would otherwise leave a stray "!".
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     // Inline emphasis → inner text: bold, strikethrough, ||spoiler||, italic.
     .replace(/(\*\*|__)(.*?)\1/g, '$2')

@@ -64,6 +64,14 @@ type ReactionSummary struct {
 	Reactors []KunUser `json:"reactors,omitempty"`
 }
 
+// MyTopicInteractions is the current user's favorited topic ids + the reaction
+// keys they hold per topic, returned by GET /topic/interactions/mine to hydrate
+// feed-card 收藏 + reaction state (the shared feed cache can't carry per-user).
+type MyTopicInteractions struct {
+	Favorited []int            `json:"favorited"`
+	Reactions map[int][]string `json:"reactions"`
+}
+
 type TopicDetail struct {
 	ID               int                    `json:"id"`
 	Title            string                 `json:"title"`

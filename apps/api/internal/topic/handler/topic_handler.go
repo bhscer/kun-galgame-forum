@@ -28,6 +28,17 @@ func NewTopicHandler(
 	}
 }
 
+// MyInteractions returns the viewer's favorited topic ids + reactions, to
+// hydrate the feed card's 收藏 + reaction state (the shared feed can't carry it).
+// GET /api/topic/interactions/mine
+func (h *TopicHandler) MyInteractions(c *fiber.Ctx) error {
+	user, appErr := middleware.MustGetUser(c)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+	return response.OK(c, h.topicService.GetMyInteractions(user.ID))
+}
+
 // GetList returns paginated topic list.
 // GET /api/topic
 //

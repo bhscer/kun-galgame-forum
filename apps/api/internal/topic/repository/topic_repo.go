@@ -228,6 +228,31 @@ func (r *TopicRepository) DeleteTopicFavorite(tx *gorm.DB, fav *model.TopicFavor
 	return tx.Delete(fav).Error
 }
 
+// UserTopicInteractions returns the user's favorited topic ids + the reaction
+// keys they hold per topic — feed-card hydration (the shared feed cache can't
+// carry per-viewer state). Two cheap indexed reads.
+func (r *TopicRepository) UserTopicInteractions(userID int) ([]int, map[int][]string, error) {
+	favorited := []int{}
+	if err := r.db.Model(&model.TopicFavorite{}).
+		Where("user_id = ?", userID).Pluck("topic_id", &favorited).Error; err != nil {
+		return nil, nil, err
+	}
+	var rows []struct {
+		TopicID  int    `gorm:"column:topic_id"`
+		Reaction string `gorm:"column:reaction"`
+	}
+	if err := r.db.Table("topic_reaction").
+		Select("topic_id, reaction").
+		Where("user_id = ?", userID).Scan(&rows).Error; err != nil {
+		return nil, nil, err
+	}
+	reactions := map[int][]string{}
+	for _, row := range rows {
+		reactions[row.TopicID] = append(reactions[row.TopicID], row.Reaction)
+	}
+	return favorited, reactions, nil
+}
+
 // CreateTopicUpvote inserts a TopicUpvote row (duplicates allowed).
 func (r *TopicRepository) CreateTopicUpvote(tx *gorm.DB, userID, topicID int) error {
 	return tx.Create(&model.TopicUpvote{UserID: userID, TopicID: topicID}).Error

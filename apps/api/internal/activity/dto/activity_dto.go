@@ -69,18 +69,29 @@ type ActivityItem struct {
 // the stat row; the badge flags feed the shared TopicTagGroup; TopReply is the
 // most-liked reply (omitted when none).
 type TopicActivityData struct {
-	Excerpt       string     `json:"excerpt"`
-	Sections      []string   `json:"sections"`
-	CoverImages   []string   `json:"coverImages"`
-	View          int        `json:"view"`
-	LikeCount     int        `json:"likeCount"`
-	ReplyCount    int        `json:"replyCount"`
-	CommentCount  int        `json:"commentCount"`
-	UpvoteTime    *time.Time `json:"upvoteTime"`
-	HasBestAnswer bool       `json:"hasBestAnswer"`
-	IsPoll        bool       `json:"isPoll"`
-	IsNSFW        bool       `json:"isNSFW"`
-	TopReply      *TopReply  `json:"topReply,omitempty"`
+	TopicID       int                  `json:"topicId"`
+	Excerpt       string               `json:"excerpt"`
+	Sections      []string             `json:"sections"`
+	CoverImages   []string             `json:"coverImages"`
+	View          int                  `json:"view"`
+	LikeCount     int                  `json:"likeCount"`
+	FavoriteCount int                  `json:"favoriteCount"`
+	ReplyCount    int                  `json:"replyCount"`
+	CommentCount  int                  `json:"commentCount"`
+	UpvoteTime    *time.Time           `json:"upvoteTime"`
+	HasBestAnswer bool                 `json:"hasBestAnswer"`
+	IsPoll        bool                 `json:"isPoll"`
+	IsNSFW        bool                 `json:"isNSFW"`
+	TopReply      *TopReply            `json:"topReply,omitempty"`
+	Reactions     []TopicReactionCount `json:"reactions"`
+}
+
+// TopicReactionCount is one reaction key's total on a topic, for the feed card.
+// Counts only — per-viewer "mine" is NOT here (the feed is shared-cached); it's
+// hydrated client-side via GET /topic/interactions/mine.
+type TopicReactionCount struct {
+	Reaction string `json:"reaction"`
+	Count    int    `json:"count"`
 }
 
 // TopReply is a topic's most-liked reply (a short excerpt + its like count),
