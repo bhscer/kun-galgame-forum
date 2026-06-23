@@ -5,7 +5,7 @@
 // reactions and updates it optimistically (count + mine + like⇄dislike
 // exclusion), reverting on a failed request. Dual-mode like the like button:
 // pass topicId OR replyId.
-import { KUN_REACTION_EMOJI } from '~/constants/reaction'
+import { KUN_REACTION_EMOJI, reactionAsset } from '~/constants/reaction'
 
 const props = defineProps<{
   topicId?: number
@@ -122,7 +122,12 @@ const toggle = async (key: string) => {
       "
       @click="toggle(r.reaction)"
     >
-      <span>{{ KUN_REACTION_EMOJI[r.reaction] ?? r.reaction }}</span>
+      <img
+        :src="reactionAsset(r.reaction)"
+        :alt="KUN_REACTION_EMOJI[r.reaction] ?? r.reaction"
+        class="size-5 shrink-0"
+        loading="lazy"
+      />
       <span v-if="showAvatars(r)" class="flex -space-x-1.5">
         <KunAvatar
           v-for="u in r.reactors!.slice(0, 4)"

@@ -32,8 +32,12 @@ export const KUN_REACTION_EMOJIS: KunReactionMeta[] = [
   { key: 'hundred', emoji: '💯', label: '满分' },
   { key: 'rofl', emoji: '🤣', label: '爆笑' },
   { key: 'partyface', emoji: '🥳', label: '派对' },
-  { key: 'hearteyes', emoji: '😍', label: '爱慕' }
+  { key: 'starstruck', emoji: '🤩', label: '星星眼' }
 ]
+
+// Animated .webp asset for a reaction key (compressed Telegram emoji in
+// public/emoji/). Used by the picker + bar; the glyph above is the alt/fallback.
+export const reactionAsset = (key: string) => `/emoji/${key}.webp`
 
 // key → glyph, for rendering a reaction chip in the bar (includes like/dislike).
 export const KUN_REACTION_EMOJI: Record<string, string> = {

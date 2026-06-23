@@ -308,7 +308,7 @@ var reactionKeys = map[string]bool{
 	"heart": true, "fire": true, "party": true, "love": true,
 	"clap": true, "grin": true, "thinking": true, "mindblown": true,
 	"scream": true, "cry": true, "pray": true, "eyes": true,
-	"hundred": true, "rofl": true, "partyface": true, "hearteyes": true,
+	"hundred": true, "rofl": true, "partyface": true, "starstruck": true,
 }
 
 // ToggleLike / ToggleDislike are kept as thin aliases (the legacy endpoints still

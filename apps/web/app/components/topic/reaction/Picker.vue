@@ -6,8 +6,8 @@ import {
   KUN_REACTION_DISLIKE,
   KUN_REACTION_LIKE_NOTE,
   KUN_REACTION_DISLIKE_NOTE,
-  KUN_REACTION_EMOJI,
-  KUN_REACTION_EMOJIS
+  KUN_REACTION_EMOJIS,
+  reactionAsset
 } from '~/constants/reaction'
 
 const props = defineProps<{ mineKeys?: string[] }>()
@@ -29,7 +29,11 @@ const isMine = (key: string) => props.mineKeys?.includes(key) ?? false
       "
       @click="emit('select', KUN_REACTION_LIKE)"
     >
-      <span class="text-xl">{{ KUN_REACTION_EMOJI.like }}</span>
+      <img
+        :src="reactionAsset(KUN_REACTION_LIKE)"
+        alt="点赞"
+        class="size-7 shrink-0"
+      />
       <span class="min-w-0">
         <span class="text-default-800 block text-sm font-medium">点赞</span>
         <span class="text-default-500 block text-xs">{{ KUN_REACTION_LIKE_NOTE }}</span>
@@ -46,7 +50,11 @@ const isMine = (key: string) => props.mineKeys?.includes(key) ?? false
       "
       @click="emit('select', KUN_REACTION_DISLIKE)"
     >
-      <span class="text-xl">{{ KUN_REACTION_EMOJI.dislike }}</span>
+      <img
+        :src="reactionAsset(KUN_REACTION_DISLIKE)"
+        alt="点踩"
+        class="size-7 shrink-0"
+      />
       <span class="min-w-0">
         <span class="text-default-800 block text-sm font-medium">点踩</span>
         <span class="text-default-500 block text-xs">{{ KUN_REACTION_DISLIKE_NOTE }}</span>
@@ -64,13 +72,13 @@ const isMine = (key: string) => props.mineKeys?.includes(key) ?? false
         :title="e.label"
         :class="
           cn(
-            'rounded-md p-1 text-xl transition-colors hover:bg-default-100',
+            'rounded-md p-1 transition-colors hover:bg-default-100',
             isMine(e.key) && 'bg-primary/10'
           )
         "
         @click="emit('select', e.key)"
       >
-        {{ e.emoji }}
+        <img :src="reactionAsset(e.key)" :alt="e.label" class="size-7" loading="lazy" />
       </button>
     </div>
   </div>
