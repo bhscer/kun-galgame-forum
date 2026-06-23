@@ -13,6 +13,16 @@ const props = defineProps<{
 const { scrollToReplyId } = storeToRefs(useTempReplyStore())
 const comments = ref(props.reply.comment)
 
+// Shared reaction state for this reply — injected by the chips + the trigger.
+provide(
+  reactionsKey,
+  useReactions({
+    replyId: props.reply.id,
+    targetUserId: props.reply.user.id,
+    reactions: props.reply.reactions
+  })
+)
+
 // Hydrate inline #quote chips in this reply's body: click → jump to the floor,
 // hover → lazy preview card.
 const contentRef = ref<HTMLElement | null>(null)
@@ -117,12 +127,10 @@ const handleNewComment = (comment: TopicComment) => {
         @leave="hidePreview"
       />
 
-      <TopicReactionBar
-        class="mt-2"
-        :reply-id="reply.id"
-        :target-user-id="reply.user.id"
-        :reactions="reply.reactions"
-      />
+      <div class="mt-2 flex flex-wrap items-center gap-1.5">
+        <TopicReactionBar />
+        <TopicReactionTrigger />
+      </div>
 
       <TopicReplyFooter
         :reply="reply"

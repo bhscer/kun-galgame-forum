@@ -302,13 +302,18 @@ func (s *TopicWriteService) Update(
 // ──────────────────────────────────────────
 
 // reactionKeys is the allowlist of valid reaction keys: the two effectful ones
-// (like/dislike) + the emoji set (kept in sync with the FE picker / 16 assets).
+// (like/dislike) + the emoji set (kept in sync with the FE picker / assets).
 var reactionKeys = map[string]bool{
 	"like": true, "dislike": true,
 	"heart": true, "fire": true, "party": true, "love": true,
-	"clap": true, "grin": true, "thinking": true, "mindblown": true,
-	"scream": true, "cry": true, "pray": true, "eyes": true,
-	"hundred": true, "rofl": true, "partyface": true, "starstruck": true,
+	"clap": true, "thinking": true, "mindblown": true, "scream": true,
+	"cry": true, "pray": true, "eyes": true, "hundred": true,
+	"partyface": true, "starstruck": true,
+	"angry": true, "anxious": true, "banana": true, "eyebrow": true,
+	"voltage": true, "hotdog": true, "hot": true, "sob": true,
+	"moai": true, "newmoon": true, "police": true, "pouting": true,
+	"salute": true, "shrimp": true, "halo": true, "sunglasses": true,
+	"whale": true,
 }
 
 // ToggleLike / ToggleDislike are kept as thin aliases (the legacy endpoints still

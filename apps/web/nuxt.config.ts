@@ -107,7 +107,11 @@ export default defineNuxtConfig({
     }
   },
 
-  routeRules: {},
+  routeRules: {
+    // Animated reaction emoji are static and rarely change — let the browser
+    // disk-cache them across visits (HTTP cache; no need for IndexedDB).
+    '/emoji/**': { headers: { 'cache-control': 'public, max-age=2592000' } }
+  },
 
   imports: {
     dirs: ['./composables', './config', './utils'],

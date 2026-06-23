@@ -64,7 +64,7 @@ const isMine = (key: string) => props.mineKeys?.includes(key) ?? false
     <KunDivider />
 
     <!-- Emoji grid -->
-    <div class="grid grid-cols-6 gap-1">
+    <div class="grid max-h-60 grid-cols-6 gap-1 overflow-y-auto">
       <button
         v-for="e in KUN_REACTION_EMOJIS"
         :key="e.key"

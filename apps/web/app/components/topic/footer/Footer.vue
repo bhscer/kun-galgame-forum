@@ -23,6 +23,8 @@ const { id } = usePersistUserStore()
         :favorite-count="topic.favoriteCount"
         :is-favorite="topic.isFavorited"
       />
+
+      <TopicReactionTrigger />
     </div>
 
     <div class="flex items-center gap-1">

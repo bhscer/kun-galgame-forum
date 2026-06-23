@@ -1,7 +1,18 @@
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   topic: TopicDetail
 }>()
+
+// Shared reaction state for this topic: the chips (below) + the trigger (in the
+// footer on desktop) both inject this, so reacting in either place stays in sync.
+provide(
+  reactionsKey,
+  useReactions({
+    topicId: props.topic.id,
+    targetUserId: props.topic.user.id,
+    reactions: props.topic.reactions
+  })
+)
 </script>
 
 <template>
@@ -82,11 +93,11 @@ defineProps<{
 
       <KunDivider />
 
-      <TopicReactionBar
-        :topic-id="topic.id"
-        :target-user-id="topic.user.id"
-        :reactions="topic.reactions"
-      />
+      <div class="flex flex-wrap items-center gap-1.5">
+        <TopicReactionBar />
+        <!-- Desktop shows the trigger in the footer (next to favorite). -->
+        <TopicReactionTrigger class="md:hidden" />
+      </div>
 
       <p class="text-default-500 ml-auto text-sm">
         本文版权遵循
