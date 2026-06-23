@@ -20,12 +20,7 @@ useKunSeoMeta({
 </script>
 
 <template>
-  <KunCard
-    :is-transparent="false"
-    v-if="data"
-    content-class="space-y-3"
-    :is-hoverable="false"
-  >
+  <div v-if="data" class="space-y-3">
     <KunHeader
       name="最新 Galgame 资源下载"
       description="在本页面查看网站所有 Galgame 下载资源列表, 包括 PC / Windows, 手机, 模拟器 / KRKR / Tyranor 等等"
@@ -45,5 +40,5 @@ useKunSeoMeta({
       :total-page="Math.ceil(data.total / pageData.limit)"
       :is-loading="status === 'pending'"
     />
-  </KunCard>
+  </div>
 </template>

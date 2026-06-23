@@ -4,12 +4,7 @@ const getLink = (link: 'galgame' | 'topic') =>
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="space-y-6"
-    class-name="min-h-[calc(100dvh-6rem)]"
-  >
+  <div class="space-y-6 min-h-[calc(100dvh-6rem)]">
     <KunHeader
       name="RSS 订阅"
       description="论坛目前支持话题与 Galgame 资源 RSS 订阅, RSS 数据源每 17 分钟更新一次"
@@ -36,5 +31,5 @@ const getLink = (link: 'galgame' | 'topic') =>
         <KunCopy :text="getLink('galgame')" name="复制 RSS 链接" />
       </div>
     </KunCard>
-  </KunCard>
+  </div>
 </template>

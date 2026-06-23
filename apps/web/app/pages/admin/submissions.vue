@@ -198,13 +198,7 @@ const handleConfirmReason = async () => {
 </script>
 
 <template>
-  <KunCard
-    v-if="data"
-    :is-hoverable="false"
-    :is-transparent="false"
-    class="w-full"
-    content-class="space-y-4"
-  >
+  <div v-if="data" class="w-full space-y-4">
     <KunHeader
       name="Galgame 审核"
       description="审核用户提交的新 Galgame 及对自己草稿的修订。通过后立即公开发布并向提交者发放 +3 萌萌点; 拒绝时需说明原因, 提交者可据此修改后重新提交。"
@@ -349,5 +343,5 @@ const handleConfirmReason = async () => {
         </div>
       </div>
     </KunModal>
-  </KunCard>
+  </div>
 </template>

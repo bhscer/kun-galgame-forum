@@ -44,7 +44,7 @@ watchDebounced(() => searchQuery.value, handleSearch, {
 </script>
 
 <template>
-  <KunCard :is-hoverable="false" :is-transparent="false">
+  <div>
     <KunHeader
       name="用户内容管理"
       description="此处用于管理用户在本站发布的内容: 搜索用户后, 可一键清除其在 kungal 的全部内容 (话题 / 回复 / 评论 / 评分 / 资源 / 网站 / 工具及一切互动), 主要用于清理广告与 spam 账号。单条内容的编辑与删除请直接在对应页面操作。"
@@ -88,5 +88,5 @@ watchDebounced(() => searchQuery.value, handleSearch, {
       v-if="!isSearching && !users.length && searchQuery.trim()"
       description="未找到匹配的用户"
     />
-  </KunCard>
+  </div>
 </template>

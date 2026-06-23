@@ -233,11 +233,7 @@ const handleSave = async () => {
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="space-y-6"
-  >
+  <div class="space-y-6">
     <KunHeader name="编辑 Galgame 草稿" description="保存后将进入审核队列。">
       <template #endContent>
         <div class="flex items-center gap-3">
@@ -350,5 +346,5 @@ const handleSave = async () => {
         </KunButton>
       </div>
     </template>
-  </KunCard>
+  </div>
 </template>

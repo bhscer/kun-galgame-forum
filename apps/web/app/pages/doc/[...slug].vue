@@ -23,11 +23,7 @@ if (data.value) {
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    v-if="data"
-    class-name="backdrop-blur-none pb-6 min-h-[calc(100dvh-6rem)]"
-  >
+  <div v-if="data" class="pb-6 min-h-[calc(100dvh-6rem)]">
     <div class="flex">
       <DocDetailCategoryTree />
 
@@ -43,5 +39,5 @@ if (data.value) {
         </div>
       </div>
     </div>
-  </KunCard>
+  </div>
 </template>

@@ -60,12 +60,7 @@ if (data.value) {
 </script>
 
 <template>
-  <KunCard
-    :is-transparent="false"
-    :is-hoverable="false"
-    content-class="space-y-6"
-    v-if="data"
-  >
+  <div v-if="data" class="space-y-6">
     <KunHeader :name="data.label" :description="data.description">
       <template #endContent>
         <div class="space-y-3">
@@ -102,5 +97,5 @@ if (data.value) {
     </div>
 
     <KunNull v-else :description="`${data.label} 分类下暂无网站`" />
-  </KunCard>
+  </div>
 </template>

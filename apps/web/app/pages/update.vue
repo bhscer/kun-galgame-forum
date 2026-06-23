@@ -7,12 +7,8 @@ const activeTab = computed(
 </script>
 
 <template>
-  <KunCard
-    :is-transparent="false"
-    :is-hoverable="false"
-    content-class="space-y-3"
-  >
+  <div class="space-y-3">
     <KunTab :items="kunUpdateLogTabItem" :model-value="activeTab" size="sm" />
     <NuxtPage />
-  </KunCard>
+  </div>
 </template>

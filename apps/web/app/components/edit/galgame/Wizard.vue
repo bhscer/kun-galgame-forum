@@ -103,11 +103,7 @@ const noMatches = computed(
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="space-y-6"
-  >
+  <div class="space-y-6">
     <KunHeader
       name="发布 Galgame"
       description="先搜索您想发布的游戏：已存在的直接前往或一键认领，确实没有的再新建申请，避免重复提交。"
@@ -260,5 +256,5 @@ const noMatches = computed(
     <div class="flex justify-end">
       <KunButton size="lg" @click="handleCreateNew">新建 Galgame 申请</KunButton>
     </div>
-  </KunCard>
+  </div>
 </template>

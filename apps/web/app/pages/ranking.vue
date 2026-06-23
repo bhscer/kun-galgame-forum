@@ -36,11 +36,7 @@ const sortOptions = computed(() => {
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="space-y-3"
-  >
+  <div class="space-y-3">
     <div class="space-y-3">
       <KunHeader
         :name="rankingPageMetaData[activeTab]!.title"
@@ -76,5 +72,5 @@ const sortOptions = computed(() => {
     </div>
 
     <NuxtPage />
-  </KunCard>
+  </div>
 </template>

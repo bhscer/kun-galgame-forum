@@ -8,17 +8,12 @@ const activeTab = computed(
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    class-name="h-full"
-    content-class="space-y-3 justify-start"
-  >
+  <div class="h-full space-y-3 justify-start">
     <KunHeader
       :name="KUN_TOPIC_CATEGORY[activeTab]"
       :description="KUN_CATEGORY_DESCRIPTION_MAP[activeTab]"
     />
 
     <NuxtPage />
-  </KunCard>
+  </div>
 </template>

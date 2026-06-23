@@ -9,7 +9,7 @@ const utmLink = useUtmLink()
 </script>
 
 <template>
-  <KunCard :is-hoverable="false" content-class="space-y-6" class-name="pb-12">
+  <div class="space-y-6 pb-12">
     <KunHeader
       name="子网站"
       description="鲲 Galgame 旗下的其他站点与资源, 均为我们自己维护, 欢迎逛逛~"
@@ -42,5 +42,5 @@ const utmLink = useUtmLink()
         </div>
       </KunCard>
     </div>
-  </KunCard>
+  </div>
 </template>

@@ -72,11 +72,7 @@ useIntersectionObserver(
 </script>
 
 <template>
-  <KunCard
-    :is-transparent="false"
-    content-class="space-y-3"
-    :is-hoverable="false"
-  >
+  <div class="space-y-3">
     <KunHeader
       name="动态时间线"
       description="动态时间线, 展示全站 话题, 回复, Galgame 与社区的最新 Galgame 资源, Galgame 动态, Galgame 讨论, Galgame 评论等"
@@ -136,5 +132,5 @@ useIntersectionObserver(
       </KunButton>
       <span v-else class="text-default-400 text-sm">没有更多动态了</span>
     </div>
-  </KunCard>
+  </div>
 </template>

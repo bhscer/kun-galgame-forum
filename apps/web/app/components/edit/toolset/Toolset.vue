@@ -70,11 +70,7 @@ const handleUpdatePageLink = (value: string | number) => {
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="space-y-6"
-  >
+  <div class="space-y-6">
     <KunHeader
       name="发布 Galgame 工具"
       description="提交与 Galgame 相关的工具，帮助其他用户下载与使用"
@@ -157,5 +153,5 @@ const handleUpdatePageLink = (value: string | number) => {
         发布
       </KunButton>
     </div>
-  </KunCard>
+  </div>
 </template>

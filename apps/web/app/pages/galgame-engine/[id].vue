@@ -118,12 +118,7 @@ if (data.value) {
 </script>
 
 <template>
-  <KunCard
-    :is-transparent="false"
-    :is-hoverable="false"
-    content-class="space-y-6"
-    v-if="data"
-  >
+  <div v-if="data" class="space-y-6">
     <KunHeader
       :name="`${data.name} 引擎制作的 Galgame`"
       :description="data.description"
@@ -205,5 +200,5 @@ if (data.value) {
       v-if="!data.galgameCount"
       :description="`${data.name} 引擎下暂无 Galgame`"
     />
-  </KunCard>
+  </div>
 </template>

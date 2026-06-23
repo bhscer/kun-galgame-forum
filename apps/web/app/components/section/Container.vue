@@ -39,11 +39,7 @@ watch(
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="space-y-6"
-  >
+  <div class="space-y-6">
     <KunHeader :description="KUN_TOPIC_SECTION_DESCRIPTION_MAP[section]">
       <template #title>
         <div class="flex items-center gap-2">
@@ -118,5 +114,5 @@ watch(
       :total-page="Math.ceil(data.total / 30)"
       :is-loading="status === 'pending'"
     />
-  </KunCard>
+  </div>
 </template>

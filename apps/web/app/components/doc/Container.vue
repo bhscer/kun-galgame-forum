@@ -20,11 +20,7 @@ const articles = computed(() => articleResponse.value?.items || [])
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    class-name="min-h-[calc(100dvh-6rem)]"
-    content-class="space-y-6"
-  >
+  <div class="min-h-[calc(100dvh-6rem)] space-y-6">
     <KunHeader
       name="Galgame 帮助文档"
       description="如果您在 Galgame 发布, Galgame 交流, Galgame 资源 等方面有任何的问题, 或者想要联系我们, 都可以查看此界面的帮助文档"
@@ -77,5 +73,5 @@ const articles = computed(() => articleResponse.value?.items || [])
     </div>
 
     <KunNull v-else description="暂时没有找到任何文档" />
-  </KunCard>
+  </div>
 </template>

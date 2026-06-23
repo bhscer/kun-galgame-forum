@@ -83,11 +83,7 @@ useIntersectionObserver(
 </script>
 
 <template>
-  <KunCard
-    :is-transparent="false"
-    content-class="space-y-3"
-    :is-hoverable="false"
-  >
+  <div class="space-y-3">
     <KunHeader
       name="最新动态"
       description="这里展示了论坛的所有动态, 包括 Galgame, Galgame 资源, Galgame 网站, 话题, 回复, 评论, 网站更新 等"
@@ -189,5 +185,5 @@ useIntersectionObserver(
       </KunButton>
       <span v-else class="text-default-400 text-sm">没有更多动态了</span>
     </div>
-  </KunCard>
+  </div>
 </template>

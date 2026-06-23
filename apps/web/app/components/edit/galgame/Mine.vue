@@ -58,11 +58,7 @@ const handleWithdraw = async (item: MineGalgameItem) => {
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="space-y-4"
-  >
+  <div class="space-y-4">
     <KunHeader
       name="我的 Galgame 提交"
       description="您提交的 Galgame 申请, 待审核 / 已拒绝的草稿都会显示在此处。审核通过的 Galgame 会成为公开条目, 不再列在这里。"
@@ -160,5 +156,5 @@ const handleWithdraw = async (item: MineGalgameItem) => {
       :total-page="Math.ceil(data.total / pageData.limit)"
       :is-loading="status === 'pending'"
     />
-  </KunCard>
+  </div>
 </template>

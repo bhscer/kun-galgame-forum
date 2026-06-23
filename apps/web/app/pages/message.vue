@@ -11,12 +11,8 @@ onMounted(() => (messageStatus.value = 'online'))
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="flex-row h-[calc(100dvh-120px)]"
-  >
+  <div class="flex h-[calc(100dvh-120px)] flex-row">
     <MessageAsideContainer />
     <NuxtPage />
-  </KunCard>
+  </div>
 </template>

@@ -57,12 +57,7 @@ const handleReorder = async (category: FriendLinkCategory, ids: number[]) => {
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    class="w-full"
-    content-class="space-y-6"
-  >
+  <div class="w-full space-y-6">
     <KunHeader
       name="友链管理"
       description="增删改友链, 拖拽左侧手柄可调整每个分类内的展示顺序"
@@ -86,5 +81,5 @@ const handleReorder = async (category: FriendLinkCategory, ids: number[]) => {
       :default-category="modalCategory"
       @submit="handleSubmit"
     />
-  </KunCard>
+  </div>
 </template>

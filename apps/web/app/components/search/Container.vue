@@ -77,12 +77,7 @@ const handleLoadMore = async () => {
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="space-y-6"
-    class-name="min-h-[calc(100dvh-6rem)]"
-  >
+  <div class="space-y-6 min-h-[calc(100dvh-6rem)]">
     <KunHeader
       name="搜索"
       description="您可以在本页面搜索本论坛的所有话题, Galgame, 用户, 回复, 评论。"
@@ -135,5 +130,5 @@ const handleLoadMore = async () => {
     />
 
     <KunLoading v-if="isLoading" />
-  </KunCard>
+  </div>
 </template>

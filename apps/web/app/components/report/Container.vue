@@ -41,12 +41,7 @@ const handleSubmitReport = async () => {
 </script>
 
 <template>
-  <KunCard
-    :is-hoverable="false"
-    :is-transparent="false"
-    content-class="space-y-6"
-    class-name="min-h-[calc(100dvh-6rem)]"
-  >
+  <div class="space-y-6 min-h-[calc(100dvh-6rem)]">
     <KunHeader
       name="匿名举报"
       description="该举报是完全匿名的, 在管理端以及数据库中不会留下任何用户记录, 请您放心举报, 与此同时请您务必填写详细违规的位置, 因为我们无法与您再次沟通"
@@ -78,5 +73,5 @@ const handleSubmitReport = async () => {
         提交举报
       </KunButton>
     </div>
-  </KunCard>
+  </div>
 </template>

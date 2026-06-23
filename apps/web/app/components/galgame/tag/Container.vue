@@ -134,11 +134,7 @@ watch(
 </script>
 
 <template>
-  <KunCard
-    :is-transparent="false"
-    :is-hoverable="false"
-    content-class="space-y-6"
-  >
+  <div class="space-y-6">
     <KunHeader
       name="Galgame 标签 Wiki"
       description="这里展示了绝大多数 Galgame 的标签, 并附带有标签的别名, 您可以点击标签以查看所有含有这个标签的 Galgame"
@@ -267,5 +263,5 @@ watch(
         :is-loading="loadingGames"
       />
     </div>
-  </KunCard>
+  </div>
 </template>
