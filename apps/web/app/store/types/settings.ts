@@ -1,6 +1,10 @@
 import type { MessageStatus } from '~~/shared/types/utils/message'
+import type { KunFeedTab } from '~/constants/activity'
 
 export interface KUNGalgameSettingsStore {
+  // User-configured home-feed tabs (设置 → 动态). Each tab = name + icon + a set
+  // of activity "kinds"; persisted so it follows the user. See constants/activity.
+  feedTabs: KunFeedTab[]
   showKUNGalgamePageTransparency: number
   showKUNGalgameFontStyle: string
   showKUNGalgameContentLimit: string

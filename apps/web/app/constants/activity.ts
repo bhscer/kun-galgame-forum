@@ -106,3 +106,167 @@ export const KUN_ACTIVITY_ICON_MAP: Record<string, string> = {
   MESSAGE_UPVOTE: 'lucide:sparkles',
   MESSAGE_SOLUTION: 'lucide:bookmark-check'
 }
+
+// ── Configurable home-feed tabs (设置 → 动态) ──────────────────────────────────
+// A custom tab is a name + icon + a set of "kinds". Kinds are activity types,
+// EXCEPT topics are split into 普通话题 (TOPIC_NORMAL) / 资源求助话题
+// (TOPIC_RESOURCE_HELP) — backend pseudo-types (service.resolveKinds) that
+// collapse to TOPIC_CREATION + a section filter, so 资源/求助 topics can be routed
+// independently (matching the default 全部 / 资源和求助 split).
+export interface KunFeedKind {
+  value: string
+  label: string
+  icon: string
+}
+
+export const KUN_FEED_KIND_GROUPS: { label: string; kinds: KunFeedKind[] }[] = [
+  {
+    label: '话题',
+    kinds: [
+      { value: 'TOPIC_NORMAL', label: '话题', icon: 'icon-park-outline:topic' },
+      {
+        value: 'TOPIC_RESOURCE_HELP',
+        label: '资源/求助话题',
+        icon: 'lucide:life-buoy'
+      },
+      { value: 'TOPIC_REPLY_CREATION', label: '话题回复', icon: 'carbon:reply' },
+      {
+        value: 'TOPIC_COMMENT_CREATION',
+        label: '话题评论',
+        icon: 'lucide:message-circle-more'
+      },
+      { value: 'TOPIC_UPVOTE', label: '推话题', icon: 'lucide:trending-up' },
+      {
+        value: 'MESSAGE_SOLUTION',
+        label: '最佳答案',
+        icon: 'lucide:bookmark-check'
+      }
+    ]
+  },
+  {
+    label: 'Galgame',
+    kinds: [
+      { value: 'GALGAME_CREATION', label: '新游戏', icon: 'lucide:gamepad-2' },
+      { value: 'GALGAME_EDIT', label: '游戏编辑', icon: 'lucide:file-pen-line' },
+      {
+        value: 'GALGAME_PR_CREATION',
+        label: '更新请求',
+        icon: 'lucide:git-pull-request'
+      },
+      {
+        value: 'GALGAME_COMMENT_CREATION',
+        label: '游戏评论',
+        icon: 'lucide:message-square'
+      },
+      { value: 'GALGAME_RATING_CREATION', label: '游戏评分', icon: 'lucide:star' },
+      {
+        value: 'GALGAME_RATING_COMMENT_CREATION',
+        label: '评分评论',
+        icon: 'lucide:message-square-text'
+      },
+      { value: 'GALGAME_RESOURCE_CREATION', label: '游戏资源', icon: 'lucide:box' },
+      { value: 'GALGAME_WEBSITE_CREATION', label: '网站', icon: 'lucide:globe' },
+      {
+        value: 'GALGAME_WEBSITE_COMMENT_CREATION',
+        label: '网站评论',
+        icon: 'lucide:message-square-text'
+      }
+    ]
+  },
+  {
+    label: '工具',
+    kinds: [
+      { value: 'TOOLSET_CREATION', label: '工具', icon: 'lucide:wrench' },
+      {
+        value: 'TOOLSET_RESOURCE_CREATION',
+        label: '工具资源',
+        icon: 'lucide:package-plus'
+      },
+      { value: 'TOOLSET_COMMENT_CREATION', label: '工具评论', icon: 'lucide:wrench' }
+    ]
+  },
+  {
+    label: '站务',
+    kinds: [
+      { value: 'TODO_CREATION', label: '待办', icon: 'lucide:list-checks' },
+      { value: 'UPDATE_LOG_CREATION', label: '更新日志', icon: 'lucide:file-clock' }
+    ]
+  }
+]
+
+export interface KunFeedTab {
+  id: string
+  name: string
+  icon: string
+  kinds: string[]
+}
+
+// 全部 = every kind EXCEPT 资源/求助话题, 游戏资源 and 游戏评论 (mirrors the old
+// homeTabSourceTypes("all"): those live in their own tabs).
+const KUN_ALL_TAB_KINDS = [
+  'TOPIC_NORMAL',
+  'TOPIC_REPLY_CREATION',
+  'TOPIC_COMMENT_CREATION',
+  'TOPIC_UPVOTE',
+  'MESSAGE_SOLUTION',
+  'GALGAME_CREATION',
+  'GALGAME_EDIT',
+  'GALGAME_PR_CREATION',
+  'GALGAME_RATING_CREATION',
+  'GALGAME_RATING_COMMENT_CREATION',
+  'GALGAME_WEBSITE_CREATION',
+  'GALGAME_WEBSITE_COMMENT_CREATION',
+  'TOOLSET_CREATION',
+  'TOOLSET_RESOURCE_CREATION',
+  'TOOLSET_COMMENT_CREATION',
+  'TODO_CREATION',
+  'UPDATE_LOG_CREATION'
+]
+
+// Default tabs — replicate the previous fixed five exactly. Stable ids so the
+// ?tab= URL + the active selection survive edits.
+export const KUN_DEFAULT_FEED_TABS: KunFeedTab[] = [
+  { id: 'all', name: '全部', icon: 'lucide:layers', kinds: [...KUN_ALL_TAB_KINDS] },
+  {
+    id: 'topic',
+    name: '话题',
+    icon: 'icon-park-outline:topic',
+    kinds: [
+      'TOPIC_NORMAL',
+      'TOPIC_REPLY_CREATION',
+      'TOPIC_COMMENT_CREATION',
+      'TOPIC_UPVOTE',
+      'MESSAGE_SOLUTION'
+    ]
+  },
+  {
+    id: 'galgame',
+    name: 'Galgame',
+    icon: 'lucide:gamepad-2',
+    kinds: [
+      'GALGAME_CREATION',
+      'GALGAME_EDIT',
+      'GALGAME_PR_CREATION',
+      'GALGAME_COMMENT_CREATION',
+      'GALGAME_RATING_CREATION',
+      'GALGAME_RATING_COMMENT_CREATION',
+      'GALGAME_WEBSITE_CREATION',
+      'GALGAME_WEBSITE_COMMENT_CREATION',
+      'TOOLSET_CREATION',
+      'TOOLSET_RESOURCE_CREATION',
+      'TOOLSET_COMMENT_CREATION'
+    ]
+  },
+  {
+    id: 'resource',
+    name: '资源和求助',
+    icon: 'lucide:box',
+    kinds: ['GALGAME_RESOURCE_CREATION', 'TOPIC_RESOURCE_HELP']
+  },
+  {
+    id: 'others',
+    name: '其他',
+    icon: 'lucide:layout-grid',
+    kinds: ['TODO_CREATION', 'UPDATE_LOG_CREATION']
+  }
+]

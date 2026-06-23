@@ -4,6 +4,7 @@ import {
   ENABLE_KUN_VISUAL_NOVEL_FORUM_WINTER_THEME,
   KUN_VISUAL_NOVEL_FORUM_WINTER_THEME_BACKGROUND
 } from '~/config/theme'
+import { KUN_DEFAULT_FEED_TABS } from '~/constants/activity'
 import type { KUNGalgameSettingsStore } from '../types/settings'
 
 const SETTINGS_CUSTOM_BACKGROUND_IMAGE_NAME: string = 'kun-galgame-custom-bg'
@@ -46,6 +47,16 @@ export const usePersistSettingsStore = defineStore(
       ref<KUNGalgameSettingsStore['showKUNGalgameGallerySexualLevels']>([])
     const showKUNGalgameGalleryViolenceLevels =
       ref<KUNGalgameSettingsStore['showKUNGalgameGalleryViolenceLevels']>([])
+    // Home-feed tabs — deep-cloned from the defaults so the seed array isn't
+    // shared/mutated. Persisted; old users (no persisted value) get the defaults.
+    const feedTabs = ref<KUNGalgameSettingsStore['feedTabs']>(
+      structuredClone(KUN_DEFAULT_FEED_TABS)
+    )
+
+    // Restore the home-feed tabs to the shipped defaults (设置 → 动态 → 恢复默认).
+    const resetKUNGalgameFeedTabs = () => {
+      feedTabs.value = structuredClone(KUN_DEFAULT_FEED_TABS)
+    }
 
     const setKUNGalgameFontStyle = (font: string) => {
       showKUNGalgameFontStyle.value = font
@@ -144,6 +155,8 @@ export const usePersistSettingsStore = defineStore(
       showKUNGalgameRounded,
       showKUNGalgameGallerySexualLevels,
       showKUNGalgameGalleryViolenceLevels,
+      feedTabs,
+      resetKUNGalgameFeedTabs,
       setKUNGalgameFontStyle,
       setKUNGalgameTransparency,
       setKUNGalgameBackgroundBlur,

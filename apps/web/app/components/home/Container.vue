@@ -1,23 +1,34 @@
 <script setup lang="ts">
 import { useIntersectionObserver, useThrottleFn } from '@vueuse/core'
 
-// Home page = the activity feed, split into five tabs. Each tab is a server-side
-// bucket of activity types (GET /activity/tab?tab=…); "全部" is every type EXCEPT
-// galgame resources, which get their own 资源 tab so the main stream isn't
-// drowned by download spam. Keep tab order/values in lock-step with the backend
-// homeTabTypes map (activity_service.go). Cards reuse the /activity card style;
+// Home page = the activity feed. Tabs are USER-CONFIGURABLE (设置 → 动态): each tab
+// is a set of activity "kinds" stored in the settings store, sent to the backend
+// as GET /activity/tab?types=…. The defaults replicate the previous fixed five
+// (全部 / 话题 / Galgame / 资源和求助 / 其他). Cards reuse the /activity card style;
 // no KunCard wrapper here (the feed is the page).
-const HOME_FEED_TABS = [
-  { value: 'all', textValue: '全部', icon: 'lucide:layers' },
-  { value: 'topic', textValue: '话题', icon: 'icon-park-outline:topic' },
-  { value: 'galgame', textValue: 'Galgame', icon: 'lucide:gamepad-2' },
-  { value: 'resource', textValue: '资源和求助', icon: 'lucide:box' },
-  { value: 'others', textValue: '其他', icon: 'lucide:layout-grid' }
-]
-
 const settings = usePersistSettingsStore()
+const { feedTabs } = storeToRefs(settings)
+const tabItems = computed(() =>
+  feedTabs.value.map((t) => ({ value: t.id, textValue: t.name, icon: t.icon }))
+)
 // Tab lives in the URL (?tab=) so it survives back/forward, refresh + sharing.
-const activeTab = useTabQuery('all')
+const activeTab = useTabQuery(feedTabs.value[0]?.id ?? 'all')
+// The active tab's kinds → the `types` query param (comma-joined). Falls back to
+// the first tab if the active id was deleted/renamed away in settings.
+const activeTypes = computed(() => {
+  const tab =
+    feedTabs.value.find((t) => t.id === activeTab.value) ?? feedTabs.value[0]
+  return (tab?.kinds ?? []).join(',')
+})
+// If the active tab vanished (deleted in settings), snap back to the first tab.
+watchEffect(() => {
+  if (
+    feedTabs.value.length &&
+    !feedTabs.value.some((t) => t.id === activeTab.value)
+  ) {
+    activeTab.value = feedTabs.value[0]!.id
+  }
+})
 
 const items = ref<ActivityItem[]>([])
 const cursor = ref('')
@@ -42,7 +53,7 @@ const { data, status } = await useKunFetch<{
 }>('/activity/tab', {
   method: 'GET',
   query: computed(() => ({
-    tab: activeTab.value,
+    types: activeTypes.value,
     limit: 30,
     showNoResource: settings.showKUNGalgameNoResource
   }))
@@ -78,6 +89,7 @@ const loadMore = async (auto = false) => {
     autoLoadCount.value = 0 // a manual 加载更多 resumes auto-loading
   }
   const tab = activeTab.value
+  const types = activeTypes.value
   isLoadingMore.value = true
   controller = new AbortController()
   const next = await kunFetch<{ items: ActivityItem[]; nextCursor: string }>(
@@ -85,7 +97,7 @@ const loadMore = async (auto = false) => {
     {
       method: 'GET',
       query: {
-        tab,
+        types,
         limit: 30,
         cursor: cursor.value,
         showNoResource: settings.showKUNGalgameNoResource
@@ -123,7 +135,7 @@ useIntersectionObserver(
     <div class="sm:hidden">
       <KunTab
         v-model="activeTab"
-        :items="HOME_FEED_TABS"
+        :items="tabItems"
         variant="underlined"
         color="primary"
         full-width
@@ -135,7 +147,7 @@ useIntersectionObserver(
     <div class="sticky top-20 hidden shrink-0 self-start sm:block sm:w-28">
       <KunTab
         v-model="activeTab"
-        :items="HOME_FEED_TABS"
+        :items="tabItems"
         orientation="vertical"
         variant="underlined"
         color="primary"

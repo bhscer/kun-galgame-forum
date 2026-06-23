@@ -77,8 +77,8 @@ func (s *ActivityService) GetActivity(ctx context.Context, typeStr, cursor strin
 		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
 	}
 	cacheKey := fmt.Sprintf("activity:v2:%s:%s:%d:%t:%t", typeStr, cursor, limit, isSFW, showNoResource)
-	// "" tab → no tab-specific filtering (the NSFW-creation drop is the 全部 tab's).
-	return s.cachedKeyset(ctx, cacheKey, []string{typeStr}, cursor, limit, isSFW, showNoResource, "")
+	// single-type feed excludes 资源/求助 topics (only the resource tab shows them).
+	return s.cachedKeyset(ctx, cacheKey, []string{typeStr}, cursor, limit, isSFW, showNoResource, "normal")
 }
 
 // getCachedResult returns a cached activity Result, and true on a hit.
@@ -164,27 +164,84 @@ func (s *ActivityService) GetTab(ctx context.Context, tab, cursor string, limit 
 	if len(types) == 0 {
 		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
 	}
+	// resource tab keeps ONLY 资源/求助 topics; every other built-in tab excludes them.
+	sectionMode := "normal"
+	if tab == "resource" {
+		sectionMode = "help"
+	}
 	cacheKey := fmt.Sprintf("activity:v2:tab:%s:%s:%d:%t:%t", tab, cursor, limit, isSFW, showNoResource)
-	return s.cachedKeyset(ctx, cacheKey, types, cursor, limit, isSFW, showNoResource, tab)
+	return s.cachedKeyset(ctx, cacheKey, types, cursor, limit, isSFW, showNoResource, sectionMode)
+}
+
+// GetFeedByTypes serves a user-configured tab: `kinds` is that tab's selected
+// activity kinds (the FE catalog). The topic pseudo-kinds TOPIC_NORMAL /
+// TOPIC_RESOURCE_HELP collapse to TOPIC_CREATION + a section mode; unknown kinds
+// are dropped. No selectable kind → empty feed.
+func (s *ActivityService) GetFeedByTypes(ctx context.Context, kinds []string, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
+	types, sectionMode := s.resolveKinds(kinds)
+	if len(types) == 0 {
+		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
+	}
+	cacheKey := fmt.Sprintf("activity:v2:custom:%s|%s:%s:%d:%t:%t",
+		strings.Join(types, ","), sectionMode, cursor, limit, isSFW, showNoResource)
+	return s.cachedKeyset(ctx, cacheKey, types, cursor, limit, isSFW, showNoResource, sectionMode)
+}
+
+// resolveKinds maps the FE kind catalog → real feed_activity types + a topic
+// section mode. TOPIC_NORMAL / TOPIC_RESOURCE_HELP both resolve to TOPIC_CREATION;
+// the section mode is "normal" (普通 only), "help" (资源/求助 only), or "all" (both
+// selected, or no topic kind). Unknown / duplicate kinds are dropped.
+func (s *ActivityService) resolveKinds(kinds []string) (types []string, sectionMode string) {
+	seen := map[string]bool{}
+	addType := func(t string) {
+		if !seen[t] {
+			types = append(types, t)
+			seen[t] = true
+		}
+	}
+	wantNormal, wantHelp := false, false
+	for _, k := range kinds {
+		switch k {
+		case "TOPIC_NORMAL":
+			wantNormal = true
+			addType("TOPIC_CREATION")
+		case "TOPIC_RESOURCE_HELP":
+			wantHelp = true
+			addType("TOPIC_CREATION")
+		default:
+			if _, ok := s.repo.GetSource(k); ok {
+				addType(k)
+			}
+		}
+	}
+	switch {
+	case wantHelp && !wantNormal:
+		sectionMode = "help"
+	case wantNormal && !wantHelp:
+		sectionMode = "normal"
+	default:
+		sectionMode = "all"
+	}
+	return types, sectionMode
 }
 
 // GetTimeline returns the mixed activity timeline across all sources.
 func (s *ActivityService) GetTimeline(ctx context.Context, cursor string, limit int, isSFW, showNoResource bool) (*Result, *errors.AppError) {
 	cacheKey := fmt.Sprintf("activity:v2:all:%s:%d:%t:%t", cursor, limit, isSFW, showNoResource)
-	// nil types → no type filter (every feed_activity row); "" tab → no tab-specific
-	// filtering (e.g. the 全部-tab NSFW-galgame-creation drop).
-	return s.cachedKeyset(ctx, cacheKey, nil, cursor, limit, isSFW, showNoResource, "")
+	// nil types → no type filter (every feed_activity row); "normal" → the mixed
+	// timeline excludes 资源/求助 topics (they live in the resource tab).
+	return s.cachedKeyset(ctx, cacheKey, nil, cursor, limit, isSFW, showNoResource, "normal")
 }
 
 // cachedKeyset wraps serveKeyset with the activityCacheTTL cache-aside. Keyed by
 // cursor (the page), isSFW (which galgame names the wiki returns) and
 // showNoResource (whether resource-less GALGAME_CREATION rows are dropped) so
 // viewers with different filters never share an entry.
-func (s *ActivityService) cachedKeyset(ctx context.Context, cacheKey string, types []string, cursor string, limit int, isSFW, showNoResource bool, tab string) (*Result, *errors.AppError) {
+func (s *ActivityService) cachedKeyset(ctx context.Context, cacheKey string, types []string, cursor string, limit int, isSFW, showNoResource bool, sectionMode string) (*Result, *errors.AppError) {
 	if cached, ok := s.getCachedResult(ctx, cacheKey); ok {
 		return cached, nil
 	}
-	result, appErr := s.serveKeyset(ctx, types, cursor, limit, isSFW, showNoResource, tab)
+	result, appErr := s.serveKeyset(ctx, types, cursor, limit, isSFW, showNoResource, sectionMode)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -199,13 +256,13 @@ func (s *ActivityService) cachedKeyset(ctx context.Context, cacheKey string, typ
 // it has `limit` survivors or the feed is exhausted. nextCursor is the LAST
 // survivor's keyset, so the next page resumes exactly where this one stopped:
 // no offset drift, and the total-order tiebreaker means no dup/skip across pages.
-func (s *ActivityService) serveKeyset(ctx context.Context, types []string, cursor string, limit int, isSFW, showNoResource bool, tab string) (*Result, *errors.AppError) {
+func (s *ActivityService) serveKeyset(ctx context.Context, types []string, cursor string, limit int, isSFW, showNoResource bool, sectionMode string) (*Result, *errors.AppError) {
 	cur := decodeCursor(cursor)
 	collected := make([]dto.ActivityItem, 0, limit)
 	exhausted := false
 
 	for round := 0; len(collected) < limit && round < activityMaxRounds; round++ {
-		rows, err := s.repo.FetchFeed(types, limit, cur, isSFW, showNoResource, tab)
+		rows, err := s.repo.FetchFeed(types, limit, cur, isSFW, showNoResource, sectionMode)
 		if err != nil {
 			return nil, errors.ErrInternal("查询活动数据失败")
 		}
@@ -213,7 +270,7 @@ func (s *ActivityService) serveKeyset(ctx context.Context, types []string, curso
 			exhausted = true
 			break
 		}
-		for _, it := range s.enrichAndHydrate(ctx, rows, isSFW, tab) {
+		for _, it := range s.enrichAndHydrate(ctx, rows, isSFW) {
 			collected = append(collected, it)
 			if len(collected) == limit {
 				break
@@ -289,9 +346,9 @@ func decodeCursor(cursor string) *repository.Cursor {
 // enrichAndHydrate runs the full row → item pipeline: galgame name/brief
 // enrichment (which drops brief-missing rows), topic rich-card enrichment, then
 // OAuth identity hydration.
-func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repository.ActivityRow, isSFW bool, tab string) []dto.ActivityItem {
+func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repository.ActivityRow, isSFW bool) []dto.ActivityItem {
 	items := rowsToItems(rows)
-	items = s.enrichGalgameItems(ctx, rows, items, isSFW, tab)
+	items = s.enrichGalgameItems(ctx, rows, items, isSFW)
 	s.enrichGalgameCommentParents(items)
 	s.enrichGalgameResourceDetails(items)
 	s.enrichTopicItems(ctx, items)
@@ -849,7 +906,6 @@ func (s *ActivityService) enrichGalgameItems(
 	rows []repository.ActivityRow,
 	items []dto.ActivityItem,
 	isSFW bool,
-	tab string,
 ) []dto.ActivityItem {
 	idSet := map[int]struct{}{}
 	for _, r := range rows {
@@ -942,12 +998,6 @@ func (s *ActivityService) enrichGalgameItems(
 		b, ok := briefMap[r.GalgameID]
 		if !ok {
 			// NSFW (SFW viewer) or deleted → drop the whole activity.
-			continue
-		}
-		// 全部 tab: never surface ANY NSFW galgame's activity there, even for an
-		// NSFW viewer (only this tab behaves so; the dedicated Galgame tab still
-		// shows them subject to the viewer's isSFW setting).
-		if tab == "all" && b.ContentLimit == "nsfw" {
 			continue
 		}
 		name := briefName(b)

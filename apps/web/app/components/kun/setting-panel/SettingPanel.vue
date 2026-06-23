@@ -11,6 +11,7 @@ const settingTabs = [
   { value: 'appearance', textValue: '外观', icon: 'lucide:palette' },
   { value: 'background', textValue: '背景', icon: 'lucide:image' },
   { value: 'galgame', textValue: 'Galgame', icon: 'lucide:gamepad-2' },
+  { value: 'feed', textValue: '动态', icon: 'lucide:rss' },
   { value: 'content', textValue: '内容', icon: 'lucide:shield-alert' },
   { value: 'general', textValue: '通用', icon: 'lucide:settings-2' }
 ]
@@ -89,6 +90,10 @@ const activeTab = ref('appearance')
 
           <div v-show="activeTab === 'galgame'">
             <KunSettingPanelComponentsGalgame />
+          </div>
+
+          <div v-show="activeTab === 'feed'">
+            <KunSettingPanelComponentsFeedTabs />
           </div>
 
           <div v-show="activeTab === 'content'">

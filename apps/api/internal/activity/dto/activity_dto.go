@@ -25,11 +25,14 @@ type TimelineRequest struct {
 	ShowNoResource bool   `query:"showNoResource"`
 }
 
-// TabRequest drives the home-page feed's five tab buckets. Tab is one of
-// all/topic/galgame/resource/others (see service.homeTabTypes); "all" is every
-// non-resource type.
+// TabRequest drives the home-page feed. Types (comma-separated activity kinds —
+// the user's configurable tab) takes precedence when set; otherwise Tab selects
+// one of the legacy built-in buckets all/topic/galgame/resource/others. The topic
+// "kinds" TOPIC_NORMAL / TOPIC_RESOURCE_HELP are pseudo-types the service maps to
+// TOPIC_CREATION + a section filter (see service.resolveKinds).
 type TabRequest struct {
-	Tab            string `query:"tab" validate:"required,oneof=all topic galgame resource others"`
+	Tab            string `query:"tab" validate:"omitempty,oneof=all topic galgame resource others"`
+	Types          string `query:"types"`
 	Cursor         string `query:"cursor"`
 	Limit          int    `query:"limit" validate:"min=1,max=50"`
 	ShowNoResource bool   `query:"showNoResource"`

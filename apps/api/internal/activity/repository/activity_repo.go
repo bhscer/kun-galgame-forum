@@ -945,14 +945,16 @@ func sourceQuery(src ActivitySource, isSFW, showNoResource, withCursor bool, tab
 //   - SFW: drop is_nsfw rows (r18 website activity) for SFW viewers.
 //   - resource-less: drop GALGAME_CREATION of galgames with no download resource
 //     (unless showNoResource) so they never occupy a LIMIT slot.
-//   - section: 资源/求助 topics (g-seeking/g-other/t-help) belong ONLY in the
-//     资源和求助 tab (tab="resource"); every other feed excludes them.
+//   - section (sectionMode): TOPIC_CREATION is split by the 资源/求助 sections
+//     (g-seeking/g-other/t-help). "help" keeps only those topics, "normal" keeps
+//     only the rest, "all" (or "") applies no topic split. Lets a configurable
+//     tab put 普通话题 / 资源求助话题 wherever the user wants.
 //
 // Order + cut use the SAME (created, type, source_id) total order as the cursor
 // (feed_activity has UNIQUE(type, source_id)), so serveKeyset / encode / decode
 // are reused unchanged. Galgame NSFW is still dropped at enrichment (wiki-owned),
 // bounded by activityMaxRounds.
-func (r *ActivityRepository) FetchFeed(types []string, limit int, cur *Cursor, isSFW, showNoResource bool, tab string) ([]ActivityRow, error) {
+func (r *ActivityRepository) FetchFeed(types []string, limit int, cur *Cursor, isSFW, showNoResource bool, sectionMode string) ([]ActivityRow, error) {
 	conds := make([]string, 0, 6)
 	args := make([]any, 0, 6)
 	if len(types) > 0 {
@@ -968,10 +970,12 @@ func (r *ActivityRepository) FetchFeed(types []string, limit int, cur *Cursor, i
 	const inHelp = "EXISTS (SELECT 1 FROM topic_section_relation tsr " +
 		"JOIN topic_section ts ON ts.id = tsr.topic_section_id " +
 		"WHERE tsr.topic_id = fa.source_id AND ts.name IN ('g-seeking','g-other','t-help'))"
-	if tab == "resource" {
+	switch sectionMode {
+	case "help":
 		conds = append(conds, "(fa.type <> 'TOPIC_CREATION' OR "+inHelp+")")
-	} else {
+	case "normal":
 		conds = append(conds, "(fa.type <> 'TOPIC_CREATION' OR NOT "+inHelp+")")
+		// "all"/"" → no topic section split (both 普通 + 资源求助 topics)
 	}
 	if cur != nil {
 		conds = append(conds, "(fa.created, fa.type, fa.source_id) < (?, ?, ?)")
