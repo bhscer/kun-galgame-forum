@@ -9,7 +9,7 @@ import "time"
 type ActivityRequest struct {
 	// Cursor is the opaque keyset position from the previous page's nextCursor;
 	// empty = first page. Replaces the old `page` — offset paging duplicated /
-	// skipped rows across pages (see repository.FetchKeyset).
+	// skipped rows across pages (see repository.FetchFeed).
 	Cursor string `query:"cursor"`
 	Limit  int    `query:"limit" validate:"min=1,max=50"`
 	Type   string `query:"type" validate:"required"`

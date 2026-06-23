@@ -73,7 +73,7 @@ func (s *ActivityService) GetActivity(ctx context.Context, typeStr, cursor strin
 	if typeStr == "all" {
 		return s.GetTimeline(ctx, cursor, limit, isSFW, showNoResource)
 	}
-	if _, ok := s.repo.GetSource(typeStr); !ok {
+	if !s.repo.IsKnownType(typeStr) {
 		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
 	}
 	cacheKey := fmt.Sprintf("activity:v2:%s:%s:%d:%t:%t", typeStr, cursor, limit, isSFW, showNoResource)
@@ -132,8 +132,8 @@ var homeTabTypes = map[string][]string{
 		"TOOLSET_RESOURCE_CREATION", "TOOLSET_COMMENT_CREATION",
 	},
 	// 资源和求助 tab: newly published galgame resources + 资源/求助 topics (the
-	// section filter in sourceQuery scopes TOPIC_CREATION to g-seeking/g-other/
-	// t-help here, and excludes them from every other tab).
+	// sectionMode in FetchFeed scopes TOPIC_CREATION to g-seeking/g-other/t-help
+	// here, and excludes them from every other tab).
 	"resource": {"GALGAME_RESOURCE_CREATION", "TOPIC_CREATION"},
 	"others":   {"TODO_CREATION", "UPDATE_LOG_CREATION"},
 }
@@ -209,7 +209,7 @@ func (s *ActivityService) resolveKinds(kinds []string) (types []string, sectionM
 			wantHelp = true
 			addType("TOPIC_CREATION")
 		default:
-			if _, ok := s.repo.GetSource(k); ok {
+			if s.repo.IsKnownType(k) {
 				addType(k)
 			}
 		}
@@ -897,7 +897,7 @@ func rowsToItems(rows []repository.ActivityRow) []dto.ActivityItem {
 // items are returned untouched (graceful degradation).
 //
 // Resource-less GALGAME_CREATION rows are NOT handled here anymore — they're
-// excluded in SQL (sourceQuery) so they never spend a LIMIT slot; see the repo.
+// excluded in SQL (FetchFeed) so they never spend a LIMIT slot; see the repo.
 //
 // Returns the kept items (a subset of `items`); rows/items must be
 // index-aligned on entry.
