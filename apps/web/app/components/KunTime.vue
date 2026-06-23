@@ -21,22 +21,33 @@
 const props = withDefaults(
   defineProps<{
     time: number | string | Date | null | undefined
-    // 'relative' → "X 分钟前" | 'date' → MM-dd | 'datetime' → MM-dd - HH:mm
-    type?: 'relative' | 'date' | 'datetime'
+    // 'relative' → "X 分钟前" | 'date' → MM-dd | 'datetime' → MM-dd - HH:mm |
+    // 'auto' → relative within a day, otherwise a precise date (MM-dd - HH:mm)
+    type?: 'relative' | 'date' | 'datetime' | 'auto'
     // include the year in 'date' / 'datetime' modes (yyyy-MM-dd)
     showYear?: boolean
   }>(),
   { type: 'relative', showYear: false }
 )
 
+const isWithinDay = (value: number | string | Date): boolean => {
+  const date = new Date(value)
+  return (
+    !Number.isNaN(date.getTime()) && Date.now() - date.getTime() < 86_400_000
+  )
+}
+
 const render = (): string => {
   const value = props.time ?? ''
-  if (props.type === 'relative') {
+  if (
+    props.type === 'relative' ||
+    (props.type === 'auto' && value !== '' && isWithinDay(value))
+  ) {
     return formatTimeDifference(value)
   }
   return formatDate(value, {
     isShowYear: props.showYear,
-    isPrecise: props.type === 'datetime'
+    isPrecise: props.type === 'datetime' || props.type === 'auto'
   })
 }
 
@@ -46,7 +57,7 @@ let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   // Recompute in the viewer's timezone / with a live `now`.
   text.value = render()
-  if (props.type === 'relative') {
+  if (props.type === 'relative' || props.type === 'auto') {
     timer = setInterval(() => {
       text.value = render()
     }, 60_000)

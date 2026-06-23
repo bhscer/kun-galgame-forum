@@ -14,6 +14,7 @@ export interface TopicCard {
   replyCount: number
   commentCount: number
   statusUpdateTime: Date | string
+  created: Date | string
   upvoteTime: Date | string | null
 }
 

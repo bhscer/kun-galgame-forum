@@ -1,6 +1,21 @@
 <script setup lang="ts">
 const { showKUNGalgameHamburger } = storeToRefs(useTempSettingStore())
 
+// Close the drawer on navigation. The drawer reuses the sidebar with @click.stop,
+// so a nav link click never bubbles to the scrim's close handler — without this
+// the drawer stayed open over the new page (the "click once to navigate, click
+// again to close, but the second click never lands" bug). This mirrors how a
+// popover closes on select: selecting an item (= navigating) dismisses it.
+const route = useRoute()
+watch(
+  () => route.fullPath,
+  () => {
+    if (showKUNGalgameHamburger.value) {
+      showKUNGalgameHamburger.value = false
+    }
+  }
+)
+
 const startX = ref(0)
 const startY = ref(0)
 const currentX = ref(0)

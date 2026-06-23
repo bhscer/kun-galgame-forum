@@ -8,14 +8,15 @@ withDefaults(
   { className: '' }
 )
 
-// Fixed offset for the desktop icon rail (w-20); mobile spans full width. The
-// bar is permanently pinned to the top — no scroll hide/show.
+// Fixed offset for the desktop icon rail (w-20); mobile spans full width.
 const offsetClass = 'md:left-[80px] md:w-[calc(100%-88px)]'
 
-// Flat + transparent at the very top; once the page scrolls it gains the surface
-// (bg + border + shadow + a real blur), so content sliding underneath reads as
-// frosted glass. The old backdrop-blur-[var(--kun-background-blur)] was tied to
-// the background-blur SETTING (0 by default) → it never blurred anything.
+// Flat + edge-to-edge (px-0) + transparent at the very top; once the page scrolls
+// it eases to the inset surface (px-3 + bg + border + shadow). The blur is kept
+// CONSTANT (not animated) and the bar sits on its own GPU layer (transform-gpu),
+// so crossing the threshold no longer animates backdrop-filter — that animation
+// was what stuttered the page. At the top there's nothing behind the bar
+// (the page's pt clears it), so the constant blur is invisible.
 const { y } = useWindowScroll()
 const scrolled = computed(() => y.value > 8)
 </script>
@@ -34,10 +35,10 @@ const scrolled = computed(() => y.value > 8)
     <div
       :class="
         cn(
-          'mx-auto flex h-16 w-full max-w-7xl items-center justify-between rounded-b-lg border px-3 transition-all duration-300',
+          'mx-auto flex h-16 w-full max-w-7xl transform-gpu items-center justify-between rounded-b-lg border backdrop-blur-md transition-all duration-300',
           scrolled
-            ? 'bg-content1 border-kun shadow-kun-sm backdrop-blur-md'
-            : 'border-transparent backdrop-blur-0'
+            ? 'bg-content1 border-kun px-3 shadow-kun-sm'
+            : 'border-transparent bg-transparent px-0 shadow-none'
         )
       "
     >

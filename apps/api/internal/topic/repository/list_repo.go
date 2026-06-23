@@ -33,6 +33,7 @@ type TopicCardRow struct {
 	CommentCount     int
 	BestAnswerID     *int
 	StatusUpdateTime time.Time
+	Created          time.Time
 	UpvoteTime       *time.Time
 	CoverImages      model.ImageTokens
 	UserID           int
@@ -53,7 +54,7 @@ func (r *TopicListRepository) FindList(
 		Select(`topic.id, topic.title, topic.view, topic.status,
 			topic.is_nsfw, topic.like_count, topic.reply_count,
 			topic.comment_count, topic.best_answer_id,
-			topic.status_update_time, topic.upvote_time,
+			topic.status_update_time, topic.created, topic.upvote_time,
 			topic.cover_images, topic.user_id`).
 		Where("topic.status != 1")
 
@@ -95,7 +96,7 @@ func (r *TopicListRepository) FindResourceList(
 		Select(`topic.id, topic.title, topic.view, topic.status,
 			topic.is_nsfw, topic.like_count, topic.reply_count,
 			topic.comment_count, topic.best_answer_id,
-			topic.status_update_time, topic.upvote_time,
+			topic.status_update_time, topic.created, topic.upvote_time,
 			topic.cover_images, topic.user_id`).
 		Joins(`JOIN topic_section_relation tsr ON tsr.topic_id = topic.id`).
 		Joins(`JOIN topic_section ts ON ts.id = tsr.topic_section_id`).

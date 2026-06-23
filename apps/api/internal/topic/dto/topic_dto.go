@@ -56,6 +56,7 @@ type TopicCard struct {
 	ReplyCount       int        `json:"replyCount"`
 	CommentCount     int        `json:"commentCount"`
 	StatusUpdateTime time.Time  `json:"statusUpdateTime"`
+	Created          time.Time  `json:"created"`
 	UpvoteTime       *time.Time `json:"upvoteTime"`
 }
 

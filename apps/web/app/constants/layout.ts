@@ -125,12 +125,6 @@ export const kunLayoutItem: KunLayoutItem[] = [
         label: '全部话题'
       },
       {
-        name: 'resource',
-        icon: 'lucide:message-circle-question-mark',
-        router: '/resource',
-        label: '资源和求助话题'
-      },
-      {
         name: 'galgame',
         icon: 'lucide:gamepad-2',
         router: '/category/galgame',
@@ -330,11 +324,6 @@ export const kunSidebarRail: KunRailGroup[] = [
       {
         items: [
           { label: '全部话题', router: '/topic', icon: 'lucide:library-big' },
-          {
-            label: '资源和求助话题',
-            router: '/resource',
-            icon: 'lucide:message-circle-question-mark'
-          },
           {
             label: 'Galgame 类',
             router: '/category/galgame',

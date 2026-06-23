@@ -312,6 +312,7 @@ func toTopicCard(r repository.TopicCardRow, tags, sections []string, isPollTopic
 		ReplyCount:       r.ReplyCount,
 		CommentCount:     r.CommentCount,
 		StatusUpdateTime: r.StatusUpdateTime,
+		Created:          r.Created,
 		UpvoteTime:       r.UpvoteTime,
 	}
 }
