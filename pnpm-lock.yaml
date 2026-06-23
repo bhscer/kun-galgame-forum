@@ -156,17 +156,17 @@ importers:
         specifier: ^1.2.3
         version: 1.2.4
       '@kungal/ui-core':
-        specifier: 1.14.1
-        version: 1.14.1
+        specifier: 2.1.1
+        version: 2.1.1
       '@kungal/ui-nuxt':
-        specifier: 1.14.1
-        version: 1.14.1(81015acf35160c0d483fda45966fa8ea)
+        specifier: 2.1.1
+        version: 2.1.1(81015acf35160c0d483fda45966fa8ea)
       '@kungal/ui-tokens':
-        specifier: 1.14.1
-        version: 1.14.1(tailwindcss@4.2.2)
+        specifier: 2.1.1
+        version: 2.1.1(tailwindcss@4.2.2)
       '@kungal/ui-vue':
-        specifier: 1.14.1
-        version: 1.14.1(change-case@5.4.4)(fuse.js@7.4.1)(sortablejs@1.15.7)(vue@3.5.35(typescript@5.9.3))
+        specifier: 2.1.1
+        version: 2.1.1(change-case@5.4.4)(fuse.js@7.4.1)(sortablejs@1.15.7)(vue@3.5.35(typescript@5.9.3))
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
@@ -1606,22 +1606,22 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@kungal/ui-core@1.14.1':
-    resolution: {integrity: sha512-9XFQZABgUagy66slRheqDtrjIEtA2m8KH/HiuMGDveUgi9Igux9dswwwyQ1Oc54B0TLs2Ag2KA39BmsZ81U8gA==}
+  '@kungal/ui-core@2.1.1':
+    resolution: {integrity: sha512-Q8jpDfYXKVmQzgrm+pnrlGxyhNUTlPiOEb1AodIfojRs9V/K0yqIm7uhbFvWm0K7QRxRJVz0yGUr7VByXx13dw==}
 
-  '@kungal/ui-nuxt@1.14.1':
-    resolution: {integrity: sha512-EJ52N9I5g/yFZ6lzcoxTFm8DnqU8Bm0L9lbvsBOTRvMJsnInXWfmdF2EMk+bAnSvisQdPR74GSSrTANexw+8cg==}
+  '@kungal/ui-nuxt@2.1.1':
+    resolution: {integrity: sha512-JHzFSly4a/gG6WzSzQJjA0o4VvnuHr8qzfqyRfZ9rdOl4Pq/mpJwruvm2jhXcRAoKXt+XvFB7hEATXCcd29Njw==}
     peerDependencies:
       nuxt: ^4.0.0
       vue: ^3.5.0
 
-  '@kungal/ui-tokens@1.14.1':
-    resolution: {integrity: sha512-mIBh9b5hcXBNlqERN/j8uzZ8yAPBARWf5WLEm0paVWL9HMHCEaaQPHVZrFW/ATUDB9BY49ihODIjrB28EpBWkg==}
+  '@kungal/ui-tokens@2.1.1':
+    resolution: {integrity: sha512-xIuXA7bYiIpwGl+qVAutenlFFts8ZDtHecN8AjA+81Eg2rIbKyQrdtZwMuXnFBv8HblIZpWcWxwZ+ztEuBcNQQ==}
     peerDependencies:
       tailwindcss: ^4.0.0
 
-  '@kungal/ui-vue@1.14.1':
-    resolution: {integrity: sha512-ngWW88KtcyJz5oRfzuoGZTISYZPCubAaQ5c473x9btOpbdhhdcgV3Da2qcCnpEpaJv9a8MiBQfrdqv4/C3owRw==}
+  '@kungal/ui-vue@2.1.1':
+    resolution: {integrity: sha512-8vZvDRNwWoFIvZBzhOnmrmaStYO2feRw9m6P1iJcT97wtTtUqsjiM5GhEWeHPRsJGbGIoBcBSxWeNH+2pZEAXQ==}
     peerDependencies:
       vue: ^3.5.0
 
@@ -9216,15 +9216,15 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@kungal/ui-core@1.14.1':
+  '@kungal/ui-core@2.1.1':
     dependencies:
       clsx: 2.1.1
       tailwind-merge: 3.5.0
 
-  '@kungal/ui-nuxt@1.14.1(81015acf35160c0d483fda45966fa8ea)':
+  '@kungal/ui-nuxt@2.1.1(81015acf35160c0d483fda45966fa8ea)':
     dependencies:
-      '@kungal/ui-tokens': 1.14.1(tailwindcss@4.2.2)
-      '@kungal/ui-vue': 1.14.1(change-case@5.4.4)(fuse.js@7.4.1)(sortablejs@1.15.7)(vue@3.5.35(typescript@5.9.3))
+      '@kungal/ui-tokens': 2.1.1(tailwindcss@4.2.2)
+      '@kungal/ui-vue': 2.1.1(change-case@5.4.4)(fuse.js@7.4.1)(sortablejs@1.15.7)(vue@3.5.35(typescript@5.9.3))
       '@nuxt/icon': 2.2.3(magicast@0.5.2)(vite@7.3.5(@types/node@25.5.0)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.35(typescript@5.9.3))
       '@nuxt/image': 2.0.0(db0@0.3.4(@electric-sql/pglite@0.3.15)(mysql2@3.15.3))(ioredis@5.10.1)(magicast@0.5.2)
       '@nuxt/kit': 4.4.8(magicast@0.5.2)
@@ -9265,14 +9265,14 @@ snapshots:
       - uploadthing
       - vite
 
-  '@kungal/ui-tokens@1.14.1(tailwindcss@4.2.2)':
+  '@kungal/ui-tokens@2.1.1(tailwindcss@4.2.2)':
     dependencies:
       tailwindcss: 4.2.2
 
-  '@kungal/ui-vue@1.14.1(change-case@5.4.4)(fuse.js@7.4.1)(sortablejs@1.15.7)(vue@3.5.35(typescript@5.9.3))':
+  '@kungal/ui-vue@2.1.1(change-case@5.4.4)(fuse.js@7.4.1)(sortablejs@1.15.7)(vue@3.5.35(typescript@5.9.3))':
     dependencies:
       '@floating-ui/vue': 1.1.11(vue@3.5.35(typescript@5.9.3))
-      '@kungal/ui-core': 1.14.1
+      '@kungal/ui-core': 2.1.1
       '@vueuse/core': 14.3.0(vue@3.5.35(typescript@5.9.3))
       '@vueuse/integrations': 14.3.0(change-case@5.4.4)(focus-trap@8.2.1)(fuse.js@7.4.1)(sortablejs@1.15.7)(vue@3.5.35(typescript@5.9.3))
       date-fns: 4.1.0
