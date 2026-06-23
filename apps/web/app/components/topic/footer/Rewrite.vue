@@ -51,15 +51,12 @@ const rewriteTopic = async () => {
     </KunButton>
 
     <KunTooltip v-else text="重新编辑">
-      <KunButton
-        :is-icon-only="true"
-        variant="light"
-        color="default"
-        size="lg"
+      <KunReaction
+        :toggle="false"
+        icon="lucide:pencil"
+        label="重新编辑"
         @click="rewriteTopic"
-      >
-        <KunIcon name="lucide:pencil" />
-      </KunButton>
+      />
     </KunTooltip>
   </template>
 </template>

@@ -14,14 +14,7 @@ const onSelect = (key: string) => {
 <template>
   <KunPopover ref="picker" position="top-start">
     <template #trigger>
-      <KunButton
-        :is-icon-only="true"
-        variant="light"
-        color="default"
-        size="lg"
-      >
-        <KunIcon name="lucide:smile-plus" />
-      </KunButton>
+      <KunReaction :toggle="false" icon="lucide:smile-plus" label="表态" />
     </template>
 
     <TopicReactionPicker :mine-keys="mineKeys" @select="onSelect" />

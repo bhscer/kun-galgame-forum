@@ -34,5 +34,7 @@ const handleClickReply = () => {
 </script>
 
 <template>
-  <KunButton variant="flat" @click="handleClickReply">回复</KunButton>
+  <KunReaction :toggle="false" icon="lucide:reply" @click="handleClickReply">
+    回复
+  </KunReaction>
 </template>

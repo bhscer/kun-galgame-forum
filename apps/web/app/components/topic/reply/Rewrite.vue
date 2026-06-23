@@ -16,16 +16,12 @@ const handleClickRewrite = () => {
 </script>
 
 <template>
-  <KunTooltip text="重新编辑">
-    <KunButton
-      :is-icon-only="true"
-      variant="light"
-      color="default"
-      size="lg"
-      v-if="isShowRewrite"
+  <KunTooltip v-if="isShowRewrite" text="重新编辑">
+    <KunReaction
+      :toggle="false"
+      icon="lucide:pencil"
+      label="重新编辑"
       @click="handleClickRewrite"
-    >
-      <KunIcon name="lucide:pencil" />
-    </KunButton>
+    />
   </KunTooltip>
 </template>
