@@ -21,13 +21,13 @@ const quoted = computed(() => data.value?.quotedReply)
         :label="`#${quoted.floor}`"
       />
 
-      <!-- Body sits OUTSIDE the link so its 显示更多 toggle never navigates;
-           preserveNewlines + pre-line keep the author's line breaks. -->
-      <ActivityCollapse :max-height="300">
-        <p class="text-default-700 text-base break-all whitespace-pre-line">
-          {{ markdownToText(activity.content, { preserveNewlines: true }) }}
-        </p>
-      </ActivityCollapse>
+      <!-- Full reply body, rendered as Markdown (server-rendered HTML, same
+           renderer as the topic detail) — untruncated, NOT inside the link. -->
+      <KunContent
+        compact
+        class="text-base"
+        :content="renderKatex(activity.content)"
+      />
 
       <KunLink
         v-if="data?.topicTitle"

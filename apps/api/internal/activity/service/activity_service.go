@@ -14,6 +14,7 @@ import (
 	"kun-galgame-api/internal/activity/dto"
 	"kun-galgame-api/internal/activity/repository"
 	galgameClient "kun-galgame-api/internal/galgame/client"
+	"kun-galgame-api/internal/infrastructure/markdown"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
 
@@ -291,8 +292,24 @@ func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repositor
 	s.enrichTopicCommentItems(ctx, items)
 	s.enrichReplyItems(ctx, items)
 	s.enrichNoteItems(items)
+	s.renderMarkdownBodies(items)
 	s.hydrateActors(ctx, items)
 	return items
+}
+
+// renderMarkdownBodies renders the FULL reply / galgame-comment body to HTML, so
+// the feed shows it as rich, untruncated Markdown (the same goldmark renderer the
+// detail pages use). Runs after enrichReplyItems, whose @/# token resolution has
+// already left Content as plain markdown text.
+func (s *ActivityService) renderMarkdownBodies(items []dto.ActivityItem) {
+	for i := range items {
+		switch items[i].Type {
+		case "TOPIC_REPLY_CREATION", "GALGAME_COMMENT_CREATION":
+			if items[i].Content != "" {
+				items[i].Content = markdown.Render(items[i].Content)
+			}
+		}
+	}
 }
 
 // enrichNoteItems attaches the small extras the 其他-tab Note card shows: the

@@ -57,9 +57,10 @@ var Sources = map[string]ActivitySource{
 	"TOPIC_REPLY_CREATION": {
 		TypeStr: "TOPIC_REPLY_CREATION",
 		// A reply's text is in topic_reply.content; the legacy multi-target
-		// rows were folded into it by the Phase-4 migration.
+		// rows were folded into it by the Phase-4 migration. The full body is
+		// sent (not truncated) — the reply card renders it as Markdown.
 		Query: `SELECT 'TOPIC_REPLY_CREATION' AS type_str, t.id,
-			SUBSTRING(COALESCE(t.content, ''), 1, 100) AS content,
+			COALESCE(t.content, '') AS content,
 			'/topic/' || t.topic_id AS link, t.created, t.user_id, 0 AS galgame_id
 			FROM topic_reply t`,
 	},
@@ -82,8 +83,9 @@ var Sources = map[string]ActivitySource{
 	},
 	"GALGAME_COMMENT_CREATION": {
 		TypeStr: "GALGAME_COMMENT_CREATION",
+		// Full comment body (not truncated) — the card renders it as Markdown.
 		Query: `SELECT 'GALGAME_COMMENT_CREATION' AS type_str, t.id,
-			SUBSTRING(t.content, 1, 100) AS content,
+			t.content AS content,
 			'/galgame/' || t.galgame_id AS link, t.created, t.user_id, t.galgame_id
 			FROM galgame_comment t`,
 	},

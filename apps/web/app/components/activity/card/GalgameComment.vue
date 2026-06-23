@@ -22,11 +22,13 @@ const detailLink = computed(() =>
         :content="data.parentComment.content"
       />
 
-      <ActivityCollapse :max-height="300">
-        <p class="text-default-700 text-base break-all whitespace-pre-line">
-          {{ markdownToText(activity.content, { preserveNewlines: true }) }}
-        </p>
-      </ActivityCollapse>
+      <!-- Full comment body, rendered as Markdown (server-rendered HTML) — same
+           renderer as the galgame detail; untruncated. -->
+      <KunContent
+        compact
+        class="text-base"
+        :content="renderKatex(activity.content)"
+      />
       <KunLink
         underline="none"
         color="default"
