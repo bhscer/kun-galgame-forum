@@ -62,6 +62,7 @@ import (
 	websiteHandler "kun-galgame-api/internal/website/handler"
 	websiteRepo "kun-galgame-api/internal/website/repository"
 	websiteService "kun-galgame-api/internal/website/service"
+	"kun-galgame-api/pkg/artifactclient"
 	"kun-galgame-api/pkg/config"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/imageclient"
@@ -215,6 +216,30 @@ func New(cfg *config.Config) *App {
 		slog.Warn("image_service client NOT configured; /image/galgame upload will return 未配置 — set KUN_IMAGE_CLIENT_ID / KUN_IMAGE_CLIENT_SECRET")
 	}
 
+	// artifact service client (toolset archive upload/download). kungal's OAuth
+	// client IS its artifact "site", so credentials default to the OAuth client
+	// when KUN_ARTIFACT_CLIENT_ID/SECRET are unset. New() degrades to a no-op
+	// (calls return ErrNotConfigured) when neither is set, so a dev box without
+	// artifact creds still boots.
+	artClientID := cfg.ArtifactClient.ClientID
+	if artClientID == "" {
+		artClientID = cfg.OAuth.ClientID
+	}
+	artClientSecret := cfg.ArtifactClient.ClientSecret
+	if artClientSecret == "" {
+		artClientSecret = cfg.OAuth.ClientSecret
+	}
+	artCli := artifactclient.New(artifactclient.Config{
+		BaseURL:      cfg.ArtifactClient.BaseURL,
+		ClientID:     artClientID,
+		ClientSecret: artClientSecret,
+	})
+	if artCli.Configured() {
+		slog.Info("artifact service client configured", "base_url", cfg.ArtifactClient.BaseURL)
+	} else {
+		slog.Warn("artifact service client NOT configured; toolset upload will return 未配置 — set KUN_ARTIFACT_CLIENT_BASE_URL + OAuth creds")
+	}
+
 	// kungal-link-live-checker client — the "report resource expired" gate.
 	// Only construct when BOTH base URL + API key are set; otherwise the gate is
 	// nil and MarkExpired falls back to the legacy single-report-expires flow
@@ -327,8 +352,8 @@ func New(cfg *config.Config) *App {
 	toolsetPracticalityRepo := toolsetRepo.NewPracticalityRepository(db)
 	toolsetPracticalitySvc := toolsetService.NewPracticalityService(toolsetPracticalityRepo)
 	toolsetCommentSvc := toolsetService.NewCommentService(toolsetCommentRepo, toolsetRepository, uc)
-	toolsetResourceSvc := toolsetService.NewResourceService(toolsetResourceRepo, toolsetRepository, fileStorageClient, uc)
-	toolsetUploadSvc := toolsetService.NewUploadService(fileStorageClient, rdb, db)
+	toolsetResourceSvc := toolsetService.NewResourceService(toolsetResourceRepo, toolsetRepository, fileStorageClient, artCli, uc)
+	toolsetUploadSvc := toolsetService.NewUploadService(artCli, rdb, db)
 	toolsetCoreSvc := toolsetService.NewToolsetService(
 		toolsetRepository, toolsetResourceRepo, toolsetCommentRepo, toolsetPracticalityRepo,
 		fileStorageClient, uc, toolsetPracticalitySvc, toolsetCommentSvc,

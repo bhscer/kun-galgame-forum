@@ -12,6 +12,7 @@ import (
 	"kun-galgame-api/internal/toolset/model"
 	"kun-galgame-api/internal/toolset/repository"
 	userModel "kun-galgame-api/internal/user/model"
+	"kun-galgame-api/pkg/artifactclient"
 	"kun-galgame-api/pkg/errors"
 	"kun-galgame-api/pkg/userclient"
 
@@ -22,6 +23,7 @@ type ResourceService struct {
 	resourceRepo *repository.ResourceRepository
 	toolsetRepo  *repository.ToolsetRepository
 	s3           *storage.S3Client
+	art          *artifactclient.Client
 	userClient   *userclient.Client
 }
 
@@ -29,12 +31,14 @@ func NewResourceService(
 	resourceRepo *repository.ResourceRepository,
 	toolsetRepo *repository.ToolsetRepository,
 	s3 *storage.S3Client,
+	art *artifactclient.Client,
 	userClient *userclient.Client,
 ) *ResourceService {
 	return &ResourceService{
 		resourceRepo: resourceRepo,
 		toolsetRepo:  toolsetRepo,
 		s3:           s3,
+		art:          art,
 		userClient:   userClient,
 	}
 }
@@ -54,6 +58,18 @@ func (s *ResourceService) GetResourceDetail(
 
 	// Download +1 (fire-and-forget)
 	go s.resourceRepo.IncrementDownload(resource.ID)
+
+	// Dual-read: a new s3 resource stores only the artifact uuid; resolve its
+	// download URL at read time via the artifact service (served from
+	// dl.imoe.uk). Legacy s3 rows keep their stored Content URL; on a transient
+	// artifact error we leave Content as-is rather than fail the whole detail.
+	if resource.Type == "s3" && resource.ArtifactUUID != "" {
+		if dl, derr := s.art.Download(ctx, resource.ArtifactUUID); derr == nil {
+			resource.Content = dl.Url
+		} else {
+			slog.Warn("解析 artifact 下载链接失败", "uuid", resource.ArtifactUUID, "error", derr)
+		}
+	}
 
 	uc, _, _ := s.userClient.User(ctx, resource.UserID)
 	user := userModel.UserBrief{ID: uc.ID, Name: uc.Name, Avatar: uc.Avatar}
@@ -80,14 +96,15 @@ func (s *ResourceService) CreateResource(
 	var resource model.GalgameToolsetResource
 	txErr := s.resourceRepo.DB().Transaction(func(tx *gorm.DB) error {
 		resource = model.GalgameToolsetResource{
-			Content:   req.Content,
-			Type:      req.Type,
-			Code:      req.Code,
-			Password:  req.Password,
-			Size:      req.Size,
-			Note:      req.Note,
-			ToolsetID: toolsetID,
-			UserID:    userID,
+			Content:      req.Content,
+			Type:         req.Type,
+			ArtifactUUID: req.ArtifactUUID,
+			Code:         req.Code,
+			Password:     req.Password,
+			Size:         req.Size,
+			Note:         req.Note,
+			ToolsetID:    toolsetID,
+			UserID:       userID,
 		}
 		if err := s.resourceRepo.Create(tx, &resource); err != nil {
 			return err
@@ -177,10 +194,18 @@ func (s *ResourceService) DeleteResource(
 		return errors.ErrForbidden("您没有权限删除此资源")
 	}
 
-	// S3 cleanup (best-effort)
-	if resource.Type == "s3" && resource.Code != "" && s.s3 != nil {
-		if err := s.s3.Delete(context.Background(), resource.Code); err != nil {
-			slog.Warn("删除 S3 资源失败", "key", resource.Code, "error", err)
+	// Storage cleanup (best-effort): new s3 rows soft-delete via the artifact
+	// service (GC reclaims the bytes); legacy s3 rows still carry their key in
+	// Code and are deleted from the old bucket directly.
+	if resource.Type == "s3" {
+		if resource.ArtifactUUID != "" {
+			if err := s.art.Delete(context.Background(), resource.ArtifactUUID); err != nil {
+				slog.Warn("删除 artifact 资源失败", "uuid", resource.ArtifactUUID, "error", err)
+			}
+		} else if resource.Code != "" && s.s3 != nil {
+			if err := s.s3.Delete(context.Background(), resource.Code); err != nil {
+				slog.Warn("删除 S3 资源失败", "key", resource.Code, "error", err)
+			}
 		}
 	}
 

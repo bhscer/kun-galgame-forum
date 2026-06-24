@@ -2,21 +2,17 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
+	stderrors "errors"
 	"log/slog"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"kun-galgame-api/internal/infrastructure/storage"
 	"kun-galgame-api/internal/toolset/dto"
 	userModel "kun-galgame-api/internal/user/model"
+	"kun-galgame-api/pkg/artifactclient"
 	"kun-galgame-api/pkg/errors"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -26,17 +22,19 @@ import (
 // ──────────────────────────────────────────
 
 const (
-	MaxSmallFileSize = 50 * 1024 * 1024       // 50MB
+	// MaxLargeFileSize is kungal's own per-file ceiling for toolset archives.
+	// The artifact service enforces its own per-site max as an outer bound; this
+	// is the (tighter) product limit kungal applies before reserving quota.
 	MaxLargeFileSize = 2 * 1024 * 1024 * 1024 // 2GB
-	ChunkSize        = 5 * 1024 * 1024        // 5MB
-	UploadTTL        = 3600 * time.Second
-	PresignExpires   = 3600 * time.Second
 
 	// UserDailyUploadLimit is the per-user per-day total upload BYTE budget,
 	// enforced server-side at upload init. Mirrors the frontend hint
-	// apps/web/app/config/upload.ts USER_DAILY_UPLOAD_LIMIT — which, on its
-	// own, a direct API caller could bypass.
+	// apps/web/app/config/upload.ts USER_DAILY_UPLOAD_LIMIT — which, on its own,
+	// a direct API caller could bypass.
 	UserDailyUploadLimit = 100 * 1024 * 1024 // 100MB/day
+
+	// uploadBytesPerMB scales the moemoepoint daily-budget bonus.
+	uploadBytesPerMB = 1024 * 1024
 )
 
 var allowedArchiveExts = map[string]bool{
@@ -44,48 +42,29 @@ var allowedArchiveExts = map[string]bool{
 }
 
 // ──────────────────────────────────────────
-// Redis cache entry
-// ──────────────────────────────────────────
-
-// uploadCacheEntry is stored in Redis while an upload is in progress.
-type uploadCacheEntry struct {
-	Key      string `json:"key"`
-	Type     string `json:"type"` // "small" or "multipart"
-	Salt     string `json:"salt"`
-	FileSize int64  `json:"filesize"`
-	Base     string `json:"base"`
-	Ext      string `json:"ext"`
-	UploadID string `json:"upload_id,omitempty"` // multipart only
-}
-
-// ──────────────────────────────────────────
 // Service
 // ──────────────────────────────────────────
 
+// UploadService brokers toolset archive uploads through the centralized artifact
+// service. kungal keeps its own per-user quota + ext allow-list; the artifact
+// service owns the S3 mechanics (presigned URLs, multipart, size verify, opaque
+// keys). Bytes never pass through kungal — the browser PUTs straight to B2.
 type UploadService struct {
-	s3  *storage.S3Client
+	art *artifactclient.Client
 	rdb *redis.Client
 	db  *gorm.DB
 }
 
-func NewUploadService(s3 *storage.S3Client, rdb *redis.Client, db *gorm.DB) *UploadService {
-	return &UploadService{s3: s3, rdb: rdb, db: db}
+func NewUploadService(art *artifactclient.Client, rdb *redis.Client, db *gorm.DB) *UploadService {
+	return &UploadService{art: art, rdb: rdb, db: db}
 }
 
-// ──────────────────────────────────────────
-// InitSmall — POST /toolset/:id/upload/small
-// ──────────────────────────────────────────
-
-// uploadBytesPerMB scales the moemoepoint daily-budget bonus.
-const uploadBytesPerMB = 1024 * 1024
-
 // checkDailyUploadBudget rejects an upload that would push the user past their
-// daily byte budget. The budget is 100MB + moemoepoint·MB (matches the
-// frontend gauge and the "每日 (100 + 萌萌点) MB" policy); admins are bounded
-// only by the per-file cap. Read against the committed daily total; the
-// per-upload increment happens at Complete with the verified actual size. A
-// missing state row (brand-new user) reads as 0. Soft quota: concurrent inits
-// can each pass before any commits, but the per-file cap bounds the overshoot.
+// daily byte budget (100MB + moemoepoint·MB; admins are bounded only by the
+// per-file cap). Read against the committed daily total; the per-upload
+// increment happens at Complete with the verified actual size. A missing state
+// row (brand-new user) reads as 0. Soft quota: concurrent inits can each pass
+// before any commits, but the per-file cap bounds the overshoot.
 func (s *UploadService) checkDailyUploadBudget(userID int, incoming int64, isAdmin bool) *errors.AppError {
 	if isAdmin {
 		return nil
@@ -103,117 +82,66 @@ func (s *UploadService) checkDailyUploadBudget(userID int, incoming int64, isAdm
 	return nil
 }
 
-func (s *UploadService) InitSmall(
+// ──────────────────────────────────────────
+// Init — POST /toolset/:id/upload/init
+// ──────────────────────────────────────────
+
+// Init validates the file, reserves nothing locally, and asks the artifact
+// service for presigned upload URL(s). The response is server-driven: single
+// PUT or multipart (the frontend obeys whichever it gets).
+func (s *UploadService) Init(
 	ctx context.Context,
 	toolsetID, userID int,
 	isAdmin bool,
 	req *dto.UploadInitRequest,
-) (*dto.UploadSmallResponse, *errors.AppError) {
-	if req.FileSize > MaxSmallFileSize {
-		return nil, errors.ErrBadRequest("小文件上传大小不能超过 50MB")
-	}
-	if appErr := s.checkDailyUploadBudget(userID, req.FileSize, isAdmin); appErr != nil {
-		return nil, appErr
-	}
-
-	ext, base, appErr := parseArchiveFilename(req.Filename)
-	if appErr != nil {
-		return nil, appErr
-	}
-
-	salt := generateSalt()
-	key := buildS3Key(toolsetID, userID, base, salt, ext)
-
-	presignedURL, err := s.s3.PresignPutObject(ctx, key, req.ContentType, PresignExpires)
-	if err != nil {
-		return nil, errors.ErrInternal("生成上传链接失败")
-	}
-
-	entry := uploadCacheEntry{
-		Key:      key,
-		Type:     "small",
-		Salt:     salt,
-		FileSize: req.FileSize,
-		Base:     base,
-		Ext:      ext,
-	}
-	if err := s.cacheEntry(ctx, entry); err != nil {
-		return nil, errors.ErrInternal("缓存上传信息失败")
-	}
-
-	return &dto.UploadSmallResponse{
-		PresignedURL: presignedURL,
-		Salt:         salt,
-		Key:          key,
-	}, nil
-}
-
-// ──────────────────────────────────────────
-// InitLarge — POST /toolset/:id/upload/large
-// ──────────────────────────────────────────
-
-func (s *UploadService) InitLarge(
-	ctx context.Context,
-	toolsetID, userID int,
-	isAdmin bool,
-	req *dto.UploadInitRequest,
-) (*dto.UploadLargeResponse, *errors.AppError) {
+) (*dto.UploadInitResponse, *errors.AppError) {
 	if req.FileSize > MaxLargeFileSize {
 		return nil, errors.ErrBadRequest("文件大小不能超过 2GB")
 	}
+	if _, _, appErr := parseArchiveFilename(req.Filename); appErr != nil {
+		return nil, appErr
+	}
 	if appErr := s.checkDailyUploadBudget(userID, req.FileSize, isAdmin); appErr != nil {
 		return nil, appErr
 	}
 
-	ext, base, appErr := parseArchiveFilename(req.Filename)
-	if appErr != nil {
-		return nil, appErr
-	}
-
-	salt := generateSalt()
-	key := buildS3Key(toolsetID, userID, base, salt, ext)
-
-	uploadID, err := s.s3.CreateMultipartUpload(ctx, key, req.ContentType)
-	if err != nil {
-		return nil, errors.ErrInternal("创建分片上传失败")
-	}
-
-	numParts := int((req.FileSize + ChunkSize - 1) / ChunkSize)
-	parts := make([]dto.UploadLargePart, 0, numParts)
-	for i := 1; i <= numParts; i++ {
-		partURL, err := s.s3.PresignUploadPart(ctx, key, uploadID, int32(i), PresignExpires)
-		if err != nil {
-			// Best-effort abort on failure
-			s.s3.AbortMultipartUpload(ctx, key, uploadID)
-			return nil, errors.ErrInternal("生成分片上传链接失败")
-		}
-		parts = append(parts, dto.UploadLargePart{
-			PartNumber:   i,
-			PresignedURL: partURL,
-		})
-	}
-
-	entry := uploadCacheEntry{
-		Key:      key,
-		Type:     "multipart",
-		Salt:     salt,
+	public := true
+	initReq := artifactclient.InitUploadRequest{
+		Name:     req.Filename,
 		FileSize: req.FileSize,
-		Base:     base,
-		Ext:      ext,
-		UploadID: uploadID,
+		Public:   &public,
 	}
-	if err := s.cacheEntry(ctx, entry); err != nil {
-		// Abort the multipart upload we created so we don't leak it
-		s.s3.AbortMultipartUpload(ctx, key, uploadID)
-		return nil, errors.ErrInternal("缓存上传信息失败")
+	if req.ContentType != "" {
+		mime := req.ContentType
+		initReq.MimeType = &mime
 	}
 
-	return &dto.UploadLargeResponse{
-		UploadID: uploadID,
-		Salt:     salt,
-		Key:      key,
-		Parts:    parts,
-	}, nil
+	out, err := s.art.InitUpload(ctx, initReq)
+	if err != nil {
+		return nil, mapArtifactErr(err)
+	}
+
+	resp := &dto.UploadInitResponse{
+		ArtifactUUID: out.Uuid,
+		Multipart:    out.Multipart,
+		ExpiresAt:    out.ExpiresAt,
+	}
+	if out.Multipart {
+		if out.PartSize != nil {
+			resp.PartSize = *out.PartSize
+		}
+		if out.PartUrls != nil {
+			for _, p := range *out.PartUrls {
+				resp.Parts = append(resp.Parts, dto.UploadInitPart{
+					PartNumber: int(p.PartNumber),
+					URL:        p.Url,
+				})
+			}
+		}
+	} else if out.UploadUrl != nil {
+		resp.UploadURL = *out.UploadUrl
+	}
+	return resp, nil
 }
 
 // ──────────────────────────────────────────
@@ -225,127 +153,64 @@ func (s *UploadService) Complete(
 	userID int,
 	req *dto.UploadCompleteRequest,
 ) (*dto.UploadCompleteResponse, *errors.AppError) {
-	entry, appErr := s.loadEntry(ctx, req.Salt)
-	if appErr != nil {
-		return nil, appErr
+	var parts *[]artifactclient.CompletedPart
+	if len(req.Parts) > 0 {
+		cps := make([]artifactclient.CompletedPart, len(req.Parts))
+		for i, p := range req.Parts {
+			cps[i] = artifactclient.CompletedPart{Etag: p.ETag, PartNumber: p.PartNumber}
+		}
+		parts = &cps
 	}
 
-	if entry.Type == "multipart" {
-		if len(req.Parts) == 0 {
-			return nil, errors.ErrBadRequest("分片信息不能为空")
-		}
-		completed := make([]types.CompletedPart, 0, len(req.Parts))
-		for _, p := range req.Parts {
-			etag := p.ETag
-			pn := p.PartNumber
-			completed = append(completed, types.CompletedPart{
-				ETag:       &etag,
-				PartNumber: &pn,
-			})
-		}
-		if err := s.s3.CompleteMultipartUpload(context.Background(), entry.Key, entry.UploadID, completed); err != nil {
-			return nil, errors.ErrInternal("完成分片上传失败")
-		}
-	}
-
-	// Verify size via HeadObject. A mismatch means the client declared a small
-	// size (which passed the per-file + daily-budget checks at init) but
-	// uploaded something larger — reject and delete so the quota can't be
-	// evaded by lying about the size.
-	actualSize, err := s.s3.HeadObject(context.Background(), entry.Key)
+	art, err := s.art.CompleteUpload(ctx, req.ArtifactUUID, artifactclient.CompleteUploadRequest{Parts: parts})
 	if err != nil {
-		// Can't verify — fall back to the declared size for accounting.
-		slog.Warn("HeadObject 失败", "key", entry.Key, "error", err)
-		actualSize = entry.FileSize
-	} else if actualSize != entry.FileSize {
-		slog.Warn("文件大小与声明不符, 拒绝并删除",
-			"expected", entry.FileSize, "actual", actualSize, "key", entry.Key)
-		s.s3.Delete(context.Background(), entry.Key)
-		s.rdb.Del(ctx, cacheKey(req.Salt))
-		return nil, errors.ErrBadRequest("文件大小与声明不符, 上传已被拒绝")
+		return nil, mapArtifactErr(err)
 	}
 
-	// Accrue the daily upload count + byte budget on the kungal-state table.
-	s.db.Model(&userModel.KungalUserState{}).Where("user_id = ?", userID).
-		Updates(map[string]any{
-			"daily_toolset_upload_count": gorm.Expr("daily_toolset_upload_count + 1"),
-			"daily_toolset_upload_bytes": gorm.Expr("daily_toolset_upload_bytes + ?", actualSize),
-		})
+	// Accrue the per-user daily count + byte budget exactly once per artifact
+	// (a retried complete must not double-count). The artifact service already
+	// verified the real size via HeadObject, so trust art.FileSize.
+	if s.firstComplete(ctx, art.Uuid) {
+		s.db.Model(&userModel.KungalUserState{}).Where("user_id = ?", userID).
+			Updates(map[string]any{
+				"daily_toolset_upload_count": gorm.Expr("daily_toolset_upload_count + 1"),
+				"daily_toolset_upload_bytes": gorm.Expr("daily_toolset_upload_bytes + ?", art.FileSize),
+			})
+	}
 
-	// Clean up Redis cache
-	s.rdb.Del(ctx, cacheKey(req.Salt))
-
-	return &dto.UploadCompleteResponse{
-		Key:  entry.Key,
-		Size: actualSize,
-	}, nil
+	return &dto.UploadCompleteResponse{ArtifactUUID: art.Uuid, Size: art.FileSize}, nil
 }
 
 // ──────────────────────────────────────────
 // Abort — POST /toolset/:id/upload/abort
 // ──────────────────────────────────────────
 
-func (s *UploadService) Abort(
-	ctx context.Context,
-	req *dto.UploadAbortRequest,
-) *errors.AppError {
-	entry, appErr := s.loadEntry(ctx, req.Salt)
-	if appErr != nil {
-		return appErr
+// Abort soft-deletes an unfinished artifact (GC reclaims it). Best-effort.
+func (s *UploadService) Abort(ctx context.Context, req *dto.UploadAbortRequest) *errors.AppError {
+	if err := s.art.Delete(ctx, req.ArtifactUUID); err != nil {
+		slog.Warn("取消上传失败", "uuid", req.ArtifactUUID, "error", err)
 	}
-
-	// Abort multipart upload if applicable
-	if entry.Type == "multipart" && entry.UploadID != "" {
-		if err := s.s3.AbortMultipartUpload(context.Background(), entry.Key, entry.UploadID); err != nil {
-			slog.Warn("中止分片上传失败", "key", entry.Key, "error", err)
-		}
-	}
-
-	// For small uploads, try to delete the object in case it was already uploaded.
-	if entry.Type == "small" {
-		s.s3.Delete(context.Background(), entry.Key)
-	}
-
-	// Clean up cache
-	s.rdb.Del(ctx, cacheKey(req.Salt))
-
 	return nil
 }
 
 // ──────────────────────────────────────────
-// Redis helpers
+// Helpers
 // ──────────────────────────────────────────
 
-func cacheKey(salt string) string {
-	return "toolset:upload:" + salt
-}
-
-func (s *UploadService) cacheEntry(ctx context.Context, entry uploadCacheEntry) error {
-	data, err := json.Marshal(entry)
+// firstComplete returns true the first time complete runs for a uuid, so the
+// daily-budget accrual happens exactly once even if the client retries. Redis
+// being down fails toward accruing (charge the quota) rather than free uploads.
+func (s *UploadService) firstComplete(ctx context.Context, uuid string) bool {
+	ok, err := s.rdb.SetNX(ctx, "toolset:upload:done:"+uuid, 1, 24*time.Hour).Result()
 	if err != nil {
-		return err
+		return true
 	}
-	return s.rdb.Set(ctx, cacheKey(entry.Salt), string(data), UploadTTL).Err()
+	return ok
 }
 
-func (s *UploadService) loadEntry(ctx context.Context, salt string) (*uploadCacheEntry, *errors.AppError) {
-	val, err := s.rdb.Get(ctx, cacheKey(salt)).Result()
-	if err != nil {
-		return nil, errors.ErrBadRequest("上传会话不存在或已过期")
-	}
-	var entry uploadCacheEntry
-	if err := json.Unmarshal([]byte(val), &entry); err != nil {
-		return nil, errors.ErrInternal("解析上传缓存失败")
-	}
-	return &entry, nil
-}
-
-// ──────────────────────────────────────────
-// File name / salt helpers
-// ──────────────────────────────────────────
-
-// parseArchiveFilename extracts the lower-cased extension and base-name from a
-// filename and validates the extension against the allow-list.
+// parseArchiveFilename validates the extension against the allow-list. The base
+// name is no longer used for keying (the artifact service assigns opaque keys),
+// but kept in the return for call-site clarity.
 func parseArchiveFilename(filename string) (ext, base string, appErr *errors.AppError) {
 	ext = strings.ToLower(filepath.Ext(filename))
 	if !allowedArchiveExts[ext] {
@@ -355,12 +220,24 @@ func parseArchiveFilename(filename string) (ext, base string, appErr *errors.App
 	return ext, base, nil
 }
 
-func generateSalt() string {
-	b := make([]byte, 4) // 4 bytes → 8 hex chars, we take 7
-	rand.Read(b)
-	return hex.EncodeToString(b)[:7]
-}
-
-func buildS3Key(toolsetID, userID int, base, salt, ext string) string {
-	return fmt.Sprintf("toolset/%d/%d_%s_%s%s", toolsetID, userID, base, salt, ext)
+// mapArtifactErr translates an artifactclient sentinel into a kungal AppError.
+func mapArtifactErr(err error) *errors.AppError {
+	switch {
+	case stderrors.Is(err, artifactclient.ErrTooBig):
+		return errors.ErrBadRequest("文件大小超过限制")
+	case stderrors.Is(err, artifactclient.ErrQuotaExceeded):
+		return errors.ErrBadRequest("超出上传额度, 请稍后再试")
+	case stderrors.Is(err, artifactclient.ErrMIMEDenied):
+		return errors.ErrBadRequest("仅支持 .7z, .zip, .rar 格式")
+	case stderrors.Is(err, artifactclient.ErrSizeMismatch):
+		return errors.ErrBadRequest("文件大小与声明不符, 上传已被拒绝")
+	case stderrors.Is(err, artifactclient.ErrUploadDisabled):
+		return errors.ErrBadRequest("上传服务暂时不可用")
+	case stderrors.Is(err, artifactclient.ErrNotConfigured):
+		return errors.ErrInternal("上传服务未配置")
+	case stderrors.Is(err, artifactclient.ErrNotFound):
+		return errors.ErrNotFound("上传会话不存在或已过期")
+	default:
+		return errors.ErrInternal("上传服务请求失败")
+	}
 }

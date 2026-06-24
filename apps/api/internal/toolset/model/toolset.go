@@ -78,16 +78,21 @@ func (GalgameToolsetAlias) TableName() string { return "galgame_toolset_alias" }
 // ──────────────────────────────────────────
 
 type GalgameToolsetResource struct {
-	ID        int        `gorm:"primaryKey;autoIncrement" json:"id"`
-	Content   string     `gorm:"type:varchar(1007);default:''" json:"content"`
-	Type      string     `gorm:"default:''" json:"type"` // s3, user
-	Code      string     `gorm:"type:varchar(1007);default:''" json:"code"`
-	Password  string     `gorm:"type:varchar(1007);default:''" json:"password"`
-	Size      string     `gorm:"type:varchar(107);default:''" json:"size"`
-	Note      string     `gorm:"type:varchar(1007);default:''" json:"note"`
-	Download  int        `gorm:"default:0" json:"download"`
-	Status    int        `gorm:"default:0" json:"status"`
-	Edited    *time.Time `gorm:"" json:"edited"`
+	ID      int    `gorm:"primaryKey;autoIncrement" json:"id"`
+	Content string `gorm:"type:varchar(1007);default:''" json:"content"`
+	Type    string `gorm:"default:''" json:"type"` // s3, user
+	// ArtifactUUID links an s3-type resource to the centralized artifact service
+	// (kun-galgame-infra). When set, the download URL is resolved at read time
+	// via the artifact service (served from dl.imoe.uk); legacy s3 rows leave it
+	// empty and keep their stored Content URL. Always empty for 'user' rows.
+	ArtifactUUID string     `gorm:"column:artifact_uuid;type:varchar(36);not null;default:''" json:"artifact_uuid"`
+	Code         string     `gorm:"type:varchar(1007);default:''" json:"code"`
+	Password     string     `gorm:"type:varchar(1007);default:''" json:"password"`
+	Size         string     `gorm:"type:varchar(107);default:''" json:"size"`
+	Note         string     `gorm:"type:varchar(1007);default:''" json:"note"`
+	Download     int        `gorm:"default:0" json:"download"`
+	Status       int        `gorm:"default:0" json:"status"`
+	Edited       *time.Time `gorm:"" json:"edited"`
 
 	ToolsetID int `gorm:"column:toolset_id;not null;uniqueIndex:idx_toolset_resource" json:"toolset_id"`
 	UserID    int `gorm:"column:user_id;not null" json:"user_id"`

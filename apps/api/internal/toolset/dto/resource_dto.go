@@ -19,12 +19,16 @@ type ResourceDetailRequest struct {
 }
 
 type CreateResourceRequest struct {
-	Content  string `json:"content" validate:"max=1007"`
-	Type     string `json:"type" validate:"required,oneof=s3 user"`
-	Code     string `json:"code" validate:"max=1007"`
-	Password string `json:"password" validate:"max=1007"`
-	Size     string `json:"size" validate:"max=107"`
-	Note     string `json:"note" validate:"max=1007"`
+	Content string `json:"content" validate:"max=1007"`
+	Type    string `json:"type" validate:"required,oneof=s3 user"`
+	// ArtifactUUID is the completed-upload handle for s3 resources (from
+	// POST /upload/complete). For s3 rows the download URL is resolved from this
+	// at read time, so Content is left empty. Ignored for 'user' rows.
+	ArtifactUUID string `json:"artifactUuid" validate:"max=36"`
+	Code         string `json:"code" validate:"max=1007"`
+	Password     string `json:"password" validate:"max=1007"`
+	Size         string `json:"size" validate:"max=107"`
+	Note         string `json:"note" validate:"max=1007"`
 }
 
 type UpdateResourceRequest struct {

@@ -1,5 +1,12 @@
 package dto
 
+// Toolset archive upload is brokered by the centralized artifact service
+// (kun-galgame-infra). The browser PUTs bytes straight to B2 via presigned URLs
+// the artifact service returns; kungal only drives the init/complete/abort JSON
+// calls and keeps its own per-user quota + ext allow-list. The flow is
+// server-driven: init returns either a single upload URL or a set of multipart
+// part URLs (with part_size) — the frontend obeys whichever it gets.
+
 // ──────────────────────────────────────────
 // Requests
 // ──────────────────────────────────────────
@@ -7,7 +14,7 @@ package dto
 type UploadInitRequest struct {
 	Filename    string `json:"filename" validate:"required"`
 	FileSize    int64  `json:"filesize" validate:"required,min=1"`
-	ContentType string `json:"contentType" validate:"required"`
+	ContentType string `json:"contentType"`
 }
 
 type UploadCompletePart struct {
@@ -16,37 +23,36 @@ type UploadCompletePart struct {
 }
 
 type UploadCompleteRequest struct {
-	Salt  string               `json:"salt" validate:"required"`
-	Parts []UploadCompletePart `json:"parts"`
+	ArtifactUUID string               `json:"artifactUuid" validate:"required"`
+	Parts        []UploadCompletePart `json:"parts"` // multipart only
 }
 
 type UploadAbortRequest struct {
-	Salt string `json:"salt" validate:"required"`
+	ArtifactUUID string `json:"artifactUuid" validate:"required"`
 }
 
 // ──────────────────────────────────────────
 // Responses
 // ──────────────────────────────────────────
 
-type UploadSmallResponse struct {
-	PresignedURL string `json:"presignedUrl"`
-	Salt         string `json:"salt"`
-	Key          string `json:"key"`
+type UploadInitPart struct {
+	PartNumber int    `json:"partNumber"`
+	URL        string `json:"url"`
 }
 
-type UploadLargePart struct {
-	PartNumber   int    `json:"partNumber"`
-	PresignedURL string `json:"presignedUrl"`
-}
-
-type UploadLargeResponse struct {
-	UploadID string            `json:"uploadId"`
-	Salt     string            `json:"salt"`
-	Key      string            `json:"key"`
-	Parts    []UploadLargePart `json:"parts"`
+// UploadInitResponse mirrors the artifact service's init response. When
+// Multipart is false the browser does one PUT to UploadURL; otherwise it slices
+// by PartSize and PUTs each part to Parts[i].URL, collecting ETags for complete.
+type UploadInitResponse struct {
+	ArtifactUUID string           `json:"artifactUuid"`
+	Multipart    bool             `json:"multipart"`
+	UploadURL    string           `json:"uploadUrl,omitempty"`
+	PartSize     int64            `json:"partSize,omitempty"`
+	Parts        []UploadInitPart `json:"parts,omitempty"`
+	ExpiresAt    string           `json:"expiresAt"`
 }
 
 type UploadCompleteResponse struct {
-	Key  string `json:"key"`
-	Size int64  `json:"size"`
+	ArtifactUUID string `json:"artifactUuid"`
+	Size         int64  `json:"size"`
 }

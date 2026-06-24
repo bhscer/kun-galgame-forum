@@ -7,18 +7,32 @@ import (
 )
 
 type Config struct {
-	Server      ServerConfig
-	Database    DatabaseConfig
-	Redis       RedisConfig
-	OAuth       OAuthConfig
-	S3          S3Config // image bed (R2) — stickers, small inline images
-	FileStorage S3Config // file storage (B2) — toolset archive uploads
-	Mail        MailConfig
-	Search      SearchConfig
-	CORS        CORSConfig
-	GalgameWiki GalgameWikiConfig
-	ImageClient ImageClientConfig
-	LinkChecker LinkCheckerConfig
+	Server         ServerConfig
+	Database       DatabaseConfig
+	Redis          RedisConfig
+	OAuth          OAuthConfig
+	S3             S3Config // image bed (R2) — stickers, small inline images
+	FileStorage    S3Config // file storage (B2) — toolset archive uploads
+	Mail           MailConfig
+	Search         SearchConfig
+	CORS           CORSConfig
+	GalgameWiki    GalgameWikiConfig
+	ImageClient    ImageClientConfig
+	ArtifactClient ArtifactClientConfig
+	LinkChecker    LinkCheckerConfig
+}
+
+// ArtifactClientConfig holds the credentials kungal uses to call the centralized
+// artifact service (kun-galgame-infra :9279) for large-file (toolset archive)
+// upload/download. Auth is HTTP Basic with an OAuth client_id/secret — the
+// artifact service reuses the oauth_client table as its site registry (gated by
+// artifact_enabled + artifact_site_key infra-side), so kungal's OAuth client IS
+// its artifact site. ClientID/ClientSecret default to the OAuth credentials when
+// unset (filled in app.go), so a single OAuth client works for both.
+type ArtifactClientConfig struct {
+	BaseURL      string // artifact service base, e.g. http://127.0.0.1:9279
+	ClientID     string // OAuth client id (Basic auth); defaults to OAuth.ClientID
+	ClientSecret string // OAuth client secret; defaults to OAuth.ClientSecret
 }
 
 // LinkCheckerConfig holds the s2s credentials kungal uses to call the
@@ -209,6 +223,11 @@ func Load() (*Config, error) {
 			BaseURL:      envOrDefault("KUN_IMAGE_CLIENT_BASE_URL", "http://127.0.0.1:9278"),
 			ClientID:     envOrDefault("KUN_IMAGE_CLIENT_ID", ""),
 			ClientSecret: envOrDefault("KUN_IMAGE_CLIENT_SECRET", ""),
+		},
+		ArtifactClient: ArtifactClientConfig{
+			BaseURL:      envOrDefault("KUN_ARTIFACT_CLIENT_BASE_URL", "http://127.0.0.1:9279"),
+			ClientID:     envOrDefault("KUN_ARTIFACT_CLIENT_ID", ""),
+			ClientSecret: envOrDefault("KUN_ARTIFACT_CLIENT_SECRET", ""),
 		},
 		LinkChecker: LinkCheckerConfig{
 			BaseURL:              envOrDefault("LINK_CHECKER_BASE_URL", ""),

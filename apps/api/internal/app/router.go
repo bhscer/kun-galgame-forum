@@ -433,8 +433,7 @@ func (a *App) setupRoutes() {
 	authed.Post("/toolset/:id/resource", a.ToolsetResourceHandler.CreateResource)
 	authed.Put("/toolset/:id/resource", a.ToolsetResourceHandler.UpdateResource)
 	authed.Delete("/toolset/:id/resource", a.ToolsetResourceHandler.DeleteResource)
-	authed.Post("/toolset/:id/upload/small", a.ToolsetUploadHandler.UploadSmall)
-	authed.Post("/toolset/:id/upload/large", a.ToolsetUploadHandler.UploadLarge)
+	authed.Post("/toolset/:id/upload/init", a.ToolsetUploadHandler.UploadInit)
 	authed.Post("/toolset/:id/upload/complete", a.ToolsetUploadHandler.UploadComplete)
 	authed.Post("/toolset/:id/upload/abort", a.ToolsetUploadHandler.UploadAbort)
 
