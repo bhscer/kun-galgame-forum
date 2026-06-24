@@ -297,6 +297,7 @@ func (s *TopicService) GetDetail(
 		Category:    topic.Category,
 		Sections:    sections,
 		Tags:        tags,
+		CoverImages: covers,
 		User: dto.KunUserWithMoemoepoint{
 			ID:          author.ID,
 			Name:        author.Name,

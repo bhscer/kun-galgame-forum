@@ -59,6 +59,33 @@ var (
 // imageclient (V1 outputs are always webp).
 var contentImageRefRe = regexp.MustCompile(`^/image/([0-9a-f]{64})(?:_([a-z0-9]+))?$`)
 
+// contentImageScanRe finds /image/<hash> tokens ANYWHERE in raw markdown (the
+// non-anchored sibling of contentImageRefRe). The optional _variant is ignored —
+// a topic cover is the base hash.
+var contentImageScanRe = regexp.MustCompile(`/image/[0-9a-f]{64}`)
+
+// ExtractContentImages returns up to `limit` distinct /image/<hash> tokens in
+// first-seen (body) order from the markdown content — used to auto-pick a topic's
+// covers from its body when the author set none.
+func ExtractContentImages(content string, limit int) []string {
+	if limit <= 0 {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	out := make([]string, 0, limit)
+	for _, tk := range contentImageScanRe.FindAllString(content, -1) {
+		if _, dup := seen[tk]; dup {
+			continue
+		}
+		seen[tk] = struct{}{}
+		out = append(out, tk)
+		if len(out) >= limit {
+			break
+		}
+	}
+	return out
+}
+
 // contentImageCDNBase is the image_service public CDN prefix used to resolve
 // /image/<hash> tokens. Set once at startup via SetContentImageCDNBase; empty =
 // no resolution (tokens render verbatim, which the /image/:hash 302 then covers).

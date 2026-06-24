@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kun-galgame-api/internal/constants"
+	"kun-galgame-api/internal/infrastructure/markdown"
 	msgService "kun-galgame-api/internal/message/service"
 	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/internal/topic/dto"
@@ -110,7 +111,14 @@ func (s *TopicWriteService) Create(
 ) (int, *errors.AppError) {
 	hasConsumeSection := anyConsumeSection(req.Sections)
 
-	covers, coverErr := normalizeCoverImages(req.CoverImages)
+	// No banner set but the body has images → auto-pick up to 9 of them as the
+	// cover (same cap as a self-uploaded banner). Publish-time only; re-edit keeps
+	// whatever the author has.
+	coverInput := req.CoverImages
+	if len(coverInput) == 0 {
+		coverInput = markdown.ExtractContentImages(req.Content, 9)
+	}
+	covers, coverErr := normalizeCoverImages(coverInput)
 	if coverErr != nil {
 		return 0, coverErr
 	}
