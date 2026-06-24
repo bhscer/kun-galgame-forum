@@ -34,28 +34,29 @@ const { id } = usePersistUserStore()
         :target-floor="0"
       />
 
-      <KunTooltip text="分享">
-        <KunReaction
-          :toggle="false"
-          icon="lucide:share-2"
-          label="分享"
-          @click="
-            useKunCopy(
-              `${topic.title}: https://www.kungal.com/topic/${topic.id}`
-            )
-          "
-        />
-      </KunTooltip>
-
       <TopicFooterRewrite :topic="topic" />
 
       <KunPopover position="top-end">
-        <template v-if="id" #trigger>
+        <template #trigger>
           <KunReaction :toggle="false" icon="lucide:ellipsis" label="更多" />
         </template>
 
         <div class="flex w-54 flex-col gap-2 p-2">
-          <TopicFooterHide :topic-id="topic.id" />
+          <KunButton
+            variant="light"
+            color="default"
+            size="sm"
+            class-name="w-full justify-start gap-2 whitespace-nowrap"
+            @click="
+              useKunCopy(
+                `${topic.title}: https://www.kungal.com/topic/${topic.id}`
+              )
+            "
+          >
+            <KunIcon class-name="text-lg" name="lucide:share-2" />
+            分享
+          </KunButton>
+          <TopicFooterHide v-if="id" :topic-id="topic.id" />
         </div>
       </KunPopover>
     </div>

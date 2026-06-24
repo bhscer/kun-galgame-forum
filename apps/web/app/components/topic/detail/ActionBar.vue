@@ -51,27 +51,17 @@ const handleShare = () => {
     />
 
     <KunTooltip text="跳到评论区">
-      <KunButton
-        :is-icon-only="true"
-        variant="light"
-        color="default"
-        size="lg"
+      <KunReaction
+        :toggle="false"
+        icon="uil:comment-dots"
+        label="跳到评论区"
         @click="scrollToComments"
-      >
-        <KunIcon name="uil:comment-dots" />
-      </KunButton>
+      />
     </KunTooltip>
 
     <KunPopover position="top-end" inner-class="p-2 w-56">
       <template #trigger>
-        <KunButton
-          :is-icon-only="true"
-          variant="light"
-          color="default"
-          size="lg"
-        >
-          <KunIcon name="lucide:ellipsis" />
-        </KunButton>
+        <KunReaction :toggle="false" icon="lucide:ellipsis" label="更多" />
       </template>
 
       <div class="flex flex-col gap-1">

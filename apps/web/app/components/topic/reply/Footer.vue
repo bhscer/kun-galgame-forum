@@ -35,18 +35,6 @@ const handleNewComment = (comment: TopicComment) => {
           :target-floor="reply.floor"
           :target-reply-id="reply.id"
         />
-        <KunTooltip text="分享该回复">
-          <KunReaction
-            :toggle="false"
-            icon="lucide:share-2"
-            label="分享该回复"
-            @click="
-              useKunCopy(
-                `${title}: https://www.kungal.com/topic/${reply.topicId}#k${reply.floor}`
-              )
-            "
-          />
-        </KunTooltip>
         <TopicReplyRewrite :reply="reply" />
         <KunTooltip text="评论">
           <KunReaction
@@ -56,16 +44,32 @@ const handleNewComment = (comment: TopicComment) => {
             @click="handleClickComment"
           />
         </KunTooltip>
-        <!-- ... 更多按钮 ... -->
+        <!-- ... 更多按钮 (分享 + 置顶/最佳/删除) ... -->
         <KunPopover position="top-end">
-          <template v-if="id" #trigger>
+          <template #trigger>
             <KunReaction :toggle="false" icon="lucide:ellipsis" label="更多" />
           </template>
 
           <div class="flex w-54 flex-col gap-2 p-2">
-            <TopicReplyPin :reply="reply" />
-            <TopicReplyBestAnswer :reply="reply" />
-            <TopicReplyDelete :reply="reply" />
+            <KunButton
+              variant="light"
+              color="default"
+              size="sm"
+              class-name="w-full justify-start gap-2 whitespace-nowrap"
+              @click="
+                useKunCopy(
+                  `${title}: https://www.kungal.com/topic/${reply.topicId}#k${reply.floor}`
+                )
+              "
+            >
+              <KunIcon class-name="text-lg" name="lucide:share-2" />
+              分享该回复
+            </KunButton>
+            <template v-if="id">
+              <TopicReplyPin :reply="reply" />
+              <TopicReplyBestAnswer :reply="reply" />
+              <TopicReplyDelete :reply="reply" />
+            </template>
           </div>
         </KunPopover>
       </div>

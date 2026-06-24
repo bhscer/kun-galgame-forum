@@ -40,7 +40,7 @@ watch(
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="flex flex-col gap-6">
     <KunHeader
       name="话题列表"
       description="鲲 Galgame 论坛的全部话题，涵盖 Galgame 讨论、技术交流、资源求助与日常闲聊，在这里和大家一起畅所欲言。"
@@ -63,7 +63,7 @@ watch(
         description="真的一滴也不剩了呜呜呜"
       />
 
-      <div class="flex justify-center">
+      <div class="flex justify-center pt-4">
         <KunPagination
           v-model:current-page="page"
           :total-page="Math.ceil(data.total / limit)"
