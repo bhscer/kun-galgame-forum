@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useTopicReplies } from '~/composables/topic/useTopicReplies'
+import { TOPIC_TOC_SOURCE } from '~/composables/topic/useTopicTOC'
 
 const props = defineProps<{
   topic: TopicDetail
@@ -26,6 +27,13 @@ const {
 await loadInitialReplies()
 
 provide('topicUserId', props.topic.user.id)
+
+// Feed the TOC rail from data so it renders server-side (no flash on refresh);
+// the scrollspy inside useTopicTOC stays client-only.
+provide(TOPIC_TOC_SOURCE, {
+  getContentHtml: () => props.topic.contentHtml,
+  getReplies: () => replies.value
+})
 
 watch(
   lastSuccessfulReply,
