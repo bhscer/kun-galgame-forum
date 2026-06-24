@@ -88,6 +88,9 @@ export const createToolsetResourceSchema = z
     toolsetId: z.coerce.number<number>().min(1).max(9999999),
     type: z.enum(['s3', 'user']),
     content: z.string().max(1007).optional().default(''),
+    // s3 resources carry the completed-upload artifact uuid (the download URL is
+    // resolved server-side from it); content stays empty.
+    artifactUuid: z.string().max(36).optional().default(''),
     size: z.string(),
     code: z.string().max(1007).optional().default(''),
     password: z.string().max(1007).optional().default(''),
@@ -95,6 +98,13 @@ export const createToolsetResourceSchema = z
   })
   .superRefine((val, ctx) => {
     if (val.type === 's3') {
+      if (!val.artifactUuid) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['artifactUuid'],
+          message: '请先上传文件'
+        })
+      }
       if (!/^\d+$/.test(val.size)) {
         ctx.addIssue({
           code: 'custom',
@@ -163,12 +173,12 @@ export const initToolsetUploadSchema = z.object({
 })
 
 export const completeToolsetUploadSchema = z.object({
-  salt: z.string().min(7).max(7),
+  artifactUuid: z.string().min(1).max(36),
   parts: z
     .array(z.object({ partNumber: z.number().int().min(1), etag: z.string() }))
     .optional()
 })
 
 export const abortToolsetUploadSchema = z.object({
-  salt: z.string().min(7).max(7)
+  artifactUuid: z.string().min(1).max(36)
 })

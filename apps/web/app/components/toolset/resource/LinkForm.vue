@@ -27,7 +27,10 @@ const emits = defineEmits<{
 const formData = reactive({
   toolsetId: props.toolsetId,
   type: props.type,
-  content: props.type === 's3' ? props.uploadResult.key : '',
+  // s3: content stays empty — the download URL is resolved server-side from the
+  // artifact uuid. user: the link typed into the textarea below.
+  content: '',
+  artifactUuid: props.type === 's3' ? props.uploadResult.artifactUuid : '',
   size:
     props.type === 's3' && props.uploadResult.size
       ? String(props.uploadResult.size)
@@ -57,14 +60,16 @@ watch(
   () => props.type,
   () => {
     formData.type = props.type
-    // Switching modes resets content + size — s3 rebinds to upload data,
+    // Switching modes resets content/uuid + size — s3 rebinds to upload data,
     // user mode clears so the inputs start empty for manual entry.
     if (props.type === 's3') {
-      formData.content = props.uploadResult.key
+      formData.artifactUuid = props.uploadResult.artifactUuid
+      formData.content = ''
       formData.size = props.uploadResult.size
         ? String(props.uploadResult.size)
         : ''
     } else {
+      formData.artifactUuid = ''
       formData.content = ''
       formData.size = ''
     }
@@ -75,7 +80,7 @@ watch(
   () => props.uploadResult,
   () => {
     if (props.type === 's3') {
-      formData.content = props.uploadResult.key
+      formData.artifactUuid = props.uploadResult.artifactUuid
       formData.size = props.uploadResult.size
         ? String(props.uploadResult.size)
         : ''

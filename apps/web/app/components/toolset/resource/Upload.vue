@@ -25,9 +25,8 @@ const emits = defineEmits<{
 }>()
 
 const MB = 1024 * 1024
-// Matches the Go backend's upload_service.ChunkSize constant. Used for
-// pre-flight progress math; the API does the authoritative slicing when
-// it issues presigned URLs in its UploadLargeResponse.parts.
+// Fallback chunk size for pre-flight math only; the artifact service decides the
+// authoritative slicing and returns part_size in its init response.
 const LARGE_CHUNK_SIZE = 5 * MB
 const UPLOAD_TRANSFER_FAILED = 'UPLOAD_TRANSFER_FAILED'
 const DEFAULT_BINARY_CONTENT_TYPE = 'application/octet-stream'
@@ -121,16 +120,11 @@ const notifyUploadTransferError = (error: unknown) => {
   }
 }
 
-const abortLargeUpload = async (upload: ToolsetLargeFileUploadResponse) => {
-  const abortUploadData = { salt: upload.salt }
-  const isValidAbortUploadData = useKunSchemaValidator(
-    abortToolsetUploadSchema,
-    abortUploadData
-  )
-  if (!isValidAbortUploadData) {
+const abortUpload = async (artifactUuid: string) => {
+  const abortUploadData = { artifactUuid }
+  if (!useKunSchemaValidator(abortToolsetUploadSchema, abortUploadData)) {
     return
   }
-
   try {
     await kunFetch(`/toolset/${props.toolsetId}/upload/abort`, {
       method: 'POST',
@@ -219,69 +213,93 @@ const clearSelected = () => {
   resetUploadState()
 }
 
-const uploadSmall = async (f: File) => {
-  uploadStatus.value = 'smallInit'
+// One server-driven flow: init → PUT (single or multipart, per the init
+// response) → complete. Bytes go straight to B2 via the presigned URLs the
+// artifact service returns; kungal only brokers the JSON calls.
+const uploadToArtifact = async (f: File) => {
   const contentType = resolveContentType(f)
-  const initUploadData = {
+  const initData = {
     toolsetId: props.toolsetId,
     filename: f.name,
     filesize: f.size,
     contentType
   }
-  const isValidInitUploadData = useKunSchemaValidator(
-    initToolsetUploadSchema,
-    initUploadData
-  )
-  if (!isValidInitUploadData) {
+  if (!useKunSchemaValidator(initToolsetUploadSchema, initData)) {
     return
   }
 
-  const initRes = await kunFetch<ToolsetSmallFileUploadResponse>(
-    `/toolset/${props.toolsetId}/upload/small`,
-    {
-      method: 'POST',
-      body: initUploadData
-    }
+  progress.value = 0
+  uploadStatus.value = isLarge.value ? 'largeInit' : 'smallInit'
+  const init = await kunFetch<ToolsetUploadInitResponse>(
+    `/toolset/${props.toolsetId}/upload/init`,
+    { method: 'POST', body: initData }
   )
-  if (!initRes) {
+  if (!init) {
     uploadStatus.value = 'idle'
     return
   }
 
   let isUploadComplete = false
   try {
-    uploadStatus.value = 'smallUploading'
-    // Content-Type here must match the value sent during init — S3's
-    // presigned URL is signed against it.
-    const uploadRes = await fetch(initRes.presignedUrl, {
-      headers: { 'Content-Type': contentType },
-      method: 'PUT',
-      body: f
-    })
-    throwIfUploadFailed(uploadRes)
+    const parts: ToolsetUploadPart[] = []
 
-    uploadStatus.value = 'smallComplete'
-    const completeUploadData = { salt: initRes.salt }
-    const isValidCompleteUploadData = useKunSchemaValidator(
-      completeToolsetUploadSchema,
-      completeUploadData
-    )
-    if (!isValidCompleteUploadData) {
+    if (init.multipart) {
+      uploadStatus.value = 'largeUploading'
+      const partList = init.parts ?? []
+      const partSize = init.partSize || LARGE_CHUNK_SIZE
+      for (let i = 0; i < partList.length; i++) {
+        const cur = partList[i]
+        if (!cur) {
+          throw new Error('Missing upload part')
+        }
+        const start = (cur.partNumber - 1) * partSize
+        const end = Math.min(start + partSize, f.size)
+        const blob = f.slice(start, end)
+        const resp = await fetch(cur.url, {
+          headers: { 'Content-Type': contentType },
+          method: 'PUT',
+          body: blob
+        })
+        throwIfUploadFailed(resp)
+        const etag = resp.headers.get('ETag') || resp.headers.get('etag')
+        if (!etag) {
+          throw new Error('Missing ETag')
+        }
+        parts.push({ partNumber: cur.partNumber, etag })
+        progress.value = Math.round(((i + 1) / partList.length) * 100)
+      }
+      uploadStatus.value = 'largeComplete'
+    } else {
+      uploadStatus.value = 'smallUploading'
+      if (!init.uploadUrl) {
+        throw new Error('Missing upload URL')
+      }
+      const resp = await fetch(init.uploadUrl, {
+        headers: { 'Content-Type': contentType },
+        method: 'PUT',
+        body: f
+      })
+      throwIfUploadFailed(resp)
+      uploadStatus.value = 'smallComplete'
+      progress.value = 100
+    }
+
+    const completeData = {
+      artifactUuid: init.artifactUuid,
+      parts: init.multipart ? parts : undefined
+    }
+    if (!useKunSchemaValidator(completeToolsetUploadSchema, completeData)) {
       return
     }
 
     const done = await kunFetch<ToolsetUploadCompleteResponse>(
       `/toolset/${props.toolsetId}/upload/complete`,
-      {
-        method: 'POST',
-        body: completeUploadData
-      }
+      { method: 'POST', body: completeData }
     )
     if (done) {
       useMessage('上传成功', 'success')
       emits('onUploadSuccess', {
-        salt: initRes.salt,
-        key: done.key,
+        artifactUuid: done.artifactUuid,
         size: done.size
       })
       progress.value = 100
@@ -289,109 +307,7 @@ const uploadSmall = async (f: File) => {
       isUploadComplete = true
     }
   } catch (error) {
-    notifyUploadTransferError(error)
-  } finally {
-    if (!isUploadComplete) {
-      resetUploadState()
-    }
-  }
-}
-
-const uploadLarge = async (f: File) => {
-  uploadStatus.value = 'largeInit'
-  const contentType = resolveContentType(f)
-  const initUploadData = {
-    toolsetId: props.toolsetId,
-    filename: f.name,
-    filesize: f.size,
-    contentType
-  }
-  const isValidInitUploadData = useKunSchemaValidator(
-    initToolsetUploadSchema,
-    initUploadData
-  )
-  if (!isValidInitUploadData) {
-    return
-  }
-
-  progress.value = 0
-  const initRes = await kunFetch<ToolsetLargeFileUploadResponse>(
-    `/toolset/${props.toolsetId}/upload/large`,
-    {
-      method: 'POST',
-      body: initUploadData
-    }
-  )
-  if (!initRes) {
-    uploadStatus.value = 'idle'
-    return
-  }
-
-  let isUploadComplete = false
-  try {
-    const partUrls = initRes.parts
-    const parts: ToolsetUploadPart[] = []
-
-    uploadStatus.value = 'largeUploading'
-    for (let i = 0; i < partUrls.length; i++) {
-      const currentPart = partUrls[i]
-      if (!currentPart) {
-        throw new Error('Missing upload part')
-      }
-
-      const { partNumber, presignedUrl } = currentPart
-      const start = (partNumber - 1) * LARGE_CHUNK_SIZE
-      const end = Math.min(start + LARGE_CHUNK_SIZE, f.size)
-      const blob = f.slice(start, end)
-      const resp = await fetch(presignedUrl, {
-        headers: { 'Content-Type': contentType },
-        method: 'PUT',
-        body: blob
-      })
-      throwIfUploadFailed(resp)
-      const etag = resp.headers.get('ETag') || resp.headers.get('etag')
-      if (!etag) {
-        throw new Error('Missing ETag')
-      }
-      parts.push({ partNumber, etag })
-      progress.value = Math.round(((i + 1) / partUrls.length) * 100)
-    }
-
-    uploadStatus.value = 'largeComplete'
-    const completeUploadData = {
-      salt: initRes.salt,
-      parts
-    }
-    const isValidCompleteUploadData = useKunSchemaValidator(
-      completeToolsetUploadSchema,
-      completeUploadData
-    )
-    if (!isValidCompleteUploadData) {
-      return
-    }
-
-    const done = await kunFetch<ToolsetUploadCompleteResponse>(
-      `/toolset/${props.toolsetId}/upload/complete`,
-      {
-        method: 'POST',
-        body: completeUploadData
-      }
-    )
-    if (done) {
-      useMessage('上传成功', 'success')
-      emits('onUploadSuccess', {
-        salt: initRes.salt,
-        key: done.key,
-        size: done.size
-      })
-      uploadStatus.value = 'complete'
-      isUploadComplete = true
-    }
-  } catch (error) {
-    if (initRes?.uploadId) {
-      await abortLargeUpload(initRes)
-    }
-
+    await abortUpload(init.artifactUuid)
     notifyUploadTransferError(error)
   } finally {
     if (!isUploadComplete) {
@@ -406,11 +322,7 @@ const submit = async () => {
     useMessage('请选择文件', 'warn')
     return
   }
-  if (f.size > MAX_SMALL_FILE_SIZE) {
-    await uploadLarge(f)
-  } else {
-    await uploadSmall(f)
-  }
+  await uploadToArtifact(f)
 }
 </script>
 

@@ -51,35 +51,31 @@ export interface ToolsetRating {
   mine: number | null
 }
 
-export interface ToolsetLargeFileUploadResponse {
-  key: string
-  salt: string
-  uploadId: string
-  parts: {
+// Server-driven init response from the artifact service (via kungal's BFF).
+// When multipart is false the browser does one PUT to uploadUrl; otherwise it
+// slices by partSize and PUTs each part to parts[i].url, collecting ETags.
+export interface ToolsetUploadInitResponse {
+  artifactUuid: string
+  multipart: boolean
+  uploadUrl?: string
+  partSize?: number
+  parts?: {
     partNumber: number
-    presignedUrl: string
+    url: string
   }[]
-}
-
-export interface ToolsetSmallFileUploadResponse {
-  key: string
-  salt: string
-  presignedUrl: string
+  expiresAt: string
 }
 
 export interface ToolsetUploadCompleteResponse {
-  key: string
+  artifactUuid: string
   size: number
 }
 
-// Result emitted from the S3 upload widget once a full upload (init → PUT
-// → complete) succeeds. Combines the salt from the init step (the API only
-// returns it there) with the key+size from the complete step. Downstream
-// resource creation needs salt to bind the upload to a toolset_resource
-// row, and size to pre-fill the file size input.
+// Result emitted from the S3 upload widget once a full upload (init → PUT →
+// complete) succeeds. The artifact uuid binds the upload to a toolset_resource
+// row at create time; size pre-fills the file size input.
 export interface ToolsetUploadResult {
-  salt: string
-  key: string
+  artifactUuid: string
   size: number
 }
 

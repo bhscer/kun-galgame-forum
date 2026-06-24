@@ -56,7 +56,14 @@ const links = computed(() => {
       .filter(Boolean)
   }
 
-  return [`${kungal.domain.oss}/${detail.value.content}`]
+  // s3: artifact-backed rows return a full download URL (dl.imoe.uk), resolved
+  // server-side from the artifact uuid; legacy rows store a raw key that needs
+  // the old OSS domain prefixed.
+  const content = detail.value.content
+  if (/^https?:\/\//.test(content)) {
+    return [content]
+  }
+  return [`${kungal.domain.oss}/${content}`]
 })
 
 // formData.size mirrors the wire format expected by

@@ -24,8 +24,7 @@ const dailyUploadBudget = computed(
 
 const mode = ref<'s3' | 'user'>('s3')
 const uploadResult = ref<ToolsetUploadResult>({
-  salt: '',
-  key: '',
+  artifactUuid: '',
   size: 0
 })
 
