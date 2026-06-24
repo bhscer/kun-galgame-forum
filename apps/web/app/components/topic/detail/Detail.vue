@@ -67,53 +67,59 @@ watch(
 </script>
 
 <template>
-  <div class="w-full min-w-0 flex-1 space-y-4">
-    <TopicDetailMaster :topic="topic" />
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
+    <!-- LEFT: author rail — sticky across the whole page (no card chrome). -->
+    <TopicDetailMasterUser v-if="topic.user" :user="topic.user" />
 
-    <TopicPollContainer :topic-id="topic.id" :is-topic-admin="isTopicAdmin" />
+    <!-- RIGHT: post body + 话题小程序 (poll) + tool + replies + action bar. -->
+    <div class="min-w-0 flex-1 space-y-4">
+      <TopicDetailMaster :topic="topic" />
 
-    <!-- scroll-mt offsets the fixed top bar so the 评论 jump button (bottom bar)
-         lands the reply-count header at the top, not under the topbar. -->
-    <div id="comments-anchor" class="scroll-mt-20">
-      <TopicDetailTool
-        :reply-count="topic.replyCount"
-        :status="status"
-        :sort-order="sortOrder"
-        @set-sort-order="setSort"
-      />
-    </div>
+      <TopicPollContainer :topic-id="topic.id" :is-topic-admin="isTopicAdmin" />
 
-    <section id="reply-section" class="space-y-4">
-      <div
-        v-if="status === 'pending' && replies.length === 0"
-        class="flex justify-center py-16"
-      >
-        <KunLoading description="少女祈祷中..." />
+      <!-- scroll-mt offsets the fixed top bar so the 评论 jump button (bottom bar)
+           lands the reply-count header at the top, not under the topbar. -->
+      <div id="comments-anchor" class="scroll-mt-20">
+        <TopicDetailTool
+          :reply-count="topic.replyCount"
+          :status="status"
+          :sort-order="sortOrder"
+          @set-sort-order="setSort"
+        />
       </div>
 
-      <TopicReplyList
-        v-else-if="replies.length > 0"
-        :initial-replies="replies"
-        :topic-id="topic.id"
-        :title="topic.title"
-      />
-
-      <div class="py-6 text-center">
-        <KunButton
-          v-if="!isComplete && status !== 'pending'"
-          size="lg"
-          variant="flat"
-          @click="loadMore"
+      <section id="reply-section" class="space-y-4">
+        <div
+          v-if="status === 'pending' && replies.length === 0"
+          class="flex justify-center py-16"
         >
-          加载更多
-        </KunButton>
-        <KunLoading v-if="status === 'pending' && replies.length > 0" />
-        <p v-if="isComplete" class="text-default-500">
-          {{ `(｡>︿<｡) 已经一滴回复都不剩了哦~` }}
-        </p>
-      </div>
-    </section>
+          <KunLoading description="少女祈祷中..." />
+        </div>
 
-    <TopicDetailActionBar :topic="topic" />
+        <TopicReplyList
+          v-else-if="replies.length > 0"
+          :initial-replies="replies"
+          :topic-id="topic.id"
+          :title="topic.title"
+        />
+
+        <div class="py-6 text-center">
+          <KunButton
+            v-if="!isComplete && status !== 'pending'"
+            size="lg"
+            variant="flat"
+            @click="loadMore"
+          >
+            加载更多
+          </KunButton>
+          <KunLoading v-if="status === 'pending' && replies.length > 0" />
+          <p v-if="isComplete" class="text-default-500">
+            {{ `(｡>︿<｡) 已经一滴回复都不剩了哦~` }}
+          </p>
+        </div>
+      </section>
+
+      <TopicDetailActionBar :topic="topic" />
+    </div>
   </div>
 </template>

@@ -17,20 +17,11 @@ provide(
 </script>
 
 <template>
-  <div
-    :class="
-      cn(
-        'outline-primary flex justify-between gap-3 rounded-lg outline-offset-2'
-      )
-    "
-    id="0"
-  >
-    <TopicDetailMasterUser v-if="topic.user" :user="topic.user" />
-
+  <div id="0" class="outline-primary rounded-lg outline-offset-2">
     <KunCard
       :is-transparent="false"
       :is-hoverable="false"
-      class-name="lg:w-[calc(100%-220px)] w-full min-w-0"
+      class-name="w-full min-w-0"
       content-class="gap-4 justify-start"
     >
       <!-- Post header — the title leads the hierarchy (larger than any in-body
@@ -100,8 +91,12 @@ provide(
 
       <div class="flex flex-wrap items-center gap-1.5">
         <TopicReactionBar />
-        <!-- Desktop shows the trigger in the footer (next to favorite). -->
-        <TopicReactionTrigger class="md:hidden" />
+        <!-- Desktop shows the trigger in the footer (next to favorite). The wrapper
+             carries md:hidden because the trigger renders a fragment (popover +
+             history modal) and can't inherit the class itself. -->
+        <span class="md:hidden">
+          <TopicReactionTrigger />
+        </span>
       </div>
 
       <p class="text-default-500 ml-auto text-sm">
