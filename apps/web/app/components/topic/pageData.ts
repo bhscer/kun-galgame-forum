@@ -8,7 +8,7 @@ export interface PageData {
 
 export const pageData = reactive<PageData>({
   page: 1,
-  limit: 24,
+  limit: 50,
   sortField: 'status_update_time',
   sortOrder: 'desc',
   category: 'all'

@@ -65,12 +65,12 @@ func (h *TopicHandler) GetList(c *fiber.Ctx) error {
 	// so the service parameter is the negation.
 	isNSFW := !utils.IsSFW(c)
 
-	items, _, appErr := h.topicService.GetList(c.Context(), &req, isNSFW)
+	items, total, appErr := h.topicService.GetList(c.Context(), &req, isNSFW)
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
 
-	return response.OK(c, items)
+	return response.OK(c, dto.TopicListResponse{Topics: items, Total: total})
 }
 
 // GetResourceList returns topics filtered to resource sections (g-seeking, g-other, t-help).

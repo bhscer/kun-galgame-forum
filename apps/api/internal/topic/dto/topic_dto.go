@@ -68,6 +68,13 @@ type TopicCard struct {
 	UpvoteTime       *time.Time `json:"upvoteTime"`
 }
 
+// TopicListResponse is the {topics, total} envelope for GET /topic — total drives
+// the FE paginator.
+type TopicListResponse struct {
+	Topics []TopicCard `json:"topics"`
+	Total  int64       `json:"total"`
+}
+
 // ──────────────────────────────────────────
 // Topic detail
 // ──────────────────────────────────────────

@@ -1,10 +1,42 @@
 <script setup lang="ts">
-import { useTopic } from '~/composables/topic/useTopic'
+import { useRouteQuery } from '@vueuse/router'
 
-const { topics, isLoadingComplete, isFetching, loadInitialTopics } =
-  useTopic('all')
+// /topic list — page-based (URL ?page=), 50 per page, jump to top on page change.
+const route = useRoute()
 
-await loadInitialTopics()
+// Page lives in the URL so the view is shareable + survives back/forward; the
+// default 1 is omitted from the URL. Number transform keeps the ref numeric.
+const page = useRouteQuery('page', 1, { mode: 'replace', transform: Number })
+const limit = 50
+
+const { data, status, refresh } = await useKunFetch<{
+  topics: TopicCard[]
+  total: number
+}>('/topic', {
+  method: 'GET',
+  query: {
+    page,
+    limit,
+    sortField: 'status_update_time',
+    sortOrder: 'desc',
+    category: 'all'
+  },
+  // Don't auto-refetch on every query-ref change: opening a topic navigates to
+  // /topic/:id, which resets the page ref and would otherwise fire a wasted
+  // fetch right before unmount. Refetch manually, ONLY while still on this list.
+  watch: false
+})
+
+const listPath = route.path
+watch(
+  () => route.fullPath,
+  () => {
+    if (route.path !== listPath) return
+    refresh()
+    // 翻页后回到顶部
+    if (import.meta.client) window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+)
 </script>
 
 <template>
@@ -14,14 +46,34 @@ await loadInitialTopics()
       description="鲲 Galgame 论坛的全部话题，涵盖 Galgame 讨论、技术交流、资源求助与日常闲聊，在这里和大家一起畅所欲言。"
     />
 
-    <!-- List layout: each topic separated by a faint divider, no card chrome. -->
-    <div class="divide-default-200/60 divide-y">
-      <TopicCard v-for="topic in topics" :key="topic.id" :topic="topic" />
-    </div>
+    <template v-if="data">
+      <!-- List layout: each topic separated by a faint divider, no card chrome. -->
+      <KunLoading :loading="status === 'pending'">
+        <div class="divide-default-200/60 divide-y">
+          <TopicCard
+            v-for="topic in data.topics"
+            :key="topic.id"
+            :topic="topic"
+          />
+        </div>
+      </KunLoading>
 
-    <div class="flex w-full items-center justify-center p-6">
-      <KunLoading v-if="isFetching" description="正在摸鱼中...咕咕咕" />
-      <KunNull v-if="isLoadingComplete" description="真的一滴也不剩了呜呜呜" />
-    </div>
+      <KunNull
+        v-if="!data.topics.length"
+        description="真的一滴也不剩了呜呜呜"
+      />
+
+      <KunCard
+        :is-hoverable="false"
+        :is-transparent="false"
+        content-class="gap-3"
+      >
+        <KunPagination
+          v-model:current-page="page"
+          :total-page="Math.ceil(data.total / limit)"
+          :is-loading="status === 'pending'"
+        />
+      </KunCard>
+    </template>
   </div>
 </template>
