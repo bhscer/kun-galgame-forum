@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import type { InjectionKey } from 'vue'
 
-interface TOCItem {
+export interface TOCItem {
   id: string
   text: string
   level: number
