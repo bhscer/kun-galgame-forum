@@ -100,6 +100,7 @@
  *                        Select / Autocomplete lists · DatePicker calendar
  *   .kun-rail-flyout   → the desktop sidebar icon-rail hover menus (side-bar/RailGroup.vue)
  *   .kun-sidebar-drawer → the mobile hamburger drawer (force-expanded Sidebar.vue)
+ *   .kun-reply-panel   → the desktop topic reply pop-up panel (topic/reply/Panel.vue)
  * The loli (KunLoliProvider / useKunLoliInfo) carries NONE of these classes, so it
  * keeps the frosted --kun-surface-opacity look on purpose. KunPopover panels we
  * own can also opt in directly via the 2.2.0 `opaque` prop (e.g. the editor menu).
@@ -110,7 +111,8 @@
 .z-kun-alert,
 .z-kun-message,
 .kun-rail-flyout,
-.kun-sidebar-drawer {
+.kun-sidebar-drawer,
+.kun-reply-panel {
   --color-content1: oklch(var(--content1) / 1);
 }
 

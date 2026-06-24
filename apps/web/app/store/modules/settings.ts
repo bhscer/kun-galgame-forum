@@ -30,7 +30,7 @@ export const usePersistSettingsStore = defineStore(
     // Background-image opacity (%). Read directly by the layout (bound on the bg
     // div), so it's SSR-safe + reactive — no CSS-var setter / init flash needed.
     const showKUNGalgameBackgroundOpacity =
-      ref<KUNGalgameSettingsStore['showKUNGalgameBackgroundOpacity']>(30)
+      ref<KUNGalgameSettingsStore['showKUNGalgameBackgroundOpacity']>(15)
     const showKUNGalgameBackLoli =
       ref<KUNGalgameSettingsStore['showKUNGalgameBackLoli']>(false)
     // Global "显示没有下载资源的 Galgame" — off by default; hides resource-less

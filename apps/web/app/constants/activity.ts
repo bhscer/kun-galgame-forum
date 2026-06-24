@@ -230,11 +230,11 @@ const KUN_ALL_TAB_KINDS = [
 // Bump when the DEFAULT tab structure changes (new / renamed / removed tabs) so
 // the settings store can force a one-time reset of stale persisted tabs (see its
 // afterHydrate). NOTE: this also resets users' CUSTOM tabs — acceptable here.
-export const KUN_FEED_TABS_VERSION = 1
+export const KUN_FEED_TABS_VERSION = 2
 
 // Default tabs. Stable ids so the ?tab= URL + the active selection survive edits.
-//   资源        — galgame resources only (no topics)
-//   资源和求助话题 — only the three 资源/求助 topic sections (TOPIC_RESOURCE_HELP)
+//   Gal 资源    — galgame resources only (no topics)
+//   资源和求助    — only the three 资源/求助 topic sections (TOPIC_RESOURCE_HELP)
 //   话题        — normal topics only (TOPIC_NORMAL; those three sections excluded)
 export const KUN_DEFAULT_FEED_TABS: KunFeedTab[] = [
   { id: 'all', name: '全部', icon: 'lucide:layers', kinds: [...KUN_ALL_TAB_KINDS] },
@@ -270,13 +270,13 @@ export const KUN_DEFAULT_FEED_TABS: KunFeedTab[] = [
   },
   {
     id: 'resource',
-    name: '资源',
+    name: 'Gal 资源',
     icon: 'lucide:box',
     kinds: ['GALGAME_RESOURCE_CREATION']
   },
   {
     id: 'resource-help-topic',
-    name: '资源和求助话题',
+    name: '资源和求助',
     icon: 'lucide:life-buoy',
     kinds: ['TOPIC_RESOURCE_HELP']
   },

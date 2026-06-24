@@ -46,7 +46,7 @@ const handleDrawerClose = () => {
         v-if="isEdit"
       >
         <div
-          class="bg-content1/85 border-default/20 scrollbar-hide w-full max-w-4xl space-y-2 overflow-scroll rounded-t-lg border p-3"
+          class="kun-reply-panel bg-content1 border-default/20 scrollbar-hide w-full max-w-4xl space-y-2 overflow-scroll rounded-t-lg border p-3"
         >
           <TopicReplyPanelBody />
         </div>
