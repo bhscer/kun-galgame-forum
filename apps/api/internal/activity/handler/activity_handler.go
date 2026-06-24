@@ -43,14 +43,18 @@ func (h *ActivityHandler) GetTab(c *fiber.Ctx) error {
 		return response.Error(c, appErr)
 	}
 
+	// The 全部 tab forces SFW (req.ForceSfw) so NSFW topics + galgame activity are
+	// filtered out of the main stream even for NSFW-enabled viewers.
+	isSFW := utils.IsSFW(c) || req.ForceSfw
+
 	// Configurable tab → the FE sends its selected kind set; otherwise fall back
 	// to a legacy built-in bucket (tab=all/topic/galgame/resource/others).
 	var res *service.Result
 	var appErr *errors.AppError
 	if req.Types != "" {
-		res, appErr = h.activityService.GetFeedByTypes(c.Context(), strings.Split(req.Types, ","), req.Cursor, req.Limit, utils.IsSFW(c), req.ShowNoResource)
+		res, appErr = h.activityService.GetFeedByTypes(c.Context(), strings.Split(req.Types, ","), req.Cursor, req.Limit, isSFW, req.ShowNoResource)
 	} else {
-		res, appErr = h.activityService.GetTab(c.Context(), req.Tab, req.Cursor, req.Limit, utils.IsSFW(c), req.ShowNoResource)
+		res, appErr = h.activityService.GetTab(c.Context(), req.Tab, req.Cursor, req.Limit, isSFW, req.ShowNoResource)
 	}
 	if appErr != nil {
 		return response.Error(c, appErr)

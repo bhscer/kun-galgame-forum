@@ -36,6 +36,10 @@ type TabRequest struct {
 	Cursor         string `query:"cursor"`
 	Limit          int    `query:"limit" validate:"min=1,max=50"`
 	ShowNoResource bool   `query:"showNoResource"`
+	// ForceSfw makes the 全部 tab always SFW regardless of the viewer's NSFW
+	// setting: the FE sets it for the "全部" tab so NSFW topics (+ their replies/
+	// comments) and NSFW galgame-scoped activity never appear in the main stream.
+	ForceSfw bool `query:"forceSfw"`
 }
 
 // ──────────────────────────────────────────

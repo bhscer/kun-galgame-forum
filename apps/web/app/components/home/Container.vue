@@ -55,7 +55,10 @@ const { data, status } = await useKunFetch<{
   query: computed(() => ({
     types: activeTypes.value,
     limit: 30,
-    showNoResource: settings.showKUNGalgameNoResource
+    showNoResource: settings.showKUNGalgameNoResource,
+    // 全部 tab is always SFW — NSFW topics + galgame activity are filtered out of
+    // the main stream regardless of the viewer's NSFW setting.
+    forceSfw: activeTab.value === 'all'
   }))
 })
 
@@ -100,7 +103,8 @@ const loadMore = async (auto = false) => {
         types,
         limit: 30,
         cursor: cursor.value,
-        showNoResource: settings.showKUNGalgameNoResource
+        showNoResource: settings.showKUNGalgameNoResource,
+        forceSfw: tab === 'all'
       },
       signal: controller.signal
     }
