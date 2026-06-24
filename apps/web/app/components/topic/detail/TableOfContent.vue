@@ -66,20 +66,60 @@ const measure = () => {
   }
 }
 
-// Re-measure after the active set (or the item list) changes — flush:'post' so
-// the DOM has settled — and pull the topmost active item into the rail's own
-// scroll box (block:'nearest' never moves the page).
-watch(
-  [activeIds, headings],
-  ([ids], [prevIds]) => {
-    measure()
-    const top = ids[0]
-    if (top && top !== (prevIds as string[] | undefined)?.[0]) {
-      liRefs.get(top)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+// The rail's own scroll box (the KunScrollShadow overflow-y element) — so we
+// scroll IT, never the window, to reposition the highlight.
+const getScrollParent = (el: HTMLElement): HTMLElement | null => {
+  let p = el.parentElement
+  while (p) {
+    const oy = getComputedStyle(p).overflowY
+    if (oy === 'auto' || oy === 'scroll') {
+      return p
     }
+    p = p.parentElement
+  }
+  return null
+}
+
+// Center the active run in the middle of the rail, clamped at the ends so the
+// first/last items don't force an awkward half-empty scroll. Scrolls only the
+// rail, not the page.
+const centerActiveRun = () => {
+  const ids = activeIds.value
+  const first = ids[0] ? liRefs.get(ids[0]) : undefined
+  const last = ids.length ? liRefs.get(ids[ids.length - 1]!) : undefined
+  if (!first || !last) {
+    return
+  }
+  const container = getScrollParent(first)
+  if (!container) {
+    return
+  }
+  // Run bounds within the scroll content (viewport rect + current scrollTop).
+  const base = container.getBoundingClientRect().top - container.scrollTop
+  const runTop = first.getBoundingClientRect().top - base
+  const runBottom = last.getBoundingClientRect().bottom - base
+  const target = (runTop + runBottom) / 2 - container.clientHeight / 2
+  const maxScroll = container.scrollHeight - container.clientHeight
+  container.scrollTo({
+    top: Math.min(maxScroll, Math.max(0, target)),
+    behavior: 'smooth'
+  })
+}
+
+// flush:'post' so the DOM has settled before measuring/scrolling.
+// Active run changed → re-measure the overlay AND re-center it in the rail.
+watch(
+  activeIds,
+  () => {
+    measure()
+    centerActiveRun()
   },
   { flush: 'post' }
 )
+
+// List changed (load-more / sort re-derives the computed) → re-measure only;
+// don't yank the rail when the highlighted run itself hasn't moved.
+watch(headings, () => measure(), { flush: 'post' })
 
 // The rail's width can change (wrap → item heights change), so the overlay must
 // re-measure on resize even when the active set is unchanged.
