@@ -134,6 +134,13 @@ type EntityRefActivityData struct {
 	ParentName string `json:"parentName"`
 }
 
+// SolutionActivityData is the rich-card payload for MESSAGE_SOLUTION (a best
+// answer was accepted): the title of the owning topic, so the card can name it
+// and link to it. The accepted reply's preview is ActivityItem.Content.
+type SolutionActivityData struct {
+	TopicTitle string `json:"topicTitle"`
+}
+
 // ReplyActivityData is the rich-card payload for TOPIC_REPLY_CREATION: the title
 // of the topic the reply belongs to (shown at the bottom of the card) and, if the
 // reply quoted another reply, that quoted reply. The reply body itself is

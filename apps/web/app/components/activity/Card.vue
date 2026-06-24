@@ -74,5 +74,9 @@ defineProps<{ activity: ActivityItem }>()
     "
     :activity="activity"
   />
+  <ActivityCardSolution
+    v-else-if="activity.type === 'MESSAGE_SOLUTION'"
+    :activity="activity"
+  />
   <ActivityCardGeneric v-else :activity="activity" />
 </template>

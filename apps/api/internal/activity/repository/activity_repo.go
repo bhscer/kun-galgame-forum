@@ -395,6 +395,27 @@ func (r *ActivityRepository) FetchReplyTopicTitles(replyIDs []int) (map[int]stri
 	return out, nil
 }
 
+// FetchTopicTitles maps topic ids → their titles, for the best-answer
+// (MESSAGE_SOLUTION) feed card, which names the topic it links to.
+func (r *ActivityRepository) FetchTopicTitles(topicIDs []int) (map[int]string, error) {
+	out := map[int]string{}
+	if len(topicIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID    int    `gorm:"column:id"`
+		Title string `gorm:"column:title"`
+	}
+	if err := r.db.Raw(`SELECT id, title FROM topic WHERE id IN ?`, topicIDs).
+		Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row.Title
+	}
+	return out, nil
+}
+
 // ReplyContent is a quoted reply's floor + raw body (tokens unresolved), for the
 // feed's reply card.
 type ReplyContent struct {

@@ -25,6 +25,10 @@ import (
 // used as a feed-card cover fallback when a topic has no explicit cover_images.
 var contentImageTokenRe = regexp.MustCompile(`/image/[0-9a-f]{64}`)
 
+// solutionTopicLinkRe pulls the topic id from a MESSAGE_SOLUTION row's link
+// (/topic/<id>) so the best-answer card can fetch + show the owning topic's title.
+var solutionTopicLinkRe = regexp.MustCompile(`^/topic/(\d+)`)
+
 // activityCacheTTL bounds how stale the "最新动态" feed can be. Short on purpose:
 // it collapses the home page's per-render cost (the multi-source timeline query
 // + wiki name-enrichment + OAuth identity round-trips) into one computation per
@@ -356,9 +360,48 @@ func (s *ActivityService) enrichAndHydrate(ctx context.Context, rows []repositor
 	s.enrichReplyItems(ctx, items)
 	s.enrichNoteItems(items)
 	s.enrichEntityRefItems(items)
+	s.enrichSolutionItems(items)
 	s.renderMarkdownBodies(items)
 	s.hydrateActors(ctx, items)
 	return items
+}
+
+// enrichSolutionItems attaches the owning topic's title to MESSAGE_SOLUTION rows
+// (a best answer was accepted), so the feed card can name the topic + link to it.
+// The topic id is parsed from the row's link (/topic/:id). Best-effort.
+func (s *ActivityService) enrichSolutionItems(items []dto.ActivityItem) {
+	topicIDByIdx := map[int]int{}
+	idSet := map[int]struct{}{}
+	for i, it := range items {
+		if it.Type != "MESSAGE_SOLUTION" {
+			continue
+		}
+		m := solutionTopicLinkRe.FindStringSubmatch(it.Link)
+		if m == nil {
+			continue
+		}
+		tid, _ := strconv.Atoi(m[1])
+		if tid > 0 {
+			topicIDByIdx[i] = tid
+			idSet[tid] = struct{}{}
+		}
+	}
+	if len(idSet) == 0 {
+		return
+	}
+	ids := make([]int, 0, len(idSet))
+	for id := range idSet {
+		ids = append(ids, id)
+	}
+	titles, err := s.repo.FetchTopicTitles(ids)
+	if err != nil {
+		return
+	}
+	for i, tid := range topicIDByIdx {
+		if title, ok := titles[tid]; ok {
+			items[i].Data = dto.SolutionActivityData{TopicTitle: title}
+		}
+	}
 }
 
 // enrichEntityRefItems attaches the parent entity name to the toolset / website

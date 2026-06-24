@@ -205,17 +205,15 @@ export interface KunFeedTab {
   kinds: string[]
 }
 
-// 全部 = every kind EXCEPT 资源/求助话题, 游戏资源 and 游戏评论 (mirrors the old
-// homeTabSourceTypes("all"): those live in their own tabs).
+// 全部 = topics + galgame 评分/网站, toolsets + notes. EXCLUDES 资源/求助话题,
+// 游戏资源, 游戏评论, and the galgame 新游戏 / 游戏编辑 / 更新请求 kinds — those
+// live in their own tabs (Galgame / 资源) and shouldn't flood the main stream.
 const KUN_ALL_TAB_KINDS = [
   'TOPIC_NORMAL',
   'TOPIC_REPLY_CREATION',
   'TOPIC_COMMENT_CREATION',
   'TOPIC_UPVOTE',
   'MESSAGE_SOLUTION',
-  'GALGAME_CREATION',
-  'GALGAME_EDIT',
-  'GALGAME_PR_CREATION',
   'GALGAME_RATING_CREATION',
   'GALGAME_RATING_COMMENT_CREATION',
   'GALGAME_WEBSITE_CREATION',
@@ -230,7 +228,7 @@ const KUN_ALL_TAB_KINDS = [
 // Bump when the DEFAULT tab structure changes (new / renamed / removed tabs) so
 // the settings store can force a one-time reset of stale persisted tabs (see its
 // afterHydrate). NOTE: this also resets users' CUSTOM tabs — acceptable here.
-export const KUN_FEED_TABS_VERSION = 2
+export const KUN_FEED_TABS_VERSION = 3
 
 // Default tabs. Stable ids so the ?tab= URL + the active selection survive edits.
 //   Gal 资源    — galgame resources only (no topics)

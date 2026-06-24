@@ -48,8 +48,9 @@ watch(
         :class="
           cn(
             'z-10 w-full max-w-7xl min-w-0 transition-all duration-300 md:mr-3',
-            // Fixed offset for the desktop icon rail (w-20 + gap); mobile is ml-0.
-            'md:ml-[84px]'
+            // Clears the desktop icon rail (w-20 = 80px) PLUS a ~24px gap so page
+            // content (e.g. the home tab rail) isn't flush against it; mobile ml-0.
+            'md:ml-[104px]'
           )
         "
       >

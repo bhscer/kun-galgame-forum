@@ -143,6 +143,13 @@ export interface EntityRefActivityData {
   parentName: string
 }
 
+// Rich-card payload for MESSAGE_SOLUTION (BE dto.SolutionActivityData): the title
+// of the topic whose best answer was accepted; the accepted reply's preview is in
+// ActivityItem.content.
+export interface SolutionActivityData {
+  topicTitle: string
+}
+
 // Per-type rich-card payload, discriminated by ActivityItem.type. Each card
 // casts activity.data to the shape its type carries (the dispatcher routes by
 // type, so the cast is safe). Absent for types without a rich card yet.
@@ -153,6 +160,7 @@ export type ActivityData =
   | TopicCommentActivityData
   | NoteActivityData
   | EntityRefActivityData
+  | SolutionActivityData
 
 export interface ActivityItem {
   uniqueId: string
