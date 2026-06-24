@@ -8,8 +8,11 @@ withDefaults(
   { className: '' }
 )
 
-// Fixed offset for the desktop icon rail (w-20); mobile spans full width.
-const offsetClass = 'md:left-[80px] md:w-[calc(100%-88px)]'
+// Match the page content's bounds exactly so the bar lines up with it: content is
+// md:ml-[104px] (icon rail 80px + ~24px gap) and md:mr-3 (12px), i.e. spans
+// [104px, 100%-12px]. left-[104px] + w-[calc(100%-116px)] reproduces that; the
+// inner mx-auto max-w-7xl then centers identically to the content. Mobile = full.
+const offsetClass = 'md:left-[104px] md:w-[calc(100%-116px)]'
 
 // Flat + edge-to-edge (px-0) + transparent at the very top; once the page scrolls
 // it eases to the inset surface (px-3 + bg + border + shadow). The blur is kept
@@ -25,7 +28,7 @@ const scrolled = computed(() => y.value > 8)
   <div
     :class="
       cn(
-        'fixed top-0 z-30 mb-3 ml-0 shrink-0 px-1',
+        'fixed top-0 z-30 mb-3 ml-0 shrink-0',
         'left-0 w-full',
         offsetClass,
         className
