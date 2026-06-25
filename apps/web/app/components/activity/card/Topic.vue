@@ -137,7 +137,11 @@ provide(
         v-if="showLatest && latest"
         underline="none"
         color="default"
-        :to="activity.link"
+        :to="
+          latest?.kind === 'reply'
+            ? replyPermalink(activity.link, latest.floor)
+            : commentPermalink(activity.link, latest?.commentId)
+        "
         class-name="bg-default-100 flex gap-2 rounded-md p-1.5"
       >
         <div class="bg-default-300 w-1 shrink-0 rounded-full" />
@@ -167,7 +171,7 @@ provide(
         v-if="showTopReply && topReply"
         underline="none"
         color="default"
-        :to="activity.link"
+        :to="replyPermalink(activity.link, topReply?.floor)"
         class-name="bg-primary-500/10 flex gap-2 rounded-md p-1.5"
       >
         <div class="bg-primary w-1 shrink-0 rounded-full" />
@@ -195,7 +199,7 @@ provide(
         v-if="bestAnswer"
         underline="none"
         color="default"
-        :to="activity.link"
+        :to="replyPermalink(activity.link, bestAnswer?.floor)"
         class-name="bg-success-500/10 relative flex gap-2 overflow-hidden rounded-md p-1.5"
       >
         <div class="bg-success-500 w-1 shrink-0 rounded-full" />

@@ -33,7 +33,7 @@ const quoted = computed(() => data.value?.quotedReply)
         v-if="data?.topicTitle"
         underline="none"
         color="default"
-        :to="activity.link"
+        :to="replyPermalink(activity.link, data?.floor)"
         class-name="text-default-500 hover:text-primary flex items-center gap-1 text-sm"
       >
         <KunIcon name="icon-park-outline:topic" class="size-4 shrink-0" />

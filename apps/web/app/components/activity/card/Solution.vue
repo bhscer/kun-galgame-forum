@@ -35,7 +35,7 @@ const data = computed(
         v-if="data?.topicTitle"
         underline="hover"
         color="default"
-        :to="activity.link"
+        :to="replyPermalink(activity.link, data?.floor)"
         class-name="text-default-500 hover:text-primary inline-flex min-w-0 items-center gap-1.5"
       >
         <KunIcon name="icon-park-outline:topic" class-name="shrink-0" />
@@ -46,7 +46,7 @@ const data = computed(
       <KunLink
         underline="none"
         color="default"
-        :to="activity.link"
+        :to="replyPermalink(activity.link, data?.floor)"
         class-name="text-default-500 hover:text-primary flex shrink-0 items-center gap-0.5 text-sm"
       >
         查看详情

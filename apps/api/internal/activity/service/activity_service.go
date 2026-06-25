@@ -436,9 +436,13 @@ func (s *ActivityService) enrichSolutionItems(items []dto.ActivityItem) {
 	if err != nil {
 		return
 	}
+	// The accepted reply's floor lets the card deep-link to it (?reply=<floor>).
+	// FetchTopicBestAnswers is keyed by topic id and now carries the reply's floor;
+	// a topic with no current best answer falls back to Floor 0 (the topic root).
+	bestAnswers, _ := s.repo.FetchTopicBestAnswers(ids)
 	for i, tid := range topicIDByIdx {
 		if title, ok := titles[tid]; ok {
-			items[i].Data = dto.SolutionActivityData{TopicTitle: title}
+			items[i].Data = dto.SolutionActivityData{TopicTitle: title, Floor: bestAnswers[tid].Floor}
 		}
 	}
 }
@@ -594,6 +598,7 @@ func (s *ActivityService) enrichTopicCommentItems(ctx context.Context, items []d
 		}
 		payload := dto.TopicCommentActivityData{
 			TopicTitle: c.TopicTitle,
+			CommentId:  id,
 			QuotedReply: &dto.QuotedReply{
 				Floor:   c.ReplyFloor,
 				Content: renderReplyTokens(c.ReplyContent, names),
@@ -735,6 +740,8 @@ func (s *ActivityService) enrichReplyItems(ctx context.Context, items []dto.Acti
 		ids = append(ids, id)
 	}
 	titles, _ := s.repo.FetchReplyTopicTitles(ids)
+	// Each reply's own floor → deep-link the card to it (?reply=<floor>).
+	floors, _ := s.repo.FetchReplyFloors(ids)
 
 	// First quoted reply per reply → batch-fetch the quoted bodies.
 	quotedIDByReply := map[int]int{}
@@ -783,7 +790,7 @@ func (s *ActivityService) enrichReplyItems(ctx context.Context, items []dto.Acti
 				Content: renderReplyTokens(qc.Content, names),
 			}
 		}
-		data := dto.ReplyActivityData{TopicTitle: titles[id], QuotedReply: quoted}
+		data := dto.ReplyActivityData{TopicTitle: titles[id], Floor: floors[id], QuotedReply: quoted}
 		for _, i := range idxs {
 			items[i].Content = renderReplyTokens(items[i].Content, names)
 			items[i].Data = data
@@ -931,14 +938,14 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 		}
 		var topReply *dto.TopReply
 		if tr, ok := topReplies[id]; ok {
-			topReply = &dto.TopReply{ReplyID: tr.ID, Content: tr.Content, LikeCount: tr.LikeCount}
+			topReply = &dto.TopReply{ReplyID: tr.ID, Floor: tr.Floor, Content: tr.Content, LikeCount: tr.LikeCount}
 			if u, ok := extraUsers[tr.UserID]; ok {
 				topReply.User = dto.Actor{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
 			}
 		}
 		var bestAnswer *dto.TopReply
 		if ba, ok := bestAnswers[id]; ok {
-			bestAnswer = &dto.TopReply{ReplyID: ba.ReplyID, Content: ba.Content, LikeCount: ba.LikeCount}
+			bestAnswer = &dto.TopReply{ReplyID: ba.ReplyID, Floor: ba.Floor, Content: ba.Content, LikeCount: ba.LikeCount}
 			if u, ok := extraUsers[ba.UserID]; ok {
 				bestAnswer.User = dto.Actor{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
 			}
@@ -956,6 +963,9 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 			latestActivity = &dto.LatestActivity{Kind: la.Kind, Content: la.Content, Created: la.Created}
 			if la.Kind == "reply" {
 				latestActivity.ReplyID = la.ID
+				latestActivity.Floor = la.Floor
+			} else {
+				latestActivity.CommentId = la.ID
 			}
 			if u, ok := extraUsers[la.UserID]; ok {
 				latestActivity.User = dto.Actor{ID: u.ID, Name: u.Name, Avatar: u.Avatar}

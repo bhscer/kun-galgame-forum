@@ -396,6 +396,27 @@ func (r *ActivityRepository) FetchReplyTopicTitles(replyIDs []int) (map[int]stri
 	return out, nil
 }
 
+// FetchReplyFloors maps reply ids → their floor, so a reply feed card can
+// deep-link to /topic/:id?reply=<floor>.
+func (r *ActivityRepository) FetchReplyFloors(replyIDs []int) (map[int]int, error) {
+	out := map[int]int{}
+	if len(replyIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID    int `gorm:"column:id"`
+		Floor int `gorm:"column:floor"`
+	}
+	if err := r.db.Raw(`SELECT id, floor FROM topic_reply WHERE id IN ?`, replyIDs).
+		Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.ID] = row.Floor
+	}
+	return out, nil
+}
+
 // FetchTopicTitles maps topic ids → their titles, for the best-answer
 // (MESSAGE_SOLUTION) feed card, which names the topic it links to.
 func (r *ActivityRepository) FetchTopicTitles(topicIDs []int) (map[int]string, error) {
@@ -580,6 +601,7 @@ func (r *ActivityRepository) FetchRatingActivityData(ratingIDs []int) (map[int]R
 type TopReplyRow struct {
 	TopicID   int    `gorm:"column:topic_id"`
 	ID        int    `gorm:"column:id"`
+	Floor     int    `gorm:"column:floor"`
 	Content   string `gorm:"column:content"`
 	LikeCount int    `gorm:"column:like_count"`
 	UserID    int    `gorm:"column:user_id"`
@@ -595,7 +617,7 @@ func (r *ActivityRepository) FetchTopicTopReply(ids []int) (map[int]TopReplyRow,
 	}
 	var rows []TopReplyRow
 	if err := r.db.Raw(`
-		SELECT DISTINCT ON (topic_id) topic_id, id,
+		SELECT DISTINCT ON (topic_id) topic_id, id, floor,
 			SUBSTRING(content, 1, 200) AS content, like_count, user_id
 		FROM topic_reply
 		WHERE topic_id IN ? AND like_count > 0
@@ -614,6 +636,7 @@ func (r *ActivityRepository) FetchTopicTopReply(ids []int) (map[int]TopReplyRow,
 type BestAnswerRow struct {
 	TopicID   int    `gorm:"column:topic_id"`
 	ReplyID   int    `gorm:"column:reply_id"`
+	Floor     int    `gorm:"column:floor"`
 	Content   string `gorm:"column:content"`
 	LikeCount int    `gorm:"column:like_count"`
 	UserID    int    `gorm:"column:user_id"`
@@ -628,7 +651,7 @@ func (r *ActivityRepository) FetchTopicBestAnswers(ids []int) (map[int]BestAnswe
 	}
 	var rows []BestAnswerRow
 	if err := r.db.Raw(`
-		SELECT t.id AS topic_id, r.id AS reply_id,
+		SELECT t.id AS topic_id, r.id AS reply_id, r.floor,
 			SUBSTRING(r.content, 1, 200) AS content, r.like_count, r.user_id
 		FROM topic t
 		JOIN topic_reply r ON r.id = t.best_answer_id
@@ -788,6 +811,7 @@ type LatestActivityRow struct {
 	TopicID int       `gorm:"column:topic_id"`
 	Kind    string    `gorm:"column:kind"`
 	ID      int       `gorm:"column:id"`
+	Floor   int       `gorm:"column:floor"`
 	Content string    `gorm:"column:content"`
 	UserID  int       `gorm:"column:user_id"`
 	Created time.Time `gorm:"column:created"`
@@ -802,11 +826,11 @@ func (r *ActivityRepository) FetchTopicLatestActivity(ids []int) (map[int]Latest
 	}
 	var rows []LatestActivityRow
 	if err := r.db.Raw(`
-		SELECT DISTINCT ON (topic_id) topic_id, kind, id, content, user_id, created FROM (
-			SELECT topic_id, 'reply' AS kind, id, SUBSTRING(content, 1, 200) AS content, user_id, created
+		SELECT DISTINCT ON (topic_id) topic_id, kind, id, floor, content, user_id, created FROM (
+			SELECT topic_id, 'reply' AS kind, id, floor, SUBSTRING(content, 1, 200) AS content, user_id, created
 				FROM topic_reply WHERE topic_id IN ?
 			UNION ALL
-			SELECT topic_id, 'comment' AS kind, id, SUBSTRING(content, 1, 200) AS content, user_id, created
+			SELECT topic_id, 'comment' AS kind, id, 0 AS floor, SUBSTRING(content, 1, 200) AS content, user_id, created
 				FROM topic_comment WHERE topic_id IN ?
 		) x
 		ORDER BY topic_id, created DESC, id DESC`, ids, ids).

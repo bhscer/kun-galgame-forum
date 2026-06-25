@@ -24,6 +24,8 @@ export type ActivityEventType =
 export interface ActivityTopReply {
   // The reply's id, so the card can tell if 高赞回复 is also the best answer.
   replyId: number
+  // The reply's floor → deep-link to it (/topic/:id?reply=<floor>).
+  floor: number
   user: KunUser
   content: string
   likeCount: number
@@ -71,6 +73,9 @@ export interface TopicActivityData {
   latestActivity?: {
     kind: 'reply' | 'comment'
     replyId: number
+    // floor (reply) / commentId (comment) → deep-link to the target.
+    floor: number
+    commentId: number
     user: KunUser
     content: string
     created: Date | string
@@ -144,6 +149,8 @@ export interface ActivityQuotedReply {
 // reply body is in `content` (tokens already resolved to @name / #floor).
 export interface ReplyActivityData {
   topicTitle: string
+  // This reply's floor → deep-link to it (/topic/:id?reply=<floor>).
+  floor: number
   quotedReply?: ActivityQuotedReply
 }
 
@@ -152,6 +159,8 @@ export interface ReplyActivityData {
 // anchors the bottom; the comment body is in ActivityItem.content.
 export interface TopicCommentActivityData {
   topicTitle: string
+  // This comment's id → deep-link to it (/topic/:id?comment=<id>).
+  commentId: number
   quotedReply?: ActivityQuotedReply
 }
 
@@ -173,6 +182,8 @@ export interface EntityRefActivityData {
 // ActivityItem.content.
 export interface SolutionActivityData {
   topicTitle: string
+  // The accepted reply's floor → deep-link to it (/topic/:id?reply=<floor>).
+  floor: number
 }
 
 // Per-type rich-card payload, discriminated by ActivityItem.type. Each card

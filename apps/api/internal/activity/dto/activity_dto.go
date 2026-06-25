@@ -122,7 +122,9 @@ type TopicReactionCount struct {
 // shown on the feed's topic card. Only populated when a reply has >0 likes.
 type TopReply struct {
 	// ReplyID lets the feed card tell whether this reply is also the best answer.
-	ReplyID   int    `json:"replyId"`
+	ReplyID int `json:"replyId"`
+	// Floor lets the card deep-link to the reply (/topic/:id?reply=<floor>).
+	Floor     int    `json:"floor"`
 	User      Actor  `json:"user"`
 	Content   string `json:"content"`
 	LikeCount int    `json:"likeCount"`
@@ -141,11 +143,14 @@ type TopicUpvote struct {
 // below the 推话题 records. Kind is "reply" / "comment"; ReplyID is the reply's id
 // (0 for a comment), so the card can merge it when it's the best answer / 高赞回复.
 type LatestActivity struct {
-	Kind    string    `json:"kind"`
-	ReplyID int       `json:"replyId"`
-	User    Actor     `json:"user"`
-	Content string    `json:"content"`
-	Created time.Time `json:"created"`
+	Kind    string `json:"kind"`
+	ReplyID int    `json:"replyId"`
+	// Floor (reply) / CommentId (comment) let the card deep-link to the target.
+	Floor     int       `json:"floor"`
+	CommentId int       `json:"commentId"`
+	User      Actor     `json:"user"`
+	Content   string    `json:"content"`
+	Created   time.Time `json:"created"`
 }
 
 // NoteActivityData — extras for the 其他 cards: UPDATE_LOG_CREATION carries the
@@ -171,6 +176,8 @@ type EntityRefActivityData struct {
 // and link to it. The accepted reply's preview is ActivityItem.Content.
 type SolutionActivityData struct {
 	TopicTitle string `json:"topicTitle"`
+	// Floor of the accepted reply → deep-link to it (/topic/:id?reply=<floor>).
+	Floor int `json:"floor"`
 }
 
 // ReplyActivityData is the rich-card payload for TOPIC_REPLY_CREATION: the title
@@ -178,7 +185,9 @@ type SolutionActivityData struct {
 // reply quoted another reply, that quoted reply. The reply body itself is
 // ActivityItem.Content (with @/# tokens already resolved to readable text).
 type ReplyActivityData struct {
-	TopicTitle  string       `json:"topicTitle"`
+	TopicTitle string `json:"topicTitle"`
+	// Floor of this reply → deep-link to it (/topic/:id?reply=<floor>).
+	Floor       int          `json:"floor"`
 	QuotedReply *QuotedReply `json:"quotedReply,omitempty"`
 }
 
@@ -195,7 +204,9 @@ type QuotedReply struct {
 // ActivityItem.Content; QuotedReply is the reply being commented on (被评论的评论);
 // TopicTitle anchors it at the bottom.
 type TopicCommentActivityData struct {
-	TopicTitle  string       `json:"topicTitle"`
+	TopicTitle string `json:"topicTitle"`
+	// CommentId → deep-link to the comment (/topic/:id?comment=<id>).
+	CommentId   int          `json:"commentId"`
 	QuotedReply *QuotedReply `json:"quotedReply,omitempty"`
 }
 
