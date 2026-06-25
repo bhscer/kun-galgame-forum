@@ -205,7 +205,7 @@ export interface KunFeedTab {
   kinds: string[]
 }
 
-// 全部 = topics + galgame 评分/网站, toolsets + notes. EXCLUDES 资源/求助话题,
+// 全站动态 = topics + galgame 评分/网站, toolsets + notes. EXCLUDES 资源/求助话题,
 // 游戏资源, 游戏评论, and the galgame 新游戏 / 游戏编辑 / 更新请求 kinds — those
 // live in their own tabs (Galgame / 资源) and shouldn't flood the main stream.
 const KUN_ALL_TAB_KINDS = [
@@ -228,25 +228,21 @@ const KUN_ALL_TAB_KINDS = [
 // Bump when the DEFAULT tab structure changes (new / renamed / removed tabs) so
 // the settings store can force a one-time reset of stale persisted tabs (see its
 // afterHydrate). NOTE: this also resets users' CUSTOM tabs — acceptable here.
-export const KUN_FEED_TABS_VERSION = 3
+export const KUN_FEED_TABS_VERSION = 4
 
 // Default tabs. Stable ids so the ?tab= URL + the active selection survive edits.
+// The FIRST tab is the default landing tab.
+//   话题        — normal topics only (TOPIC_NORMAL), rendered as the feed's rich
+//                 topic card (this tab excludes replies/comments)
+//   全站动态     — the full activity feed (KUN_ALL_TAB_KINDS)
 //   Gal 资源    — galgame resources only (no topics)
 //   资源和求助    — only the three 资源/求助 topic sections (TOPIC_RESOURCE_HELP)
-//   话题        — normal topics only (TOPIC_NORMAL; those three sections excluded)
 export const KUN_DEFAULT_FEED_TABS: KunFeedTab[] = [
-  { id: 'all', name: '全部', icon: 'lucide:layers', kinds: [...KUN_ALL_TAB_KINDS] },
   {
     id: 'topic',
     name: '话题',
     icon: 'icon-park-outline:topic',
-    kinds: [
-      'TOPIC_NORMAL',
-      'TOPIC_REPLY_CREATION',
-      'TOPIC_COMMENT_CREATION',
-      'TOPIC_UPVOTE',
-      'MESSAGE_SOLUTION'
-    ]
+    kinds: ['TOPIC_NORMAL']
   },
   {
     id: 'galgame',
@@ -266,6 +262,7 @@ export const KUN_DEFAULT_FEED_TABS: KunFeedTab[] = [
       'TOOLSET_COMMENT_CREATION'
     ]
   },
+  { id: 'all', name: '全站动态', icon: 'lucide:layers', kinds: [...KUN_ALL_TAB_KINDS] },
   {
     id: 'resource',
     name: 'Gal 资源',

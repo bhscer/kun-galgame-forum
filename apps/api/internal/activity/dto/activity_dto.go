@@ -80,22 +80,27 @@ type TopicActivityData struct {
 	// Title is the topic title. For TOPIC_CREATION the title is also in Content
 	// (the card uses that); the 推话题 (TOPIC_UPVOTE) card reads it here, since
 	// its Content carries the push description instead.
-	Title         string               `json:"title,omitempty"`
-	AuthorID      int                  `json:"authorId,omitempty"`
-	Excerpt       string               `json:"excerpt"`
-	Sections      []string             `json:"sections"`
-	CoverImages   []string             `json:"coverImages"`
-	View          int                  `json:"view"`
-	LikeCount     int                  `json:"likeCount"`
-	FavoriteCount int                  `json:"favoriteCount"`
-	ReplyCount    int                  `json:"replyCount"`
-	CommentCount  int                  `json:"commentCount"`
-	UpvoteTime    *time.Time           `json:"upvoteTime"`
-	HasBestAnswer bool                 `json:"hasBestAnswer"`
-	IsPoll        bool                 `json:"isPoll"`
-	IsNSFW        bool                 `json:"isNSFW"`
-	TopReply      *TopReply            `json:"topReply,omitempty"`
-	Reactions     []TopicReactionCount `json:"reactions"`
+	Title         string     `json:"title,omitempty"`
+	AuthorID      int        `json:"authorId,omitempty"`
+	Excerpt       string     `json:"excerpt"`
+	Sections      []string   `json:"sections"`
+	CoverImages   []string   `json:"coverImages"`
+	View          int        `json:"view"`
+	LikeCount     int        `json:"likeCount"`
+	FavoriteCount int        `json:"favoriteCount"`
+	ReplyCount    int        `json:"replyCount"`
+	CommentCount  int        `json:"commentCount"`
+	UpvoteTime    *time.Time `json:"upvoteTime"`
+	HasBestAnswer bool       `json:"hasBestAnswer"`
+	IsPoll        bool       `json:"isPoll"`
+	IsNSFW        bool       `json:"isNSFW"`
+	TopReply      *TopReply  `json:"topReply,omitempty"`
+	// BestAnswer is the accepted best-answer reply (omitted when none). Same reply
+	// as TopReply (same ReplyID) → the card shows only the best-answer style.
+	BestAnswer *TopReply `json:"bestAnswer,omitempty"`
+	// Upvotes are the topic's 推话题 records — all of them (few per topic).
+	Upvotes   []TopicUpvote        `json:"upvotes,omitempty"`
+	Reactions []TopicReactionCount `json:"reactions"`
 }
 
 // TopicReactionCount is one reaction key's total on a topic, for the feed card,
@@ -111,9 +116,20 @@ type TopicReactionCount struct {
 // TopReply is a topic's most-liked reply (a short excerpt + its like count),
 // shown on the feed's topic card. Only populated when a reply has >0 likes.
 type TopReply struct {
+	// ReplyID lets the feed card tell whether this reply is also the best answer.
+	ReplyID   int    `json:"replyId"`
 	User      Actor  `json:"user"`
 	Content   string `json:"content"`
 	LikeCount int    `json:"likeCount"`
+}
+
+// TopicUpvote is one 推话题 record on the feed's topic card — same shape as the
+// topic-detail /upvotes records so the FE reuses the same component.
+type TopicUpvote struct {
+	ID          int       `json:"id"`
+	User        Actor     `json:"user"`
+	Description string    `json:"description"`
+	Created     time.Time `json:"created"`
 }
 
 // NoteActivityData — extras for the 其他 cards: UPDATE_LOG_CREATION carries the

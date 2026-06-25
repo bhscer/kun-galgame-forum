@@ -137,9 +137,9 @@ onBeforeUnmount(() => {
       <div class="flex min-h-0 flex-col items-center gap-3 overflow-hidden">
         <KunAvatar
           :disable-floating="true"
-          class-name="aspect-square w-full hover:scale-100"
+          class-name="w-full hover:scale-100"
           size="original"
-          image-class-name="aspect-square w-full shrink-0 rounded-lg"
+          image-class-name="w-full shrink-0 rounded-lg"
           :user="user"
         />
 
@@ -169,6 +169,40 @@ onBeforeUnmount(() => {
     <!-- Block B: 回复列表 — fixed header (title + jump button); items scroll BELOW
          it (own scroll box), so the header never gets covered. -->
     <div v-if="replyItems.length" class="flex min-h-0 flex-1 flex-col">
+      <!-- Once block A has collapsed (scrolled into the replies), keep the author
+           visible here as a compact row: circular avatar · name · 萌萌点. -->
+      <Transition
+        enter-active-class="transition-all duration-300 ease-out"
+        enter-from-class="-translate-y-1 opacity-0"
+        leave-active-class="transition-all duration-200 ease-in"
+        leave-to-class="-translate-y-1 opacity-0"
+      >
+        <KunLink
+          v-if="isPastPoll"
+          :to="`/user/${user.id}/info`"
+          :aria-label="user.name"
+          underline="none"
+          color="default"
+          class-name="hover:bg-default-100 mb-2 flex shrink-0 items-center gap-2.5 rounded-lg p-1.5 transition-colors"
+        >
+          <KunAvatar
+            :user="user"
+            :disable-floating="true"
+            :is-navigation="false"
+            size="original"
+            class-name="size-10 shrink-0"
+            image-class-name="size-10 rounded-full"
+          />
+          <div class="flex min-w-0 flex-col">
+            <span class="truncate text-base font-medium">{{ user.name }}</span>
+            <span class="text-secondary flex items-center gap-1 text-sm">
+              <KunIcon class="text-inherit" name="lucide:lollipop" />
+              {{ user.moemoepoint }}
+            </span>
+          </div>
+        </KunLink>
+      </Transition>
+
       <!-- Only the jump button is fixed here; the 回复列表 title scrolls with the
            list below (it lives inside the scroll box). -->
       <Transition

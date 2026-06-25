@@ -15,6 +15,20 @@ const hasBadge = computed(() => {
   return !!d && (d.hasBestAnswer || d.isPoll || d.isNSFW || !!d.upvoteTime)
 })
 
+// 高赞回复 + 最佳答案 + 推话题记录 (all optional). When the best answer IS the
+// top-liked reply (same replyId), show only the best-answer style; otherwise the
+// best answer stacks below 高赞回复.
+const topReply = computed(() => data.value?.topReply)
+const bestAnswer = computed(() => data.value?.bestAnswer)
+const upvotes = computed(() => data.value?.upvotes ?? [])
+const sameReply = computed(
+  () =>
+    !!bestAnswer.value &&
+    !!topReply.value &&
+    bestAnswer.value.replyId === topReply.value.replyId
+)
+const showTopReply = computed(() => !!topReply.value && !sameReply.value)
+
 // Per-viewer 收藏 + reaction state (the shared feed can't carry it) — hydrated
 // once per session, client-side.
 const { isFavorited, reactionKeysOf, ensureLoaded } = useMyTopicInteractions()
@@ -91,32 +105,71 @@ provide(
         </KunChip>
       </div>
 
+      <!-- 推话题记录 (above the quoted replies) — reuse the topic-detail list. -->
+      <TopicUpvoteRecords v-if="upvotes.length" :records="upvotes" />
+
+      <!-- 高赞回复 — quote style, primary bar (hidden when it IS the best answer). -->
       <KunLink
-        v-if="data?.topReply"
+        v-if="showTopReply && topReply"
         underline="none"
         color="default"
         :to="activity.link"
-        class-name="border-primary bg-default-100/50 hover:bg-default-100 block space-y-1 rounded-md border-l-2 px-2.5 py-2"
+        class-name="bg-primary-500/10 flex gap-2 rounded-md p-1.5"
       >
-        <div class="flex items-center justify-between gap-2">
-          <span class="flex min-w-0 items-center gap-1.5">
-            <KunAvatar
-              :user="data.topReply.user"
-              size="sm"
-              :is-navigation="false"
-            />
-            <span class="text-default-700 line-clamp-1 text-sm font-medium">
-              {{ data.topReply.user.name }}
+        <div class="bg-primary w-1 shrink-0 rounded-full" />
+        <div class="min-w-0 flex-1 space-y-1 text-sm">
+          <div class="flex items-center justify-between gap-2">
+            <span class="flex min-w-0 items-center gap-1.5">
+              <KunAvatar :user="topReply.user" size="sm" :is-navigation="false" />
+              <span class="text-default-700 line-clamp-1 font-medium">
+                {{ topReply.user.name }}
+              </span>
             </span>
-          </span>
-          <span class="text-default-500 flex shrink-0 items-center gap-1 text-sm">
-            <KunIcon name="lucide:thumbs-up" class="size-3.5" />
-            {{ data.topReply.likeCount }}
-          </span>
+            <span class="text-default-500 flex shrink-0 items-center gap-1">
+              <KunIcon name="lucide:thumbs-up" class="size-3.5" />
+              {{ topReply.likeCount }}
+            </span>
+          </div>
+          <p class="text-default-600 line-clamp-2 break-all">
+            {{ markdownToText(topReply.content) }}
+          </p>
         </div>
-        <p class="text-default-700 line-clamp-2 text-base break-all">
-          {{ markdownToText(data.topReply.content) }}
-        </p>
+      </KunLink>
+
+      <!-- 最佳答案 — quote style, success bar + a faint corner checkmark. -->
+      <KunLink
+        v-if="bestAnswer"
+        underline="none"
+        color="default"
+        :to="activity.link"
+        class-name="bg-success-500/10 relative flex gap-2 overflow-hidden rounded-md p-1.5"
+      >
+        <div class="bg-success-500 w-1 shrink-0 rounded-full" />
+        <div class="min-w-0 flex-1 space-y-1 text-sm">
+          <div class="flex items-center justify-between gap-2">
+            <span class="flex min-w-0 items-center gap-1.5">
+              <KunAvatar :user="bestAnswer.user" size="sm" :is-navigation="false" />
+              <span
+                class="text-success-700 dark:text-success-300 line-clamp-1 font-medium"
+              >
+                {{ bestAnswer.user.name }}
+              </span>
+            </span>
+            <span
+              class="text-success-600 dark:text-success-400 flex shrink-0 items-center gap-1"
+            >
+              <KunIcon name="lucide:thumbs-up" class="size-3.5" />
+              {{ bestAnswer.likeCount }}
+            </span>
+          </div>
+          <p class="text-default-600 line-clamp-2 break-all">
+            {{ markdownToText(bestAnswer.content) }}
+          </p>
+        </div>
+        <KunIcon
+          name="lucide:circle-check-big"
+          class-name="text-success-500/20 pointer-events-none absolute right-1 bottom-0 size-14"
+        />
       </KunLink>
 
       <!-- Footer: 收藏 + reactions (clickable) · 浏览 + 查看更多. -->

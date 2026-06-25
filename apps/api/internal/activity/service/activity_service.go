@@ -801,6 +801,8 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 	sections, _ := s.repo.FetchTopicSections(ids)
 	polls, _ := s.repo.FetchTopicPolls(ids)
 	topReplies, _ := s.repo.FetchTopicTopReply(ids)
+	bestAnswers, _ := s.repo.FetchTopicBestAnswers(ids)
+	upvotes, _ := s.repo.FetchTopicUpvotesBatch(ids)
 	reactionRows, _ := s.repo.FetchTopicsReactions(ids)
 
 	// Hydrate the "other" users shown on the card — top-reply authors AND the
@@ -809,6 +811,18 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 	for _, tr := range topReplies {
 		if tr.UserID > 0 {
 			extraIDs = append(extraIDs, tr.UserID)
+		}
+	}
+	for _, ba := range bestAnswers {
+		if ba.UserID > 0 {
+			extraIDs = append(extraIDs, ba.UserID)
+		}
+	}
+	for _, ups := range upvotes {
+		for _, up := range ups {
+			if up.UserID > 0 {
+				extraIDs = append(extraIDs, up.UserID)
+			}
 		}
 	}
 	for _, row := range reactionRows {
@@ -872,10 +886,25 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 		}
 		var topReply *dto.TopReply
 		if tr, ok := topReplies[id]; ok {
-			topReply = &dto.TopReply{Content: tr.Content, LikeCount: tr.LikeCount}
+			topReply = &dto.TopReply{ReplyID: tr.ID, Content: tr.Content, LikeCount: tr.LikeCount}
 			if u, ok := extraUsers[tr.UserID]; ok {
 				topReply.User = dto.Actor{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
 			}
+		}
+		var bestAnswer *dto.TopReply
+		if ba, ok := bestAnswers[id]; ok {
+			bestAnswer = &dto.TopReply{ReplyID: ba.ReplyID, Content: ba.Content, LikeCount: ba.LikeCount}
+			if u, ok := extraUsers[ba.UserID]; ok {
+				bestAnswer.User = dto.Actor{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
+			}
+		}
+		var upvoteList []dto.TopicUpvote
+		for _, up := range upvotes[id] {
+			tu := dto.TopicUpvote{ID: up.ID, Description: up.Description, Created: up.Created}
+			if u, ok := extraUsers[up.UserID]; ok {
+				tu.User = dto.Actor{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
+			}
+			upvoteList = append(upvoteList, tu)
 		}
 		payload := dto.TopicActivityData{
 			TopicID:       id,
@@ -894,6 +923,8 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 			IsPoll:        polls[id],
 			IsNSFW:        c.IsNSFW,
 			TopReply:      topReply,
+			BestAnswer:    bestAnswer,
+			Upvotes:       upvoteList,
 			Reactions:     reactions,
 		}
 		for _, i := range idxs {

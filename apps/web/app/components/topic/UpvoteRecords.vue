@@ -4,23 +4,27 @@
 //   <avatar> <name> 推了这个话题，<blurb>            <相对时间>
 import { randomUpvoteDescription } from '~/constants/upvote'
 
-const props = defineProps<{ topicId: number }>()
-
 interface UpvoteRecord {
   id: number
   user: KunUser
   description: string
-  created: string
+  created: string | Date
 }
 
-const records = ref<UpvoteRecord[]>([])
+// Two modes: pass `records` directly (the feed card already has them), or a
+// `topicId` to lazily fetch them (the topic-detail page).
+const props = defineProps<{
+  topicId?: number
+  records?: UpvoteRecord[]
+}>()
+
+const fetched = ref<UpvoteRecord[]>([])
+const records = computed(() => props.records ?? fetched.value)
 
 onMounted(async () => {
-  if (!props.topicId) return
-  const data = await kunFetch<UpvoteRecord[]>(
-    `/topic/${props.topicId}/upvotes`
-  )
-  if (data) records.value = data
+  if (props.records || !props.topicId) return
+  const data = await kunFetch<UpvoteRecord[]>(`/topic/${props.topicId}/upvotes`)
+  if (data) fetched.value = data
 })
 
 // User's text, else a stable random default (seeded by the record id).

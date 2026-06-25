@@ -22,6 +22,8 @@ export type ActivityEventType =
 
 // A topic's most-liked reply (excerpt + like count), shown on the topic card.
 export interface ActivityTopReply {
+  // The reply's id, so the card can tell if 高赞回复 is also the best answer.
+  replyId: number
   user: KunUser
   content: string
   likeCount: number
@@ -50,6 +52,17 @@ export interface TopicActivityData {
   isPoll: boolean
   isNSFW: boolean
   topReply?: ActivityTopReply
+  // The accepted best answer (omitted when none). Same reply as topReply (same
+  // replyId) → the card shows only the best-answer style.
+  bestAnswer?: ActivityTopReply
+  // 推话题 records (all of them — few per topic); same shape the topic-detail
+  // 推话题 list consumes, so the card reuses TopicUpvoteRecords.
+  upvotes?: {
+    id: number
+    user: KunUser
+    description: string
+    created: Date | string
+  }[]
   // Reaction counts per key + up to 3 reactor avatars (shared/cacheable). The
   // viewer's own "mine" is hydrated separately via useMyTopicInteractions.
   reactions: { reaction: string; count: number; reactors?: KunUser[] }[]

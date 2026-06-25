@@ -574,9 +574,11 @@ func (r *ActivityRepository) FetchRatingActivityData(ratingIDs []int) (map[int]R
 	return out, nil
 }
 
-// TopReplyRow is a topic's most-liked reply (excerpt + like count).
+// TopReplyRow is a topic's most-liked reply (excerpt + like count). ID is the
+// reply id, so the card can tell whether it's also the best answer.
 type TopReplyRow struct {
 	TopicID   int    `gorm:"column:topic_id"`
+	ID        int    `gorm:"column:id"`
 	Content   string `gorm:"column:content"`
 	LikeCount int    `gorm:"column:like_count"`
 	UserID    int    `gorm:"column:user_id"`
@@ -592,7 +594,7 @@ func (r *ActivityRepository) FetchTopicTopReply(ids []int) (map[int]TopReplyRow,
 	}
 	var rows []TopReplyRow
 	if err := r.db.Raw(`
-		SELECT DISTINCT ON (topic_id) topic_id,
+		SELECT DISTINCT ON (topic_id) topic_id, id,
 			SUBSTRING(content, 1, 200) AS content, like_count, user_id
 		FROM topic_reply
 		WHERE topic_id IN ? AND like_count > 0
@@ -602,6 +604,71 @@ func (r *ActivityRepository) FetchTopicTopReply(ids []int) (map[int]TopReplyRow,
 	}
 	for _, row := range rows {
 		out[row.TopicID] = row
+	}
+	return out, nil
+}
+
+// BestAnswerRow is a topic's accepted best-answer reply (excerpt + like count).
+// ReplyID is the reply's id, so the card can dedup it against the top reply.
+type BestAnswerRow struct {
+	TopicID   int    `gorm:"column:topic_id"`
+	ReplyID   int    `gorm:"column:reply_id"`
+	Content   string `gorm:"column:content"`
+	LikeCount int    `gorm:"column:like_count"`
+	UserID    int    `gorm:"column:user_id"`
+}
+
+// FetchTopicBestAnswers batch-loads the accepted best-answer reply (topic
+// .best_answer_id → topic_reply) for the topics that have one, keyed by topic id.
+func (r *ActivityRepository) FetchTopicBestAnswers(ids []int) (map[int]BestAnswerRow, error) {
+	out := map[int]BestAnswerRow{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []BestAnswerRow
+	if err := r.db.Raw(`
+		SELECT t.id AS topic_id, r.id AS reply_id,
+			SUBSTRING(r.content, 1, 200) AS content, r.like_count, r.user_id
+		FROM topic t
+		JOIN topic_reply r ON r.id = t.best_answer_id
+		WHERE t.id IN ? AND t.best_answer_id IS NOT NULL`, ids).
+		Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.TopicID] = row
+	}
+	return out, nil
+}
+
+// TopicUpvoteRow is one 推话题 record for the feed card (matches the topic-detail
+// /upvotes shape: pusher, one-liner, time). ID is the upvote row id.
+type TopicUpvoteRow struct {
+	TopicID     int       `gorm:"column:topic_id"`
+	ID          int       `gorm:"column:id"`
+	UserID      int       `gorm:"column:user_id"`
+	Description string    `gorm:"column:description"`
+	Created     time.Time `gorm:"column:created"`
+}
+
+// FetchTopicUpvotesBatch batch-loads ALL push records for the given topics,
+// newest first per topic. Pushes are few per topic (each costs moemoepoint), so
+// there's no per-topic cap — the card shows every one. Empty ids → empty map.
+func (r *ActivityRepository) FetchTopicUpvotesBatch(ids []int) (map[int][]TopicUpvoteRow, error) {
+	out := map[int][]TopicUpvoteRow{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []TopicUpvoteRow
+	if err := r.db.Table("topic_upvote").
+		Select("topic_id, id, user_id, description, created").
+		Where("topic_id IN ?", ids).
+		Order("topic_id, created DESC, id DESC").
+		Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.TopicID] = append(out[row.TopicID], row)
 	}
 	return out, nil
 }
