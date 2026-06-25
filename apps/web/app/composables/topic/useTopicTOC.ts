@@ -6,6 +6,10 @@ export interface TOCItem {
   text: string
   level: number
   type: 'heading' | 'reply'
+  // True for the reply the viewer deep-linked to (a ?comment resolves to its
+  // parent reply); the rail renders it persistently bold so they can spot where
+  // they landed even after scrolling away.
+  targeted?: boolean
 }
 
 // Getters (not refs) so the provider can hand over plain reactive reads without
@@ -13,6 +17,10 @@ export interface TOCItem {
 export interface TopicTocSource {
   getContentHtml: () => string
   getReplies: () => { floor: number; contentMarkdown: string }[]
+  // The currently-active reply floor — the deep-link target, which also follows
+  // same-page #floor / feed-card jumps (a ?comment resolves to its parent reply's
+  // floor); a getter so the rail's bold reactively tracks it. 0 = none.
+  getTargetFloor?: () => number
 }
 
 export const TOPIC_TOC_SOURCE: InjectionKey<TopicTocSource> =
@@ -64,7 +72,8 @@ export const useTopicTOC = (source: TopicTocSource) => {
         id: `${reply.floor}.${slug}`,
         level: 2,
         text: slug ? `${reply.floor}. ${slug}` : `${reply.floor}`,
-        type: 'reply'
+        type: 'reply',
+        targeted: !!source.getTargetFloor && source.getTargetFloor() === reply.floor
       })
     }
 

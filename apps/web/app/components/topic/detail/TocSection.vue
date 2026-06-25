@@ -75,9 +75,11 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
           :class="
             cn(
               'block py-1 pr-2 pl-2.5 text-sm transition-colors duration-300',
-              activeIds.includes(item.id)
-                ? 'text-primary font-medium'
-                : 'text-default-500 hover:text-primary'
+              item.targeted
+                ? 'text-primary font-bold'
+                : activeIds.includes(item.id)
+                  ? 'text-primary font-medium'
+                  : 'text-default-500 hover:text-primary'
             )
           "
         >

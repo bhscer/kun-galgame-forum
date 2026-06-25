@@ -37,6 +37,9 @@ const targetFloor = Number(route.query.reply) || 0
 const targetCommentId = Number(route.query.comment) || 0
 
 let startPage = 1
+// The reply floor the rail marks bold: the ?reply floor directly, or the parent
+// reply's floor the locate resolves a ?comment to.
+let targetReplyFloor = targetFloor
 if (targetFloor > 0 || targetCommentId > 0) {
   const located = await kunFetch<{
     page: number
@@ -50,7 +53,26 @@ if (targetFloor > 0 || targetCommentId > 0) {
   if (located?.page) {
     startPage = located.page
   }
+  if (located?.floor) {
+    targetReplyFloor = located.floor
+  }
 }
+
+// The reply the rail bolds + the persistent ring marks. Initialised from the
+// locate; a SAME-PAGE ?reply change (clicking a reply's #floor permalink or a
+// feed-card link) updates it + re-scrolls without a remount. (?comment only
+// arrives via cross-page nav, which remounts → the onMounted branch handles it.)
+const activeFloor = ref(targetReplyFloor)
+watch(
+  () => route.query.reply,
+  (value) => {
+    const floor = Number(value) || 0
+    if (floor > 0) {
+      activeFloor.value = floor
+      nextTick(() => scrollToFloor(floor, false))
+    }
+  }
+)
 
 await loadInitialReplies(startPage)
 
@@ -63,8 +85,8 @@ onMounted(() => {
   setTimeout(() => {
     const ok =
       targetCommentId > 0
-        ? scrollToComment(targetCommentId)
-        : scrollToFloor(targetFloor)
+        ? scrollToComment(targetCommentId, false)
+        : scrollToFloor(targetFloor, false)
     if (!ok) {
       useMessage('目标回复或评论可能已被删除', 'info')
     }
@@ -72,12 +94,16 @@ onMounted(() => {
 })
 
 provide('topicUserId', props.topic.user.id)
+// The active reply floor → Reply.vue draws a PERSISTENT ring on the match (stays
+// until you jump elsewhere; no 3s fade like the transient flash).
+provide('activeReplyFloor', activeFloor)
 
 // Feed the TOC rail from data so it renders server-side (no flash on refresh);
 // the scrollspy inside useTopicTOC stays client-only.
 provide(TOPIC_TOC_SOURCE, {
   getContentHtml: () => props.topic.contentHtml,
-  getReplies: () => replies.value
+  getReplies: () => replies.value,
+  getTargetFloor: () => activeFloor.value
 })
 
 watch(

@@ -33,7 +33,7 @@ withDefaults(
           v-if="showAddition"
           color="default"
           underline="none"
-          :to="`/topic/${topicId}#k${floor}`"
+          :to="`/topic/${topicId}?reply=${floor}`"
           class-name="text-default-400 font-bold"
         >
           #{{ floor }}

@@ -13,6 +13,14 @@ const props = defineProps<{
 const { scrollToReplyId } = storeToRefs(useTempReplyStore())
 const comments = ref(props.reply.comment)
 
+// The deep-link / #floor target (provided by Detail) gets a PERSISTENT ring. The
+// wrapper already carries outline-primary + offset, so being active just toggles
+// the outline width + rounding — it stays until the reader jumps to another reply.
+const activeFloor = inject('activeReplyFloor', ref(0))
+const isActive = computed(
+  () => activeFloor.value > 0 && activeFloor.value === props.reply.floor
+)
+
 // Shared reaction state for this reply — injected by the chips + the trigger.
 provide(
   reactionsKey,
@@ -63,7 +71,12 @@ const handleNewComment = (comment: TopicComment) => {
 
 <template>
   <div
-    class="outline-primary kun-reply flex justify-between gap-3 outline-offset-2"
+    :class="
+      cn(
+        'outline-primary kun-reply flex justify-between gap-3 outline-offset-2',
+        isActive && 'outline-2 rounded-lg'
+      )
+    "
     :id="`${reply.floor}.${replyContent}`"
   >
     <KunCard
