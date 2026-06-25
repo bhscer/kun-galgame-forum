@@ -186,6 +186,13 @@ func (s *ActivityService) GetFeedByTypes(ctx context.Context, kinds []string, cu
 	if len(types) == 0 {
 		return &Result{Items: []dto.ActivityItem{}, NextCursor: ""}, nil
 	}
+	// A topics-ONLY tab (话题 / 资源和求助) is an entity list, not an event stream:
+	// serve it from the topic table sorted by status_update_time (last activity),
+	// not from feed_activity sorted by the event time.
+	if len(types) == 1 && types[0] == "TOPIC_CREATION" {
+		cacheKey := fmt.Sprintf("activity:v2:topicfeed:%s:%s:%d:%t", sectionMode, cursor, limit, isSFW)
+		return s.cachedTopicKeyset(ctx, cacheKey, cursor, limit, isSFW, sectionMode)
+	}
 	cacheKey := fmt.Sprintf("activity:v2:custom:%s|%s:%s:%d:%t:%t",
 		strings.Join(types, ","), sectionMode, cursor, limit, isSFW, showNoResource)
 	return s.cachedKeyset(ctx, cacheKey, types, cursor, limit, isSFW, showNoResource, sectionMode)
@@ -306,6 +313,38 @@ func (s *ActivityService) serveKeyset(ctx context.Context, types []string, curso
 		next = encodeCursor(cur.Created, cur.TypeStr, cur.ID)
 	}
 	return &Result{Items: collected, NextCursor: next}, nil
+}
+
+// cachedTopicKeyset / serveTopicKeyset are the 话题-tab counterparts of
+// cachedKeyset / serveKeyset: the page comes from FetchTopicFeed (topics sorted by
+// status_update_time) instead of FetchFeed, but the enrichment + opaque cursor are
+// shared. Topics are never dropped by enrichment (galgame_id 0), so there's no
+// fill-to-limit loop — one fetch is one page.
+func (s *ActivityService) cachedTopicKeyset(ctx context.Context, cacheKey, cursor string, limit int, isSFW bool, sectionMode string) (*Result, *errors.AppError) {
+	if cached, ok := s.getCachedResult(ctx, cacheKey); ok {
+		return cached, nil
+	}
+	result, appErr := s.serveTopicKeyset(ctx, cursor, limit, isSFW, sectionMode)
+	if appErr != nil {
+		return nil, appErr
+	}
+	s.cacheResult(ctx, cacheKey, result)
+	return result, nil
+}
+
+func (s *ActivityService) serveTopicKeyset(ctx context.Context, cursor string, limit int, isSFW bool, sectionMode string) (*Result, *errors.AppError) {
+	rows, err := s.repo.FetchTopicFeed(limit, decodeCursor(cursor), isSFW, sectionMode)
+	if err != nil {
+		return nil, errors.ErrInternal("查询话题失败")
+	}
+	items := s.enrichAndHydrate(ctx, rows, isSFW)
+	next := ""
+	if len(rows) == limit {
+		// Resume after the last row's keyset (status_update_time, type, id).
+		last := rows[len(rows)-1]
+		next = encodeCursor(last.Created, last.TypeStr, last.ID)
+	}
+	return &Result{Items: items, NextCursor: next}, nil
 }
 
 // ──────────────────────────────────────────
@@ -803,6 +842,7 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 	topReplies, _ := s.repo.FetchTopicTopReply(ids)
 	bestAnswers, _ := s.repo.FetchTopicBestAnswers(ids)
 	upvotes, _ := s.repo.FetchTopicUpvotesBatch(ids)
+	latest, _ := s.repo.FetchTopicLatestActivity(ids)
 	reactionRows, _ := s.repo.FetchTopicsReactions(ids)
 
 	// Hydrate the "other" users shown on the card — top-reply authors AND the
@@ -823,6 +863,11 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 			if up.UserID > 0 {
 				extraIDs = append(extraIDs, up.UserID)
 			}
+		}
+	}
+	for _, la := range latest {
+		if la.UserID > 0 {
+			extraIDs = append(extraIDs, la.UserID)
 		}
 	}
 	for _, row := range reactionRows {
@@ -906,26 +951,38 @@ func (s *ActivityService) enrichTopicItems(ctx context.Context, items []dto.Acti
 			}
 			upvoteList = append(upvoteList, tu)
 		}
+		var latestActivity *dto.LatestActivity
+		if la, ok := latest[id]; ok {
+			latestActivity = &dto.LatestActivity{Kind: la.Kind, Content: la.Content, Created: la.Created}
+			if la.Kind == "reply" {
+				latestActivity.ReplyID = la.ID
+			}
+			if u, ok := extraUsers[la.UserID]; ok {
+				latestActivity.User = dto.Actor{ID: u.ID, Name: u.Name, Avatar: u.Avatar}
+			}
+		}
 		payload := dto.TopicActivityData{
-			TopicID:       id,
-			Title:         c.Title,
-			AuthorID:      c.AuthorID,
-			Excerpt:       c.Excerpt,
-			Sections:      sec,
-			CoverImages:   covers,
-			View:          c.View,
-			LikeCount:     c.LikeCount,
-			FavoriteCount: c.FavoriteCount,
-			ReplyCount:    c.ReplyCount,
-			CommentCount:  c.CommentCount,
-			UpvoteTime:    c.UpvoteTime,
-			HasBestAnswer: c.BestAnswerID != nil,
-			IsPoll:        polls[id],
-			IsNSFW:        c.IsNSFW,
-			TopReply:      topReply,
-			BestAnswer:    bestAnswer,
-			Upvotes:       upvoteList,
-			Reactions:     reactions,
+			TopicID:        id,
+			Title:          c.Title,
+			AuthorID:       c.AuthorID,
+			Excerpt:        c.Excerpt,
+			Sections:       sec,
+			CoverImages:    covers,
+			View:           c.View,
+			LikeCount:      c.LikeCount,
+			FavoriteCount:  c.FavoriteCount,
+			ReplyCount:     c.ReplyCount,
+			CommentCount:   c.CommentCount,
+			UpvoteTime:     c.UpvoteTime,
+			Edited:         c.Edited,
+			HasBestAnswer:  c.BestAnswerID != nil,
+			IsPoll:         polls[id],
+			IsNSFW:         c.IsNSFW,
+			TopReply:       topReply,
+			BestAnswer:     bestAnswer,
+			Upvotes:        upvoteList,
+			LatestActivity: latestActivity,
+			Reactions:      reactions,
 		}
 		for _, i := range idxs {
 			items[i].Data = payload

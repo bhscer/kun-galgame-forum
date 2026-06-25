@@ -135,11 +135,14 @@ onBeforeUnmount(() => {
       "
     >
       <div class="flex min-h-0 flex-col items-center gap-3 overflow-hidden">
+        <!-- size="original" applies a fixed w-40 h-40; w-full widens it but the
+             h-40 would stay (→ squished). aspect-square + h-auto drop that fixed
+             height so it's a true full-width square the image fills. -->
         <KunAvatar
           :disable-floating="true"
-          class-name="w-full hover:scale-100"
+          class-name="aspect-square h-auto w-full hover:scale-100"
           size="original"
-          image-class-name="w-full shrink-0 rounded-lg"
+          image-class-name="size-full rounded-lg"
           :user="user"
         />
 

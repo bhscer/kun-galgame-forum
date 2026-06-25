@@ -29,6 +29,22 @@ const sameReply = computed(
 )
 const showTopReply = computed(() => !!topReply.value && !sameReply.value)
 
+// The newest reply/comment — shown below 推话题记录, UNLESS it's a reply already
+// surfaced as the best answer or 高赞回复 (then it's merged into those blocks).
+const latest = computed(() => data.value?.latestActivity)
+const showLatest = computed(() => {
+  const l = latest.value
+  if (!l) return false
+  if (
+    l.kind === 'reply' &&
+    (l.replyId === bestAnswer.value?.replyId ||
+      l.replyId === topReply.value?.replyId)
+  ) {
+    return false
+  }
+  return true
+})
+
 // Per-viewer 收藏 + reaction state (the shared feed can't carry it) — hydrated
 // once per session, client-side.
 const { isFavorited, reactionKeysOf, ensureLoaded } = useMyTopicInteractions()
@@ -59,6 +75,14 @@ provide(
 
 <template>
   <ActivityCardShell :actor="activity.actor" :timestamp="activity.timestamp">
+    <!-- Re-edited? show an edit icon + how long ago, after the timestamp. -->
+    <template v-if="data?.edited" #meta>
+      <span class="text-default-400 ml-2 flex items-center gap-1 text-xs">
+        <KunIcon name="lucide:pencil" class="size-3" />
+        {{ formatTimeDifference(data.edited) }}
+      </span>
+    </template>
+
     <div class="space-y-3">
       <KunLink
         underline="none"
@@ -107,6 +131,36 @@ provide(
 
       <!-- 推话题记录 (above the quoted replies) — reuse the topic-detail list. -->
       <TopicUpvoteRecords v-if="upvotes.length" :records="upvotes" />
+
+      <!-- 最新回复/评论 — neutral quote (skipped when it's the best answer / 高赞回复). -->
+      <KunLink
+        v-if="showLatest && latest"
+        underline="none"
+        color="default"
+        :to="activity.link"
+        class-name="bg-default-100 flex gap-2 rounded-md p-1.5"
+      >
+        <div class="bg-default-300 w-1 shrink-0 rounded-full" />
+        <div class="min-w-0 flex-1 space-y-1 text-sm">
+          <div class="flex items-center justify-between gap-2">
+            <span class="flex min-w-0 items-center gap-1.5">
+              <KunAvatar :user="latest.user" size="sm" :is-navigation="false" />
+              <span class="text-default-700 line-clamp-1 font-medium">
+                {{ latest.user.name }}
+              </span>
+              <span class="text-default-400 shrink-0 text-xs">
+                {{ latest.kind === 'reply' ? '最新回复' : '最新评论' }}
+              </span>
+            </span>
+            <span class="text-default-400 shrink-0 text-xs whitespace-nowrap">
+              {{ formatTimeDifference(latest.created) }}
+            </span>
+          </div>
+          <p class="text-default-600 line-clamp-2 break-all">
+            {{ markdownToText(latest.content) }}
+          </p>
+        </div>
+      </KunLink>
 
       <!-- 高赞回复 — quote style, primary bar (hidden when it IS the best answer). -->
       <KunLink
@@ -172,34 +226,38 @@ provide(
         />
       </KunLink>
 
-      <!-- Footer: 收藏 + reactions (clickable) · 浏览 + 查看更多. -->
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex min-w-0 flex-wrap items-center gap-1">
-          <TopicFooterFavorite
-            :topic-id="topicId"
-            :favorite-count="data?.favoriteCount ?? 0"
-            :is-favorite="isFavorited(topicId)"
-          />
-          <TopicReactionBar />
-          <TopicReactionTrigger />
-        </div>
+      <!-- Footer: reactions on their own row; then 收藏 + reaction trigger on the
+           left, 浏览 + 查看详情 on the right. TopicReactionBar self-hides when empty. -->
+      <div class="space-y-2">
+        <TopicReactionBar />
 
-        <div
-          class="text-default-500 flex shrink-0 items-center gap-3 text-sm"
-        >
-          <span class="flex items-center gap-1">
-            <KunIcon name="lucide:eye" class="size-4" />
-            {{ formatNumber(data?.view ?? 0) }}
-          </span>
-          <KunLink
-            underline="none"
-            color="default"
-            :to="activity.link"
-            class-name="text-default-500 hover:text-primary flex items-center gap-0.5 text-sm"
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex min-w-0 items-center gap-1">
+            <TopicFooterFavorite
+              :topic-id="topicId"
+              :favorite-count="data?.favoriteCount ?? 0"
+              :is-favorite="isFavorited(topicId)"
+            />
+            <TopicReactionTrigger />
+          </div>
+
+          <div
+            class="text-default-500 flex shrink-0 items-center gap-3 text-sm"
           >
-            查看详情
-            <KunIcon name="lucide:chevron-right" class="size-4" />
-          </KunLink>
+            <span class="flex items-center gap-1">
+              <KunIcon name="lucide:eye" class="size-4" />
+              {{ formatNumber(data?.view ?? 0) }}
+            </span>
+            <KunLink
+              underline="none"
+              color="default"
+              :to="activity.link"
+              class-name="text-default-500 hover:text-primary flex items-center gap-0.5 text-sm"
+            >
+              查看详情
+              <KunIcon name="lucide:chevron-right" class="size-4" />
+            </KunLink>
+          </div>
         </div>
       </div>
     </div>

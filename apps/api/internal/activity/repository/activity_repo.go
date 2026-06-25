@@ -81,6 +81,7 @@ type TopicCardData struct {
 	UpvoteTime    *time.Time             `gorm:"column:upvote_time"`
 	BestAnswerID  *int                   `gorm:"column:best_answer_id"`
 	AuthorID      int                    `gorm:"column:user_id"`
+	Edited        *time.Time             `gorm:"column:edited"`
 }
 
 // FetchTopicActivityData batch-loads the topic core row for the given ids (one
@@ -93,7 +94,7 @@ func (r *ActivityRepository) FetchTopicActivityData(ids []int) (map[int]TopicCar
 	}
 	var rows []TopicCardData
 	if err := r.db.Table("topic").
-		Select("id, title, user_id, SUBSTRING(content, 1, 300) AS excerpt, cover_images, view, like_count, favorite_count, reply_count, comment_count, is_nsfw, upvote_time, best_answer_id").
+		Select("id, title, user_id, SUBSTRING(content, 1, 300) AS excerpt, cover_images, view, like_count, favorite_count, reply_count, comment_count, is_nsfw, upvote_time, best_answer_id, edited").
 		Where("id IN ?", ids).
 		Scan(&rows).Error; err != nil {
 		return out, err
@@ -742,4 +743,78 @@ func (r *ActivityRepository) FetchFeed(types []string, limit int, cur *Cursor, i
 		return nil, err
 	}
 	return rows, nil
+}
+
+// FetchTopicFeed is the dedicated query for the home 话题 / 资源求助 tabs: topics as
+// TOPIC_CREATION ActivityRows (so they reuse the same enrichment + cards), but
+// ORDERED BY the topic's last-activity time (status_update_time, bumped by every
+// reply / comment / upvote / poll) instead of the event time. Keyset on
+// (status_update_time, id); the row shape matches what feed_activity emits for a
+// topic (link = /topic/:id, content = title). sectionMode splits 普通 vs 资源/求助.
+func (r *ActivityRepository) FetchTopicFeed(limit int, cur *Cursor, isSFW bool, sectionMode string) ([]ActivityRow, error) {
+	conds := []string{"t.status != 1"} // status 1 = deleted (matches the /topic list)
+	args := []any{}
+	if isSFW {
+		conds = append(conds, "NOT t.is_nsfw")
+	}
+	const inHelp = "EXISTS (SELECT 1 FROM topic_section_relation tsr " +
+		"JOIN topic_section ts ON ts.id = tsr.topic_section_id " +
+		"WHERE tsr.topic_id = t.id AND ts.name IN ('g-seeking','g-other','t-help'))"
+	switch sectionMode {
+	case "help":
+		conds = append(conds, inHelp)
+	case "normal":
+		conds = append(conds, "NOT "+inHelp)
+	}
+	if cur != nil {
+		conds = append(conds, "(t.status_update_time, t.id) < (?, ?)")
+		args = append(args, cur.Created, cur.ID)
+	}
+	sql := "SELECT 'TOPIC_CREATION' AS type_str, t.id, t.title AS content, " +
+		"'/topic/' || t.id::text AS link, t.status_update_time AS created, " +
+		"t.user_id, 0 AS galgame_id FROM topic t WHERE " + strings.Join(conds, " AND ") +
+		fmt.Sprintf(" ORDER BY t.status_update_time DESC, t.id DESC LIMIT %d", limit)
+	var rows []ActivityRow
+	if err := r.db.Raw(sql, args...).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// LatestActivityRow is a topic's most-recent reply OR comment (whichever is newer),
+// for the feed card's 最新 line. Kind is "reply" / "comment"; ID is that row's id (a
+// reply id when Kind=="reply", for deduping against the best answer / 高赞回复).
+type LatestActivityRow struct {
+	TopicID int       `gorm:"column:topic_id"`
+	Kind    string    `gorm:"column:kind"`
+	ID      int       `gorm:"column:id"`
+	Content string    `gorm:"column:content"`
+	UserID  int       `gorm:"column:user_id"`
+	Created time.Time `gorm:"column:created"`
+}
+
+// FetchTopicLatestActivity batch-loads each topic's newest reply-or-comment in one
+// query (UNION of both, DISTINCT ON the topic, newest first). Keyed by topic id.
+func (r *ActivityRepository) FetchTopicLatestActivity(ids []int) (map[int]LatestActivityRow, error) {
+	out := map[int]LatestActivityRow{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []LatestActivityRow
+	if err := r.db.Raw(`
+		SELECT DISTINCT ON (topic_id) topic_id, kind, id, content, user_id, created FROM (
+			SELECT topic_id, 'reply' AS kind, id, SUBSTRING(content, 1, 200) AS content, user_id, created
+				FROM topic_reply WHERE topic_id IN ?
+			UNION ALL
+			SELECT topic_id, 'comment' AS kind, id, SUBSTRING(content, 1, 200) AS content, user_id, created
+				FROM topic_comment WHERE topic_id IN ?
+		) x
+		ORDER BY topic_id, created DESC, id DESC`, ids, ids).
+		Scan(&rows).Error; err != nil {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.TopicID] = row
+	}
+	return out, nil
 }

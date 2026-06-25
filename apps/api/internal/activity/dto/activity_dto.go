@@ -91,6 +91,9 @@ type TopicActivityData struct {
 	ReplyCount    int        `json:"replyCount"`
 	CommentCount  int        `json:"commentCount"`
 	UpvoteTime    *time.Time `json:"upvoteTime"`
+	// Edited is the topic's last edit time (null = never edited); the card shows an
+	// edit icon + relative time after the timestamp.
+	Edited        *time.Time `json:"edited"`
 	HasBestAnswer bool       `json:"hasBestAnswer"`
 	IsPoll        bool       `json:"isPoll"`
 	IsNSFW        bool       `json:"isNSFW"`
@@ -99,8 +102,10 @@ type TopicActivityData struct {
 	// as TopReply (same ReplyID) → the card shows only the best-answer style.
 	BestAnswer *TopReply `json:"bestAnswer,omitempty"`
 	// Upvotes are the topic's 推话题 records — all of them (few per topic).
-	Upvotes   []TopicUpvote        `json:"upvotes,omitempty"`
-	Reactions []TopicReactionCount `json:"reactions"`
+	Upvotes []TopicUpvote `json:"upvotes,omitempty"`
+	// LatestActivity is the topic's newest reply/comment (omitted when none).
+	LatestActivity *LatestActivity      `json:"latestActivity,omitempty"`
+	Reactions      []TopicReactionCount `json:"reactions"`
 }
 
 // TopicReactionCount is one reaction key's total on a topic, for the feed card,
@@ -130,6 +135,17 @@ type TopicUpvote struct {
 	User        Actor     `json:"user"`
 	Description string    `json:"description"`
 	Created     time.Time `json:"created"`
+}
+
+// LatestActivity is a topic's most-recent reply or comment, shown on the feed card
+// below the 推话题 records. Kind is "reply" / "comment"; ReplyID is the reply's id
+// (0 for a comment), so the card can merge it when it's the best answer / 高赞回复.
+type LatestActivity struct {
+	Kind    string    `json:"kind"`
+	ReplyID int       `json:"replyId"`
+	User    Actor     `json:"user"`
+	Content string    `json:"content"`
+	Created time.Time `json:"created"`
 }
 
 // NoteActivityData — extras for the 其他 cards: UPDATE_LOG_CREATION carries the

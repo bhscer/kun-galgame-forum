@@ -81,6 +81,12 @@ func (s *CommentService) CreateComment(
 		if err := recomputeTopicCounts(tx, topicID); err != nil {
 			return err
 		}
+		// A new comment is topic activity → bump status_update_time so the topic
+		// resurfaces in the last-activity feeds (mirrors reply creation).
+		if err := tx.Model(&topicModel.Topic{}).Where("id = ?", topicID).
+			Update("status_update_time", time.Now()).Error; err != nil {
+			return err
+		}
 
 		if userID != targetUserID {
 			s.helpers.AdjustMoemoepoint(tx, targetUserID, constants.RewardReply,

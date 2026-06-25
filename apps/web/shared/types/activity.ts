@@ -48,6 +48,9 @@ export interface TopicActivityData {
   replyCount: number
   commentCount: number
   upvoteTime: Date | string | null
+  // The topic's last edit time (null = never edited); the card shows an edit icon
+  // + relative time after the timestamp.
+  edited?: Date | string | null
   hasBestAnswer: boolean
   isPoll: boolean
   isNSFW: boolean
@@ -63,6 +66,15 @@ export interface TopicActivityData {
     description: string
     created: Date | string
   }[]
+  // The topic's newest reply or comment (omitted when none). kind 'reply' carries
+  // its replyId so the card can merge it when it's the best answer / 高赞回复.
+  latestActivity?: {
+    kind: 'reply' | 'comment'
+    replyId: number
+    user: KunUser
+    content: string
+    created: Date | string
+  }
   // Reaction counts per key + up to 3 reactor avatars (shared/cacheable). The
   // viewer's own "mine" is hydrated separately via useMyTopicInteractions.
   reactions: { reaction: string; count: number; reactors?: KunUser[] }[]

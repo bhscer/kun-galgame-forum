@@ -27,6 +27,8 @@ defineProps<{
         <span class="text-default-500">
           <KunTime :time="timestamp" />
         </span>
+        <!-- Optional extra header meta after the time (e.g. an edit indicator). -->
+        <slot name="meta" />
       </div>
 
       <slot />
