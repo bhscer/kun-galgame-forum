@@ -83,6 +83,9 @@ func (h *OAuthHandler) Me(c *fiber.Ctx) error {
 	if appErr != nil {
 		return response.Error(c, appErr)
 	}
+	// Sub isn't in the userclient brief; fill it from the session identity so
+	// /auth/me carries the account's OAuth UUID (needed for account switching).
+	profile.Sub = user.Sub
 
 	return response.OK(c, profile)
 }

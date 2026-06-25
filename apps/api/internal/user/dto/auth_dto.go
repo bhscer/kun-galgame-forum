@@ -20,12 +20,17 @@ type SessionResponse struct {
 // Email is OAuth-owned; the frontend fetches it via OAuth /oauth/userinfo
 // when needed. Identity here is sourced from OAuth via pkg/userclient.
 type UserProfile struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Avatar      string `json:"avatar"`
-	Role        int    `json:"role"`
-	Moemoepoint int    `json:"moemoepoint"`
-	Bio         string `json:"bio"`
+	ID int `json:"id"`
+	// Sub is the OAuth user UUID — the stable account identity used as login_hint
+	// when switching accounts (the local integer id is not what OAuth keys on).
+	Sub    string `json:"sub"`
+	Name   string `json:"name"`
+	Avatar string `json:"avatar"`
+	Role   int    `json:"role"`
+	// Roles is the raw OAuth role list — drives the account-switcher's admin badge.
+	Roles       []string `json:"roles"`
+	Moemoepoint int      `json:"moemoepoint"`
+	Bio         string   `json:"bio"`
 }
 
 // ──────────────────────────────────────────

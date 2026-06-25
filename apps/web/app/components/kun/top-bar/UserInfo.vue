@@ -1,11 +1,15 @@
 <script setup lang="ts">
 // Emitted whenever a menu item is activated so the parent popover (Avatar.vue)
 // can dismiss itself — KunPopover stays open on inside-clicks by design.
+import type { KnownAccount } from '~/composables/useKnownAccounts'
+
 const emit = defineEmits<{ close: [] }>()
 
-const { id, name, moemoepoint, role, isCreator, isCheckIn } = storeToRefs(
+const { id, sub, name, moemoepoint, role, isCreator, isCheckIn } = storeToRefs(
   usePersistUserStore()
 )
+const { accounts } = useKnownAccounts()
+const route = useRoute()
 const {
   messageStatus,
   showKUNGalgameMoemoepointLog,
@@ -22,6 +26,30 @@ const isAdmin = computed(() => role.value > 1)
 // admins (role > 1) already publish galgames directly, and existing creators
 // don't need to apply, so both are excluded.
 const showCreatorApply = computed(() => role.value <= 1 && !isCreator.value)
+
+// ── Account switching (docs/oauth/09-account-switching.md §3.6) ──────────────
+// Forum is a BFF, so the menu list is this device's localStorage "known accounts"
+// cache and every switch is a top-level authorize redirect (the OP's session bag
+// decides the outcome — silent while the account is in the bag, re-login for an
+// admin / one logged out elsewhere). The active account already shows at the top
+// of the menu, so the switch list is the OTHERS; 添加新账号 is always available.
+const showAccountSwitch = ref(false)
+const switchableAccounts = computed(() =>
+  accounts.value.filter((a) => a.sub !== sub.value)
+)
+
+const onSwitchAccount = (account: KnownAccount) => {
+  emit('close')
+  startOAuthSwitchAccount(account.sub, route.fullPath)
+}
+const onAddAccount = () => {
+  emit('close')
+  startOAuthAddAccount(route.fullPath)
+}
+// Switching INTO an admin / ren account forces an OP re-login (step-up §3.5);
+// flag it so the choice isn't surprising. The OP enforces it regardless.
+const needsReauth = (account: KnownAccount) =>
+  (account.roles ?? []).some((r) => r === 'admin' || r === 'ren')
 
 // The modal is mounted at the app.vue root (same as 萌萌点明细 / 退出登录) so it
 // survives this popover unmounting on click-away.
@@ -165,6 +193,55 @@ const openLogout = () => {
       </span>
       <KunIcon class="text-secondary-500 size-5" name="lucide:sparkles" />
     </KunButton>
+
+    <!-- 账号切换 — this device's other accounts + 添加新账号. Each switch is a
+         top-level authorize redirect (forum is a BFF; the OP bag is the source of
+         truth). docs/oauth/09-account-switching.md §3.6. -->
+    <button
+      type="button"
+      class="hover:bg-default-100 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors"
+      @click="showAccountSwitch = !showAccountSwitch"
+    >
+      <KunIcon class="size-4" name="lucide:users-round" />
+      账号切换
+      <KunIcon
+        class="text-foreground/40 ml-auto size-4 transition-transform"
+        :class="showAccountSwitch ? 'rotate-90' : ''"
+        name="lucide:chevron-right"
+      />
+    </button>
+
+    <div v-if="showAccountSwitch" class="flex flex-col gap-1 pl-2">
+      <button
+        v-for="account in switchableAccounts"
+        :key="account.sub"
+        type="button"
+        class="hover:bg-default-100 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors"
+        @click="onSwitchAccount(account)"
+      >
+        <KunAvatar
+          :user="{ id: account.id, name: account.name, avatar: account.avatar }"
+          size="sm"
+          :is-navigation="false"
+          :disable-floating="true"
+        />
+        <span class="flex min-w-0 flex-col items-start">
+          <span class="max-w-40 truncate">{{ account.name }}</span>
+          <span v-if="needsReauth(account)" class="text-default-400 text-xs">
+            切换需重新登录
+          </span>
+        </span>
+      </button>
+
+      <button
+        type="button"
+        class="text-primary hover:bg-primary-50 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors"
+        @click="onAddAccount"
+      >
+        <KunIcon class="size-4" name="lucide:plus" />
+        添加新账号
+      </button>
+    </div>
 
     <KunButton
       variant="light"

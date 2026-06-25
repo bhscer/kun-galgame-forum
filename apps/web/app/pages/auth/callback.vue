@@ -49,9 +49,11 @@ onMounted(async () => {
   // /oauth/userinfo on demand (per the BE comment on UserProfile).
   const result = await kunFetch<{
     id: number
+    sub: string
     name: string
     avatar: string
     role: number
+    roles: string[]
     moemoepoint: number
     bio: string
   }>('/auth/oauth/callback', {
@@ -63,6 +65,7 @@ onMounted(async () => {
     const userStore = usePersistUserStore()
     userStore.setUserInfo({
       id: result.id,
+      sub: result.sub,
       name: result.name,
       avatar: result.avatar,
       // withImageVariant picks the right separator per URL family:
@@ -73,14 +76,27 @@ onMounted(async () => {
       avatarMin: result.avatar ? withImageVariant(result.avatar, '100') : '',
       moemoepoint: result.moemoepoint,
       role: result.role,
+      roles: result.roles ?? [],
       // Corrected on the next page by Nav.vue's /user/status fetch.
       isCreator: false,
       isCheckIn: false,
       dailyToolsetUploadBytes: 0
     })
 
+    // Cache this account for the switch menu — login AND switch both land here,
+    // so the active account stays current. (docs/oauth/09-account-switching §3.6)
+    useKnownAccounts().rememberUser({
+      sub: result.sub,
+      id: result.id,
+      name: result.name,
+      avatar: result.avatar,
+      roles: result.roles
+    })
+
     useKunLoliInfo(`登录成功! 欢迎来到 ${kungal.name}`)
-    await navigateTo('/')
+    // A switch/add flow stashed where to return; land back there (origin-guarded),
+    // else home.
+    await navigateTo(consumeOAuthReturnTo() ?? '/')
   } else {
     error.value = '登录失败，请重试'
     redirectToLogin()

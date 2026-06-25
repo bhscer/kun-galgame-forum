@@ -39,6 +39,9 @@ const logoutEverywhere = async () => {
   logoutPending.value = 'everywhere'
   await kunFetch('/auth/logout', { method: 'POST' })
   usePersistUserStore().resetUser()
+  // Full logout ends the OP session bag → the local account roster is now stale;
+  // forget it so a shared device leaves nothing behind. (仅退出本站 keeps it.)
+  useKnownAccounts().clearAll()
   startOAuthLogout() // top-level redirect to the OP; clears the SSO session
 }
 </script>

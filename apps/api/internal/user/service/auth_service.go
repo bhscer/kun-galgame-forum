@@ -134,9 +134,11 @@ func (s *AuthService) OAuthCallback(
 		Token: sessionToken,
 		User: &dto.UserProfile{
 			ID:          oauthUser.ID,
+			Sub:         oauthUser.Sub,
 			Name:        oauthUser.Name,
 			Avatar:      avatar,
 			Role:        role,
+			Roles:       oauthUser.Roles,
 			Moemoepoint: moe,
 			Bio:         "", // bio is OAuth-owned, available via /auth/me
 		},
@@ -179,8 +181,11 @@ func (s *AuthService) GetProfile(
 		Name:        u.Name,
 		Avatar:      u.Avatar,
 		Role:        middleware.RoleFromOAuthRoles(u.Roles),
+		Roles:       u.Roles,
 		Moemoepoint: moe,
 		Bio:         u.Bio,
+		// Sub isn't in the userclient brief — the /auth/me handler fills it from
+		// the session identity.
 	}, nil
 }
 
