@@ -227,16 +227,17 @@ func (s *ReplyService) buildReplyResponses(
 					isLiked = commentLikeMap[c.ID]
 				}
 				comments = append(comments, dto.TopicCommentResponse{
-					ID:         c.ID,
-					ReplyID:    c.TopicReplyID,
-					TopicID:    c.TopicID,
-					User:       kunUser(c.UserID),
-					TargetUser: kunUser(c.TargetUserID),
-					Content:    c.Content,
-					IsLiked:    isLiked,
-					LikeCount:  c.LikeCount,
-					Created:    c.CreatedAt,
-					Edited:     c.Edited,
+					ID:              c.ID,
+					ReplyID:         c.TopicReplyID,
+					TopicID:         c.TopicID,
+					ParentCommentID: c.ParentCommentID,
+					User:            kunUser(c.UserID),
+					TargetUser:      kunUser(c.TargetUserID),
+					Content:         c.Content,
+					IsLiked:         isLiked,
+					LikeCount:       c.LikeCount,
+					Created:         c.CreatedAt,
+					Edited:          c.Edited,
 				})
 			}
 		}

@@ -31,13 +31,16 @@ const data = computed(
     <div
       class="text-default-500 mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm"
     >
-      <span
+      <KunLink
         v-if="data?.topicTitle"
-        class="inline-flex min-w-0 items-center gap-1.5"
+        underline="hover"
+        color="default"
+        :to="activity.link"
+        class-name="text-default-500 hover:text-primary inline-flex min-w-0 items-center gap-1.5"
       >
         <KunIcon name="icon-park-outline:topic" class-name="shrink-0" />
         <span class="truncate">{{ data.topicTitle }}</span>
-      </span>
+      </KunLink>
       <span v-else />
 
       <KunLink

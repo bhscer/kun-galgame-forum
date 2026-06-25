@@ -2,6 +2,9 @@ export interface TopicComment {
   id: number
   replyId: number
   topicId: number
+  // The comment this one replies to (nested comments); null/undefined = a
+  // top-level comment attached to the reply directly.
+  parentCommentId?: number | null
   user: KunUser
   targetUser: KunUser
   content: string

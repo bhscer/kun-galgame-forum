@@ -39,9 +39,11 @@ type CommentRow struct {
 	TargetUserID   int
 	TargetUserName string
 	TargetAvatar   string
-	LikeCount      int
-	CreatedAt      time.Time
-	Edited         *time.Time
+	// ParentCommentID is the comment this one replies to (nil = top-level).
+	ParentCommentID *int
+	LikeCount       int
+	CreatedAt       time.Time
+	Edited          *time.Time
 }
 
 func (r *CommentRepository) FindCommentsByReplyIDs(replyIDs []int) (map[int][]CommentRow, error) {
@@ -51,7 +53,7 @@ func (r *CommentRepository) FindCommentsByReplyIDs(replyIDs []int) (map[int][]Co
 	var rows []CommentRow
 	err := r.db.Table("topic_comment tc").
 		Select(`tc.id, tc.topic_reply_id, tc.topic_id, tc.content,
-			tc.user_id, tc.target_user_id,
+			tc.user_id, tc.target_user_id, tc.parent_comment_id,
 			(SELECT COUNT(*) FROM topic_comment_like WHERE topic_comment_id = tc.id) AS like_count,
 			tc.created AS created_at, tc.edited`).
 		Where("tc.topic_reply_id IN ?", replyIDs).
@@ -133,4 +135,3 @@ func (r *CommentRepository) DeleteCommentLikesForComment(tx *gorm.DB, commentID 
 func (r *CommentRepository) DeleteCommentByID(tx *gorm.DB, commentID int) error {
 	return tx.Delete(&model.TopicComment{}, commentID).Error
 }
-

@@ -128,9 +128,9 @@ func (TopicDislike) TableName() string { return "topic_dislike" }
 
 // TopicUpvote allows duplicate upvotes (no unique constraint).
 type TopicUpvote struct {
-	ID      int    `gorm:"primaryKey;autoIncrement" json:"id"`
-	TopicID int    `gorm:"column:topic_id;not null" json:"topic_id"`
-	UserID  int    `gorm:"column:user_id;not null" json:"user_id"`
+	ID      int `gorm:"primaryKey;autoIncrement" json:"id"`
+	TopicID int `gorm:"column:topic_id;not null" json:"topic_id"`
+	UserID  int `gorm:"column:user_id;not null" json:"user_id"`
 	// Description: the optional "why I pushed it" one-liner (<=30 chars, '' when
 	// omitted), shown on the 推话题 activity card.
 	Description string `gorm:"column:description;default:''" json:"description"`
@@ -238,6 +238,10 @@ type TopicComment struct {
 	TopicReplyID int    `gorm:"column:topic_reply_id;not null" json:"topic_reply_id"`
 	UserID       int    `gorm:"column:user_id;not null" json:"user_id"`
 	TargetUserID int    `gorm:"column:target_user_id;not null" json:"target_user_id"`
+
+	// ParentCommentID is the comment this one replies to (nested comments,
+	// migration 037); nil = top-level, attached to the reply directly.
+	ParentCommentID *int `gorm:"column:parent_comment_id" json:"parent_comment_id"`
 
 	// Edited is set only when the author rewrites the content (PUT), so the
 	// UI can show "(编辑于 …)". nil = never edited. See migration 014.

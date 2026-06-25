@@ -84,6 +84,10 @@ type CreateCommentRequest struct {
 	ReplyID      int    `json:"replyId" validate:"required,min=1"`
 	TargetUserID int    `json:"targetUserId" validate:"required,min=1"`
 	Content      string `json:"content" validate:"required,min=1,max=1007"`
+	// ParentCommentID is set when replying to another comment (nested); omitted
+	// for a top-level comment on the reply. The service validates it points at a
+	// comment on the same reply.
+	ParentCommentID *int `json:"parentCommentId" validate:"omitempty,min=1"`
 }
 
 type CommentInteractionRequest struct {
@@ -100,14 +104,16 @@ type UpdateCommentRequest struct {
 // ──────────────────────────────────────────
 
 type TopicCommentResponse struct {
-	ID         int        `json:"id"`
-	ReplyID    int        `json:"replyId"`
-	TopicID    int        `json:"topicId"`
-	User       KunUser    `json:"user"`
-	TargetUser KunUser    `json:"targetUser"`
-	Content    string     `json:"content"`
-	IsLiked    bool       `json:"isLiked"`
-	LikeCount  int        `json:"likeCount"`
-	Created    time.Time  `json:"created"`
-	Edited     *time.Time `json:"edited"`
+	ID         int     `json:"id"`
+	ReplyID    int     `json:"replyId"`
+	TopicID    int     `json:"topicId"`
+	User       KunUser `json:"user"`
+	TargetUser KunUser `json:"targetUser"`
+	// ParentCommentID is the comment this one replies to (nil = top-level).
+	ParentCommentID *int       `json:"parentCommentId"`
+	Content         string     `json:"content"`
+	IsLiked         bool       `json:"isLiked"`
+	LikeCount       int        `json:"likeCount"`
+	Created         time.Time  `json:"created"`
+	Edited          *time.Time `json:"edited"`
 }

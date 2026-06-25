@@ -52,14 +52,25 @@ func (s *CommentService) CreateComment(
 	ctx context.Context,
 	userID int,
 	topicID, replyID, targetUserID int,
+	parentCommentID *int,
 	content string,
 ) (*dto.TopicCommentResponse, *errors.AppError) {
+	// A nested reply must point at an existing comment ON THE SAME REPLY — guards
+	// against a forged parent that would orphan the comment in another thread.
+	if parentCommentID != nil {
+		parent, err := s.commentRepo.FindCommentByID(*parentCommentID)
+		if err != nil || parent.TopicReplyID != replyID {
+			return nil, errors.ErrBadRequest("回复的评论不存在")
+		}
+	}
+
 	comment := &topicModel.TopicComment{
-		TopicID:      topicID,
-		TopicReplyID: replyID,
-		UserID:       userID,
-		TargetUserID: targetUserID,
-		Content:      content,
+		TopicID:         topicID,
+		TopicReplyID:    replyID,
+		UserID:          userID,
+		TargetUserID:    targetUserID,
+		ParentCommentID: parentCommentID,
+		Content:         content,
 	}
 
 	txErr := s.replyRepo.DB().Transaction(func(tx *gorm.DB) error {
@@ -92,15 +103,16 @@ func (s *CommentService) CreateComment(
 	target := userMap[targetUserID]
 
 	return &dto.TopicCommentResponse{
-		ID:         comment.ID,
-		ReplyID:    comment.TopicReplyID,
-		TopicID:    comment.TopicID,
-		User:       dto.KunUser{ID: author.ID, Name: author.Name, Avatar: author.Avatar},
-		TargetUser: dto.KunUser{ID: target.ID, Name: target.Name, Avatar: target.Avatar},
-		Content:    comment.Content,
-		IsLiked:    false,
-		LikeCount:  0,
-		Created:    comment.CreatedAt,
+		ID:              comment.ID,
+		ReplyID:         comment.TopicReplyID,
+		TopicID:         comment.TopicID,
+		ParentCommentID: comment.ParentCommentID,
+		User:            dto.KunUser{ID: author.ID, Name: author.Name, Avatar: author.Avatar},
+		TargetUser:      dto.KunUser{ID: target.ID, Name: target.Name, Avatar: target.Avatar},
+		Content:         comment.Content,
+		IsLiked:         false,
+		LikeCount:       0,
+		Created:         comment.CreatedAt,
 	}, nil
 }
 

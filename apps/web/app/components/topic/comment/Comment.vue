@@ -10,6 +10,58 @@ const currentUserId = usePersistUserStore().id
 const comments = ref(props.commentsData)
 const activeCommentId = ref<number | null>(null)
 const targetUserForPanel = ref<KunUser | null>(null)
+// The comment being replied to (its id becomes the new comment's parent), so
+// the reply nests under the right thread.
+const parentCommentIdForPanel = ref<number | null>(null)
+
+// Flatten the comment tree to a SINGLE visible level: each top-level comment
+// followed by all its descendants (replies), ordered by time. The data model
+// stores the full tree (parentCommentId) — future-proof — but rendering it one
+// level deep reads best (especially on mobile); a reply shows "回复 @<target>".
+const threadedComments = computed(() => {
+  const list = comments.value
+  const byId = new Map(list.map((c) => [c.id, c]))
+  // A comment's top-level ancestor (walk up parentCommentId). A missing parent
+  // — e.g. one that was deleted and re-rooted — makes the comment a root itself.
+  const rootOf = (c: TopicComment): TopicComment => {
+    let cur = c
+    const seen = new Set<number>()
+    while (
+      cur.parentCommentId != null &&
+      byId.has(cur.parentCommentId) &&
+      !seen.has(cur.id)
+    ) {
+      seen.add(cur.id)
+      cur = byId.get(cur.parentCommentId)!
+    }
+    return cur
+  }
+  const byTime = (a: TopicComment, b: TopicComment) =>
+    new Date(a.created).getTime() - new Date(b.created).getTime()
+
+  const roots: TopicComment[] = []
+  const childrenOf = new Map<number, TopicComment[]>()
+  for (const c of list) {
+    const root = rootOf(c)
+    if (root.id === c.id) {
+      roots.push(c)
+    } else {
+      const arr = childrenOf.get(root.id) ?? []
+      arr.push(c)
+      childrenOf.set(root.id, arr)
+    }
+  }
+  roots.sort(byTime)
+
+  const out: { comment: TopicComment; depth: number }[] = []
+  for (const root of roots) {
+    out.push({ comment: root, depth: 0 })
+    for (const kid of (childrenOf.get(root.id) ?? []).slice().sort(byTime)) {
+      out.push({ comment: kid, depth: 1 })
+    }
+  }
+  return out
+})
 
 // Inline edit state (mirrors the reply "重新编辑" feature). Only the author
 // can edit; saving PUTs to /topic/:tid/comment and replaces the comment in
@@ -32,6 +84,7 @@ const isCommentPanelOpen = computed({
     if (!open) {
       activeCommentId.value = null
       targetUserForPanel.value = null
+      parentCommentIdForPanel.value = null
     }
   }
 })
@@ -45,9 +98,11 @@ const handleClickComment = (comment: TopicComment) => {
   if (activeCommentId.value === comment.id) {
     activeCommentId.value = null
     targetUserForPanel.value = null
+    parentCommentIdForPanel.value = null
   } else {
     activeCommentId.value = comment.id
     targetUserForPanel.value = comment.user
+    parentCommentIdForPanel.value = comment.id
   }
 }
 
@@ -55,6 +110,7 @@ const handleNewComment = (newComment: TopicComment) => {
   comments.value.push(newComment)
   activeCommentId.value = null
   targetUserForPanel.value = null
+  parentCommentIdForPanel.value = null
 }
 
 const handleRemoveComment = (commentId: number) => {
@@ -111,7 +167,13 @@ const handleSaveEdit = async (comment: TopicComment) => {
     <h3 class="text-lg font-semibold">评论</h3>
 
     <div class="space-y-3">
-      <div v-for="comment in comments" :key="comment.id">
+      <!-- Threaded: depth-0 = top-level, depth-1 = a reply (indented one level
+           under its thread root, no connector line). -->
+      <div
+        v-for="{ comment, depth } in threadedComments"
+        :key="comment.id"
+        :class="depth === 1 ? 'ml-9' : ''"
+      >
         <div class="flex items-start space-x-3">
           <KunAvatar :user="comment.user" />
 
@@ -119,7 +181,9 @@ const handleSaveEdit = async (comment: TopicComment) => {
             <div class="flex items-center justify-between">
               <div class="text-sm">
                 <span>{{ comment.user.name }}</span>
-                <span class="text-default-500 mx-1">评论</span>
+                <span class="text-default-500 mx-1">
+                  {{ depth === 1 ? '回复' : '评论' }}
+                </span>
                 <KunLink
                   size="sm"
                   underline="hover"
@@ -214,6 +278,7 @@ const handleSaveEdit = async (comment: TopicComment) => {
             v-if="activeCommentId === comment.id && targetUserForPanel"
             :reply-id="replyId"
             :target-user="targetUserForPanel"
+            :parent-comment-id="parentCommentIdForPanel ?? undefined"
             @get-comment="handleNewComment"
             @close-panel="activeCommentId = null"
           />
@@ -232,6 +297,7 @@ const handleSaveEdit = async (comment: TopicComment) => {
         v-if="targetUserForPanel"
         :reply-id="replyId"
         :target-user="targetUserForPanel"
+        :parent-comment-id="parentCommentIdForPanel ?? undefined"
         @get-comment="handleNewComment"
         @close-panel="activeCommentId = null"
       />

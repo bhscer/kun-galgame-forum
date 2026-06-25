@@ -2,6 +2,9 @@
 const props = defineProps<{
   replyId: number
   targetUser: KunUser
+  // Set when replying to another comment (nested); omitted for a top-level
+  // comment posted on the reply itself.
+  parentCommentId?: number
 }>()
 
 const emits = defineEmits<{
@@ -34,6 +37,7 @@ const handlePublishComment = async () => {
         topicId: topicId,
         replyId: props.replyId,
         targetUserId: props.targetUser.id,
+        parentCommentId: props.parentCommentId,
         content: commentValue.value
       }
     }
