@@ -46,14 +46,19 @@ const onChange = async (next: boolean) => {
 
 <template>
   <KunTooltip text="收藏">
-    <KunReaction
-      v-model="isFavorite"
-      v-model:count="favoriteCount"
-      :disabled="pending"
-      icon="lucide:heart"
-      color="danger"
-      label="收藏"
-      @change="onChange"
-    />
+    <!-- flex span removes the inline line-box so the icon + count sit level with
+         the reaction trigger beside it (mirrors reaction/Trigger.vue) — without
+         it the baseline descender nudges this control up, out of alignment. -->
+    <span class="flex">
+      <KunReaction
+        v-model="isFavorite"
+        v-model:count="favoriteCount"
+        :disabled="pending"
+        icon="lucide:heart"
+        color="danger"
+        label="收藏"
+        @change="onChange"
+      />
+    </span>
   </KunTooltip>
 </template>
