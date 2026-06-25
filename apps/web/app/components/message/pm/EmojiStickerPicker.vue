@@ -5,6 +5,7 @@
 // there's a single source of truth for both. The segmented pill toggle is a
 // deliberately cleaner take than kun-galgame-patch's underlined tab.
 import { emojiArray } from '../../kun/milkdown/plugins/emoji/_isoEmoji'
+import { stickerArray } from '../../kun/milkdown/plugins/sticker/_stickers'
 
 const emit = defineEmits<{
   emoji: [emoji: string]
@@ -12,18 +13,6 @@ const emit = defineEmits<{
 }>()
 
 const tab = ref<'emoji' | 'sticker'>('emoji')
-
-// sticker.kungal.com — sets KUNgal1..6, ids 1..80 (the last set is 6 short).
-// Mirrors the milkdown sticker plugin's generator.
-const stickerArray = (() => {
-  const result: string[] = []
-  for (let set = 1; set <= 6; set++) {
-    for (let id = 1; id <= 80; id++) {
-      result.push(`https://sticker.kungal.com/stickers/KUNgal${set}/${id}.webp`)
-    }
-  }
-  return result.slice(0, -6)
-})()
 </script>
 
 <template>
@@ -84,13 +73,13 @@ const stickerArray = (() => {
         :key="url"
         type="button"
         @click="emit('sticker', url)"
-        class="hover:bg-default-100 rounded-md p-1"
+        class="hover:bg-default-100 aspect-square rounded-md p-1"
       >
         <img
           :src="url"
           alt="sticker"
           loading="lazy"
-          class="aspect-square w-full object-contain"
+          class="size-full object-contain"
         />
       </button>
     </div>
