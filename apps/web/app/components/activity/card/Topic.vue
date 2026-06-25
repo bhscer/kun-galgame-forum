@@ -20,7 +20,15 @@ const hasBadge = computed(() => {
 // best answer stacks below 高赞回复.
 const topReply = computed(() => data.value?.topReply)
 const bestAnswer = computed(() => data.value?.bestAnswer)
-const upvotes = computed(() => data.value?.upvotes ?? [])
+// The feed card shows only the MOST RECENT push (the topic detail lists them
+// all); sort by time so this doesn't depend on the API's ordering.
+const upvotes = computed(() => {
+  const all = data.value?.upvotes ?? []
+  if (all.length <= 1) return all
+  return [...all]
+    .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+    .slice(0, 1)
+})
 const sameReply = computed(
   () =>
     !!bestAnswer.value &&
@@ -248,6 +256,12 @@ provide(
           <div
             class="text-default-500 flex shrink-0 items-center gap-3 text-sm"
           >
+            <span class="flex items-center gap-1">
+              <KunIcon name="lucide:message-square" class="size-4" />
+              {{
+                formatNumber((data?.replyCount ?? 0) + (data?.commentCount ?? 0))
+              }}
+            </span>
             <span class="flex items-center gap-1">
               <KunIcon name="lucide:eye" class="size-4" />
               {{ formatNumber(data?.view ?? 0) }}
