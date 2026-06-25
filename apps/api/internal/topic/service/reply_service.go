@@ -2,12 +2,12 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
 	"kun-galgame-api/internal/constants"
 	"kun-galgame-api/internal/infrastructure/markdown"
+	msgService "kun-galgame-api/internal/message/service"
 	"kun-galgame-api/internal/middleware"
 	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/internal/topic/dto"
@@ -393,7 +393,7 @@ func (s *ReplyService) ToggleReplyReaction(ctx context.Context, userID, replyID 
 			}
 			s.helpers.AdjustMoemoepoint(tx, reply.UserID, 1,
 				moemoepoint.ReasonLiked, moemoepoint.Ref("topic_reply", replyID))
-			link := fmt.Sprintf("/topic/%d", reply.TopicID)
+			link := msgService.BuildTopicLink(reply.TopicID, reply.Floor, 0)
 			createDedupMessage(tx, userID, reply.UserID, "liked",
 				truncate(reply.Content, constants.TextPreviewLength), link)
 		case "dislike":

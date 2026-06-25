@@ -23,6 +23,7 @@ import (
 //   - mentioned → the sender's reply (else comment) on that topic         → ?reply / ?comment
 //   - solution  → the topic's CURRENT best-answer reply                   → ?reply=<floor>
 //   - pin-reply → the topic's CURRENT pinned reply                        → ?reply=<floor>
+//   - liked     → the receiver's reply/comment the sender liked            → ?reply / ?comment
 //
 // Best-effort: a target deleted since (or a best-answer/pin changed since) won't
 // match and the row keeps its /topic/<id> link — still valid, just not deep.
@@ -61,6 +62,24 @@ func main() {
 		  AND c.topic_id = substring(m.link from '^/topic/([0-9]+)$')::int
 		  AND c.created BETWEEN m.created - interval '60 seconds' AND m.created + interval '60 seconds'
 		ORDER BY abs(extract(epoch FROM (c.created - m.created))) LIMIT 1)`
+
+	// A reply / comment by the notification's RECEIVER that the SENDER liked. Like
+	// notifications carry no time signal (the like can land long after the post),
+	// so match through the like tables, not by time. The pre-deep-link dedup
+	// collapsed a user's topic/reply/comment likes into one /topic/<id> row, so
+	// this is best-effort: pick the most recent liked reply (else comment); a like
+	// that was on the TOPIC (no matching reply/comment) finds nothing and stays put.
+	const likedReplyMatch = `(SELECT r.floor FROM topic_reply r
+		JOIN topic_reply_reaction rr ON rr.topic_reply_id = r.id
+		  AND rr.user_id = m.sender_id AND rr.reaction = 'like'
+		WHERE r.topic_id = substring(m.link from '^/topic/([0-9]+)$')::int
+		  AND r.user_id = m.receiver_id
+		ORDER BY r.id DESC LIMIT 1)`
+	const likedCommentMatch = `(SELECT cc.id FROM topic_comment cc
+		JOIN topic_comment_like cl ON cl.topic_comment_id = cc.id AND cl.user_id = m.sender_id
+		WHERE cc.topic_id = substring(m.link from '^/topic/([0-9]+)$')::int
+		  AND cc.user_id = m.receiver_id
+		ORDER BY cc.id DESC LIMIT 1)`
 
 	// Only bare "/topic/<id>" links are candidates (anchored on `$` → never a
 	// link that already carries ?reply=/?comment=).
@@ -104,6 +123,18 @@ func main() {
 			`SELECT count(*) FROM message m JOIN topic t ON t.id = substring(m.link from '^/topic/([0-9]+)$')::int WHERE m.type='pin-reply' AND ` + bare + ` AND t.pinned_reply_id IS NOT NULL`,
 			`UPDATE message m SET link = m.link || '?reply=' || r.floor FROM topic t JOIN topic_reply r ON r.id = t.pinned_reply_id WHERE m.type='pin-reply' AND ` + bare + ` AND t.id = substring(m.link from '^/topic/([0-9]+)$')::int AND t.pinned_reply_id IS NOT NULL`,
 		},
+		{
+			// Reply like → ?reply: the receiver's reply the sender liked.
+			"liked→reply",
+			`SELECT count(*) FROM message m WHERE m.type='liked' AND ` + bare + ` AND ` + likedReplyMatch + ` IS NOT NULL`,
+			`UPDATE message m SET link = m.link || '?reply=' || ` + likedReplyMatch + ` WHERE m.type='liked' AND ` + bare + ` AND ` + likedReplyMatch + ` IS NOT NULL`,
+		},
+		{
+			// Comment like → ?comment: only rows not already matched as a reply like.
+			"liked→comment",
+			`SELECT count(*) FROM message m WHERE m.type='liked' AND ` + bare + ` AND ` + likedReplyMatch + ` IS NULL AND ` + likedCommentMatch + ` IS NOT NULL`,
+			`UPDATE message m SET link = m.link || '?comment=' || ` + likedCommentMatch + ` WHERE m.type='liked' AND ` + bare + ` AND ` + likedReplyMatch + ` IS NULL AND ` + likedCommentMatch + ` IS NOT NULL`,
+		},
 	}
 
 	if *apply {
@@ -137,7 +168,7 @@ func main() {
 	// or best-answer/pin changed) — not recoverable, kept as /topic/<id>.
 	var leftover int64
 	db.Raw(`SELECT count(*) FROM message m WHERE ` + bare +
-		` AND m.type IN ('replied','commented','mentioned','solution','pin-reply')`).Scan(&leftover)
+		` AND m.type IN ('replied','commented','mentioned','solution','pin-reply','liked')`).Scan(&leftover)
 
 	if *apply {
 		fmt.Printf("合计回填 %d 条；仍为话题根链接 %d 条（目标已删除/已变更，无法恢复）。\n", total, leftover)

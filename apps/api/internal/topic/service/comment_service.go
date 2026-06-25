@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"kun-galgame-api/internal/constants"
+	msgService "kun-galgame-api/internal/message/service"
 	"kun-galgame-api/internal/moemoepoint"
 	"kun-galgame-api/internal/topic/dto"
 	topicModel "kun-galgame-api/internal/topic/model"
@@ -198,7 +198,7 @@ func (s *CommentService) ToggleCommentLike(ctx context.Context, userID, commentI
 			s.helpers.AdjustMoemoepoint(tx, comment.UserID, 1,
 				moemoepoint.ReasonLiked, moemoepoint.Ref("topic_comment", commentID))
 
-			link := fmt.Sprintf("/topic/%d", comment.TopicID)
+			link := msgService.BuildTopicLink(comment.TopicID, 0, comment.ID)
 			preview := truncate(comment.Content, constants.TextPreviewLength)
 			createDedupMessage(tx, userID, comment.UserID, "liked", preview, link)
 		} else if findErr == nil {
