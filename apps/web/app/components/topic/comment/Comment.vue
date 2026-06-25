@@ -171,6 +171,7 @@ const handleSaveEdit = async (comment: TopicComment) => {
            under its thread root, no connector line). -->
       <div
         v-for="{ comment, depth } in threadedComments"
+        :id="`comment-${comment.id}`"
         :key="comment.id"
         :class="depth === 1 ? 'ml-9' : ''"
       >

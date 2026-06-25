@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useTopicReplies } from '~/composables/topic/useTopicReplies'
+import { useTopicScroll } from '~/composables/topic/useTopicScroll'
 import { TOPIC_TOC_SOURCE } from '~/composables/topic/useTopicTOC'
 
 const props = defineProps<{
@@ -15,16 +16,60 @@ const {
   replies,
   status,
   isComplete,
+  hasEarlier,
   sortOrder,
   loadInitialReplies,
   loadMore,
+  loadEarlier,
   setSort,
   addNewReply,
   updateReply,
   removeReply
 } = useTopicReplies(props.topic.id)
 
-await loadInitialReplies()
+const route = useRoute()
+const { scrollToFloor, scrollToComment } = useTopicScroll()
+
+// Deep-link target: /topic/:id?reply=<floor> or ?comment=<id> (proper words; the
+// legacy #k<floor> fragment is retired). Locate which reply-stream page it lives
+// on so SSR renders that page directly, then scroll + flash on mount.
+const targetFloor = Number(route.query.reply) || 0
+const targetCommentId = Number(route.query.comment) || 0
+
+let startPage = 1
+if (targetFloor > 0 || targetCommentId > 0) {
+  const located = await kunFetch<{
+    page: number
+    floor: number
+    replyId: number
+    commentId: number
+  }>(`/topic/${props.topic.id}/reply/locate`, {
+    query:
+      targetCommentId > 0 ? { comment: targetCommentId } : { reply: targetFloor }
+  })
+  if (located?.page) {
+    startPage = located.page
+  }
+}
+
+await loadInitialReplies(startPage)
+
+onMounted(() => {
+  if (!targetFloor && !targetCommentId) {
+    return
+  }
+  // The target's page is already in the SSR HTML; let hydration + initial image
+  // layout settle, then scroll + flash. A miss (deleted / off-page) → a hint.
+  setTimeout(() => {
+    const ok =
+      targetCommentId > 0
+        ? scrollToComment(targetCommentId)
+        : scrollToFloor(targetFloor)
+    if (!ok) {
+      useMessage('目标回复或评论可能已被删除', 'info')
+    }
+  }, 300)
+})
 
 provide('topicUserId', props.topic.user.id)
 
@@ -47,20 +92,14 @@ watch(
         addNewReply(event.data)
 
         nextTick(() => {
-          document.getElementById(`k${event.data.floor}`)?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          })
+          scrollToFloor(event.data.floor)
         })
         break
       case 'updated':
         updateReply(event.data)
 
         nextTick(() => {
-          document.getElementById(`k${event.data.floor}`)?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          })
+          scrollToFloor(event.data.floor)
         })
         break
       case 'deleted':
@@ -97,6 +136,14 @@ watch(
       </div>
 
       <section id="reply-section" class="space-y-4">
+        <!-- A deep-link (?reply / ?comment) can land on a later page; let the
+             reader pull in earlier replies (the stream extends upward too). -->
+        <div v-if="hasEarlier && status !== 'pending'" class="text-center">
+          <KunButton size="lg" variant="flat" @click="loadEarlier">
+            加载更早的回复
+          </KunButton>
+        </div>
+
         <div
           v-if="status === 'pending' && replies.length === 0"
           class="flex justify-center py-16"

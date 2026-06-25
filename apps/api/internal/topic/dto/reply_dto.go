@@ -13,6 +13,17 @@ type ListRepliesRequest struct {
 	SortOrder string `query:"sortOrder" validate:"required,oneof=asc desc"`
 }
 
+// ReplyLocateResponse tells the frontend which reply-stream page a deep-link
+// target (a reply floor or a comment id) lives on, so it can load that page
+// directly and scroll to the target. ReplyID is set for a comment target (the
+// reply whose comment panel must open); CommentID echoes the requested comment.
+type ReplyLocateResponse struct {
+	Page      int `json:"page"`
+	Floor     int `json:"floor"`
+	ReplyID   int `json:"replyId"`
+	CommentID int `json:"commentId"`
+}
+
 // Multi-target replies were retired: a reply now carries one body with inline
 // @mention / #quote tokens. The Phase-4 migration folded all legacy
 // topic_reply_target rows into Content, so the read-side target response is gone.

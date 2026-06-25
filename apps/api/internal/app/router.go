@@ -208,6 +208,7 @@ func (a *App) setupRoutes() {
 	optAuth.Get("/topic/:tid/reaction/history", a.TopicHandler.GetTopicReactionHistory)
 	optAuth.Get("/topic/:tid/reply", a.ReplyHandler.GetReplies)
 	optAuth.Get("/topic/:tid/reply/detail", a.ReplyHandler.GetReplyDetail)
+	optAuth.Get("/topic/:tid/reply/locate", a.ReplyHandler.GetReplyLocate)
 	optAuth.Get("/topic/:tid/poll/topic", a.PollHandler.GetPollsByTopic)
 	optAuth.Get("/topic/:tid/poll/log", a.PollHandler.GetVoteLog)
 

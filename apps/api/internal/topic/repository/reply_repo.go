@@ -76,6 +76,49 @@ func (r *ReplyRepository) FindRepliesPaginated(
 	return rows, err
 }
 
+// LocateReplyPageByFloor returns the 1-based page (limit per page) the reply at
+// `floor` lives on, in the canonical asc-by-floor order: ceil(rank/limit) where
+// rank = number of replies in the topic with floor <= F. Robust to hard-deleted
+// floors (gaps) since those rows are simply absent from the count, so it stays
+// correct regardless of how many earlier replies were removed.
+func (r *ReplyRepository) LocateReplyPageByFloor(topicID, floor, limit int) (int, error) {
+	if limit <= 0 {
+		limit = 30
+	}
+	var count int64
+	err := r.db.Model(&model.TopicReply{}).
+		Where("topic_id = ? AND floor <= ?", topicID, floor).
+		Count(&count).Error
+	if err != nil {
+		return 1, err
+	}
+	if count <= 0 {
+		return 1, nil
+	}
+	return int((count-1)/int64(limit)) + 1, nil
+}
+
+// FindReplyFloorByCommentID resolves a comment id to its parent reply's floor + id
+// (scoped to topicID). ok=false when the comment (or its reply) no longer exists.
+func (r *ReplyRepository) FindReplyFloorByCommentID(topicID, commentID int) (floor int, replyID int, ok bool, err error) {
+	var row struct {
+		Floor int
+		ID    int
+	}
+	e := r.db.Table("topic_comment c").
+		Select("r.floor AS floor, r.id AS id").
+		Joins("JOIN topic_reply r ON r.id = c.topic_reply_id").
+		Where("c.id = ? AND c.topic_id = ?", commentID, topicID).
+		Scan(&row).Error
+	if e != nil {
+		return 0, 0, false, e
+	}
+	if row.ID == 0 {
+		return 0, 0, false, nil
+	}
+	return row.Floor, row.ID, true, nil
+}
+
 func (r *ReplyRepository) FindRepliesByIDs(ids []int) ([]ReplyRow, error) {
 	if len(ids) == 0 {
 		return nil, nil

@@ -50,6 +50,42 @@ func NewReplyService(
 }
 
 // ──────────────────────────────────────────
+// Locate (deep-link)
+// ──────────────────────────────────────────
+
+// LocateReply resolves a deep-link target — a reply floor OR a comment id — to the
+// reply-stream page it lives on, so the frontend can load that page directly and
+// scroll to it. commentID wins: its parent reply's floor is resolved first. Returns
+// ErrNotFound when a comment target no longer exists; a deleted reply floor just
+// yields the page where it would sit (the frontend gracefully no-ops the scroll).
+func (s *ReplyService) LocateReply(topicID, floor, commentID, limit int) (*dto.ReplyLocateResponse, *errors.AppError) {
+	replyID := 0
+	if commentID > 0 {
+		f, rid, ok, err := s.replyRepo.FindReplyFloorByCommentID(topicID, commentID)
+		if err != nil {
+			return nil, errors.ErrInternal("定位评论失败")
+		}
+		if !ok {
+			return nil, errors.ErrNotFound("评论不存在或已删除")
+		}
+		floor, replyID = f, rid
+	}
+	if floor <= 0 {
+		return nil, errors.ErrBadRequest("缺少 reply 或 comment 参数")
+	}
+	page, err := s.replyRepo.LocateReplyPageByFloor(topicID, floor, limit)
+	if err != nil {
+		return nil, errors.ErrInternal("定位回复失败")
+	}
+	return &dto.ReplyLocateResponse{
+		Page:      page,
+		Floor:     floor,
+		ReplyID:   replyID,
+		CommentID: commentID,
+	}, nil
+}
+
+// ──────────────────────────────────────────
 // List replies
 // ──────────────────────────────────────────
 

@@ -57,6 +57,29 @@ func (h *ReplyHandler) GetReplyDetail(c *fiber.Ctx) error {
 	return response.OK(c, detail)
 }
 
+// GetReplyLocate resolves a deep-link target (a reply floor or a comment id) to
+// the reply-stream page it lives on, so the frontend can load that page directly
+// and scroll to it.
+// GET /api/topic/:tid/reply/locate?reply=<floor> | ?comment=<commentId>
+func (h *ReplyHandler) GetReplyLocate(c *fiber.Ctx) error {
+	topicID, err := strconv.Atoi(c.Params("tid"))
+	if err != nil {
+		return response.Error(c, errors.ErrBadRequest("无效的话题 ID"))
+	}
+	floor, _ := strconv.Atoi(c.Query("reply"))
+	commentID, _ := strconv.Atoi(c.Query("comment"))
+	if floor <= 0 && commentID <= 0 {
+		return response.Error(c, errors.ErrBadRequest("缺少 reply 或 comment 参数"))
+	}
+
+	res, appErr := h.replyService.LocateReply(topicID, floor, commentID, 30)
+	if appErr != nil {
+		return response.Error(c, appErr)
+	}
+
+	return response.OK(c, res)
+}
+
 // CreateReply creates a new reply to a topic.
 // POST /api/topic/:tid/reply
 func (h *ReplyHandler) CreateReply(c *fiber.Ctx) error {
