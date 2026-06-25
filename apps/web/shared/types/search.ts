@@ -25,6 +25,8 @@ export interface SearchResultReply {
 // `targetUser` is the "comment-chain parent" — BE `CommentItem`
 // doesn't carry it today; FE guards rendering with v-if.
 export type SearchResultComment = {
+  // Comment id → deep-link to it (/topic/:id?comment=<id>).
+  id: number
   topicId: number
   topicTitle: string
   content: string

@@ -59,6 +59,8 @@ export interface UserGalgameResource {
 
 export interface UserReply {
   topicId: number
+  // Floor → deep-link to this reply (/topic/:id?reply=<floor>).
+  floor: number
   content: string
   created: Date | string
 }
@@ -69,6 +71,8 @@ export interface UserGetUserReplyRequestData {
 }
 
 export interface UserComment {
+  // Comment id → deep-link to it (/topic/:id?comment=<id>).
+  id: number
   topicId: number
   content: string
   created: Date | string

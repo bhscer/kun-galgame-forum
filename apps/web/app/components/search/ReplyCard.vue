@@ -8,7 +8,7 @@ defineProps<{
   <KunLink
     color="default"
     underline="none"
-    :to="`/topic/${reply.topicId}`"
+    :to="replyPermalink(`/topic/${reply.topicId}`, reply.floor)"
     class="flex-col items-start"
   >
     <div class="flex items-center gap-2">

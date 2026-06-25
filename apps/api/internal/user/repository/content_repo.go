@@ -203,7 +203,9 @@ func (r *UserContentRepository) FindUserTopics(userID int, queryType string, pag
 // ──────────────────────────────────────────
 
 type UserReply struct {
-	TopicID int    `gorm:"column:topic_id" json:"topicId"`
+	TopicID int `gorm:"column:topic_id" json:"topicId"`
+	// Floor anchors the deep-link to this reply (/topic/:id?reply=<floor>).
+	Floor   int    `gorm:"column:floor" json:"floor"`
 	Content string `gorm:"column:content" json:"content"`
 	Created string `gorm:"column:created" json:"created"`
 }
@@ -222,6 +224,7 @@ func (r *UserContentRepository) FindUserReplies(userID int, queryType string, pa
 	// folded into it by the Phase-4 migration).
 	baseQuery := r.db.Table("topic_reply").
 		Select(`topic_reply.topic_id,
+			topic_reply.floor,
 			COALESCE(topic_reply.content, '') AS content,
 			topic_reply.created`)
 
@@ -255,6 +258,8 @@ func (r *UserContentRepository) FindUserReplies(userID int, queryType string, pa
 // ──────────────────────────────────────────
 
 type UserComment struct {
+	// ID anchors the deep-link to this comment (/topic/:id?comment=<id>).
+	ID      int    `gorm:"column:id" json:"id"`
 	TopicID int    `gorm:"column:topic_id" json:"topicId"`
 	Content string `gorm:"column:content" json:"content"`
 	Created string `gorm:"column:created" json:"created"`
@@ -267,7 +272,7 @@ func (r *UserContentRepository) FindUserComments(userID int, queryType string, p
 	var total int64
 
 	baseQuery := r.db.Table("topic_comment").
-		Select("topic_comment.topic_id, topic_comment.content, topic_comment.created")
+		Select("topic_comment.id, topic_comment.topic_id, topic_comment.content, topic_comment.created")
 
 	switch queryType {
 	case "comment_target":

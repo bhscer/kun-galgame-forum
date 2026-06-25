@@ -40,7 +40,7 @@ const { data, status } = await useKunFetch<{
       <KunCard
         v-for="(comment, index) in data.comments"
         :key="index"
-        :href="`/topic/${comment.topicId}`"
+        :href="commentPermalink(`/topic/${comment.topicId}`, comment.id)"
       >
         <div>
           {{ comment.content }}

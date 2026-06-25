@@ -40,7 +40,7 @@ const { data, status } = await useKunFetch<{
       <KunCard
         v-for="(reply, index) in data.replies"
         :key="index"
-        :href="`/topic/${reply.topicId}`"
+        :href="replyPermalink(`/topic/${reply.topicId}`, reply.floor)"
       >
         <div>
           {{ markdownToText(reply.content) }}
