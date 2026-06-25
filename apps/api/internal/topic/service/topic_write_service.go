@@ -186,8 +186,9 @@ func (s *TopicWriteService) Create(
 			mpReason = moemoepoint.ReasonContentRemoved
 		}
 		s.helpers.AdjustMoemoepoint(tx, userID, pointsDelta, mpReason, moemoepoint.Ref("topic", topic.ID))
-		// @mentions in the topic body → "mentioned" notifications (deduped, self skip).
-		s.helpers.NotifyMentions(tx, userID, topic.ID, req.Content)
+		// @mentions in the topic body → "mentioned" notifications (deduped, self
+		// skip). Topic-level target (0/0) — links to the topic root.
+		s.helpers.NotifyMentions(tx, userID, topic.ID, 0, 0, req.Content)
 		return nil
 	})
 
@@ -293,8 +294,8 @@ func (s *TopicWriteService) Update(
 		}
 
 		// @mentions in the edited topic body → notify newly mentioned users
-		// (deduped, so existing mentions aren't re-notified on edit).
-		s.helpers.NotifyMentions(tx, userID, topicID, req.Content)
+		// (deduped, so existing mentions aren't re-notified on edit). Topic-level.
+		s.helpers.NotifyMentions(tx, userID, topicID, 0, 0, req.Content)
 
 		return nil
 	})
@@ -392,7 +393,7 @@ func (s *TopicWriteService) ToggleReaction(ctx context.Context, userID, topicID 
 			s.helpers.AdjustMoemoepoint(tx, topic.UserID, 1,
 				moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
 			s.helpers.CreateTopicMessageWithContent(tx, userID, topic.UserID, "liked",
-				truncate(topic.Title, constants.TextPreviewLength), topicID)
+				truncate(topic.Title, constants.TextPreviewLength), topicID, 0, 0)
 		case "dislike":
 			if err := s.clearTopicReaction(tx, topicID, userID, "like", topic.UserID); err != nil {
 				return err
@@ -491,7 +492,7 @@ func (s *TopicWriteService) Upvote(ctx context.Context, userID, topicID int, des
 		s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardUpvoteOwner,
 			moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic_upvote", topicID))
 		s.helpers.CreateTopicMessageWithContent(tx, userID, topic.UserID, "upvoted",
-			truncate(topic.Title, constants.TextPreviewLength), topicID)
+			truncate(topic.Title, constants.TextPreviewLength), topicID, 0, 0)
 		return nil
 	})
 
@@ -533,7 +534,7 @@ func (s *TopicWriteService) ToggleFavorite(ctx context.Context, userID, topicID 
 				s.helpers.AdjustMoemoepoint(tx, topic.UserID, 1,
 					moemoepoint.ReasonLiked, moemoepoint.Ref("topic", topicID))
 				s.helpers.CreateTopicMessageWithContent(tx, userID, topic.UserID, "favorite",
-					truncate(topic.Title, constants.TextPreviewLength), topicID)
+					truncate(topic.Title, constants.TextPreviewLength), topicID, 0, 0)
 			}
 		} else if findErr == nil {
 			if err := s.topicRepo.DeleteTopicFavorite(tx, existing); err != nil {
@@ -639,6 +640,7 @@ func (s *TopicWriteService) SetBestAnswer(ctx context.Context, userID, role, top
 				Kind:       msgService.NotifySolution,
 				Content:    replyPlainPreview(reply),
 				TopicID:    topicID,
+				ReplyFloor: reply.Floor,
 			})
 		}
 		return nil

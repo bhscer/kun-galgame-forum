@@ -93,7 +93,7 @@ func (s *CommentService) CreateComment(
 				moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic_reply", replyID))
 
 			preview := truncate(content, constants.TextPreviewLength)
-			s.helpers.CreateReplyMessage(tx, userID, targetUserID, "commented", preview, topicID)
+			s.helpers.CreateReplyMessage(tx, userID, targetUserID, "commented", preview, topicID, 0, comment.ID)
 		}
 		return nil
 	})

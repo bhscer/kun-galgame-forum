@@ -6,6 +6,7 @@ import (
 	"kun-galgame-api/internal/constants"
 	"kun-galgame-api/internal/infrastructure/markdown"
 	msgModel "kun-galgame-api/internal/message/model"
+	msgService "kun-galgame-api/internal/message/service"
 	"kun-galgame-api/internal/moemoepoint"
 
 	"gorm.io/gorm"
@@ -43,18 +44,19 @@ func (InteractionHelpers) CreateTopicMessage(tx *gorm.DB, senderID, receiverID i
 	createDedupMessage(tx, senderID, receiverID, msgType, "", link)
 }
 
-// CreateTopicMessageWithContent is like CreateTopicMessage but stores a
-// content preview (used for reply/comment like notifications).
+// CreateTopicMessageWithContent is like CreateTopicMessage but stores a content
+// preview. replyFloor/commentID deep-link the notification to a specific post
+// (pin-reply / a reply-or-comment mention); pass 0/0 for a topic-level target.
 func (InteractionHelpers) CreateTopicMessageWithContent(
 	tx *gorm.DB,
 	senderID, receiverID int,
 	msgType, content string,
-	topicID int,
+	topicID, replyFloor, commentID int,
 ) {
 	if senderID == receiverID || receiverID <= 0 {
 		return
 	}
-	link := fmt.Sprintf("/topic/%d", topicID)
+	link := msgService.BuildTopicLink(topicID, replyFloor, commentID)
 	createDedupMessage(tx, senderID, receiverID, msgType, content, link)
 }
 
@@ -65,12 +67,12 @@ func (InteractionHelpers) CreateReplyMessage(
 	tx *gorm.DB,
 	senderID, receiverID int,
 	msgType, content string,
-	topicID int,
+	topicID, replyFloor, commentID int,
 ) {
 	if senderID == receiverID || receiverID <= 0 {
 		return
 	}
-	link := fmt.Sprintf("/topic/%d", topicID)
+	link := msgService.BuildTopicLink(topicID, replyFloor, commentID)
 	tx.Create(&msgModel.Message{
 		SenderID:   senderID,
 		ReceiverID: receiverID,
@@ -82,18 +84,20 @@ func (InteractionHelpers) CreateReplyMessage(
 }
 
 // NotifyMentions emits a deduped "mentioned" notification to every user
-// @mentioned in `content` (a topic / reply / comment body). Because the dedup key
-// is (sender, receiver, "mentioned", /topic/<id>), each mentioned user is
-// notified once per topic per sender — so re-editing the post, or @ing the same
-// person twice, won't spam; a self-mention is skipped. Call inside the write tx.
-// Dormant until content actually carries kungal-user tokens (editor / migration).
-func (h InteractionHelpers) NotifyMentions(tx *gorm.DB, senderID, topicID int, content string) {
+// @mentioned in `content` (a topic or reply body). replyFloor deep-links the
+// notification to the mentioning reply (?reply=<floor>); pass 0 for a topic-body
+// mention (topic root). commentID is reserved for comment-body mentions (none are
+// wired today). Because the dedup key is (sender, receiver, "mentioned", link),
+// each mentioned user is notified once per TARGET per sender — re-editing the same
+// post, or @ing the same person twice in it, won't spam; a self-mention is
+// skipped. Call inside the write tx.
+func (h InteractionHelpers) NotifyMentions(tx *gorm.DB, senderID, topicID, replyFloor, commentID int, content string) {
 	// Preview = the reply text with the @/# reference tokens stripped, so the
 	// recipient sees what was actually said. A bare mention (no body) yields ""
 	// → the frontend falls back to the generic "提到了您".
 	preview := truncate(markdown.StripReferenceTokens(content), constants.TextPreviewLength)
 	for _, uid := range markdown.ExtractMentionIDs(content) {
-		h.CreateTopicMessageWithContent(tx, senderID, uid, "mentioned", preview, topicID)
+		h.CreateTopicMessageWithContent(tx, senderID, uid, "mentioned", preview, topicID, replyFloor, commentID)
 	}
 }
 

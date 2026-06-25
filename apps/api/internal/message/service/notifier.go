@@ -42,7 +42,12 @@ type Spec struct {
 	Kind       NotifyKind
 	Content    string
 
-	TopicID    int
+	TopicID int
+	// ReplyFloor / CommentID deep-link a topic notification to the exact reply
+	// (?reply=<floor>) or comment (?comment=<id>) rather than the topic root.
+	// Only meaningful alongside TopicID; comment takes precedence (BuildTopicLink).
+	ReplyFloor int
+	CommentID  int
 	GalgameID  int
 	ToolsetID  int
 	WebsiteURL string
@@ -110,10 +115,25 @@ func (n *notifier) EmitMany(tx *gorm.DB, specs []Spec) error {
 	return nil
 }
 
+// BuildTopicLink renders a topic notification/feed link, deep-linking to a
+// specific post when given one: a comment (?comment=<id>) takes precedence over
+// a reply (?reply=<floor>); with neither it's the bare topic root. The query-param
+// form matches the reply/comment permalinks the topic page resolves via /locate.
+func BuildTopicLink(topicID, replyFloor, commentID int) string {
+	switch {
+	case commentID > 0:
+		return fmt.Sprintf("/topic/%d?comment=%d", topicID, commentID)
+	case replyFloor > 0:
+		return fmt.Sprintf("/topic/%d?reply=%d", topicID, replyFloor)
+	default:
+		return fmt.Sprintf("/topic/%d", topicID)
+	}
+}
+
 func buildNotifyLink(spec Spec) string {
 	switch {
 	case spec.TopicID > 0:
-		return fmt.Sprintf("/topic/%d", spec.TopicID)
+		return BuildTopicLink(spec.TopicID, spec.ReplyFloor, spec.CommentID)
 	case spec.GalgameID > 0:
 		return fmt.Sprintf("/galgame/%d", spec.GalgameID)
 	case spec.ToolsetID > 0:

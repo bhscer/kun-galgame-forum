@@ -205,14 +205,14 @@ func (s *ReplyService) CreateReply(
 		if topic.UserID != userID {
 			s.helpers.AdjustMoemoepoint(tx, topic.UserID, constants.RewardReply,
 				moemoepoint.ReasonContentApproved, moemoepoint.Ref("topic", req.TopicID))
-			s.helpers.CreateReplyMessage(tx, userID, topic.UserID, "replied", preview, req.TopicID)
+			s.helpers.CreateReplyMessage(tx, userID, topic.UserID, "replied", preview, req.TopicID, newReply.Floor, 0)
 		}
 
 		// @mentions in the reply body → "mentioned" notifications (deduped, self
 		// skipped). Replying-to-a-floor now flows through here: the 「引用」 button
 		// inserts an @mention of the quoted author, so they're notified as
 		// "mentioned" in place of the retired per-target "replied".
-		s.helpers.NotifyMentions(tx, userID, req.TopicID, req.Content)
+		s.helpers.NotifyMentions(tx, userID, req.TopicID, newReply.Floor, 0, req.Content)
 
 		return nil
 	})
@@ -261,7 +261,7 @@ func (s *ReplyService) UpdateReply(
 
 		// @mentions in the edited reply → notify newly mentioned users (deduped,
 		// so anyone already mentioned in this topic isn't re-notified on edit).
-		s.helpers.NotifyMentions(tx, userID, reply.TopicID, req.Content)
+		s.helpers.NotifyMentions(tx, userID, reply.TopicID, reply.Floor, 0, req.Content)
 
 		return nil
 	})
@@ -478,7 +478,7 @@ func (s *ReplyService) PinReply(ctx context.Context, userID, role, topicID, repl
 			s.helpers.CreateTopicMessageWithContent(
 				tx, userID, reply.UserID, "pin-reply",
 				replyPlainPreview(*reply),
-				topicID,
+				topicID, reply.Floor, 0,
 			)
 		}
 		return nil
