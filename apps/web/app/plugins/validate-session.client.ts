@@ -15,5 +15,13 @@ export default defineNuxtPlugin((nuxtApp) => {
   // Fire-and-forget so we don't delay hydration. runWithContext keeps the Nuxt
   // composables used inside kunFetch / handleApiError valid across the async
   // continuation (useRuntimeConfig / navigateTo / useMessage).
-  nuxtApp.runWithContext(() => kunFetch('/user/status'))
+  //
+  // Same load-time hook also revalidates the display fields (name / avatar /
+  // role / roles) via /auth/me: they're written once at login and /user/status
+  // doesn't carry them, so without this a profile change made elsewhere stays
+  // stale until logout. useRefreshMe throttles + dedupes. See useRefreshMe.
+  nuxtApp.runWithContext(() => {
+    kunFetch('/user/status')
+    useRefreshMe().refreshMe()
+  })
 })

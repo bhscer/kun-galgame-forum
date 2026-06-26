@@ -35,6 +35,26 @@ export const usePersistUserStore = defineStore(
       dailyToolsetUploadBytes.value = user.dailyToolsetUploadBytes
     }
 
+    // Merge ONLY the display fields /auth/me returns fresh (name / avatar /
+    // role / roles) — used by the SWR revalidation (useRefreshMe). Unlike
+    // setUserInfo it deliberately leaves the /user/status-owned fields
+    // (moemoepoint / isCheckIn / isCreator / dailyToolsetUploadBytes) untouched,
+    // so a background refetch can't reset them to their login-time defaults.
+    const setProfileInfo = (profile: {
+      name: string
+      avatar: string
+      role: number
+      roles: string[]
+    }) => {
+      name.value = profile.name
+      avatar.value = profile.avatar
+      avatarMin.value = profile.avatar
+        ? withImageVariant(profile.avatar, '100')
+        : ''
+      role.value = profile.role
+      roles.value = profile.roles
+    }
+
     const resetUser = () => {
       id.value = 0
       sub.value = ''
@@ -62,6 +82,7 @@ export const usePersistUserStore = defineStore(
       isCheckIn,
       dailyToolsetUploadBytes,
       setUserInfo,
+      setProfileInfo,
       resetUser
     }
   },
