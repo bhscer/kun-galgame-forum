@@ -134,7 +134,16 @@ useIntersectionObserver(
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+  <!-- Grid (not flex) so all column tracks exist the moment the container is
+       parsed, BEFORE the children stream in. The right track is reserved empty
+       up front, so on a slow connection the center feed can't grow into it and
+       then reflow when the aside finally arrives — kills the layout shift. The
+       track widths mirror the children (7rem=w-28 rail, 18/20rem=w-72/80 aside,
+       1fr center). `display:none` children (mobile tabs / hidden rails) don't
+       occupy a track, so the mobile→sm→lg responsive steps are unchanged. -->
+  <div
+    class="grid grid-cols-1 items-start gap-4 sm:grid-cols-[7rem_minmax(0,1fr)] lg:grid-cols-[7rem_minmax(0,1fr)_18rem] xl:grid-cols-[7rem_minmax(0,1fr)_20rem]"
+  >
     <!-- Mobile: horizontal underline tabs on top. `scrollable` (not full-width)
          so the user-configurable tab set scrolls sideways instead of overflowing
          the viewport once there are more tabs than fit. -->
@@ -150,7 +159,7 @@ useIntersectionObserver(
 
     <!-- Desktop: vertical underline tab rail on the left (like the settings
          panel). Sticky so it stays put while the center feed scrolls. -->
-    <div class="sticky top-20 hidden shrink-0 self-start sm:block sm:w-28">
+    <div class="sticky top-20 hidden self-start sm:block">
       <KunTab
         v-model="activeTab"
         :items="tabItems"
@@ -162,7 +171,7 @@ useIntersectionObserver(
       />
     </div>
 
-    <div class="min-w-0 flex-1">
+    <div class="min-w-0">
       <KunNull
         v-if="status !== 'pending' && !items.length"
         description="暂无动态"
@@ -202,7 +211,7 @@ useIntersectionObserver(
          pinned to the bottom. Sticky + viewport-tall so it stays fixed while the
          center feed scrolls; fixed width keeps the feed the focus (~65-70%). -->
     <aside
-      class="sticky top-20 hidden h-[calc(100dvh-6rem)] shrink-0 flex-col self-start lg:flex lg:w-72 xl:w-80"
+      class="sticky top-20 hidden h-[calc(100dvh-6rem)] flex-col self-start lg:flex"
     >
       <div class="space-y-4">
         <HomeCarousel />

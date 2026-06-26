@@ -595,6 +595,13 @@
   "eslint.useFlatConfig": true,
   "css.customData": [".vscode/tailwind.json"],
   "typescript.tsdk": "node_modules/typescript/lib",
+  // Force Volar hybrid mode so the editor uses the TS server's project system
+  // (the same engine `vue-tsc -b` uses) instead of Volar's own program, which
+  // mishandles Nuxt 4's solution-style tsconfig (references + "files": []) and
+  // collapses useKunFetch<T> generics to `{}` (spurious TS2339 everywhere).
+  // 'auto' (the default) can silently turn hybrid mode OFF; pinning it true
+  // keeps editor diagnostics == vue-tsc (run `pnpm typecheck` = source of truth).
+  "vue.server.hybridMode": true,
   "[prisma]": {
     "editor.defaultFormatter": "Prisma.prisma"
   }
