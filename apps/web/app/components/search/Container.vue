@@ -26,11 +26,15 @@ const isLoadComplete = computed(
   () => total.value > 0 && results.value.length >= total.value
 )
 
-const searchQuery = async (): Promise<SearchPage> => {
+const searchQuery = async (searchType?: string): Promise<SearchPage> => {
   isLoading.value = true
   const result = await kunFetch<SearchPage>('/search', {
     method: 'GET',
-    query: { keywords: keywords.value, type: activeType.value, ...pageData }
+    query: {
+      keywords: keywords.value,
+      type: searchType || activeType.value,
+      ...pageData
+    }
   })
   isLoading.value = false
   return result ?? { items: [], total: 0 }
@@ -43,7 +47,7 @@ const handleSetType = async (value: SearchType) => {
   total.value = 0
 
   if (keywords.value) {
-    const page = await searchQuery()
+    const page = await searchQuery(value)
     results.value = page.items
     total.value = page.total
   } else {
@@ -77,7 +81,7 @@ const handleLoadMore = async () => {
 </script>
 
 <template>
-  <div class="space-y-6 min-h-[calc(100dvh-6rem)]">
+  <div class="min-h-[calc(100dvh-6rem)] space-y-6">
     <KunHeader
       name="搜索"
       description="您可以在本页面搜索本论坛的所有话题, Galgame, 用户, 回复, 评论。"
